@@ -2,6 +2,8 @@
 
 A cross-platform command line tool for content analysis. Built on top of [Apache Tika](https://tika.apache.org/).
 
+Extract streams the output from Tika instead of bufferring it all into memory before writing. This allows it to operate on very large files without memory issues.
+
 ## Compiling ##
 
 Requires [JDK 8](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html) and Maven:
