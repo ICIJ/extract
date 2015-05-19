@@ -61,7 +61,7 @@ public class Cli {
 		if (cmd.hasOption('v')) {
 			logger.setLevel(Level.parse((String) cmd.getOptionValue('v')));
 		} else {
-			logger.setLevel(Lever.SEVERE);
+			logger.setLevel(Level.SEVERE);
 		}
 
 		if (cmd.hasOption('h')) {
@@ -88,12 +88,17 @@ public class Cli {
 			directory = ".";
 		}
 
-		Consumer consumer = new Consumer(logger);
-		Queue queue = null;
+		Spewer spewer;
 
 		if (cmd.hasOption('o')) {
-			consumer.setOutputDirectory(Paths.get((String) cmd.getOptionValue('o')));
+			spewer = new FileSpewer(logger);
+			((FileSpewer) spewer).setOutputDirectory(Paths.get((String) cmd.getOptionValue('o')));
+		} else {
+			spewer = new StdOutSpewer();
 		}
+
+		Consumer consumer = new Consumer(logger, spewer);
+		Queue queue = null;
 
 		if (cmd.hasOption('e')) {
 			consumer.setOutputEncoding((String) cmd.getOptionValue('e'));
