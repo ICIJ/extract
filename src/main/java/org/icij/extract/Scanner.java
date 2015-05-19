@@ -2,12 +2,15 @@ package org.icij.extract;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.Set;
+import java.util.EnumSet;
 
 import java.io.IOException;
 
 import java.nio.file.Path;
 import java.nio.file.Files;
 import java.nio.file.SimpleFileVisitor;
+import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
 import java.nio.file.PathMatcher;
 import java.nio.file.FileSystems;
@@ -24,15 +27,28 @@ public class Scanner {
 	private final Logger logger;
 
 	private final Queue queue;
-	private PathMatcher matcher;
+
+	private PathMatcher includeMatcher;
+	private PathMatcher excludeMatcher;
+
+	private int maxDepth = Integer.MAX_VALUE;
+	private boolean followLinks = false;
 
 	public Scanner(Logger logger, Queue queue) {
 		this.logger = logger;
 		this.queue = queue;
 	}
 
-	public void setGlob(String pattern) {
-		matcher = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
+	public void setIncludeGlob(String pattern) {
+		includeMatcher = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
+	}
+
+	public void setExcludeGlob(String pattern) {
+		excludeMatcher = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
+	}
+
+	public void followSymLinks() {
+		followLinks = true;
 	}
 
 	public void scan(Path path) throws IOException {
@@ -44,22 +60,35 @@ public class Scanner {
 	}
 
 	private void scanDirectory(Path path) throws IOException {
+		Set<FileVisitOption> options = null;
 
-		// TODO: By default, symlinks are not followed. Add support for allowing them to be followed by specifying `Set<FileVisitOption> options` as an argument.
-		Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
+		if (followLinks) {
+			options = EnumSet.of(FileVisitOption.FOLLOW_LINKS);
+		} else {
+			options = EnumSet.noneOf(FileVisitOption.class);
+		}
+
+		Files.walkFileTree(path, options, maxDepth, new SimpleFileVisitor<Path>() {
 			@Override
 			public FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attrs) throws IOException {
+				if (null != excludeMatcher && excludeMatcher.matches(directory)) {
+					return FileVisitResult.SKIP_SUBTREE;
+				}
 
-				// TODO: Support a pattern for excluding directories, returning SKIP_SUBTREE if matching.
 				return FileVisitResult.CONTINUE;
 			}
 
 			@Override
 			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-				if (null == matcher || matcher.matches(file.getFileName())) {
-					queue.queue(file);
+				if (null != includeMatcher && !includeMatcher.matches(file)) {
+					return FileVisitResult.CONTINUE;
 				}
 
+				if (null != excludeMatcher && excludeMatcher.matches(file)) {
+					return FileVisitResult.CONTINUE;
+				}
+
+				queue.queue(file);
 				return FileVisitResult.CONTINUE;
 			}
 

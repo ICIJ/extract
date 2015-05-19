@@ -36,7 +36,9 @@ public class Cli {
 			.addOption("d", "directory", true, "Directory to scan for documents. Defaults to the current directory.")
 			.addOption("o", "output", true, "Directory to output extracted text. Defaults to outputting to standard output.")
 			.addOption("e", "encoding", true, "Set Tika's output encoding. Defaults to UTF-8.")
-			.addOption("g", "glob", true, "Glob pattern for matching files e.g. \"*.{tif,pdf}\".")
+			.addOption("i", "include", true, "Glob pattern for matching files e.g. \"*.{tif,pdf}\". Files not matching the pattern will be ignored.")
+			.addOption("x", "exclude", true, "Glob pattern for excluding files and directories. Files and directories matching the pattern will be ignored.")
+			.addOption("f", "follow", false, "Follow symbolic links when scanning for documents.")
 			.addOption("l", "language", true, "Set the language used by Tesseract. Defaults to \"eng\".")
 			.addOption("a", "detect-language", false, "Guess the language of text extracted via OCR using Tika's language detection, running the OCR a second time if a new language is detected.")
 			.addOption("v", "verbosity", true, "Set the log level. Either \"SEVERE\", \"WARNING\" or \"INFO\".")
@@ -109,8 +111,16 @@ public class Cli {
 		final String directory = (String) cmd.getOptionValue('d', ".");
 		final Scanner scanner = new Scanner(logger, queue);
 
-		if (cmd.hasOption('g')) {
-			scanner.setGlob((String) cmd.getOptionValue('g'));
+		if (cmd.hasOption('i')) {
+			scanner.setIncludeGlob((String) cmd.getOptionValue('i'));
+		}
+
+		if (cmd.hasOption('x')) {
+			scanner.setExcludeGlob((String) cmd.getOptionValue('x'));
+		}
+
+		if (cmd.hasOption('f')) {
+			scanner.followSymLinks();
 		}
 
 		job = new Runnable() {
