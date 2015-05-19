@@ -1,5 +1,7 @@
 package org.icij.extract;
 
+import java.lang.Runnable;
+
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -23,8 +25,8 @@ import java.nio.file.Paths;
  */
 public class Cli {
 	private static final Logger logger = Logger.getLogger(Cli.class.getName());
-	private String[] args = null;
-	private Options options = new Options();
+	private final String[] args;
+	private final Options options = new Options();
 
 	public Cli(String[] args) {
 		this.args = args;
@@ -45,17 +47,17 @@ public class Cli {
 				.create("t"));
 	}
 
-	public void parse() {
+	public Runnable parse() throws ParseException {
 		final CommandLineParser parser = new BasicParser();
 
 		CommandLine cmd = null;
+		Runnable job = null;
 
 		try {
 			cmd = parser.parse(options, args);
 		} catch (ParseException e) {
 			logger.log(Level.SEVERE, "Failed to parse command line arguments.", e);
-			help();
-			System.exit(1);
+			throw e;
 		}
 
 		if (cmd.hasOption('v')) {
@@ -66,26 +68,18 @@ public class Cli {
 
 		if (cmd.hasOption('h')) {
 			help();
-			return;
+			return job;
 		}
 
-		Number threads = null;
+		int threads = Queue.DEFAULT_THREADS;
 
 		if (cmd.hasOption('t')) {
 			try {
-				threads = (Number) cmd.getParsedOptionValue("t");
+				threads = ((Number) cmd.getParsedOptionValue("t")).intValue();
 			} catch (ParseException e) {
 				logger.log(Level.SEVERE, "Invalid value for thread count.", e);
-				System.exit(1);
+				throw e;
 			}
-		}
-
-		String directory = null;
-
-		if (cmd.hasOption('d')) {
-			directory = (String) cmd.getOptionValue('d');
-		} else {
-			directory = ".";
 		}
 
 		Spewer spewer;
@@ -97,8 +91,8 @@ public class Cli {
 			spewer = new StdOutSpewer();
 		}
 
-		Consumer consumer = new Consumer(logger, spewer);
-		Queue queue = null;
+		final Consumer consumer = new Consumer(logger, spewer);
+		final Queue queue = new Queue(logger, consumer, threads);
 
 		if (cmd.hasOption('e')) {
 			consumer.setOutputEncoding((String) cmd.getOptionValue('e'));
@@ -112,28 +106,30 @@ public class Cli {
 			consumer.detectLanguageForOcr();
 		}
 
-		if (null != threads) {
-			queue = new Queue(logger, consumer, threads);
-		} else {
-			queue = new Queue(logger, consumer);
-		}
-
-		Scanner scanner = new Scanner(queue);
+		final String directory = (String) cmd.getOptionValue('d', ".");
+		final Scanner scanner = new Scanner(logger, queue);
 
 		if (cmd.hasOption('g')) {
 			scanner.setGlob((String) cmd.getOptionValue('g'));
 		}
 
-		try {
-			scanner.scan(Paths.get(directory));
-		} catch (IOException e) {
-			logger.log(Level.SEVERE, "Error while scanning directory.", e);
-		}
+		job = new Runnable() {
+			@Override
+			public void run() {
+				try {
+					scanner.scan(Paths.get(directory));
+				} catch (IOException e) {
+					logger.log(Level.SEVERE, "Error while scanning directory.", e);
+				}
 
-		queue.end();
+				queue.end();
+			}
+		};
+
+		return job;
 	}
 
-	private void help() {
+	public void help() {
 		HelpFormatter formatter = new HelpFormatter();
 
 		formatter.printHelp("extract", options);

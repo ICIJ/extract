@@ -41,7 +41,7 @@ import org.xml.sax.ContentHandler;
  * @since 1.0.0-beta
  */
 public class Extractor {
-	private Logger logger;
+	private final Logger logger;
 
 	private Charset outputEncoding = StandardCharsets.UTF_8;
 	private String ocrLanguage = "eng";

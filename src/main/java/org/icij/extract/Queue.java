@@ -27,20 +27,20 @@ import org.xml.sax.SAXException;
  * @since 1.0.0-beta
  */
 public class Queue {
-	private Logger logger = null;
-	private Consumer consumer = null;
-	private ExecutorService executor = null;
+	private final Logger logger;
+	private final Consumer consumer;
+	private final ExecutorService executor;
 
-	private static final int THREADS = Runtime.getRuntime().availableProcessors();
+	public static final int DEFAULT_THREADS = Runtime.getRuntime().availableProcessors();
 
-	public Queue(Logger logger, Consumer consumer, Number threads) {
+	public Queue(Logger logger, Consumer consumer, int threads) {
 		this.logger = logger;
 		this.consumer = consumer;
-		this.executor = Executors.newFixedThreadPool(threads.intValue());
+		this.executor = Executors.newFixedThreadPool(threads);
 	}
 
 	public Queue(Logger logger, Consumer consumer) {
-		this(logger, consumer, THREADS);
+		this(logger, consumer, DEFAULT_THREADS);
 	}
 
 	public void queue(final Path file) {

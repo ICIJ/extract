@@ -1,5 +1,10 @@
 package org.icij.extract;
 
+import java.lang.Thread;
+import java.lang.Runnable;
+
+import org.apache.commons.cli.ParseException;
+
 /**
  * Extract
  *
@@ -9,6 +14,15 @@ package org.icij.extract;
  */
 public class Main {
 	public static void main(String[] args) {
-		new Cli(args).parse();
+		Cli cli = new Cli(args);
+		Runnable job = null;
+
+		try {
+			job = cli.parse();
+		} catch (ParseException e) {
+			System.exit(1);
+		}
+
+		new Thread(job).start();
 	}
 }

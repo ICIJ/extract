@@ -23,7 +23,7 @@ import org.apache.commons.io.IOUtils;
  * @since 1.0.0-beta
  */
 public class FileSpewer extends Spewer {
-	private Logger logger;
+	private final Logger logger;
 
 	private Path outputDirectory;
 
@@ -68,7 +68,10 @@ public class FileSpewer extends Spewer {
 		logger.info("Outputting to file: " + outputFile + ".");
 
 		// Make the required directories.
-		outputFile.getParent().toFile().mkdirs();
+		boolean madeDirs = outputFile.getParent().toFile().mkdirs();
+		if (true != madeDirs) {
+			throw new RuntimeException("Unable to make directories for file: " + outputFile + ".");
+		}
 
 		final OutputStream outputStream = new FileOutputStream(outputFile.toFile());
 

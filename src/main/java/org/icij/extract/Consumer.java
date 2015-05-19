@@ -18,9 +18,9 @@ import org.apache.tika.exception.TikaException;
  * @since 1.0.0-beta
  */
 public class Consumer {
-	private Logger logger;
+	private final Logger logger;
 
-	private Spewer spewer;
+	private final Spewer spewer;
 
 	private Charset outputEncoding;
 	private String ocrLanguage;
