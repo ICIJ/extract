@@ -50,7 +50,7 @@ public class Cli {
 	}
 
 	public Runnable parse() throws ParseException {
-		final CommandLineParser parser = new BasicParser();
+		final CommandLineParser parser = new DefaultParser();
 
 		CommandLine cmd = null;
 		Runnable job = null;
