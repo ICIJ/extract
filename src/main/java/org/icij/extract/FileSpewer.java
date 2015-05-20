@@ -26,6 +26,7 @@ public class FileSpewer extends Spewer {
 	private final Logger logger;
 
 	private Path outputDirectory;
+	private String outputExtension = "txt";
 
 	public FileSpewer(Logger logger) {
 		this.logger = logger;
@@ -33,6 +34,10 @@ public class FileSpewer extends Spewer {
 
 	public void setOutputDirectory(Path outputDirectory) {
 		this.outputDirectory = outputDirectory;
+	}
+
+	public void setOutputExtension(String extension) {
+		this.outputExtension = extension;
 	}
 
 	public void write(Path file, ParsingReader reader, Charset outputEncoding) throws IOException {
@@ -60,10 +65,7 @@ public class FileSpewer extends Spewer {
 		}
 
 		outputFile = outputDirectory.resolve(file.subpath(i, file.getNameCount()));
-
-		if (outputFile.equals(file)) {
-			throw new IllegalArgumentException("Output file cannot be the same as the input file.");
-		}
+		outputFile = outputFile.getFileSystem().getPath(outputFile.toString() + "." + outputExtension);
 
 		logger.info("Outputting to file: " + outputFile + ".");
 
