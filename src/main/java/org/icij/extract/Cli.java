@@ -455,7 +455,7 @@ public class Cli {
 			consumer.setOutputEncoding((String) cmd.getOptionValue("output-encoding"));
 		}
 
-		if (((String) cmd.getOptionValue("ocr-language")).equals("auto")) {
+		if ("auto".equals(((String) cmd.getOptionValue("ocr-language")))) {
 			consumer.detectLanguageForOcr();
 		} else if (cmd.hasOption("ocr-language")) {
 			consumer.setOcrLanguage((String) cmd.getOptionValue("ocr-language"));
