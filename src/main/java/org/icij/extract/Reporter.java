@@ -4,6 +4,8 @@ import java.util.logging.Logger;
 
 import java.nio.file.Path;
 
+import org.redisson.core.RMap;
+
 /**
  * Extract
  *
@@ -20,16 +22,18 @@ public class Reporter {
 	public static final int NOT_SAVED = 10;
 
 	private final Logger logger;
+	private RMap<String, Integer> report;
 
-	public Reporter(Logger logger) {
+	public Reporter(Logger logger, RMap<String, Integer> report) {
 		this.logger = logger;
+		this.report = report;
 	}
 
 	public boolean succeeded(Path file) {
-		return false;
+		return report.get(file.toString()) == SUCCEEDED;
 	}
 
 	public void save(Path file, int status) {
-		
+		report.fastPut(file.toString(), status);
 	}
 }
