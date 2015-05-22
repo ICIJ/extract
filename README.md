@@ -1,8 +1,10 @@
 # Extract #
 
-A cross-platform command line tool for content analysis. Built on top of [Apache Tika](https://tika.apache.org/).
+A cross-platform command line tool for distributed content-analysis. Built on top of [Apache Tika](https://tika.apache.org/).
 
 Extract streams the output from Tika instead of bufferring it all into memory before writing. This allows it to operate on very large files without memory issues.
+
+It supports Redis-backed queueing for distributed extraction and will write to Solr, plain text files or standard output.
 
 ## Compiling ##
 

@@ -14,11 +14,11 @@ import org.apache.commons.cli.ParseException;
  */
 public class Main {
 	public static void main(String[] args) {
-		Cli cli = new Cli(args);
+		Cli cli = new Cli();
 		Runnable job = null;
 
 		try {
-			job = cli.parse();
+			job = cli.parse(args);
 		} catch (ParseException e) {
 			System.exit(1);
 		}

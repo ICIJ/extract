@@ -1,9 +1,11 @@
 package org.icij.extract;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.Queue;
 import java.util.Set;
 import java.util.EnumSet;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import java.io.IOException;
 
@@ -27,6 +29,7 @@ public class Scanner {
 	private final Logger logger;
 
 	private final Queue queue;
+	private final Consumer consumer;
 
 	private PathMatcher includeMatcher;
 	private PathMatcher excludeMatcher;
@@ -34,9 +37,49 @@ public class Scanner {
 	private int maxDepth = Integer.MAX_VALUE;
 	private boolean followLinks = false;
 
+	private SimpleFileVisitor visitor = new SimpleFileVisitor<Path>() {
+		@Override
+		public FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attrs) throws IOException {
+			if (null != excludeMatcher && excludeMatcher.matches(directory)) {
+				return FileVisitResult.SKIP_SUBTREE;
+			}
+
+			return FileVisitResult.CONTINUE;
+		}
+
+		@Override
+		public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+			if (null != includeMatcher && !includeMatcher.matches(file)) {
+				return FileVisitResult.CONTINUE;
+			}
+
+			if (null != excludeMatcher && excludeMatcher.matches(file)) {
+				return FileVisitResult.CONTINUE;
+			}
+
+			scanFile(file);
+			return FileVisitResult.CONTINUE;
+		}
+
+		@Override
+		public FileVisitResult visitFileFailed(Path file, IOException e) throws IOException {
+
+			// Don't re-throw the error. Scanning must be robust. Just log it.
+			logger.log(Level.SEVERE, "Unable to read file attributes.", e);
+			return FileVisitResult.CONTINUE;
+		}
+	};
+
 	public Scanner(Logger logger, Queue queue) {
-		this.logger = logger;
 		this.queue = queue;
+		this.logger = logger;
+		this.consumer = null;
+	}
+
+	public Scanner(Logger logger, Consumer consumer) {
+		this.queue = null;
+		this.logger = logger;
+		this.consumer = consumer;
 	}
 
 	public void setIncludeGlob(String pattern) {
@@ -51,15 +94,23 @@ public class Scanner {
 		followLinks = true;
 	}
 
-	public void scan(Path path) throws IOException {
+	public void scan(Path path) {
 		if (Files.isRegularFile(path)) {
-			queue.queue(path);
+			scanFile(path);
 		} else {
 			scanDirectory(path);
 		}
 	}
 
-	private void scanDirectory(Path path) throws IOException {
+	private void scanFile(Path file) {
+		if (null != queue) {
+			queue.add(file);
+		} else {
+			consumer.consume(file);
+		}
+	}
+
+	private void scanDirectory(Path path) {
 		Set<FileVisitOption> options = null;
 
 		if (followLinks) {
@@ -68,37 +119,10 @@ public class Scanner {
 			options = EnumSet.noneOf(FileVisitOption.class);
 		}
 
-		Files.walkFileTree(path, options, maxDepth, new SimpleFileVisitor<Path>() {
-			@Override
-			public FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attrs) throws IOException {
-				if (null != excludeMatcher && excludeMatcher.matches(directory)) {
-					return FileVisitResult.SKIP_SUBTREE;
-				}
-
-				return FileVisitResult.CONTINUE;
-			}
-
-			@Override
-			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-				if (null != includeMatcher && !includeMatcher.matches(file)) {
-					return FileVisitResult.CONTINUE;
-				}
-
-				if (null != excludeMatcher && excludeMatcher.matches(file)) {
-					return FileVisitResult.CONTINUE;
-				}
-
-				queue.queue(file);
-				return FileVisitResult.CONTINUE;
-			}
-
-			@Override
-			public FileVisitResult visitFileFailed(Path file, IOException e) throws IOException {
-
-				// Don't re-throw the error. Scanning must be robust. Just log it.
-				logger.log(Level.SEVERE, "Unable to read file attributes.", e);
-				return FileVisitResult.CONTINUE;
-			}
-		});
+		try {
+			Files.walkFileTree(path, options, maxDepth, visitor);
+		} catch (IOException e) {
+			logger.log(Level.SEVERE, "Error while scanning directory.", e);
+		}
 	}
 }

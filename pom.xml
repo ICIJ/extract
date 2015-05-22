@@ -58,6 +58,12 @@
 			<version>1.8</version>
 		</dependency>
 
+		<dependency>
+			<groupId>org.redisson</groupId>
+			<artifactId>redisson</artifactId>
+			<version>1.2.1</version>
+		</dependency>
+
 		<!-- EXCLUDED DEPENDENCY (excluded from capsule because it is test scope) -->
 		<dependency>
 			<groupId>junit</groupId>
