@@ -3,9 +3,9 @@ package org.icij.extract;
 import java.util.Iterator;
 import java.util.logging.Logger;
 
+import java.io.File;
 import java.io.OutputStream;
 import java.io.FileOutputStream;
-
 import java.io.IOException;
 
 import java.nio.file.Path;
@@ -70,8 +70,11 @@ public class FileSpewer extends Spewer {
 		logger.info("Outputting to file: " + outputFile + ".");
 
 		// Make the required directories.
-		boolean madeDirs = outputFile.getParent().toFile().mkdirs();
-		if (true != madeDirs) {
+		final File outputFileParent = outputFile.getParent().toFile();
+		final boolean madeDirs = outputFileParent.mkdirs();
+
+		// The `mkdirs` method will return false if the path already exists.
+		if (false == madeDirs && !outputFileParent.isDirectory()) {
 			throw new RuntimeException("Unable to make directories for file: " + outputFile + ".");
 		}
 
