@@ -268,44 +268,41 @@ public class Cli {
 			return job;
 		}
 
+		final Command command = parseCommand(args[0]);
+		final Options commandOptions = getOptionsForCommand(command);
+
+		args = Arrays.copyOfRange(args, 1, args.length);
+
+		try {
+			cmd = parser.parse(commandOptions, args);
+		} catch (ParseException e) {
+			logger.log(Level.SEVERE, "Failed to parse command line arguments for the " + command + " command.", e);
+			throw e;
+		}
+
 		if (cmd.hasOption('v')) {
 			logger.setLevel(Level.parse(((String) cmd.getOptionValue('v')).toUpperCase()));
 		} else {
 			logger.setLevel(Level.WARNING);
 		}
 
-		final Command command = parseCommand(args[0]);
-		final Options commandOptions = getOptionsForCommand(command);
-
-		args = Arrays.copyOfRange(args, 1, args.length);
-
 		switch (command) {
 		case QUEUE:
-			job = parseQueueOptions(commandOptions, args);
+			job = parseQueueOptions(cmd);
 			break;
 		case WIPE_QUEUE:
-			job = parseWipeQueueOptions(commandOptions, args);
+			job = parseWipeQueueOptions(cmd);
 			break;
 		case EXTRACT:
-			job = parseExtractOptions(commandOptions, args);
+			job = parseExtractOptions(cmd);
 			break;
 		}
 
 		return job;
 	}
 
-	private Runnable parseQueueOptions(Options options, String[] args) throws ParseException {
-		final CommandLineParser parser = new DefaultParser();
-
+	private Runnable parseQueueOptions(CommandLine cmd) {
 		Runnable job = null;
-		CommandLine cmd = null;
-
-		try {
-			cmd = parser.parse(options, args);
-		} catch (ParseException e) {
-			logger.log(Level.SEVERE, "Failed to parse command line arguments for the queue command.", e);
-			throw e;
-		}
 
 		final String directory = (String) cmd.getOptionValue('d', ".");
 
@@ -356,18 +353,8 @@ public class Cli {
 		return redisson.getQueue(queueNamespace);
 	}
 
-	private Runnable parseExtractOptions(Options options, String[] args) throws ParseException {
-		final CommandLineParser parser = new DefaultParser();
-
+	private Runnable parseExtractOptions(CommandLine cmd) throws ParseException {
 		Runnable job = null;
-		CommandLine cmd = null;
-
-		try {
-			cmd = parser.parse(options, args);
-		} catch (ParseException e) {
-			logger.log(Level.SEVERE, "Failed to parse command line arguments for the extract command.", e);
-			throw e;
-		}
 
 		int threads = Consumer.DEFAULT_THREADS;
 
@@ -394,7 +381,7 @@ public class Cli {
 			spewer = new FileSpewer(logger);
 
 			// TODO: Ensure that the output directory is not the same as the input directory.
-			((FileSpewer) spewer).setOutputDirectory(Paths.get((String) cmd.getOptionValue("file-directory")));
+			((FileSpewer) spewer).setOutputDirectory(Paths.get((String) cmd.getOptionValue("file-directory", ".")));
 		} else {
 			spewer = new StdOutSpewer();
 		}
@@ -464,18 +451,8 @@ public class Cli {
 		return job;
 	}
 
-	private Runnable parseWipeQueueOptions(Options options, String[] args) throws ParseException {
-		final CommandLineParser parser = new DefaultParser();
-
+	private Runnable parseWipeQueueOptions(CommandLine cmd) {
 		Runnable job = null;
-		CommandLine cmd = null;
-
-		try {
-			cmd = parser.parse(options, args);
-		} catch (ParseException e) {
-			logger.log(Level.SEVERE, "Failed to parse command line arguments.", e);
-			throw e;
-		}
 
 		return job;
 	}
