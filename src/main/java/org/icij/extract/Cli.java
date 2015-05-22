@@ -17,11 +17,13 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 import java.io.IOException;
+
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.redisson.Config;
 import org.redisson.Redisson;
-import org.redisson.RedissonQueue;
+import org.redisson.core.RQueue;
 
 /**
  * Extract
@@ -308,7 +310,7 @@ public class Cli {
 		final String directory = (String) cmd.getOptionValue('d', ".");
 
 		final Redisson redisson = createRedisClient(cmd);
-		final Queue queue = createRedisQueue(cmd, redisson);
+		final RQueue<Path> queue = createRedisQueue(cmd, redisson);
 		final Scanner scanner = new Scanner(logger, queue);
 
 		setScannerOptions(cmd, scanner);
@@ -348,7 +350,7 @@ public class Cli {
 		return Redisson.create(redissonConfig);
 	}
 
-	private Queue createRedisQueue(CommandLine cmd, Redisson redisson) {
+	private RQueue<Path> createRedisQueue(CommandLine cmd, Redisson redisson) {
 		final String queueNamespace = cmd.getOptionValue("queue-namespace", DEFAULT_NAMESPACE);
 
 		return redisson.getQueue(queueNamespace);
@@ -402,7 +404,7 @@ public class Cli {
 
 		if (QueueType.REDIS == queueType) {
 			final Redisson redisson = createRedisClient(cmd);
-			final Queue queue = createRedisQueue(cmd, redisson);
+			final RQueue<Path> queue = createRedisQueue(cmd, redisson);
 
 			// With Redis it's simple.
 			// Run all the jobs in the queue and exit without waiting for more.
