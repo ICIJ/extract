@@ -3,6 +3,9 @@ package org.icij.extract;
 import java.lang.Thread;
 import java.lang.Runnable;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import org.apache.commons.cli.ParseException;
 
 /**
@@ -13,16 +16,25 @@ import org.apache.commons.cli.ParseException;
  * @since 1.0.0-beta
  */
 public class Main {
+	private static final Logger logger = Logger.getLogger("extract");
+
 	public static void main(String[] args) {
-		Cli cli = new Cli();
-		Runnable job = null;
+		int status = 0;
+		final MainCli main = new MainCli(logger);
 
 		try {
-			job = cli.parse(args);
+			main.parse(args);
 		} catch (ParseException e) {
-			System.exit(1);
+			logger.log(Level.SEVERE, "Failed to parse command line arguments: " + e.getMessage());
+			status = 1;
+		} catch (IllegalArgumentException e) {
+			logger.log(Level.SEVERE, "Invalid command line argument: " + e.getMessage());
+			status = 2;
+		} catch (Throwable e) {
+			logger.log(Level.SEVERE, "There was an error while executing.", e);
+			status = 3;
 		}
 
-		new Thread(job).start();
+		System.exit(status);
 	}
 }

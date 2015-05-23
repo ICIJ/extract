@@ -1,6 +1,5 @@
 package org.icij.extract;
 
-import java.util.Queue;
 import java.util.Set;
 import java.util.EnumSet;
 
@@ -25,11 +24,8 @@ import java.nio.file.attribute.BasicFileAttributes;
  * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
-public class Scanner {
+public abstract class Scanner {
 	private final Logger logger;
-
-	private final Queue queue;
-	private final Consumer consumer;
 
 	private PathMatcher includeMatcher;
 	private PathMatcher excludeMatcher;
@@ -41,9 +37,11 @@ public class Scanner {
 		@Override
 		public FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attrs) throws IOException {
 			if (null != excludeMatcher && excludeMatcher.matches(directory)) {
+				logger.info("Skipping directory: " + directory);
 				return FileVisitResult.SKIP_SUBTREE;
 			}
 
+			logger.info("Entering directory: " + directory);
 			return FileVisitResult.CONTINUE;
 		}
 
@@ -57,7 +55,7 @@ public class Scanner {
 				return FileVisitResult.CONTINUE;
 			}
 
-			scanFile(file);
+			handle(file);
 			return FileVisitResult.CONTINUE;
 		}
 
@@ -70,16 +68,8 @@ public class Scanner {
 		}
 	};
 
-	public Scanner(Logger logger, Queue queue) {
-		this.queue = queue;
+	public Scanner(Logger logger) {
 		this.logger = logger;
-		this.consumer = null;
-	}
-
-	public Scanner(Logger logger, Consumer consumer) {
-		this.queue = null;
-		this.logger = logger;
-		this.consumer = consumer;
 	}
 
 	public void setIncludeGlob(String pattern) {
@@ -94,19 +84,13 @@ public class Scanner {
 		followLinks = true;
 	}
 
+	protected abstract void handle(Path file);
+
 	public void scan(Path path) {
 		if (Files.isRegularFile(path)) {
-			scanFile(path);
+			handle(path);
 		} else {
 			scanDirectory(path);
-		}
-	}
-
-	private void scanFile(Path file) {
-		if (null != queue) {
-			queue.add(file);
-		} else {
-			consumer.consume(file);
 		}
 	}
 

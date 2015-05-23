@@ -2,17 +2,17 @@ package org.icij.extract;
 
 import java.lang.Runtime;
 
-import java.util.Queue;
+import java.util.Iterator;
+import java.util.HashSet;
+import java.util.Set;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Future;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
-
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.concurrent.ExecutionException;
 
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -32,71 +32,28 @@ import org.apache.tika.exception.EncryptedDocumentException;
  * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
-public class Consumer {
+public abstract class Consumer {
 	public static final int DEFAULT_THREADS = Runtime.getRuntime().availableProcessors();
-	public static final long DEFAULT_TIMEOUT = 500L;
-	public static final TimeUnit DEFAULT_TIMEOUT_UNIT = TimeUnit.MILLISECONDS;
 
-	private final Logger logger;
-	private final Queue queue;
-	private final Spewer spewer;
-	private final ThreadPoolExecutor executor;
+	protected final Logger logger;
+	protected final Spewer spewer;
+	protected final ThreadPoolExecutor executor;
 
-	private Reporter reporter = null;
+	protected Reporter reporter = null;
 
 	private Charset outputEncoding;
 	private String ocrLanguage;
 	private boolean detectLanguage;
-	private long pollTimeout = DEFAULT_TIMEOUT;
-	private TimeUnit pollTimeoutUnit = DEFAULT_TIMEOUT_UNIT;
 
-	private Runnable whenDrained = null;
+	protected int threads;
 
-	public Consumer(Logger logger, Queue queue, Spewer spewer, int threads) {
-		this.logger = logger;
-		this.queue = queue;
-		this.spewer = spewer;
-		this.executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(threads);
-	}
+	protected Set<Future> futures = new HashSet<Future>();
 
 	public Consumer(Logger logger, Spewer spewer, int threads) {
-		this(logger, null, spewer, threads);
-	}
-
-	public void setPollTimeout(long timeout, TimeUnit unit) {
-		pollTimeout = timeout;
-		pollTimeoutUnit = unit;
-	}
-
-	public void setPollTimeout(String duration) throws IllegalArgumentException {
-		TimeUnit unit = TimeUnit.MILLISECONDS;
-		final long timeout;
-		final Matcher matcher = Pattern.compile("^(\\d+)(h|m|s|ms)?$").matcher(duration);
-
-		if (!matcher.find()) {
-			throw new IllegalArgumentException("Invalid timeout string: " + duration + ".");
-		}
-
-		timeout = Long.parseLong(matcher.group(1));
-
-		if (2 == matcher.groupCount()) {
-			switch (matcher.group(2)) {
-			case "h":
-				unit = TimeUnit.HOURS;
-				break;
-			case "m":
-				unit = TimeUnit.MINUTES;
-				break;
-			case "s":
-				unit = TimeUnit.SECONDS;
-				break;
-			case "ms":
-				unit = TimeUnit.MILLISECONDS;
-				break;
-			}
-		}
-
-		setPollTimeout(timeout, unit);
+		this.logger = logger;
+		this.spewer = spewer;
+		this.threads = threads;
+		this.executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(threads);
 	}
 
 	public void setOutputEncoding(Charset outputEncoding) {
@@ -119,63 +76,37 @@ public class Consumer {
 		this.reporter = reporter;
 	}
 
-	public void consume() {
-		executor.execute(new Runnable() {
-
-			@Override
-			public void run() {
-				Path file = (Path) queue.poll();
-
-				if (null == file && pollTimeout > 0L) {
-					logger.info("Polling the queue, waiting up to " + pollTimeout + " " + pollTimeoutUnit + ".");
-
-					// TODO: Use wait/notify instead.
-					try {
-						Thread.sleep(TimeUnit.MILLISECONDS.convert(pollTimeout, pollTimeoutUnit));
-					} catch (InterruptedException e) {
-						return;
-					}
-
-					file = (Path) queue.poll();
-				}
-
-				// Shut down the executor if the queue is empty.
-				if (null == file) {
-					whenDrained();
-					return;
-				}
-
-				maybeExtract(file);
-				consume();
-			}
-		});
-	}
-
-	public void consume(final Path file) {
-		executor.execute(new Runnable() {
-
-			@Override
-			public void run() {
-				maybeExtract(file);
-			}
-		});
-	}
-
-	public void whenDrained(Runnable whenDrained) {
-		this.whenDrained = whenDrained;
-	}
-
-	private void whenDrained() {
-		if (null != whenDrained) {
-			whenDrained.run();
-		}
-	}
-
 	public void shutdown() {
+		logger.info("Shutting down consumer.");
+
 		executor.shutdown();
 	}
 
-	private void maybeExtract(Path file) {
+	public void consume(final Path file) {
+		logger.info("Sending \"" + file + "\" to thread pool. Will queue if full (" + executor.getActiveCount() + " active).");
+
+		futures.add(executor.submit(new Runnable() {
+
+			@Override
+			public void run() {
+				lazilyExtract(file);
+			}
+		}));
+	}
+
+	public void await() throws InterruptedException, ExecutionException {
+		final Iterator<Future> iterator = futures.iterator();
+
+		// Block while waiting on all of the futures to complete.
+		while (iterator.hasNext()) {
+			final Future future = iterator.next();
+
+			future.get();
+			iterator.remove();
+		}
+	}
+
+	private void lazilyExtract(Path file) {
 
 		// Check status in reporter. Skip if good.
 		if (null != reporter && reporter.succeeded(file)) {
@@ -191,7 +122,7 @@ public class Consumer {
 	}
 
 	private int extract(Path file) {
-		logger.info("Processing: " + file + ".");
+		logger.info("Beginning extraction: " + file + ".");
 
 		final Extractor extractor = new Extractor(logger, file);
 
