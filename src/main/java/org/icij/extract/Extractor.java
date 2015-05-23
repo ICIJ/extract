@@ -17,37 +17,22 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import org.apache.tika.config.TikaConfig;
-
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.HttpHeaders;
 import org.apache.tika.metadata.TikaMetadataKeys;
-
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParsingReader;
-import org.apache.tika.parser.DelegatingParser;
 import org.apache.tika.parser.html.HtmlParser;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.pdf.PDFParserConfig;
-
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
-import org.apache.tika.extractor.ParsingEmbeddedDocumentExtractor;
-
 import org.apache.tika.mime.MediaType;
-
 import org.apache.tika.io.TikaInputStream;
-import org.apache.tika.io.TemporaryResources;
-import org.apache.tika.io.CloseShieldInputStream;
-
-import org.apache.tika.sax.BodyContentHandler;
-import org.apache.tika.sax.EmbeddedContentHandler;
-
 import org.apache.tika.exception.TikaException;
-import org.apache.tika.exception.EncryptedDocumentException;
 
 import org.xml.sax.ContentHandler;
-import org.xml.sax.SAXException;
 
 /**
  * Extract
@@ -94,21 +79,21 @@ public class Extractor {
 		parsers.put(MediaType.APPLICATION_XML, new HtmlParser());
 		parser.setParsers(parsers);
 		parser.setFallback(new Parser() {
-			public Set<MediaType> getSupportedTypes(ParseContext parseContext) {
-				return parser.getSupportedTypes(parseContext);
+			public Set<MediaType> getSupportedTypes(ParseContext context) {
+				return parser.getSupportedTypes(context);
 			}
 
-			public void parse(InputStream inputStream, ContentHandler contentHandler, Metadata metadata, ParseContext parseContext) throws TikaException {
+			public void parse(InputStream inputStream, ContentHandler contentHandler, Metadata metadata, ParseContext context) throws TikaException {
 				throw new TikaException("Unsupported media type: " + metadata.get(HttpHeaders.CONTENT_TYPE) + ".");
 			}
 		});
 
-		final ParseContext parseContext = new ParseContext();
+		final ParseContext context = new ParseContext();
 
 		final TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
 
 		ocrConfig.setLanguage(ocrLanguage);
-		parseContext.set(TesseractOCRConfig.class, ocrConfig);
+		context.set(TesseractOCRConfig.class, ocrConfig);
 
 		final PDFParserConfig pdfConfig = new PDFParserConfig();
 
@@ -119,45 +104,15 @@ public class Extractor {
 		// In scanned documents under test from the Panama registry, different embedded images had the same ID, leading to incomplete OCRing when uniqueness detection was turned on.
 		pdfConfig.setExtractUniqueInlineImagesOnly(false);
 		pdfConfig.setUseNonSequentialParser(true);
-		parseContext.set(PDFParserConfig.class, pdfConfig);
+		context.set(PDFParserConfig.class, pdfConfig);
 
-		final TikaInputStream inputStream = TikaInputStream.get(new FileInputStream(file.toString()));
+		final TikaInputStream stream = TikaInputStream.get(new FileInputStream(file.toString()));
 
 		// Set up recursive parsing of archives and documents with embedded images.
-		parseContext.set(Parser.class, parser);
-		parseContext.set(EmbeddedDocumentExtractor.class, new ParsingEmbeddedDocumentExtractor(parseContext) {
+		context.set(Parser.class, parser);
+		context.set(EmbeddedDocumentExtractor.class, new EmbedExtractor(logger, file, context));
 
-			// This override is made for logging purposes, as by default exceptions are swallowed by ParsingEmbeddedDocumentExtractor.
-			// See extractImages here: http://svn.apache.org/viewvc/tika/trunk/tika-parsers/src/main/java/org/apache/tika/parser/pdf/PDF2XHTML.java?view=markup
-			// And this: https://svn.apache.org/repos/asf/tika/trunk/tika-core/src/main/java/org/apache/tika/extractor/ParsingEmbeddedDocumentExtractor.java
-			@Override
-			public void parseEmbedded(InputStream stream, ContentHandler handler, Metadata metadata, boolean outputHtml) throws SAXException, IOException {
-				logger.info("Extracting embedded document from document: " + file + ".");
-
-				TemporaryResources tmp = new TemporaryResources();
-				try {
-					final TikaInputStream newStream = TikaInputStream.get(new CloseShieldInputStream(stream), tmp);
-
-					if (stream instanceof TikaInputStream) {
-						final Object container = ((TikaInputStream) stream).getOpenContainer();
-
-						if (container != null) {
-							newStream.setOpenContainer(container);
-						}
-					}
-
-					new DelegatingParser().parse(newStream, new EmbeddedContentHandler(new BodyContentHandler(handler)), metadata, parseContext);
-				} catch (EncryptedDocumentException e) {
-					logger.log(Level.WARNING, "Encrypted document embedded in document: " + file + ".", e);
-				} catch (TikaException e) {
-					logger.log(Level.WARNING, "Unable to parse embedded document in document: " + file + ".", e);
-				} finally {
-					tmp.close();
-				}
-			}
-		});
-
-		final ParsingReader reader = new ParsingReader(parser, inputStream, metadata, parseContext);
+		final ParsingReader reader = new ParsingReader(parser, stream, metadata, context);
 
 		return reader;
 	}
