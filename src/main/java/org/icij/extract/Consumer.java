@@ -10,6 +10,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.ExecutionException;
@@ -48,6 +49,7 @@ public abstract class Consumer {
 	protected int threads;
 
 	protected Set<Future> futures = new HashSet<Future>();
+	protected final Semaphore semaphore = new Semaphore(1);
 
 	public Consumer(Logger logger, Spewer spewer, int threads) {
 		this.logger = logger;
@@ -83,18 +85,38 @@ public abstract class Consumer {
 	}
 
 	public void consume(final Path file) {
-		logger.info("Sending \"" + file + "\" to thread pool. Will queue if full (" + executor.getActiveCount() + " active).");
+		logger.info("Sending to thread pool; will queue if full (" + executor.getActiveCount() + " active): " + file + ".");
 
 		futures.add(executor.submit(new Runnable() {
 
 			@Override
 			public void run() {
 				lazilyExtract(file);
+
+				// Garbage collect futures that have already completed.
+				// Return immediately if no permit is available to avoid a deadlock with `await()`.
+				if (!semaphore.tryAcquire()) {
+					return;
+				}
+
+				final Iterator<Future> iterator = futures.iterator();
+
+				while (iterator.hasNext()) {
+					final Future future = iterator.next();
+
+					if (future.isDone()) {
+						iterator.remove();
+					}
+				}
+
+				semaphore.release();
 			}
 		}));
 	}
 
 	public void await() throws InterruptedException, ExecutionException {
+		semaphore.acquireUninterruptibly();
+
 		final Iterator<Future> iterator = futures.iterator();
 
 		// Block while waiting on all of the futures to complete.
@@ -104,12 +126,15 @@ public abstract class Consumer {
 			future.get();
 			iterator.remove();
 		}
+
+		semaphore.release();
 	}
 
 	private void lazilyExtract(Path file) {
 
 		// Check status in reporter. Skip if good.
 		if (null != reporter && reporter.succeeded(file)) {
+			logger.info("File already extracted; skipping: " + file + ".");
 			return;
 		}
 
@@ -176,6 +201,10 @@ public abstract class Consumer {
 			reader.close();
 		} catch (IOException e) {
 			logger.log(Level.SEVERE, "Error while closing file: " + file + ".", e);
+		}
+
+		if (Reporter.SUCCEEDED == status) {
+			logger.info("Finished outputting file: " + file + ".");
 		}
 
 		return status;
