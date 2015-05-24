@@ -32,9 +32,7 @@ public class ExtractCli extends Cli {
 			consumer.setOutputEncoding((String) cli.getOptionValue("output-encoding"));
 		}
 
-		if ("auto".equals(((String) cli.getOptionValue("ocr-language")))) {
-			consumer.detectLanguageForOcr();
-		} else if (cli.hasOption("ocr-language")) {
+		if (cli.hasOption("ocr-language")) {
 			consumer.setOcrLanguage((String) cli.getOptionValue("ocr-language"));
 		}
 
