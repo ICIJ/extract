@@ -161,6 +161,11 @@ public class MainCli {
 	public void parse(String[] args) throws ParseException {
 		final CommandLine cli;
 
+		if (0 == args.length) {
+			printHelp();
+			return;
+		}
+
 		cli = Cli.DEFAULT_PARSER.parse(options, args, true);
 
 		// Print the version string.
