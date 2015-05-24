@@ -100,7 +100,7 @@ public class MainCli {
 				.argName("count")
 				.type(Number.class)
 				.build()).addOption(Option.builder()
-				.desc("Set the language used by Tesseract. If none is specified, English is assumed. Multiple languages may be specified, separated by plus characters. Tesseract uses 3-character ISO 639-2 language codes. If set to \"auto\", the language will be detected by running the OCR a second time if a new language is detected using Tika's language detection.")
+				.desc("Set the language used by Tesseract. If none is specified, English is assumed. Multiple languages may be specified, separated by plus characters. Tesseract uses 3-character ISO 639-2 language codes.")
 				.longOpt("ocr-language")
 				.hasArg()
 				.argName("language")

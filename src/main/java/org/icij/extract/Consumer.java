@@ -44,7 +44,6 @@ public abstract class Consumer {
 
 	private Charset outputEncoding;
 	private String ocrLanguage;
-	private boolean detectLanguage;
 
 	protected int threads;
 
@@ -68,10 +67,6 @@ public abstract class Consumer {
 
 	public void setOcrLanguage(String ocrLanguage) {
 		this.ocrLanguage = ocrLanguage;
-	}
-
-	public void detectLanguageForOcr() {
-		this.detectLanguage = true;
 	}
 
 	public void setReporter(Reporter reporter) {
@@ -181,12 +176,6 @@ public abstract class Consumer {
 		if (Reporter.SUCCEEDED != status) {
 			return status;
 		}
-
-		// TODO:
-		// Check if file mime is supported by OCR parser.
-		// If so, get the first bufferred 4k from the reader and run language detection.
-		// Switch the language on the extractor to the detected language.
-		// Run again.
 
 		logger.info("Outputting: " + file + ".");
 
