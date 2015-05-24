@@ -5,8 +5,6 @@ import java.util.logging.Logger;
 
 import java.nio.file.Path;
 
-import java.util.concurrent.ExecutionException;
-
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -53,7 +51,7 @@ public abstract class Cli {
 		this.logger = logger;
 	}
 
-	protected abstract CommandLine parse(String[] args) throws ParseException, IllegalArgumentException, ExecutionException;
+	protected abstract CommandLine parse(String[] args) throws ParseException, IllegalArgumentException;
 
 	protected CommandLine parse(String[] args, Command command) throws ParseException {
 		final Options options = MainCli.createOptionsForCommand(command);

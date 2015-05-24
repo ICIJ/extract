@@ -3,6 +3,8 @@ package org.icij.extract;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import java.io.IOException;
+
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -13,6 +15,8 @@ import org.redisson.core.RQueue;
 
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.CommandLine;
+
+import org.apache.solr.client.solrj.impl.HttpSolrClient;
 
 /**
  * Extract
@@ -43,7 +47,7 @@ public class ExtractCli extends Cli {
 		super(logger);
 	}
 
-	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException, ExecutionException {
+	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cli = super.parse(args, Command.EXTRACT);
 
 		int threads = Consumer.DEFAULT_THREADS;
@@ -64,16 +68,29 @@ public class ExtractCli extends Cli {
 		try {
 			outputType = OutputType.fromString(cli.getOptionValue('o', "stdout"));
 		} catch (IllegalArgumentException e) {
-			throw new IllegalArgumentException(String.format(String.format("\"%s\" is not a valid output type.", cli.getOptionValue('o'))));
+			throw new IllegalArgumentException(String.format("\"%s\" is not a valid output type.", cli.getOptionValue('o')));
 		}
 
-		if (OutputType.FILE == outputType) {
+		if (OutputType.SOLR == outputType) {
+			if (!cli.hasOption('s')) {
+				throw new IllegalArgumentException("The -s option is required when outputting to Solr.");
+			}
+
+			spewer = new SolrSpewer(logger, new HttpSolrClient(cli.getOptionValue('s')));
+			if (cli.hasOption('t')) {
+				((SolrSpewer) spewer).setField(cli.getOptionValue('t'));
+			}
+
+			if (cli.hasOption("solr-commit-interval")) {
+				((SolrSpewer) spewer).setCommitInterval(((Number) cli.getParsedOptionValue("solr-commit-interval")).intValue());
+			}
+		} else if (OutputType.FILE == outputType) {
 			spewer = new FileSpewer(logger);
 
 			// TODO: Ensure that the output directory is not the same as the input directory.
-			((FileSpewer) spewer).setOutputDirectory(Paths.get((String) cli.getOptionValue("file-directory", ".")));
+			((FileSpewer) spewer).setOutputDirectory(Paths.get((String) cli.getOptionValue("file-output-directory", ".")));
 		} else {
-			spewer = new StdOutSpewer();
+			spewer = new StdOutSpewer(logger);
 		}
 
 		final QueueType queueType = QueueType.parse(cli.getOptionValue('q', "memory"));
@@ -91,15 +108,21 @@ public class ExtractCli extends Cli {
 					super.drained();
 
 					try {
-						await();
+						finish();
 					} catch (InterruptedException e) {
 						logger.warning("Interrupted while waiting for extraction to terminate.");
 					} catch (ExecutionException e) {
-						logger.log(Level.SEVERE, "Extraction failed.", e);
-					} finally {
-						shutdown();
-						redisson.shutdown();
+						logger.log(Level.SEVERE, "Extraction failed for a pending job.", e);
 					}
+
+					try {
+						spewer.finish();
+					} catch (IOException e) {
+						logger.log(Level.SEVERE, "Spewer failed to finish.", e);
+					}
+
+					shutdown();
+					redisson.shutdown();
 				}
 			};
 
@@ -112,7 +135,7 @@ public class ExtractCli extends Cli {
 
 			// When running in memory mode, don't use a queue.
 			// The scanner sends jobs straight to the consumer, the executor of which uses its own internal queue.
-			// Scanning the directory tree will most probably finish before extraction, so after scanning block until the consumer is done (await).
+			// Scanning the directory tree will most probably finish before extraction, so after scanning block until the consumer is done (finish).
 			consumer = new QueueingConsumer(logger, spewer, threads);
 			scanner = new ConsumingScanner(logger, (QueueingConsumer) consumer);
 			directory = (String) cli.getOptionValue('d', "*");
@@ -124,13 +147,19 @@ public class ExtractCli extends Cli {
 			logger.info("Completed scanning of \"" + directory + "\".");
 
 			try {
-				consumer.await();
+				consumer.finish();
 			} catch (InterruptedException e) {
 				logger.warning("Interrupted while waiting for extraction to terminate.");
 			} catch (ExecutionException e) {
-				throw e;
-			} finally {
-				consumer.shutdown();
+				logger.log(Level.SEVERE, "Extraction failed for a pending job.", e);
+			}
+
+			consumer.shutdown();
+
+			try {
+				spewer.finish();
+			} catch (IOException e) {
+				logger.log(Level.SEVERE, "Spewer failed to finish.", e);
 			}
 		}
 

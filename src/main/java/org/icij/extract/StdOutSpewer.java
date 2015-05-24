@@ -1,5 +1,7 @@
 package org.icij.extract;
 
+import java.util.logging.Logger;
+
 import java.io.IOException;
 
 import java.nio.file.Path;
@@ -17,6 +19,10 @@ import org.apache.commons.io.IOUtils;
  * @since 1.0.0-beta
  */
 public class StdOutSpewer extends Spewer {
+
+	public StdOutSpewer(Logger logger) {
+		super(logger);
+	}
 
 	public void write(Path file, ParsingReader reader, Charset outputEncoding) throws IOException {
 		IOUtils.copy(reader, System.out, outputEncoding);

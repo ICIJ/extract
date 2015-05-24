@@ -1,6 +1,7 @@
 package org.icij.extract;
 
 import java.util.Iterator;
+
 import java.util.logging.Logger;
 
 import java.io.File;
@@ -23,13 +24,12 @@ import org.apache.commons.io.IOUtils;
  * @since 1.0.0-beta
  */
 public class FileSpewer extends Spewer {
-	private final Logger logger;
 
 	private Path outputDirectory;
 	private String outputExtension = "txt";
 
 	public FileSpewer(Logger logger) {
-		this.logger = logger;
+		super(logger);
 	}
 
 	public void setOutputDirectory(Path outputDirectory) {

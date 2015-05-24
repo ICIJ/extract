@@ -64,6 +64,12 @@
 			<version>1.2.1</version>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.solr</groupId>
+			<artifactId>solr-solrj</artifactId>
+			<version>5.1.0</version>
+		</dependency>
+
 		<!-- EXCLUDED DEPENDENCY (excluded from capsule because it is test scope) -->
 		<dependency>
 			<groupId>junit</groupId>

@@ -8,8 +8,6 @@ import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import java.util.concurrent.ExecutionException;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
@@ -118,9 +116,25 @@ public class MainCli {
 				.argName("character set")
 				.build()).addOption(Option.builder()
 				.desc("Directory to output extracted text.")
-				.longOpt("file-directory")
+				.longOpt("file-output-directory")
 				.hasArg()
 				.argName("path")
+				.build()).addOption(Option.builder("s")
+				.desc("Solr server address. Required if outputting to Solr.")
+				.longOpt("solr")
+				.hasArg()
+				.argName("address")
+				.build()).addOption(Option.builder("t")
+				.desc("Solr field for extracted text. Defaults to \"" + SolrSpewer.DEFAULT_FIELD + "\".")
+				.longOpt("solr-text-field")
+				.hasArg()
+				.argName("address")
+				.build()).addOption(Option.builder()
+				.desc("Commit to Solr after every specified number of files are added. Defaults to \"" + SolrSpewer.DEFAULT_INTERVAL + "\".")
+				.longOpt("solr-commit-interval")
+				.hasArg()
+				.argName("interval")
+				.type(Number.class)
 				.build());
 		}
 
@@ -144,7 +158,7 @@ public class MainCli {
 			.build());
 	}
 
-	public void parse(String[] args) throws ParseException, ExecutionException {
+	public void parse(String[] args) throws ParseException {
 		final CommandLine cli;
 
 		cli = Cli.DEFAULT_PARSER.parse(options, args, true);

@@ -3,7 +3,6 @@ package org.icij.extract;
 import java.util.logging.Logger;
 
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.ExecutionException;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;

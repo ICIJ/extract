@@ -114,7 +114,7 @@ public abstract class Consumer {
 		}));
 	}
 
-	public void await() throws InterruptedException, ExecutionException {
+	public void finish() throws InterruptedException, ExecutionException {
 		semaphore.acquireUninterruptibly();
 
 		final Iterator<Future> iterator = futures.iterator();
@@ -192,7 +192,7 @@ public abstract class Consumer {
 
 		try {
 			spewer.write(file, reader, outputEncoding);
-		} catch (IOException e) {
+		} catch (Throwable e) {
 			logger.log(Level.SEVERE, "The extracted text could not be outputted: " + file + ".", e);
 			status = Reporter.NOT_SAVED;
 		}
