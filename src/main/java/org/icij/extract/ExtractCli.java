@@ -48,13 +48,15 @@ public class ExtractCli extends Cli {
 
 		int threads = Consumer.DEFAULT_THREADS;
 
-		if (cli.hasOption('t')) {
+		if (cli.hasOption('p')) {
 			try {
 				threads = ((Number) cli.getParsedOptionValue("t")).intValue();
 			} catch (ParseException e) {
 				throw new IllegalArgumentException("Invalid value for thread count.");
 			}
 		}
+
+		logger.info("Processing up to " + threads + " file(s) in parallel.");
 
 		final OutputType outputType;
 		final Spewer spewer;
