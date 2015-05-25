@@ -1,5 +1,7 @@
 package org.icij.extract;
 
+import java.util.Map;
+
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -12,6 +14,7 @@ import java.util.concurrent.ExecutionException;
 
 import org.redisson.Redisson;
 import org.redisson.core.RQueue;
+import org.redisson.core.RMap;
 
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.CommandLine;
@@ -25,21 +28,7 @@ import org.apache.solr.client.solrj.impl.HttpSolrClient;
  * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
-public class ExtractCli extends Cli {
-
-	public static void setConsumerOptions(CommandLine cli, Consumer consumer) {
-		if (cli.hasOption("output-encoding")) {
-			consumer.setOutputEncoding((String) cli.getOptionValue("output-encoding"));
-		}
-
-		if (cli.hasOption("ocr-language")) {
-			consumer.setOcrLanguage((String) cli.getOptionValue("ocr-language"));
-		}
-
-		if (cli.hasOption("queue-poll") && consumer instanceof PollingConsumer) {
-			((PollingConsumer) consumer).setPollTimeout((String) cli.getOptionValue("queue-poll"));
-		}
-	}
+public class ExtractCli extends CommandCli {
 
 	public ExtractCli(Logger logger) {
 		super(logger);
@@ -91,15 +80,17 @@ public class ExtractCli extends Cli {
 			spewer = new StdOutSpewer(logger);
 		}
 
-		final QueueType queueType = QueueType.parse(cli.getOptionValue('q', "memory"));
+		final QueueType queueType = QueueType.parse(cli.getOptionValue('q'));
+		final ReporterType reporterType = ReporterType.parse(cli.getOptionValue('r'));
+		final Consumer consumer;
 
+		// With Redis it's a bit more complex.
+		// Run all the jobs in the queue and exit without waiting for more.
 		if (QueueType.REDIS == queueType) {
-			final Redisson redisson = createRedisClient(cli);
-			final RQueue<Path> queue = createRedisQueue(cli, redisson);
+			final Redisson redisson = getRedisson(cli);
+			final RQueue<Path> queue = redisson.getQueue(cli.getOptionValue("redis-namespace", "extract") + ":queue");
 
-			// With Redis it's a bit more complex.
-			// Run all the jobs in the queue and exit without waiting for more.
-			final PollingConsumer consumer = new PollingConsumer(logger, queue, spewer, threads) {
+			consumer = new PollingConsumer(logger, queue, spewer, threads) {
 
 				@Override
 				protected void drained() {
@@ -124,22 +115,35 @@ public class ExtractCli extends Cli {
 				}
 			};
 
-			setConsumerOptions(cli, consumer);
-			consumer.saturate();
+			if (cli.hasOption("queue-poll")) {
+				((PollingConsumer) consumer).setPollTimeout((String) cli.getOptionValue("queue-poll"));
+			}
+
+		// When running in memory mode, don't use a queue.
+		// The scanner sends jobs straight to the consumer, the executor of which uses its own internal queue.
+		// Scanning the directory tree will most probably finish before extraction, so after scanning block until the consumer is done (finish).
+		} else {
+			consumer = new QueueingConsumer(logger, spewer, threads);
+		}
+
+		if (cli.hasOption("output-encoding")) {
+			consumer.setOutputEncoding((String) cli.getOptionValue("output-encoding"));
+		}
+
+		if (cli.hasOption("ocr-language")) {
+			consumer.setOcrLanguage((String) cli.getOptionValue("ocr-language"));
+		}
+
+		if (QueueType.REDIS == queueType) {
+			((PollingConsumer) consumer).saturate();
 		} else {
 			final Scanner scanner;
 			final String directory;
-			final Consumer consumer;
 
-			// When running in memory mode, don't use a queue.
-			// The scanner sends jobs straight to the consumer, the executor of which uses its own internal queue.
-			// Scanning the directory tree will most probably finish before extraction, so after scanning block until the consumer is done (finish).
-			consumer = new QueueingConsumer(logger, spewer, threads);
 			scanner = new ConsumingScanner(logger, (QueueingConsumer) consumer);
 			directory = (String) cli.getOptionValue('d', "*");
 
 			QueueCli.setScannerOptions(cli, scanner);
-			setConsumerOptions(cli, consumer);
 
 			scanner.scan(Paths.get(directory));
 			logger.info("Completed scanning of \"" + directory + "\".");
@@ -159,6 +163,14 @@ public class ExtractCli extends Cli {
 			} catch (IOException e) {
 				logger.log(Level.SEVERE, "Spewer failed to finish.", e);
 			}
+		}
+
+		if (ReporterType.REDIS == reporterType) {
+			final Redisson redisson = getRedisson(cli);
+			final RMap<String, Integer> report = RedisReporter.getReport(cli.getOptionValue("redis-namespace"), redisson);
+			final Reporter reporter = new RedisReporter(logger, report);
+
+			consumer.setReporter(reporter);
 		}
 
 		return cli;

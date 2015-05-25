@@ -14,7 +14,6 @@ import org.apache.commons.cli.ParseException;
 
 import org.redisson.Config;
 import org.redisson.Redisson;
-import org.redisson.core.RQueue;
 
 /**
  * Extract
@@ -23,31 +22,35 @@ import org.redisson.core.RQueue;
  * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
-public abstract class Cli {
+public abstract class CommandCli {
 
 	public static final CommandLineParser DEFAULT_PARSER = new DefaultParser();
-	public static final String DEFAULT_NAMESPACE = "extract";
 
 	protected final Logger logger;
 
-	public static Redisson createRedisClient(CommandLine cli) {
+	private static Redisson redisson = null;
+
+	public static Redisson getRedisson(CommandLine cli) {
+		final Config config;
+
+		if (null != redisson) {
+			return redisson;
+		}
+
 		if (!cli.hasOption("redis-address")) {
 			return Redisson.create();
 		}
 
-		final Config config = new Config();
+		config = new Config();
 
 		// TODO: Create a cluster if more than one address is given.
 		config.useSingleServer().setAddress(cli.getOptionValue("redis-address"));
 
-		return Redisson.create(config);
+		redisson = Redisson.create(config);
+		return redisson;
 	}
 
-	public static RQueue<Path> createRedisQueue(CommandLine cli, Redisson redisson) {
-		return redisson.getQueue(cli.getOptionValue("queue-namespace", DEFAULT_NAMESPACE) + ":queue");
-	}
-
-	public Cli(Logger logger) {
+	public CommandCli(Logger logger) {
 		this.logger = logger;
 	}
 

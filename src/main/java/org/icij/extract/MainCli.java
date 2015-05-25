@@ -35,12 +35,12 @@ public class MainCli {
 			.hasArg()
 			.argName("level")
 			.build()).addOption(Option.builder()
-			.desc("Set the queue namespace. Defaults to \"" + Cli.DEFAULT_NAMESPACE + "\".")
-			.longOpt("queue-namespace")
+			.desc("Set the Redis namespace. Defaults to \"extract\".")
+			.longOpt("redis-namespace")
 			.hasArg()
 			.argName("name")
 			.build()).addOption(Option.builder()
-			.desc("Set the Redis address. Defaults to 127.0.0.1:6379.")
+			.desc("Set the Redis backend address. Defaults to 127.0.0.1:6379.")
 			.longOpt("redis-address")
 			.hasArg()
 			.argName("address")
@@ -84,7 +84,7 @@ public class MainCli {
 
 		if (Command.EXTRACT == command) {
 			options.addOption(Option.builder("q")
-				.desc("Set the queue backend type. For now, the only valid values are \"redis\" and \"memory\". Defaults to memory.")
+				.desc("Set the queue backend type. For now, the only valid values are \"redis\" and \"none\". Defaults to none.")
 				.longOpt("queue")
 				.hasArg()
 				.argName("type")
@@ -135,6 +135,11 @@ public class MainCli {
 				.hasArg()
 				.argName("interval")
 				.type(Number.class)
+				.build()).addOption(Option.builder("r")
+				.desc("Set the reporter backend type. This is used to skip files that have already been extracted and outputted successfully. For now, the only valid values are \"redis\" and \"none\". Defaults to none.")
+				.longOpt("reporter")
+				.hasArg()
+				.argName("type")
 				.build());
 		}
 
@@ -166,7 +171,7 @@ public class MainCli {
 			return;
 		}
 
-		cli = Cli.DEFAULT_PARSER.parse(options, args, true);
+		cli = CommandCli.DEFAULT_PARSER.parse(options, args, true);
 
 		// Print the version string.
 		if (cli.hasOption("version")) {

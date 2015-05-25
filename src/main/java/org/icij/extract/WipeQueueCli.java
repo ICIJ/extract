@@ -12,7 +12,7 @@ import org.apache.commons.cli.ParseException;
  * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
-public class WipeQueueCli extends Cli {
+public class WipeQueueCli extends CommandCli {
 
 	public WipeQueueCli(Logger logger) {
 		super(logger);

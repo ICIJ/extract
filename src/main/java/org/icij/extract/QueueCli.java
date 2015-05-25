@@ -2,9 +2,11 @@ package org.icij.extract;
 
 import java.util.logging.Logger;
 
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.redisson.Redisson;
+import org.redisson.core.RQueue;
 
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.CommandLine;
@@ -16,7 +18,7 @@ import org.apache.commons.cli.CommandLine;
  * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
-public class QueueCli extends Cli {
+public class QueueCli extends CommandCli {
 
 	public static void setScannerOptions(CommandLine cli, Scanner scanner) {
 		if (cli.hasOption("include-pattern")) {
@@ -39,8 +41,9 @@ public class QueueCli extends Cli {
 	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cli = super.parse(args, Command.QUEUE);
 
-		final Redisson redisson = createRedisClient(cli);
-		final Scanner scanner = new QueueingScanner(logger, createRedisQueue(cli, redisson));
+		final Redisson redisson = getRedisson(cli);
+		final RQueue<Path> queue = redisson.getQueue(cli.getOptionValue("redis-namespace", "extract") + ":queue");
+		final Scanner scanner = new QueueingScanner(logger, queue);
 
 		setScannerOptions(cli, scanner);
 

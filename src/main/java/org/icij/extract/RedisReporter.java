@@ -1,10 +1,11 @@
 package org.icij.extract;
 
-import java.util.Map;
-
 import java.util.logging.Logger;
 
 import java.nio.file.Path;
+
+import org.redisson.Redisson;
+import org.redisson.core.RMap;
 
 /**
  * Extract
@@ -13,7 +14,7 @@ import java.nio.file.Path;
  * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
-public abstract class Reporter {
+public class RedisReporter extends Reporter {
 	public static final int SUCCEEDED = 0;
 	public static final int NOT_FOUND = 1;
 	public static final int NOT_READ = 2;
@@ -21,19 +22,15 @@ public abstract class Reporter {
 	public static final int NOT_PARSED = 4;
 	public static final int NOT_SAVED = 10;
 
-	protected final Logger logger;
-	protected final Map<String, Integer> report;
-
-	public Reporter(Logger logger, Map<String, Integer> report) {
-		this.logger = logger;
-		this.report = report;
+	public static RMap<String, Integer> getReport(String namespace, Redisson redisson) {
+		return redisson.getMap(namespace + ":report");
 	}
 
-	public boolean succeeded(Path file) {
-		return report.get(file.toString()) == SUCCEEDED;
+	public RedisReporter(Logger logger, RMap<String, Integer> report) {
+		super(logger, report);
 	}
 
 	public void save(Path file, int status) {
-		report.put(file.toString(), status);
+		((RMap) report).fastPut(file.toString(), status);
 	}
 }

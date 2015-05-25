@@ -15,6 +15,6 @@ public enum OutputType {
 	}
 
 	public static final OutputType fromString(String outputType) {
-		return OutputType.valueOf(outputType.toUpperCase());
+		return valueOf(outputType.toUpperCase());
 	}
 };

@@ -11,19 +11,19 @@ import java.util.logging.Logger;
  */
 public enum Command {
 	QUEUE {
-		public Cli createCli(Logger logger) {
+		public CommandCli createCli(Logger logger) {
 			return new QueueCli(logger);
 		}
 	},
 
 	WIPE_QUEUE {
-		public Cli createCli(Logger logger) {
+		public CommandCli createCli(Logger logger) {
 			return new WipeQueueCli(logger);
 		}
 	},
 
 	EXTRACT {
-		public Cli createCli(Logger logger) {
+		public CommandCli createCli(Logger logger) {
 			return new ExtractCli(logger);
 		}
 	};
@@ -32,7 +32,7 @@ public enum Command {
 		return name().toLowerCase().replace('_', '-');
 	}
 
-	public abstract Cli createCli(Logger logger);
+	public abstract CommandCli createCli(Logger logger);
 
 	public static final Command parse(String command) throws IllegalArgumentException {
 		try {
