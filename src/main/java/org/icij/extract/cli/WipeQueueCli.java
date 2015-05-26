@@ -1,4 +1,6 @@
-package org.icij.extract;
+package org.icij.extract.cli;
+
+import org.icij.extract.core.*;
 
 import java.util.logging.Logger;
 
@@ -12,16 +14,18 @@ import org.apache.commons.cli.ParseException;
  * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
-public class WipeQueueCli extends CommandCli {
+public class WipeQueueCli extends Cli {
 
 	public WipeQueueCli(Logger logger) {
-		super(logger);
+		super(logger, new String[] {
+			"v", "q", "redis-namespace", "redis-address"
+		});
 	}
 
 	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
-		final CommandLine cli = super.parse(args, Command.WIPE_QUEUE);
+		final CommandLine cmd = super.parse(args);
 
-		return cli;
+		return cmd;
 	}
 
 	public void printHelp() {

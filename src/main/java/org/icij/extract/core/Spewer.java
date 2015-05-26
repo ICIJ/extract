@@ -1,4 +1,4 @@
-package org.icij.extract;
+package org.icij.extract.core;
 
 import java.io.IOException;
 

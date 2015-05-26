@@ -1,4 +1,6 @@
-package org.icij.extract;
+package org.icij.extract.cli;
+
+import org.icij.extract.core.*;
 
 import java.lang.Thread;
 import java.lang.Runnable;

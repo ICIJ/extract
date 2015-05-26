@@ -89,7 +89,7 @@
 				<artifactId>capsule-maven-plugin</artifactId>
 				<version>${capsule.maven.plugin.version}</version>
 				<configuration>
-					<appClass>org.icij.extract.Main</appClass>
+					<appClass>org.icij.extract.cli.Main</appClass>
 					<output>target</output>
 					<chmod>true</chmod>
 					<trampoline>false</trampoline>

@@ -1,6 +1,4 @@
-package org.icij.extract;
-
-import java.util.Queue;
+package org.icij.extract.core;
 
 import java.util.logging.Logger;
 
@@ -13,16 +11,16 @@ import java.nio.file.Path;
  * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
-public class QueueingScanner extends Scanner {
+public class ConsumingScanner extends Scanner {
 
-	private final Queue queue;
+	private final QueueingConsumer consumer;
 
-	public QueueingScanner(Logger logger, Queue queue) {
+	public ConsumingScanner(Logger logger, QueueingConsumer consumer) {
 		super(logger);
-		this.queue = queue;
+		this.consumer = consumer;
 	}
 
 	protected void handle(Path file) {
-		queue.add(file);
+		consumer.consume(file);
 	}
 }

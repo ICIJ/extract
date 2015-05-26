@@ -1,4 +1,6 @@
-package org.icij.extract;
+package org.icij.extract.cli;
+
+import org.icij.extract.core.*;
 
 import java.util.Map;
 
@@ -28,20 +30,22 @@ import org.apache.solr.client.solrj.impl.HttpSolrClient;
  * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
-public class ExtractCli extends CommandCli {
+public class ExtractCli extends Cli {
 
 	public ExtractCli(Logger logger) {
-		super(logger);
+		super(logger, new String[] {
+			"v", "q", "d", "redis-namespace", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "o", "output-encoding", "file-output-directory", "s", "t", "solr-commit-interval", "r"
+		});
 	}
 
 	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
-		final CommandLine cli = super.parse(args, Command.EXTRACT);
+		final CommandLine cmd = super.parse(args);
 
 		int threads = Consumer.DEFAULT_THREADS;
 
-		if (cli.hasOption('p')) {
+		if (cmd.hasOption('p')) {
 			try {
-				threads = ((Number) cli.getParsedOptionValue("t")).intValue();
+				threads = ((Number) cmd.getParsedOptionValue("t")).intValue();
 			} catch (ParseException e) {
 				throw new IllegalArgumentException("Invalid value for thread count.");
 			}
@@ -53,42 +57,42 @@ public class ExtractCli extends CommandCli {
 		final Spewer spewer;
 
 		try {
-			outputType = OutputType.fromString(cli.getOptionValue('o', "stdout"));
+			outputType = OutputType.fromString(cmd.getOptionValue('o', "stdout"));
 		} catch (IllegalArgumentException e) {
-			throw new IllegalArgumentException(String.format("\"%s\" is not a valid output type.", cli.getOptionValue('o')));
+			throw new IllegalArgumentException(String.format("\"%s\" is not a valid output type.", cmd.getOptionValue('o')));
 		}
 
 		if (OutputType.SOLR == outputType) {
-			if (!cli.hasOption('s')) {
+			if (!cmd.hasOption('s')) {
 				throw new IllegalArgumentException("The -s option is required when outputting to Solr.");
 			}
 
-			spewer = new SolrSpewer(logger, new HttpSolrClient(cli.getOptionValue('s')));
-			if (cli.hasOption('t')) {
-				((SolrSpewer) spewer).setField(cli.getOptionValue('t'));
+			spewer = new SolrSpewer(logger, new HttpSolrClient(cmd.getOptionValue('s')));
+			if (cmd.hasOption('t')) {
+				((SolrSpewer) spewer).setField(cmd.getOptionValue('t'));
 			}
 
-			if (cli.hasOption("solr-commit-interval")) {
-				((SolrSpewer) spewer).setCommitInterval(((Number) cli.getParsedOptionValue("solr-commit-interval")).intValue());
+			if (cmd.hasOption("solr-commit-interval")) {
+				((SolrSpewer) spewer).setCommitInterval(((Number) cmd.getParsedOptionValue("solr-commit-interval")).intValue());
 			}
 		} else if (OutputType.FILE == outputType) {
 			spewer = new FileSpewer(logger);
 
 			// TODO: Ensure that the output directory is not the same as the input directory.
-			((FileSpewer) spewer).setOutputDirectory(Paths.get((String) cli.getOptionValue("file-output-directory", ".")));
+			((FileSpewer) spewer).setOutputDirectory(Paths.get((String) cmd.getOptionValue("file-output-directory", ".")));
 		} else {
 			spewer = new StdOutSpewer(logger);
 		}
 
-		final QueueType queueType = QueueType.parse(cli.getOptionValue('q'));
-		final ReporterType reporterType = ReporterType.parse(cli.getOptionValue('r'));
+		final QueueType queueType = QueueType.parse(cmd.getOptionValue('q'));
+		final ReporterType reporterType = ReporterType.parse(cmd.getOptionValue('r'));
 		final Consumer consumer;
 
 		// With Redis it's a bit more complex.
 		// Run all the jobs in the queue and exit without waiting for more.
 		if (QueueType.REDIS == queueType) {
-			final Redisson redisson = getRedisson(cli);
-			final RQueue<Path> queue = redisson.getQueue(cli.getOptionValue("redis-namespace", "extract") + ":queue");
+			final Redisson redisson = getRedisson(cmd);
+			final RQueue<Path> queue = redisson.getQueue(cmd.getOptionValue("redis-namespace", "extract") + ":queue");
 
 			consumer = new PollingConsumer(logger, queue, spewer, threads) {
 
@@ -115,8 +119,8 @@ public class ExtractCli extends CommandCli {
 				}
 			};
 
-			if (cli.hasOption("queue-poll")) {
-				((PollingConsumer) consumer).setPollTimeout((String) cli.getOptionValue("queue-poll"));
+			if (cmd.hasOption("queue-poll")) {
+				((PollingConsumer) consumer).setPollTimeout((String) cmd.getOptionValue("queue-poll"));
 			}
 
 		// When running in memory mode, don't use a queue.
@@ -126,12 +130,12 @@ public class ExtractCli extends CommandCli {
 			consumer = new QueueingConsumer(logger, spewer, threads);
 		}
 
-		if (cli.hasOption("output-encoding")) {
-			consumer.setOutputEncoding((String) cli.getOptionValue("output-encoding"));
+		if (cmd.hasOption("output-encoding")) {
+			consumer.setOutputEncoding((String) cmd.getOptionValue("output-encoding"));
 		}
 
-		if (cli.hasOption("ocr-language")) {
-			consumer.setOcrLanguage((String) cli.getOptionValue("ocr-language"));
+		if (cmd.hasOption("ocr-language")) {
+			consumer.setOcrLanguage((String) cmd.getOptionValue("ocr-language"));
 		}
 
 		if (QueueType.REDIS == queueType) {
@@ -141,9 +145,9 @@ public class ExtractCli extends CommandCli {
 			final String directory;
 
 			scanner = new ConsumingScanner(logger, (QueueingConsumer) consumer);
-			directory = (String) cli.getOptionValue('d', "*");
+			directory = (String) cmd.getOptionValue('d', "*");
 
-			QueueCli.setScannerOptions(cli, scanner);
+			QueueCli.setScannerOptions(cmd, scanner);
 
 			scanner.scan(Paths.get(directory));
 			logger.info("Completed scanning of \"" + directory + "\".");
@@ -166,14 +170,14 @@ public class ExtractCli extends CommandCli {
 		}
 
 		if (ReporterType.REDIS == reporterType) {
-			final Redisson redisson = getRedisson(cli);
-			final RMap<String, Integer> report = RedisReporter.getReport(cli.getOptionValue("redis-namespace"), redisson);
+			final Redisson redisson = getRedisson(cmd);
+			final RMap<String, Integer> report = RedisReporter.getReport(cmd.getOptionValue("redis-namespace"), redisson);
 			final Reporter reporter = new RedisReporter(logger, report);
 
 			consumer.setReporter(reporter);
 		}
 
-		return cli;
+		return cmd;
 	}
 
 	public void printHelp() {
