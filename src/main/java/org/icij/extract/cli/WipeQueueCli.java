@@ -7,6 +7,9 @@ import java.util.logging.Logger;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
 
+import org.redisson.Redisson;
+import org.redisson.core.RQueue;
+
 /**
  * Extract
  *
@@ -24,6 +27,12 @@ public class WipeQueueCli extends Cli {
 
 	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cmd = super.parse(args);
+
+		final Redisson redisson = getRedisson(cmd);
+		final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue("redis-namespace", "extract") + ":queue");
+
+		queue.delete();
+		redisson.shutdown();
 
 		return cmd;
 	}
