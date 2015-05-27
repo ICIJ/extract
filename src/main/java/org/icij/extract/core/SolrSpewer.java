@@ -33,13 +33,16 @@ import org.apache.commons.io.IOUtils;
  * @since 1.0.0-beta
  */
 public class SolrSpewer extends Spewer {
-	public static final String DEFAULT_FIELD = "text";
+	public static final String DEFAULT_TEXT_FIELD = "text";
+	public static final String DEFAULT_PATH_FIELD = "path";
+
 	public static final int DEFAULT_INTERVAL = 10;
 
 	private final SolrClient client;
 	private final Semaphore commitSemaphore = new Semaphore(1);
 
-	private String field = DEFAULT_FIELD;
+	private String textField = DEFAULT_TEXT_FIELD;
+	private String pathField = DEFAULT_PATH_FIELD;
 
 	private int pending = 0;
 	private int interval = DEFAULT_INTERVAL;
@@ -49,8 +52,12 @@ public class SolrSpewer extends Spewer {
 		this.client = client;
 	}
 
-	public void setField(String field) {
-		this.field = field;
+	public void setTextField(String field) {
+		this.textField = field;
+	}
+
+	public void setPathField(String field) {
+		this.pathField = field;
 	}
 
 	public void setCommitInterval(int interval) {
@@ -68,11 +75,12 @@ public class SolrSpewer extends Spewer {
 
 	public void write(Path file, ParsingReader reader, Charset outputEncoding) throws IOException {
 		final SolrInputDocument document = new SolrInputDocument();
-		final Map<String, String> text = new HashMap<String, String>();
+		final Map<String, String> atomicText = new HashMap<String, String>();
+		final Map<String, String> atomicPath = new HashMap<String, String>();
 		final UpdateResponse response;
 
 		try {
-			text.put("set", IOUtils.toString(reader));
+			atomicText.put("set", IOUtils.toString(reader));
 		} catch (IOException e) {
 			throw e;
 		} finally {
@@ -81,7 +89,9 @@ public class SolrSpewer extends Spewer {
 
 		// Make an atomic update.
 		// See: https://cwiki.apache.org/confluence/display/solr/Updating+Parts+of+Documents
-		document.setField(field, text);
+		atomicPath.put("set", file.toString());
+		document.setField(textField, atomicText);
+		document.setField(pathField, atomicPath);
 
 		try {
 			response = client.add(document);

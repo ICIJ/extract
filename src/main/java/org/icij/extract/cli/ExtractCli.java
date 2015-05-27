@@ -34,7 +34,7 @@ public class ExtractCli extends Cli {
 
 	public ExtractCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "q", "d", "redis-namespace", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "o", "output-encoding", "file-output-directory", "s", "t", "solr-commit-interval", "r"
+			"v", "q", "d", "redis-namespace", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "o", "output-encoding", "file-output-directory", "s", "t", "f", "solr-commit-interval", "r"
 		});
 	}
 
@@ -45,7 +45,7 @@ public class ExtractCli extends Cli {
 
 		if (cmd.hasOption('p')) {
 			try {
-				threads = ((Number) cmd.getParsedOptionValue("t")).intValue();
+				threads = ((Number) cmd.getParsedOptionValue("p")).intValue();
 			} catch (ParseException e) {
 				throw new IllegalArgumentException("Invalid value for thread count.");
 			}
@@ -69,7 +69,11 @@ public class ExtractCli extends Cli {
 
 			spewer = new SolrSpewer(logger, new HttpSolrClient(cmd.getOptionValue('s')));
 			if (cmd.hasOption('t')) {
-				((SolrSpewer) spewer).setField(cmd.getOptionValue('t'));
+				((SolrSpewer) spewer).setTextField(cmd.getOptionValue('t'));
+			}
+
+			if (cmd.hasOption('f')) {
+				((SolrSpewer) spewer).setPathField(cmd.getOptionValue('f'));
 			}
 
 			if (cmd.hasOption("solr-commit-interval")) {

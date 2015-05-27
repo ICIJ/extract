@@ -183,10 +183,17 @@ public abstract class Cli {
 			.build();
 
 		case "t": return Option.builder("t")
-			.desc("Solr field for extracted text. Defaults to \"" + SolrSpewer.DEFAULT_FIELD + "\".")
+			.desc("Solr field for extracted text. Defaults to \"" + SolrSpewer.DEFAULT_TEXT_FIELD + "\".")
 			.longOpt("solr-text-field")
 			.hasArg()
-			.argName("address")
+			.argName("name")
+			.build();
+
+		case "f": return Option.builder("f")
+			.desc("Solr field for the file path. Defaults to \"" + SolrSpewer.DEFAULT_PATH_FIELD + "\".")
+			.longOpt("solr-path-field")
+			.hasArg()
+			.argName("name")
 			.build();
 
 		case "solr-commit-interval": return Option.builder()
