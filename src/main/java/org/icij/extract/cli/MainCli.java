@@ -71,9 +71,17 @@ public class MainCli extends Cli {
 
 	public void printHelp() {
 		final HelpFormatter formatter = new HelpFormatter();
-		final String header = "\nA cross-platform tool for distributed content-analysis.\n\n";
-		final String footer = "\nPlease report issues https://github.com/ICIJ/extract/issues.";
 
-		formatter.printHelp("\033[1mextract\033[0m", header, options, footer, true);
+		final String[] commands = new String[Command.values().length];
+		int i = 0;
+
+		for (Command command : Command.values()) {
+			commands[i++] = command.toString();
+		}
+
+		final String header = "\nA cross-platform tool for distributed content-analysis by the data team at the International Consortium of Investigative Journalists.\n\nAvailable commands: " + String.join("; ", commands) + ".\n\n";
+		final String footer = "\nPlease report issues at: https://github.com/ICIJ/extract/issues.";
+
+		formatter.printHelp("\033[1mextract\033[0m [command]", header, options, footer, true);
 	}
 }

@@ -233,7 +233,7 @@ public abstract class Cli {
 	protected void printHelp(Command command, String description) {
 		final HelpFormatter formatter = new HelpFormatter();
 
-		final String footer = "\nExtract is a cross-platform tool for distributed content-analysis.\nPlease report issues https://github.com/ICIJ/extract/issues.";
+		final String footer = "\nExtract is a cross-platform tool for distributed content-analysis.\nPlease report issues at: https://github.com/ICIJ/extract/issues.";
 		final String header = "\n" + description + "\n\n";
 
 		formatter.printHelp("\033[1mextract\033[0m " + command, header, options, footer, true);
