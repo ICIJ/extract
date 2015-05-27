@@ -69,10 +69,10 @@ public class PollingConsumer extends Consumer {
 
 			@Override
 			public void run() {
-				Path file = (Path) queue.poll();
+				String file = (String) queue.poll();
 
 				if (null == file && pollTimeout > 0L) {
-					file = poll();
+					file = pollWait();
 				}
 		
 				// Shut down the executor if the queue is empty.
@@ -102,7 +102,7 @@ public class PollingConsumer extends Consumer {
 		logger.info("Queue drained.");
 	}
 
-	private Path poll() {
+	private String pollWait() {
 		logger.info("Polling the queue, waiting up to " + pollTimeout + " " + pollTimeoutUnit + ".");
 
 		// TODO: Use wait/notify instead.
@@ -113,6 +113,6 @@ public class PollingConsumer extends Consumer {
 			return null;
 		}
 
-		return (Path) queue.poll();
+		return (String) queue.poll();
 	}
 }

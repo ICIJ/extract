@@ -96,7 +96,7 @@ public class ExtractCli extends Cli {
 		// Run all the jobs in the queue and exit without waiting for more.
 		if (QueueType.REDIS == queueType) {
 			final Redisson redisson = getRedisson(cmd);
-			final RQueue<Path> queue = redisson.getQueue(cmd.getOptionValue("redis-namespace", "extract") + ":queue");
+			final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue("redis-namespace", "extract") + ":queue");
 
 			consumer = new PollingConsumer(logger, queue, spewer, threads) {
 

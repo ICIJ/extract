@@ -23,6 +23,6 @@ public class QueueingScanner extends Scanner {
 	}
 
 	protected void handle(Path file) {
-		queue.add(file);
+		queue.add(file.toString());
 	}
 }

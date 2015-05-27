@@ -16,6 +16,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.ExecutionException;
 
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.charset.Charset;
 
@@ -77,6 +78,10 @@ public abstract class Consumer {
 		logger.info("Shutting down consumer.");
 
 		executor.shutdown();
+	}
+
+	public void consume(final String file) {
+		consume(Paths.get(file));
 	}
 
 	public void consume(final Path file) {

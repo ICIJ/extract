@@ -46,7 +46,7 @@ public class QueueCli extends Cli {
 		final CommandLine cmd = super.parse(args);
 
 		final Redisson redisson = getRedisson(cmd);
-		final RQueue<Path> queue = redisson.getQueue(cmd.getOptionValue("redis-namespace", "extract") + ":queue");
+		final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue("redis-namespace", "extract") + ":queue");
 		final Scanner scanner = new QueueingScanner(logger, queue);
 
 		setScannerOptions(cmd, scanner);
