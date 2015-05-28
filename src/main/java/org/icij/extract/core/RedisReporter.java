@@ -27,8 +27,4 @@ public class RedisReporter extends Reporter {
 	public RedisReporter(Logger logger, RMap<String, Integer> report) {
 		super(logger, report);
 	}
-
-	public void save(Path file, int status) {
-		((RMap) report).fastPut(file.toString(), status);
-	}
 }
