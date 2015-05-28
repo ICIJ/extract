@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 public enum Command {
 	QUEUE(QueueCli.class),
 	WIPE_QUEUE(WipeQueueCli.class),
+	WIPE_REPORT(WipeReportCli.class),
 	DUMP_QUEUE(DumpQueueCli.class),
 	DUMP_REPORT(DumpReportCli.class),
 	EXTRACT(ExtractCli.class);
