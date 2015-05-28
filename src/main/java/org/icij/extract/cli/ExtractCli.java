@@ -144,7 +144,7 @@ public class ExtractCli extends Cli {
 			final String directory;
 
 			scanner = new ConsumingScanner(logger, (QueueingConsumer) consumer);
-			directory = (String) cmd.getOptionValue('d', "*");
+			directory = (String) cmd.getOptionValue('d', ".");
 
 			QueueCli.setScannerOptions(cmd, scanner);
 
