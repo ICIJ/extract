@@ -41,12 +41,11 @@ public abstract class Consumer {
 	protected final Spewer spewer;
 	protected Reporter reporter = null;
 
-	private final ThreadPoolExecutor executor;
+	protected final ThreadPoolExecutor executor;
+	protected int threads;
 
 	private Charset outputEncoding;
 	private String ocrLanguage;
-
-	private int threads;
 
 	private final Semaphore pending;
 
