@@ -57,7 +57,6 @@ public class Extractor {
 	private final Path file;
 
 	private final TikaConfig config = TikaConfig.getDefaultConfig();
-	private final Collection<Class<TesseractOCRParser>> excludedParsers = new ArrayList<Class<TesseractOCRParser>>();
 
 	public Extractor (Logger logger, Path file) {
 		this.logger = logger;
@@ -78,7 +77,7 @@ public class Extractor {
 
 	public void disableOcr() {
 		if (!ocrDisabled) {
-			excludedParsers.add(TesseractOCRParser.class);
+			excludeParsers(TesseractOCRParser.class);
 			ocrDisabled = true;
 		}
 	}
@@ -88,9 +87,6 @@ public class Extractor {
 
 		final ParseContext context = new ParseContext();
 		final PDFParserConfig pdfConfig = new PDFParserConfig();
-
-		excludeParsers();
-
 		final AutoDetectParser parser = new AutoDetectParser(config);
 
 		if (!ocrDisabled) {
@@ -132,24 +128,20 @@ public class Extractor {
 		return reader;
 	}
 
-	private void excludeParsers() {
-		final CompositeParser compositeParser = (CompositeParser) config.getParser();
-		final Map<MediaType, Parser> parsers = compositeParser.getParsers();
+	private void excludeParsers(Class... excluded) {
+		final CompositeParser composite = (CompositeParser) config.getParser();
+		final Map<MediaType, Parser> parsers = composite.getParsers();
 
 		final Iterator iterator = parsers.entrySet().iterator();
-
-		if (excludedParsers.size() == 0) {
-			return;
-		}
 
 		while (iterator.hasNext()) {
 			Map.Entry pair = (Map.Entry) iterator.next();
 
-			if (excludedParsers.contains(pair.getValue().getClass())) {
+			if (Arrays.asList(excluded).contains(pair.getValue().getClass())) {
 				iterator.remove();
 			}
 		}
 
-		compositeParser.setParsers(parsers);
+		composite.setParsers(parsers);
 	}
 }
