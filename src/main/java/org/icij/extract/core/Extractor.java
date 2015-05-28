@@ -11,8 +11,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import java.nio.file.Path;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 
 import java.io.File;
 import java.io.InputStream;
@@ -29,7 +27,6 @@ import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.CompositeParser;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParsingReader;
-import org.apache.tika.parser.html.HtmlParser;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.ocr.TesseractOCRParser;
 import org.apache.tika.parser.pdf.PDFParserConfig;
@@ -50,35 +47,33 @@ import org.xml.sax.ContentHandler;
 public class Extractor {
 	private final Logger logger;
 
-	private Charset outputEncoding = StandardCharsets.UTF_8;
-	private String ocrLanguage = "eng";
 	private boolean ocrDisabled = false;
 
-	private final Path file;
-
 	private final TikaConfig config = TikaConfig.getDefaultConfig();
+	private final TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
+	private final PDFParserConfig pdfConfig = new PDFParserConfig();
 
-	public Extractor (Logger logger, Path file) {
+	public Extractor(Logger logger) {
 		this.logger = logger;
-		this.file = file;
-	}
 
-	public void setOutputEncoding(Charset outputEncoding) {
-		this.outputEncoding = outputEncoding;
-	}
+		// Run OCR on images contained within PDFs.
+		pdfConfig.setExtractInlineImages(true);
 
-	public Charset getOutputEncoding() {
-		return outputEncoding;
+		// By default, only the object IDs are used for determining uniqueness.
+		// In scanned documents under test from the Panama registry, different embedded images had the same ID, leading to incomplete OCRing when uniqueness detection was turned on.
+		pdfConfig.setExtractUniqueInlineImagesOnly(false);
+		pdfConfig.setUseNonSequentialParser(true);
 	}
 
 	public void setOcrLanguage(String ocrLanguage) {
-		this.ocrLanguage = ocrLanguage;
+		ocrConfig.setLanguage(ocrLanguage);
 	}
 
 	public void disableOcr() {
 		if (!ocrDisabled) {
 			excludeParsers(TesseractOCRParser.class);
 			ocrDisabled = true;
+			pdfConfig.setExtractInlineImages(false);
 		}
 	}
 
@@ -86,24 +81,12 @@ public class Extractor {
 		final Metadata metadata = new Metadata();
 
 		final ParseContext context = new ParseContext();
-		final PDFParserConfig pdfConfig = new PDFParserConfig();
 		final AutoDetectParser parser = new AutoDetectParser(config);
 
 		if (!ocrDisabled) {
-			final TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
-
-			ocrConfig.setLanguage(ocrLanguage);
 			context.set(TesseractOCRConfig.class, ocrConfig);
-
-			// Run OCR on images contained within PDFs.
-			pdfConfig.setExtractInlineImages(true);
-
-			// By default, only the object IDs are used for determining uniqueness.
-			// In scanned documents under test from the Panama registry, different embedded images had the same ID, leading to incomplete OCRing when uniqueness detection was turned on.
-			pdfConfig.setExtractUniqueInlineImagesOnly(false);
 		}
 
-		pdfConfig.setUseNonSequentialParser(true);
 		context.set(PDFParserConfig.class, pdfConfig);
 
 		parser.setFallback(new Parser() {

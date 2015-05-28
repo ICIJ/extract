@@ -19,6 +19,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 import java.io.IOException;
 import java.io.FileNotFoundException;
@@ -44,11 +45,11 @@ public abstract class Consumer {
 	protected final ThreadPoolExecutor executor;
 	protected int threads;
 
-	private Charset outputEncoding;
-	private String ocrLanguage;
-	private boolean ocrDisabled = false;
+	private Charset outputEncoding = StandardCharsets.UTF_8;
 
 	private final Semaphore pending;
+
+	private final Extractor extractor;
 
 	public Consumer(Logger logger, Spewer spewer, int threads) {
 		this.logger = logger;
@@ -58,6 +59,7 @@ public abstract class Consumer {
 		this.pending = new Semaphore(threads);
 
 		this.executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(threads);
+		this.extractor = new Extractor(logger);
 	}
 
 	public void setOutputEncoding(Charset outputEncoding) {
@@ -69,7 +71,7 @@ public abstract class Consumer {
 	}
 
 	public void setOcrLanguage(String ocrLanguage) {
-		this.ocrLanguage = ocrLanguage;
+		extractor.setOcrLanguage(ocrLanguage);
 	}
 
 	public void setReporter(Reporter reporter) {
@@ -77,7 +79,7 @@ public abstract class Consumer {
 	}
 
 	public void disableOcr() {
-		ocrDisabled = true;
+		extractor.disableOcr();
 	}
 
 	public void shutdown() {
@@ -135,20 +137,6 @@ public abstract class Consumer {
 
 	private int extract(Path file) {
 		logger.info("Beginning extraction: " + file + ".");
-
-		final Extractor extractor = new Extractor(logger, file);
-
-		if (null != ocrLanguage) {
-			extractor.setOcrLanguage(ocrLanguage);
-		}
-
-		if (null != outputEncoding) {
-			extractor.setOutputEncoding(outputEncoding);
-		}
-
-		if (ocrDisabled) {
-			extractor.disableOcr();
-		}
 
 		ParsingReader reader = null;
 		int status = Reporter.SUCCEEDED;
