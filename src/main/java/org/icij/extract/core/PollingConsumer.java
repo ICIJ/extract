@@ -65,26 +65,26 @@ public class PollingConsumer extends Consumer {
 	}
 
 	public void consume() {
-		futures.add(executor.submit(new Runnable() {
+		logger.info("Polling the queue.");
 
-			@Override
-			public void run() {
-				String file = (String) queue.poll();
+		String file = (String) queue.poll();
 
-				if (null == file && pollTimeout > 0L) {
-					file = pollWait();
-				}
-		
-				// Shut down the executor if the queue is empty.
-				if (null == file) {
-					drained();
-					return;
-				}
-		
-				consume(file);
-				consume();
-			}
-		}));
+		if (null == file && pollTimeout > 0L) {
+			file = pollWait();
+		}
+
+		// Shut down the executor if the queue is empty.
+		if (null == file) {
+			drained();
+		} else {
+			consume(file);
+			consume();
+		}
+	}
+
+	public void start() {
+		super.start();
+		saturate();
 	}
 
 	public void saturate() {

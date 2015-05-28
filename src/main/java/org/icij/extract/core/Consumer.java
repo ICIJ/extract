@@ -39,22 +39,24 @@ public abstract class Consumer {
 
 	protected final Logger logger;
 	protected final Spewer spewer;
-	protected final ThreadPoolExecutor executor;
-
 	protected Reporter reporter = null;
+
+	private final ThreadPoolExecutor executor;
 
 	private Charset outputEncoding;
 	private String ocrLanguage;
 
-	protected int threads;
+	private int threads;
 
-	protected Set<Future> futures = new HashSet<Future>();
-	protected final Semaphore semaphore = new Semaphore(1);
+	private final Semaphore pending;
 
 	public Consumer(Logger logger, Spewer spewer, int threads) {
 		this.logger = logger;
 		this.spewer = spewer;
+
 		this.threads = threads;
+		this.pending = new Semaphore(threads);
+
 		this.executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(threads);
 	}
 
@@ -87,47 +89,28 @@ public abstract class Consumer {
 	public void consume(final Path file) {
 		logger.info("Sending to thread pool; will queue if full (" + executor.getActiveCount() + " active): " + file + ".");
 
-		futures.add(executor.submit(new Runnable() {
+		pending.acquireUninterruptibly();
+		executor.submit(new Runnable() {
 
 			@Override
 			public void run() {
 				lazilyExtract(file);
-
-				// Garbage collect futures that have already completed.
-				// Return immediately if no permit is available to avoid a deadlock with `await()`.
-				if (!semaphore.tryAcquire()) {
-					return;
-				}
-
-				final Iterator<Future> iterator = futures.iterator();
-
-				while (iterator.hasNext()) {
-					final Future future = iterator.next();
-
-					if (future.isDone()) {
-						iterator.remove();
-					}
-				}
-
-				semaphore.release();
+				pending.release();
 			}
-		}));
+		});
+	}
+
+	public void start() {
+		logger.info("Starting consumer.");
 	}
 
 	public void finish() throws InterruptedException, ExecutionException {
-		semaphore.acquireUninterruptibly();
+		logger.info("Consumer waiting for all threads to finish.");
 
-		final Iterator<Future> iterator = futures.iterator();
+		// Block until the thread pool is completely empty.
+		pending.acquire(threads);
 
-		// Block while waiting on all of the futures to complete.
-		while (iterator.hasNext()) {
-			final Future future = iterator.next();
-
-			future.get();
-			iterator.remove();
-		}
-
-		semaphore.release();
+		logger.info("All threads finished.");
 	}
 
 	private void lazilyExtract(Path file) {

@@ -98,27 +98,13 @@ public class ExtractCli extends Cli {
 			final Redisson redisson = getRedisson(cmd);
 			final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue("redis-namespace", "extract") + ":queue");
 
+			logger.info("Setting up polling consumer.");
+
 			consumer = new PollingConsumer(logger, queue, spewer, threads) {
 
 				@Override
-				protected void drained() {
-					super.drained();
-
-					try {
-						finish();
-					} catch (InterruptedException e) {
-						logger.warning("Interrupted while waiting for extraction to terminate.");
-					} catch (ExecutionException e) {
-						logger.log(Level.SEVERE, "Extraction failed for a pending job.", e);
-					}
-
-					try {
-						spewer.finish();
-					} catch (IOException e) {
-						logger.log(Level.SEVERE, "Spewer failed to finish.", e);
-					}
-
-					shutdown();
+				public void finish() throws InterruptedException, ExecutionException {
+					super.finish();
 					redisson.shutdown();
 				}
 			};
@@ -142,9 +128,9 @@ public class ExtractCli extends Cli {
 			consumer.setOcrLanguage((String) cmd.getOptionValue("ocr-language"));
 		}
 
-		if (QueueType.REDIS == queueType) {
-			((PollingConsumer) consumer).saturate();
-		} else {
+		consumer.start();
+
+		if (QueueType.NONE == queueType) {
 			final Scanner scanner;
 			final String directory;
 
@@ -155,22 +141,22 @@ public class ExtractCli extends Cli {
 
 			scanner.scan(Paths.get(directory));
 			logger.info("Completed scanning of \"" + directory + "\".");
+		}
 
-			try {
-				consumer.finish();
-			} catch (InterruptedException e) {
-				logger.warning("Interrupted while waiting for extraction to terminate.");
-			} catch (ExecutionException e) {
-				logger.log(Level.SEVERE, "Extraction failed for a pending job.", e);
-			}
+		try {
+			consumer.finish();
+		} catch (InterruptedException e) {
+			logger.warning("Interrupted while waiting for extraction to terminate.");
+		} catch (ExecutionException e) {
+			logger.log(Level.SEVERE, "Extraction failed for a pending job.", e);
+		}
 
-			consumer.shutdown();
+		consumer.shutdown();
 
-			try {
-				spewer.finish();
-			} catch (IOException e) {
-				logger.log(Level.SEVERE, "Spewer failed to finish.", e);
-			}
+		try {
+			spewer.finish();
+		} catch (IOException e) {
+			logger.log(Level.SEVERE, "Spewer failed to finish.", e);
 		}
 
 		if (ReporterType.REDIS == reporterType) {
