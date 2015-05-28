@@ -21,7 +21,7 @@ public class WipeQueueCli extends Cli {
 
 	public WipeQueueCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "q", "redis-namespace", "redis-address"
+			"v", "redis-namespace", "redis-address"
 		});
 	}
 
@@ -31,6 +31,7 @@ public class WipeQueueCli extends Cli {
 		final Redisson redisson = getRedisson(cmd);
 		final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue("redis-namespace", "extract") + ":queue");
 
+		logger.info("Wiping queue.");
 		queue.delete();
 		redisson.shutdown();
 
