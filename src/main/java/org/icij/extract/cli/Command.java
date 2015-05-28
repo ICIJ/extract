@@ -15,6 +15,7 @@ public enum Command {
 	QUEUE(QueueCli.class),
 	WIPE_QUEUE(WipeQueueCli.class),
 	DUMP_QUEUE(DumpQueueCli.class),
+	DUMP_REPORT(DumpReportCli.class),
 	EXTRACT(ExtractCli.class);
 
 	private final Class klass;

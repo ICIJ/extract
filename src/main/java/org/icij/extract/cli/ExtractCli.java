@@ -128,6 +128,15 @@ public class ExtractCli extends Cli {
 			consumer.setOcrLanguage((String) cmd.getOptionValue("ocr-language"));
 		}
 
+		if (ReporterType.REDIS == reporterType) {
+			final Redisson redisson = getRedisson(cmd);
+			final RMap<String, Integer> report = RedisReporter.getReport(cmd.getOptionValue("redis-namespace"), redisson);
+			final Reporter reporter = new RedisReporter(logger, report);
+
+			logger.info("Using Redis reporter.");
+			consumer.setReporter(reporter);
+		}
+
 		consumer.start();
 
 		if (QueueType.NONE == queueType) {
@@ -157,14 +166,6 @@ public class ExtractCli extends Cli {
 			spewer.finish();
 		} catch (IOException e) {
 			logger.log(Level.SEVERE, "Spewer failed to finish.", e);
-		}
-
-		if (ReporterType.REDIS == reporterType) {
-			final Redisson redisson = getRedisson(cmd);
-			final RMap<String, Integer> report = RedisReporter.getReport(cmd.getOptionValue("redis-namespace"), redisson);
-			final Reporter reporter = new RedisReporter(logger, report);
-
-			consumer.setReporter(reporter);
 		}
 
 		return cmd;

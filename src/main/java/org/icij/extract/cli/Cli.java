@@ -211,6 +211,15 @@ public abstract class Cli {
 			.argName("type")
 			.build();
 
+		case "reporter-status": return Option.builder()
+			.desc("Only dump reports matching the given status.")
+			.longOpt(name)
+			.hasArg()
+			.argName("status")
+			.type(Number.class)
+			.required(true)
+			.build();
+
 		default:
 			throw new IllegalArgumentException("Unknown option: " + name + ".");
 		}

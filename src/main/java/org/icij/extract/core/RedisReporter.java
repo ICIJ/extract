@@ -15,14 +15,12 @@ import org.redisson.core.RMap;
  * @since 1.0.0-beta
  */
 public class RedisReporter extends Reporter {
-	public static final int SUCCEEDED = 0;
-	public static final int NOT_FOUND = 1;
-	public static final int NOT_READ = 2;
-	public static final int NOT_DECRYPTED = 3;
-	public static final int NOT_PARSED = 4;
-	public static final int NOT_SAVED = 10;
 
 	public static RMap<String, Integer> getReport(String namespace, Redisson redisson) {
+		if (null == namespace) {
+			namespace = "extract";
+		}
+
 		return redisson.getMap(namespace + ":report");
 	}
 

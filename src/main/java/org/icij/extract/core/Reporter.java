@@ -30,7 +30,7 @@ public abstract class Reporter {
 	}
 
 	public boolean succeeded(Path file) {
-		return report.get(file.toString()) == SUCCEEDED;
+		return false;//report.get(file.toString()) == SUCCEEDED;
 	}
 
 	public void save(Path file, int status) {

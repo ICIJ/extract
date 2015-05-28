@@ -11,7 +11,7 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
 
 import org.redisson.Redisson;
-import org.redisson.core.RQueue;
+import org.redisson.core.RMap;
 
 import javax.json.*;
 import javax.json.stream.JsonGenerator;
@@ -23,11 +23,11 @@ import javax.json.stream.JsonGenerator;
  * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
-public class DumpQueueCli extends Cli {
+public class DumpReportCli extends Cli {
 
-	public DumpQueueCli(Logger logger) {
+	public DumpReportCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "redis-namespace", "redis-address"
+			"v", "redis-namespace", "redis-address", "reporter-status"
 		});
 	}
 
@@ -35,9 +35,9 @@ public class DumpQueueCli extends Cli {
 		final CommandLine cmd = super.parse(args);
 
 		final Redisson redisson = getRedisson(cmd);
-		final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue("redis-namespace", "extract") + ":queue");
+		final RMap<String, Integer> report = RedisReporter.getReport(cmd.getOptionValue("redis-namespace"), redisson);
 
-		final Iterator<String> files = queue.iterator();
+		final Iterator<Map.Entry<String, Integer>> entries = report.entrySet().iterator();
 		final JsonArrayBuilder array = Json.createArrayBuilder();
 		final Map<String, Boolean> config = new HashMap<>();
 
@@ -46,8 +46,14 @@ public class DumpQueueCli extends Cli {
 		final JsonWriterFactory factory = Json.createWriterFactory(config);
 		final JsonWriter writer = factory.createWriter(System.out);
 
-		while (files.hasNext()) {
-			array.add((String) files.next());
+		final int status = ((Number) cmd.getParsedOptionValue("reporter-status")).intValue();
+
+		while (entries.hasNext()) {
+			Map.Entry<String, Integer> entry = (Map.Entry) entries.next();
+
+			if (entry.getValue() == status) {
+				array.add(entry.getKey());
+			}
 		}
 
 		writer.writeArray(array.build());
@@ -60,6 +66,6 @@ public class DumpQueueCli extends Cli {
 	}
 
 	public void printHelp() {
-		super.printHelp(Command.DUMP_QUEUE, "Dump the queue for debugging. The namespace option is respected.");
+		super.printHelp(Command.DUMP_REPORT, "Dump the report for debugging. The namespace option is respected.");
 	}
 }
