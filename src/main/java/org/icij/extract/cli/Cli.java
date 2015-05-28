@@ -147,6 +147,11 @@ public abstract class Cli {
 			.type(Number.class)
 			.build();
 
+		case "ocr-disabled": return Option.builder()
+			.desc("Disable automatic OCR. On by default.")
+			.longOpt(name)
+			.build();
+
 		case "ocr-language": return Option.builder()
 			.desc("Set the language used by Tesseract. If none is specified, English is assumed. Multiple languages may be specified, separated by plus characters. Tesseract uses 3-character ISO 639-2 language codes.")
 			.longOpt(name)

@@ -2,6 +2,10 @@ package org.icij.extract.core;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Iterator;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -22,10 +26,12 @@ import org.apache.tika.metadata.HttpHeaders;
 import org.apache.tika.metadata.TikaMetadataKeys;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.CompositeParser;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParsingReader;
 import org.apache.tika.parser.html.HtmlParser;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
+import org.apache.tika.parser.ocr.TesseractOCRParser;
 import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.mime.MediaType;
@@ -46,10 +52,12 @@ public class Extractor {
 
 	private Charset outputEncoding = StandardCharsets.UTF_8;
 	private String ocrLanguage = "eng";
+	private boolean ocrDisabled = false;
 
 	private final Path file;
 
-	private static final TikaConfig tikaConfig = TikaConfig.getDefaultConfig();
+	private final TikaConfig config = TikaConfig.getDefaultConfig();
+	private final Collection<Class<TesseractOCRParser>> excludedParsers = new ArrayList<Class<TesseractOCRParser>>();
 
 	public Extractor (Logger logger, Path file) {
 		this.logger = logger;
@@ -68,16 +76,40 @@ public class Extractor {
 		this.ocrLanguage = ocrLanguage;
 	}
 
+	public void disableOcr() {
+		if (!ocrDisabled) {
+			excludedParsers.add(TesseractOCRParser.class);
+			ocrDisabled = true;
+		}
+	}
+
 	public ParsingReader extract(final Path file) throws IOException, FileNotFoundException, TikaException {
 		final Metadata metadata = new Metadata();
 
-		metadata.set(TikaMetadataKeys.RESOURCE_NAME_KEY, file.getFileName().toString());
+		final ParseContext context = new ParseContext();
+		final PDFParserConfig pdfConfig = new PDFParserConfig();
 
-		final AutoDetectParser parser = new AutoDetectParser(tikaConfig);
-		final Map<MediaType, Parser> parsers = parser.getParsers();
+		excludeParsers();
 
-		parsers.put(MediaType.APPLICATION_XML, new HtmlParser());
-		parser.setParsers(parsers);
+		final AutoDetectParser parser = new AutoDetectParser(config);
+
+		if (!ocrDisabled) {
+			final TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
+
+			ocrConfig.setLanguage(ocrLanguage);
+			context.set(TesseractOCRConfig.class, ocrConfig);
+
+			// Run OCR on images contained within PDFs.
+			pdfConfig.setExtractInlineImages(true);
+
+			// By default, only the object IDs are used for determining uniqueness.
+			// In scanned documents under test from the Panama registry, different embedded images had the same ID, leading to incomplete OCRing when uniqueness detection was turned on.
+			pdfConfig.setExtractUniqueInlineImagesOnly(false);
+		}
+
+		pdfConfig.setUseNonSequentialParser(true);
+		context.set(PDFParserConfig.class, pdfConfig);
+
 		parser.setFallback(new Parser() {
 			public Set<MediaType> getSupportedTypes(ParseContext context) {
 				return parser.getSupportedTypes(context);
@@ -88,32 +120,36 @@ public class Extractor {
 			}
 		});
 
-		final ParseContext context = new ParseContext();
-
-		final TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
-
-		ocrConfig.setLanguage(ocrLanguage);
-		context.set(TesseractOCRConfig.class, ocrConfig);
-
-		final PDFParserConfig pdfConfig = new PDFParserConfig();
-
-		// Run OCR on images contained within PDFs.
-		pdfConfig.setExtractInlineImages(true);
-
-		// By default, only the object IDs are used for determining uniqueness.
-		// In scanned documents under test from the Panama registry, different embedded images had the same ID, leading to incomplete OCRing when uniqueness detection was turned on.
-		pdfConfig.setExtractUniqueInlineImagesOnly(false);
-		pdfConfig.setUseNonSequentialParser(true);
-		context.set(PDFParserConfig.class, pdfConfig);
-
-		final TikaInputStream stream = TikaInputStream.get(new FileInputStream(file.toString()));
-
 		// Set up recursive parsing of archives and documents with embedded images.
 		context.set(Parser.class, parser);
 		context.set(EmbeddedDocumentExtractor.class, new EmbedExtractor(logger, file, context));
 
+		metadata.set(TikaMetadataKeys.RESOURCE_NAME_KEY, file.getFileName().toString());
+
+		final TikaInputStream stream = TikaInputStream.get(new FileInputStream(file.toString()));
 		final ParsingReader reader = new ParsingReader(parser, stream, metadata, context);
 
 		return reader;
+	}
+
+	private void excludeParsers() {
+		final CompositeParser compositeParser = (CompositeParser) config.getParser();
+		final Map<MediaType, Parser> parsers = compositeParser.getParsers();
+
+		final Iterator iterator = parsers.entrySet().iterator();
+
+		if (excludedParsers.size() == 0) {
+			return;
+		}
+
+		while (iterator.hasNext()) {
+			Map.Entry pair = (Map.Entry) iterator.next();
+
+			if (excludedParsers.contains(pair.getValue().getClass())) {
+				iterator.remove();
+			}
+		}
+
+		compositeParser.setParsers(parsers);
 	}
 }

@@ -34,7 +34,7 @@ public class ExtractCli extends Cli {
 
 	public ExtractCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "q", "d", "redis-namespace", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "o", "output-encoding", "file-output-directory", "s", "t", "f", "solr-commit-interval", "r"
+			"v", "q", "d", "redis-namespace", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "ocr-disabled", "o", "output-encoding", "file-output-directory", "s", "t", "f", "solr-commit-interval", "r"
 		});
 	}
 
@@ -126,6 +126,10 @@ public class ExtractCli extends Cli {
 
 		if (cmd.hasOption("ocr-language")) {
 			consumer.setOcrLanguage((String) cmd.getOptionValue("ocr-language"));
+		}
+
+		if (cmd.hasOption("ocr-disabled")) {
+			consumer.disableOcr();
 		}
 
 		if (ReporterType.REDIS == reporterType) {

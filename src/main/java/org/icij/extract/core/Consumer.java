@@ -46,6 +46,7 @@ public abstract class Consumer {
 
 	private Charset outputEncoding;
 	private String ocrLanguage;
+	private boolean ocrDisabled = false;
 
 	private final Semaphore pending;
 
@@ -73,6 +74,10 @@ public abstract class Consumer {
 
 	public void setReporter(Reporter reporter) {
 		this.reporter = reporter;
+	}
+
+	public void disableOcr() {
+		ocrDisabled = true;
 	}
 
 	public void shutdown() {
@@ -139,6 +144,10 @@ public abstract class Consumer {
 
 		if (null != outputEncoding) {
 			extractor.setOutputEncoding(outputEncoding);
+		}
+
+		if (ocrDisabled) {
+			extractor.disableOcr();
 		}
 
 		ParsingReader reader = null;
