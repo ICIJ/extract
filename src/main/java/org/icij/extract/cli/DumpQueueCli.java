@@ -2,6 +2,9 @@ package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
 
+import java.util.Iterator;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.logging.Logger;
 
 import org.apache.commons.cli.CommandLine;
@@ -9,6 +12,9 @@ import org.apache.commons.cli.ParseException;
 
 import org.redisson.Redisson;
 import org.redisson.core.RQueue;
+
+import javax.json.*;
+import javax.json.stream.JsonGenerator;
 
 /**
  * Extract
@@ -31,7 +37,23 @@ public class DumpQueueCli extends Cli {
 		final Redisson redisson = getRedisson(cmd);
 		final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue("redis-namespace", "extract") + ":queue");
 
-		System.out.println(queue.toString());
+		final Iterator<String> files = queue.iterator();
+		final JsonArrayBuilder array = Json.createArrayBuilder();
+		final Map<String, Boolean> config = new HashMap<>();
+
+		config.put(JsonGenerator.PRETTY_PRINTING, Boolean.TRUE);
+
+		final JsonWriterFactory factory = Json.createWriterFactory(config);
+		final JsonWriter writer = factory.createWriter(System.out);
+
+		while (files.hasNext()) {
+			array.add((String) files.next());
+		}
+
+		writer.writeArray(array.build());
+		System.out.print("\n");
+		writer.close();
+
 		redisson.shutdown();
 
 		return cmd;

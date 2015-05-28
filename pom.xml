@@ -70,6 +70,24 @@
 			<version>5.1.0</version>
 		</dependency>
 
+		<dependency>
+			<groupId>javax</groupId>
+			<artifactId>javaee-api</artifactId>
+			<version>7.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.glassfish</groupId>
+			<artifactId>javax.json</artifactId>
+			<version>1.0.4</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-jdk14</artifactId>
+			<version>1.7.12</version>
+		</dependency>
+
 		<!-- EXCLUDED DEPENDENCY (excluded from capsule because it is test scope) -->
 		<dependency>
 			<groupId>junit</groupId>
