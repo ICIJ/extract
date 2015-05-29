@@ -13,6 +13,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import java.util.concurrent.ExecutionException;
+import java.security.NoSuchAlgorithmException;
 
 import org.redisson.Redisson;
 import org.redisson.core.RQueue;
@@ -34,7 +35,7 @@ public class ExtractCli extends Cli {
 
 	public ExtractCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "q", "d", "redis-namespace", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "ocr-disabled", "o", "output-encoding", "file-output-directory", "s", "t", "f", "solr-commit-interval", "r"
+			"v", "q", "d", "redis-namespace", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "ocr-disabled", "o", "output-encoding", "file-output-directory", "s", "t", "f", "i", "solr-id-algorithm", "solr-commit-interval", "r"
 		});
 	}
 
@@ -74,6 +75,16 @@ public class ExtractCli extends Cli {
 
 			if (cmd.hasOption('f')) {
 				((SolrSpewer) spewer).setPathField(cmd.getOptionValue('f'));
+			}
+
+			if (cmd.hasOption('i')) {
+				final String algorithm = (String) cmd.getOptionValue("solr-id-algorithm", "SHA-256");
+
+				try {
+					((SolrSpewer) spewer).setIdField(cmd.getOptionValue('i'), algorithm);
+				} catch (NoSuchAlgorithmException e) {
+					throw new IllegalArgumentException("Hashing algorithm not available on this platform: " + algorithm + ".");
+				}
 			}
 
 			if (cmd.hasOption("solr-commit-interval")) {

@@ -16,6 +16,11 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.charset.Charset;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
+import javax.xml.bind.DatatypeConverter;
+
 import org.apache.tika.parser.ParsingReader;
 
 import org.apache.solr.client.solrj.SolrClient;
@@ -43,8 +48,10 @@ public class SolrSpewer extends Spewer {
 
 	private String textField = DEFAULT_TEXT_FIELD;
 	private String pathField = DEFAULT_PATH_FIELD;
+	private String idField = null;
+	private MessageDigest idDigest = null;
 
-	private int pending = 0;
+	private volatile int pending = 0;
 	private int interval = DEFAULT_INTERVAL;
 
 	public SolrSpewer(Logger logger, SolrClient client) {
@@ -52,12 +59,17 @@ public class SolrSpewer extends Spewer {
 		this.client = client;
 	}
 
-	public void setTextField(String field) {
-		this.textField = field;
+	public void setTextField(String textField) {
+		this.textField = textField;
 	}
 
-	public void setPathField(String field) {
-		this.pathField = field;
+	public void setPathField(String pathField) {
+		this.pathField = pathField;
+	}
+
+	public void setIdField(String idField, String algorithm) throws NoSuchAlgorithmException {
+		this.idDigest = MessageDigest.getInstance(algorithm);
+		this.idField = idField;
 	}
 
 	public void setCommitInterval(int interval) {
@@ -73,25 +85,25 @@ public class SolrSpewer extends Spewer {
 		}
 	}
 
-	public void write(Path file, ParsingReader reader, Charset outputEncoding) throws IOException {
+	public void write(final Path file, final ParsingReader reader, final Charset outputEncoding) throws IOException {
 		final SolrInputDocument document = new SolrInputDocument();
-		final Map<String, String> atomicText = new HashMap<String, String>();
-		final Map<String, String> atomicPath = new HashMap<String, String>();
 		final UpdateResponse response;
 
 		try {
-			atomicText.put("set", IOUtils.toString(reader));
+			setAtomic(document, textField, IOUtils.toString(reader));
 		} catch (IOException e) {
 			throw e;
 		} finally {
 			reader.close();
 		}
 
-		// Make an atomic update.
-		// See: https://cwiki.apache.org/confluence/display/solr/Updating+Parts+of+Documents
-		atomicPath.put("set", file.toString());
-		document.setField(textField, atomicText);
-		document.setField(pathField, atomicPath);
+		setAtomic(document, pathField, file.toString());
+
+		if (null != idField && null != idDigest) {
+			final byte[] hash = idDigest.digest(file.toString().getBytes());
+
+			setAtomic(document, idField, DatatypeConverter.printHexBinary(hash));
+		}
 
 		try {
 			response = client.add(document);
@@ -106,6 +118,15 @@ public class SolrSpewer extends Spewer {
 		if (pending > interval) {
 			commitAndRelease();
 		}
+	}
+
+	private void setAtomic(final SolrInputDocument document, final String name, final String value) {
+		final Map<String, String> atomic = new HashMap<String, String>();
+
+		// Make an atomic update.
+		// See: https://cwiki.apache.org/confluence/display/solr/Updating+Parts+of+Documents
+		atomic.put("set", value);
+		document.setField(name, value);
 	}
 
 	private void commitAndRelease() throws IOException {

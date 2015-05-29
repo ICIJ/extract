@@ -201,6 +201,23 @@ public abstract class Cli {
 			.argName("name")
 			.build();
 
+		case "i": return Option.builder("i")
+			.desc("Solr field for an automatically generated identifier. The ID for the same file is guaranteed not to change if the path doesn't change.")
+			.longOpt("solr-id-field")
+			.hasArg()
+			.argName("name")
+			.build();
+
+		case "solr-id-algorithm": return Option.builder()
+
+			// The standard names are defined in the Oracle Standard Algorithm Name Documentation:
+			// http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#MessageDigest
+			.desc("The hashing algorithm used for generating Solr document identifiers e.g. \"MD5\" or \"SHA-1\". Defaults to SHA-256.")
+			.longOpt(name)
+			.hasArg()
+			.argName("name")
+			.build();
+
 		case "solr-commit-interval": return Option.builder()
 			.desc("Commit to Solr after every specified number of files are added. Defaults to \"" + SolrSpewer.DEFAULT_INTERVAL + "\".")
 			.longOpt(name)
