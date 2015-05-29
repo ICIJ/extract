@@ -140,21 +140,13 @@ public class SolrSpewer extends Spewer {
 		}
 	}
 
-	public void commit() throws IOException {
-		commit(false);
-	}
-
-	public void softCommit() throws IOException {
-		commit(true);
-	}
-
-	private void commit(final boolean softCommit) throws IOException {
+	private void commit() throws IOException {
 		final UpdateResponse response;
 
 		logger.info("Committing to Solr.");
 
 		try {
-			response = client.commit(false, false, softCommit);
+			response = client.commit();
 			pending = 0;
 		} catch (SolrServerException e) {
 			throw new IOException("Error while committing to Solr.", e);

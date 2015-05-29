@@ -18,7 +18,8 @@ public enum Command {
 	DUMP_QUEUE(DumpQueueCli.class),
 	DUMP_REPORT(DumpReportCli.class),
 	EXTRACT(ExtractCli.class),
-	SOLR_COMMIT(SolrCommitCli.class);
+	SOLR_COMMIT(SolrCommitCli.class),
+	SOLR_ROLLBACK(SolrRollbackCli.class);
 
 	private final Class klass;
 

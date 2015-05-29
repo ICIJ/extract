@@ -21,21 +21,16 @@ import org.apache.solr.client.solrj.impl.HttpSolrClient;
  * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
-public class SolrCommitCli extends Cli {
+public class SolrRollbackCli extends Cli {
 
-	public SolrCommitCli(Logger logger) {
+	public SolrRollbackCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "s", "soft"
+			"v", "s"
 		});
 	}
 
 	protected Option createOption(String name) {
 		switch (name) {
-
-		case "soft": return Option.builder()
-			.desc("Performs a soft commit. Makes index changes visible while neither fsync-ing index files nor writing a new index descriptor. This could lead to data loss if Solr is terminated unexpectedly.")
-			.longOpt(name)
-			.build();
 
 		case "s": return Option.builder("s")
 			.desc("Solr server address. Required.")
@@ -55,15 +50,10 @@ public class SolrCommitCli extends Cli {
 		final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'));
 
 		try {
-			if (cmd.hasOption("soft")) {
-				client.commit(true, true, true);
-			} else {
-				client.commit(true, true, false);
-			}
-	
+			client.rollback();
 			client.close();
 		} catch (SolrServerException e) {
-			throw new RuntimeException("Unable to commit.", e);
+			throw new RuntimeException("Unable to roll back uncommitted documents.", e);
 		} catch (IOException e) {
 			throw new RuntimeException("There was an error while communicating with Solr.", e);
 		}
@@ -72,6 +62,6 @@ public class SolrCommitCli extends Cli {
 	}
 
 	public void printHelp() {
-		super.printHelp(Command.SOLR_COMMIT, "Send a hard or soft commit message to Solr.");
+		super.printHelp(Command.SOLR_ROLLBACK, "Send a rollback message to Solr.");
 	}
 }
