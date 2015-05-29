@@ -38,10 +38,8 @@ import org.apache.commons.io.IOUtils;
  * @since 1.0.0-beta
  */
 public class SolrSpewer extends Spewer {
-	public static final String DEFAULT_TEXT_FIELD = "text";
+	public static final String DEFAULT_TEXT_FIELD = "content";
 	public static final String DEFAULT_PATH_FIELD = "path";
-
-	public static final int DEFAULT_INTERVAL = 10;
 
 	private final SolrClient client;
 	private final Semaphore commitSemaphore = new Semaphore(1);
@@ -52,7 +50,8 @@ public class SolrSpewer extends Spewer {
 	private MessageDigest idDigest = null;
 
 	private volatile int pending = 0;
-	private int interval = DEFAULT_INTERVAL;
+	private int commitInterval = 0;
+	private int commitWithin = 0;
 
 	public SolrSpewer(Logger logger, SolrClient client) {
 		super(logger);
@@ -72,17 +71,28 @@ public class SolrSpewer extends Spewer {
 		this.idField = idField;
 	}
 
-	public void setCommitInterval(int interval) {
-		this.interval = interval;
+	public void setCommitInterval(int commitInterval) {
+		this.commitInterval = commitInterval;
+	}
+
+	public void setCommitWithin(int commitWithin) {
+		this.commitWithin = commitWithin;
 	}
 
 	public void finish() throws IOException {
 		super.finish();
 
-		commitSemaphore.acquireUninterruptibly();
-		if (pending > 0) {
-			commitAndRelease();
+		// Commit any remaining files if autocommitting is enabled.
+		if (commitInterval > 0) {
+			commitSemaphore.acquireUninterruptibly();
+			if (pending > 0) {
+				commit();
+			}
+
+			commitSemaphore.release();
 		}
+
+		client.close();
 	}
 
 	public void write(final Path file, final ParsingReader reader, final Charset outputEncoding) throws IOException {
@@ -106,18 +116,51 @@ public class SolrSpewer extends Spewer {
 		}
 
 		try {
-			response = client.add(document);
+			if (commitWithin > 0) {
+				response = client.add(document);
+			} else {
+				response = client.add(document, commitWithin);
+			}
 		} catch (SolrServerException e) {
 			throw new IOException("Error while adding to Solr: " + file + ".", e);
 		}
 
 		logger.info("Document added to Solr in " + response.getElapsedTime() + "ms: " + file + ".");
 
-		commitSemaphore.acquireUninterruptibly();
 		pending++;
-		if (pending > interval) {
-			commitAndRelease();
+
+		// Autocommit if the interval is hit and enabled.
+		if (commitInterval > 0) {
+			commitSemaphore.acquireUninterruptibly();
+			if (pending > commitInterval) {
+				commit();
+			}
+
+			commitSemaphore.release();
 		}
+	}
+
+	public void commit() throws IOException {
+		commit(false);
+	}
+
+	public void softCommit() throws IOException {
+		commit(true);
+	}
+
+	private void commit(final boolean softCommit) throws IOException {
+		final UpdateResponse response;
+
+		logger.info("Committing to Solr.");
+
+		try {
+			response = client.commit(false, false, softCommit);
+			pending = 0;
+		} catch (SolrServerException e) {
+			throw new IOException("Error while committing to Solr.", e);
+		}
+
+		logger.info("Committed to Solr in " + response.getElapsedTime() + "ms.");
 	}
 
 	private void setAtomic(final SolrInputDocument document, final String name, final String value) {
@@ -127,31 +170,5 @@ public class SolrSpewer extends Spewer {
 		// See: https://cwiki.apache.org/confluence/display/solr/Updating+Parts+of+Documents
 		atomic.put("set", value);
 		document.setField(name, value);
-	}
-
-	private void commitAndRelease() throws IOException {
-		try {
-			commit();
-		} catch (IOException e) {
-			throw e;
-		} finally {
-			commitSemaphore.release();
-		}
-	}
-
-	private void commit() throws IOException {
-		final UpdateResponse response;
-
-		logger.info("Committing to Solr.");
-
-		try {
-			response = client.commit();
-		} catch (SolrServerException e) {
-			throw new IOException("Error while committing to Solr.", e);
-		}
-
-		pending = 0;
-
-		logger.info("Committed to Solr in " + response.getElapsedTime() + "ms.");
 	}
 }

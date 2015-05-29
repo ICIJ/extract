@@ -17,7 +17,8 @@ public enum Command {
 	WIPE_REPORT(WipeReportCli.class),
 	DUMP_QUEUE(DumpQueueCli.class),
 	DUMP_REPORT(DumpReportCli.class),
-	EXTRACT(ExtractCli.class);
+	EXTRACT(ExtractCli.class),
+	SOLR_COMMIT(SolrCommitCli.class);
 
 	private final Class klass;
 

@@ -19,6 +19,7 @@ import org.redisson.Redisson;
 import org.redisson.core.RQueue;
 import org.redisson.core.RMap;
 
+import org.apache.commons.cli.Option;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.CommandLine;
 
@@ -35,8 +36,23 @@ public class ExtractCli extends Cli {
 
 	public ExtractCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "q", "d", "redis-namespace", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "ocr-disabled", "o", "output-encoding", "file-output-directory", "s", "t", "f", "i", "solr-id-algorithm", "solr-commit-interval", "r"
+			"v", "q", "d", "redis-namespace", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "ocr-disabled", "o", "output-encoding", "file-output-directory", "s", "t", "f", "i", "solr-id-algorithm", "solr-commit-interval", "solr-commit-within", "r"
 		});
+	}
+
+	protected Option createOption(String name) {
+		switch (name) {
+
+		case "s": return Option.builder("s")
+			.desc("Solr server address. Required if outputting to Solr.")
+			.longOpt("solr-address")
+			.hasArg()
+			.argName("address")
+			.build();
+
+		default:
+			return super.createOption(name);
+		}
 	}
 
 	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
@@ -89,6 +105,10 @@ public class ExtractCli extends Cli {
 
 			if (cmd.hasOption("solr-commit-interval")) {
 				((SolrSpewer) spewer).setCommitInterval(((Number) cmd.getParsedOptionValue("solr-commit-interval")).intValue());
+			}
+
+			if (cmd.hasOption("solr-commit-within")) {
+				((SolrSpewer) spewer).setCommitWithin(((Number) cmd.getParsedOptionValue("solr-commit-within")).intValue());
 			}
 		} else if (OutputType.FILE == outputType) {
 			spewer = new FileSpewer(logger);

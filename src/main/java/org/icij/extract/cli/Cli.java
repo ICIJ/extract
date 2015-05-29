@@ -62,7 +62,7 @@ public abstract class Cli {
 		}
 	}
 
-	private Option createOption(String name) {
+	protected Option createOption(String name) {
 		switch (name) {
 
 		case "h": return Option.builder("h")
@@ -180,13 +180,6 @@ public abstract class Cli {
 			.argName("path")
 			.build();
 
-		case "s": return Option.builder("s")
-			.desc("Solr server address. Required if outputting to Solr.")
-			.longOpt("solr-address")
-			.hasArg()
-			.argName("address")
-			.build();
-
 		case "t": return Option.builder("t")
 			.desc("Solr field for extracted text. Defaults to \"" + SolrSpewer.DEFAULT_TEXT_FIELD + "\".")
 			.longOpt("solr-text-field")
@@ -219,7 +212,15 @@ public abstract class Cli {
 			.build();
 
 		case "solr-commit-interval": return Option.builder()
-			.desc("Commit to Solr after every specified number of files are added. Defaults to \"" + SolrSpewer.DEFAULT_INTERVAL + "\".")
+			.desc("Commit to Solr every time the specified number of documents is added. Disabled by default. Consider using the \"autoCommit\" \"maxDocs\" directive in your Solr update handler configuration instead.")
+			.longOpt(name)
+			.hasArg()
+			.argName("interval")
+			.type(Number.class)
+			.build();
+
+		case "solr-commit-within": return Option.builder()
+			.desc("Instruct Solr to automatically commit a document after the specified milliseconds have elapsed since it was added. Disabled by default. Consider using the \"autoCommit\" \"maxTime\" directive in your Solr update handler configuration instead.")
 			.longOpt(name)
 			.hasArg()
 			.argName("interval")
@@ -247,7 +248,7 @@ public abstract class Cli {
 		}
 	}
 
-	protected CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
+	protected CommandLine parse(String[] args) throws ParseException, IllegalArgumentException, RuntimeException {
 		final CommandLine cli = DEFAULT_PARSER.parse(options, args);
 
 		if (cli.hasOption('v')) {

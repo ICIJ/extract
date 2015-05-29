@@ -32,7 +32,7 @@ public class Main {
 		} catch (IllegalArgumentException e) {
 			logger.log(Level.SEVERE, "Invalid command line argument: " + e.getMessage());
 			status = 2;
-		} catch (Throwable e) {
+		} catch (RuntimeException e) {
 			logger.log(Level.SEVERE, "There was an error while executing.", e);
 			status = 3;
 		}
