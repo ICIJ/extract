@@ -4,7 +4,7 @@ import org.icij.extract.core.*;
 
 import java.util.logging.Logger;
 
-import java.io.IOException;;
+import java.io.IOException;
 
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
@@ -25,7 +25,7 @@ public class SolrRollbackCli extends Cli {
 
 	public SolrRollbackCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "s"
+			"v", "s", "solr-pin-certificate"
 		});
 	}
 
@@ -47,6 +47,11 @@ public class SolrRollbackCli extends Cli {
 
 	public CommandLine parse(String[] args) throws ParseException, RuntimeException {
 		final CommandLine cmd = super.parse(args);
+
+		if (cmd.hasOption("solr-pin-certificate")) {
+			SolrUtils.pinCertificate(cmd.getOptionValue("solr-pin-certificate"));
+		}
+
 		final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'));
 
 		try {

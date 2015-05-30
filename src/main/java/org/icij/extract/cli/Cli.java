@@ -227,6 +227,13 @@ public abstract class Cli {
 			.type(Number.class)
 			.build();
 
+		case "solr-pin-certificate": return Option.builder()
+			.desc("The Solr server's public certificate, used for certificate pinning. Supported formats are PEM, DER, PKCS #12 and JKS.")
+			.longOpt(name)
+			.hasArg()
+			.argName("path")
+			.build();
+
 		case "r": return Option.builder("r")
 			.desc("Set the reporter backend type. This is used to skip files that have already been extracted and outputted successfully. For now, the only valid values are \"redis\" and \"none\". Defaults to none.")
 			.longOpt("reporter")

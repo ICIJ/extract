@@ -4,7 +4,7 @@ import org.icij.extract.core.*;
 
 import java.util.logging.Logger;
 
-import java.io.IOException;;
+import java.io.IOException;
 
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
@@ -25,7 +25,7 @@ public class SolrCommitCli extends Cli {
 
 	public SolrCommitCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "s", "soft"
+			"v", "s", "solr-pin-certificate", "soft"
 		});
 	}
 
