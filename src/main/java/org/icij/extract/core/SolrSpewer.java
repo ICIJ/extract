@@ -24,9 +24,12 @@ import javax.xml.bind.DatatypeConverter;
 import org.apache.tika.parser.ParsingReader;
 
 import org.apache.solr.client.solrj.SolrClient;
+import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.response.UpdateResponse;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrInputDocument;
+
+import org.apache.http.impl.client.CloseableHttpClient;
 
 import org.apache.commons.io.IOUtils;
 
@@ -93,6 +96,10 @@ public class SolrSpewer extends Spewer {
 		}
 
 		client.close();
+
+		if (client instanceof HttpSolrClient) {
+			((CloseableHttpClient) ((HttpSolrClient) client).getHttpClient()).close();
+		}
 	}
 
 	public void write(final Path file, final ParsingReader reader, final Charset outputEncoding) throws IOException {

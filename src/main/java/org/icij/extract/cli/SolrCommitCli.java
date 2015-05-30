@@ -10,6 +10,7 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
 
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
@@ -25,7 +26,7 @@ public class SolrCommitCli extends Cli {
 
 	public SolrCommitCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "s", "solr-pin-certificate", "soft"
+			"v", "s", "solr-pin-certificate", "solr-verify-host", "soft"
 		});
 	}
 
@@ -52,7 +53,9 @@ public class SolrCommitCli extends Cli {
 
 	public CommandLine parse(String[] args) throws ParseException, RuntimeException {
 		final CommandLine cmd = super.parse(args);
-		final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'));
+
+		final CloseableHttpClient httpClient = ClientUtils.createHttpClient(cmd.getOptionValue("solr-pin-certificate"), cmd.getOptionValue("solr-verify-host"));
+		final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
 
 		try {
 			if (cmd.hasOption("soft")) {
@@ -62,6 +65,7 @@ public class SolrCommitCli extends Cli {
 			}
 	
 			client.close();
+			httpClient.close();
 		} catch (SolrServerException e) {
 			throw new RuntimeException("Unable to commit.", e);
 		} catch (IOException e) {

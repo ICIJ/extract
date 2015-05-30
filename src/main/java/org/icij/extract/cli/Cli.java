@@ -234,6 +234,13 @@ public abstract class Cli {
 			.argName("path")
 			.build();
 
+		case "solr-verify-host": return Option.builder()
+			.desc("Verify the server's public certificate against the specified host. Use the wildcard \"*\" to disable verification.")
+			.longOpt(name)
+			.hasArg()
+			.argName("hostname")
+			.build();
+
 		case "r": return Option.builder("r")
 			.desc("Set the reporter backend type. This is used to skip files that have already been extracted and outputted successfully. For now, the only valid values are \"redis\" and \"none\". Defaults to none.")
 			.longOpt("reporter")

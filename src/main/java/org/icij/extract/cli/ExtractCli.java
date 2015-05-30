@@ -23,6 +23,8 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.CommandLine;
 
+import org.apache.http.impl.client.CloseableHttpClient;
+
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 
 /**
@@ -36,7 +38,7 @@ public class ExtractCli extends Cli {
 
 	public ExtractCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "q", "d", "redis-namespace", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "ocr-disabled", "o", "output-encoding", "file-output-directory", "s", "t", "f", "i", "solr-id-algorithm", "solr-commit-interval", "solr-commit-within", "solr-pin-certificate", "r"
+			"v", "q", "d", "redis-namespace", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "ocr-disabled", "o", "output-encoding", "file-output-directory", "s", "t", "f", "i", "solr-id-algorithm", "solr-commit-interval", "solr-commit-within", "solr-pin-certificate", "solr-verify-host", "r"
 		});
 	}
 
@@ -84,7 +86,9 @@ public class ExtractCli extends Cli {
 				throw new IllegalArgumentException("The -s option is required when outputting to Solr.");
 			}
 
-			spewer = new SolrSpewer(logger, new HttpSolrClient(cmd.getOptionValue('s')));
+			final CloseableHttpClient httpClient = ClientUtils.createHttpClient(cmd.getOptionValue("solr-pin-certificate"), cmd.getOptionValue("solr-verify-host"));
+
+			spewer = new SolrSpewer(logger, new HttpSolrClient(cmd.getOptionValue('s'), httpClient));
 			if (cmd.hasOption('t')) {
 				((SolrSpewer) spewer).setTextField(cmd.getOptionValue('t'));
 			}
