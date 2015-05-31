@@ -48,16 +48,16 @@ public class PollingConsumer extends Consumer {
 
 		timeout = Long.parseLong(matcher.group(1));
 
-		if (1 == matcher.groupCount() || matcher.group(2) == "ms") {
+		if (1 == matcher.groupCount() || matcher.group(2).equals("ms")) {
 			setPollTimeout(timeout, unit);
 			return;
 		}
 
-		if (matcher.group(2) == "h") {
+		if (matcher.group(2).equals("h")) {
 			unit = TimeUnit.HOURS;
-		} else if (matcher.group(2) == "m") {
+		} else if (matcher.group(2).equals("m")) {
 			unit = TimeUnit.MINUTES;
-		} else if (matcher.group(2) == "s") {
+		} else if (matcher.group(2).equals("s")) {
 			unit = TimeUnit.SECONDS;
 		}
 
