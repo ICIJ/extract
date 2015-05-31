@@ -7,6 +7,7 @@ import java.util.Iterator;
 import java.util.logging.Logger;
 
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import java.io.File;
 import java.io.OutputStream;
@@ -52,7 +53,7 @@ public class SolrSpewer extends Spewer {
 	private String idField = null;
 	private MessageDigest idDigest = null;
 
-	private volatile int pending = 0;
+	private final AtomicInteger pending = new AtomicInteger(0);
 	private int commitInterval = 0;
 	private int commitWithin = 0;
 
@@ -88,7 +89,7 @@ public class SolrSpewer extends Spewer {
 		// Commit any remaining files if autocommitting is enabled.
 		if (commitInterval > 0) {
 			commitSemaphore.acquireUninterruptibly();
-			if (pending > 0) {
+			if (pending.get() > 0) {
 				commit();
 			}
 
@@ -134,12 +135,12 @@ public class SolrSpewer extends Spewer {
 
 		logger.info("Document added to Solr in " + response.getElapsedTime() + "ms: " + file + ".");
 
-		pending++;
+		pending.incrementAndGet();
 
 		// Autocommit if the interval is hit and enabled.
 		if (commitInterval > 0) {
 			commitSemaphore.acquireUninterruptibly();
-			if (pending > commitInterval) {
+			if (pending.get() > commitInterval) {
 				commit();
 			}
 
@@ -154,7 +155,7 @@ public class SolrSpewer extends Spewer {
 
 		try {
 			response = client.commit();
-			pending = 0;
+			pending.set(0);
 		} catch (SolrServerException e) {
 			throw new IOException("Error while committing to Solr.", e);
 		}
