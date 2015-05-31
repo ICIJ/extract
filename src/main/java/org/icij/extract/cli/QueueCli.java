@@ -38,7 +38,7 @@ public class QueueCli extends Cli {
 
 	public QueueCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "q", "d", "redis-namespace", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks"
+			"v", "q", "d", "n", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks"
 		});
 	}
 
@@ -46,7 +46,7 @@ public class QueueCli extends Cli {
 		final CommandLine cmd = super.parse(args);
 
 		final Redisson redisson = getRedisson(cmd);
-		final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue("redis-namespace", "extract") + ":queue");
+		final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue('n', "extract") + ":queue");
 		final Scanner scanner = new QueueingScanner(logger, queue);
 
 		setScannerOptions(cmd, scanner);

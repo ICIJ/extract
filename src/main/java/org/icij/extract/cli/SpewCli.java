@@ -34,11 +34,11 @@ import org.apache.solr.client.solrj.impl.HttpSolrClient;
  * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
-public class ExtractCli extends Cli {
+public class SpewCli extends Cli {
 
-	public ExtractCli(Logger logger) {
+	public SpewCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "q", "d", "redis-namespace", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "ocr-disabled", "o", "output-encoding", "file-output-directory", "s", "t", "f", "i", "solr-id-algorithm", "solr-commit-interval", "solr-commit-within", "solr-pin-certificate", "solr-verify-host", "r"
+			"v", "q", "d", "n", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "ocr-disabled", "o", "output-encoding", "file-output-directory", "s", "t", "f", "i", "solr-id-algorithm", "solr-commit-interval", "solr-commit-within", "solr-pin-certificate", "solr-verify-host", "r"
 		});
 	}
 
@@ -131,7 +131,7 @@ public class ExtractCli extends Cli {
 		if (QueueType.REDIS == queueType) {
 			redisson = getRedisson(cmd);
 
-			final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue("redis-namespace", "extract") + ":queue");
+			final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue('n', "extract") + ":queue");
 
 			logger.info("Setting up polling consumer.");
 
@@ -163,8 +163,8 @@ public class ExtractCli extends Cli {
 		if (ReporterType.REDIS == reporterType) {
 			redisson = getRedisson(cmd);
 
-			final RMap<String, Integer> report = RedisReporter.getReport(cmd.getOptionValue("redis-namespace"), redisson);
-			final Reporter reporter = new RedisReporter(logger, report);
+			final RMap<String, Integer> report = redisson.getMap(cmd.getOptionValue('n', "extract") + ":report");
+			final Reporter reporter = new Reporter(logger, report);
 
 			logger.info("Using Redis reporter.");
 			consumer.setReporter(reporter);

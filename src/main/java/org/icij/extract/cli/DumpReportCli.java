@@ -27,7 +27,7 @@ public class DumpReportCli extends Cli {
 
 	public DumpReportCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "redis-namespace", "redis-address", "reporter-status"
+			"v", "n", "redis-address", "reporter-status"
 		});
 	}
 
@@ -35,7 +35,7 @@ public class DumpReportCli extends Cli {
 		final CommandLine cmd = super.parse(args);
 
 		final Redisson redisson = getRedisson(cmd);
-		final RMap<String, Integer> report = RedisReporter.getReport(cmd.getOptionValue("redis-namespace"), redisson);
+		final RMap<String, Integer> report = redisson.getMap(cmd.getOptionValue('n', "extract") + ":report");
 
 		final Iterator<Map.Entry<String, Integer>> entries = report.entrySet().iterator();
 		final JsonArrayBuilder array = Json.createArrayBuilder();
@@ -66,6 +66,6 @@ public class DumpReportCli extends Cli {
 	}
 
 	public void printHelp() {
-		super.printHelp(Command.DUMP_REPORT, "Dump the report for debugging. The namespace option is respected.");
+		super.printHelp(Command.DUMP_REPORT, "Dump the report for debugging. The name option is respected.");
 	}
 }

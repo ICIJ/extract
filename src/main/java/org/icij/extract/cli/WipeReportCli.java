@@ -21,7 +21,7 @@ public class WipeReportCli extends Cli {
 
 	public WipeReportCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "redis-namespace", "redis-address"
+			"v", "n", "redis-address"
 		});
 	}
 
@@ -29,7 +29,7 @@ public class WipeReportCli extends Cli {
 		final CommandLine cmd = super.parse(args);
 
 		final Redisson redisson = getRedisson(cmd);
-		final RMap<String, Integer> report = RedisReporter.getReport(cmd.getOptionValue("redis-namespace"), redisson);
+		final RMap<String, Integer> report = redisson.getMap(cmd.getOptionValue('n', "extract") + ":report");
 
 		logger.info("Wiping report.");
 		report.clear();
@@ -39,6 +39,6 @@ public class WipeReportCli extends Cli {
 	}
 
 	public void printHelp() {
-		super.printHelp(Command.WIPE_REPORT, "Wipe a report. The namespace option is respected.");
+		super.printHelp(Command.WIPE_REPORT, "Wipe a report. The name option is respected.");
 	}
 }

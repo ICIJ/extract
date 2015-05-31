@@ -13,7 +13,7 @@ import java.nio.file.Path;
  * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
-public abstract class Reporter {
+public class Reporter {
 	public static final int SUCCEEDED = 0;
 	public static final int NOT_FOUND = 1;
 	public static final int NOT_READ = 2;

@@ -99,9 +99,9 @@ public abstract class Cli {
 			.argName("path")
 			.build();
 
-		case "redis-namespace": return Option.builder()
-			.desc("Set the Redis namespace. Defaults to \"extract\".")
-			.longOpt(name)
+		case "n": return Option.builder()
+			.desc("Set the name for the job. This affects the names of queues and reports in their respective backends, avoiding conflicts. Defaults to \"extract\".")
+			.longOpt("name")
 			.hasArg()
 			.argName("name")
 			.build();
@@ -174,7 +174,7 @@ public abstract class Cli {
 			.build();
 
 		case "file-output-directory": return Option.builder()
-			.desc("Directory to output extracted text.")
+			.desc("Directory to output extracted text. Defaults to the current directory.")
 			.longOpt(name)
 			.hasArg()
 			.argName("path")

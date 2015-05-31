@@ -27,7 +27,7 @@ public class DumpQueueCli extends Cli {
 
 	public DumpQueueCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "redis-namespace", "redis-address"
+			"v", "n", "redis-address"
 		});
 	}
 
@@ -35,7 +35,7 @@ public class DumpQueueCli extends Cli {
 		final CommandLine cmd = super.parse(args);
 
 		final Redisson redisson = getRedisson(cmd);
-		final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue("redis-namespace", "extract") + ":queue");
+		final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue('n', "extract") + ":queue");
 
 		final Iterator<String> files = queue.iterator();
 		final JsonArrayBuilder array = Json.createArrayBuilder();
@@ -60,6 +60,6 @@ public class DumpQueueCli extends Cli {
 	}
 
 	public void printHelp() {
-		super.printHelp(Command.DUMP_QUEUE, "Dump the queue for debugging. The namespace option is respected.");
+		super.printHelp(Command.DUMP_QUEUE, "Dump the queue for debugging. The name option is respected.");
 	}
 }

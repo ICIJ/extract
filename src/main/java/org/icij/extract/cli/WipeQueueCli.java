@@ -21,7 +21,7 @@ public class WipeQueueCli extends Cli {
 
 	public WipeQueueCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "redis-namespace", "redis-address"
+			"v", "n", "redis-address"
 		});
 	}
 
@@ -29,7 +29,7 @@ public class WipeQueueCli extends Cli {
 		final CommandLine cmd = super.parse(args);
 
 		final Redisson redisson = getRedisson(cmd);
-		final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue("redis-namespace", "extract") + ":queue");
+		final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue('n', "extract") + ":queue");
 
 		logger.info("Wiping queue.");
 		queue.delete();
@@ -39,6 +39,6 @@ public class WipeQueueCli extends Cli {
 	}
 
 	public void printHelp() {
-		super.printHelp(Command.WIPE_QUEUE, "Wipe a queue. The namespace option is respected.");
+		super.printHelp(Command.WIPE_QUEUE, "Wipe a queue. The name option is respected.");
 	}
 }
