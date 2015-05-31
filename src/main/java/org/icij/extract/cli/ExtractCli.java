@@ -115,10 +115,7 @@ public class ExtractCli extends Cli {
 				((SolrSpewer) spewer).setCommitWithin(((Number) cmd.getParsedOptionValue("solr-commit-within")).intValue());
 			}
 		} else if (OutputType.FILE == outputType) {
-			spewer = new FileSpewer(logger);
-
-			// TODO: Ensure that the output directory is not the same as the input directory.
-			((FileSpewer) spewer).setOutputDirectory(Paths.get((String) cmd.getOptionValue("file-output-directory", ".")));
+			spewer = new FileSpewer(logger, Paths.get((String) cmd.getOptionValue("file-output-directory", ".")));
 		} else {
 			spewer = new StdOutSpewer(logger);
 		}

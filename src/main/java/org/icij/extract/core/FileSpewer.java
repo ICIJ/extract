@@ -25,14 +25,11 @@ import org.apache.commons.io.IOUtils;
  */
 public class FileSpewer extends Spewer {
 
-	private Path outputDirectory;
+	private final Path outputDirectory;
 	private String outputExtension = "txt";
 
-	public FileSpewer(Logger logger) {
+	public FileSpewer(Logger logger, Path outputDirectory) {
 		super(logger);
-	}
-
-	public void setOutputDirectory(Path outputDirectory) {
 		this.outputDirectory = outputDirectory;
 	}
 
