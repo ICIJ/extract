@@ -124,22 +124,18 @@ public class ExtractCli extends Cli {
 		final ReporterType reporterType = ReporterType.parse(cmd.getOptionValue('r'));
 		final Consumer consumer;
 
+		Redisson redisson = null;
+
 		// With Redis it's a bit more complex.
 		// Run all the jobs in the queue and exit without waiting for more.
 		if (QueueType.REDIS == queueType) {
-			final Redisson redisson = getRedisson(cmd);
+			redisson = getRedisson(cmd);
+
 			final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue("redis-namespace", "extract") + ":queue");
 
 			logger.info("Setting up polling consumer.");
 
-			consumer = new PollingConsumer(logger, queue, spewer, threads) {
-
-				@Override
-				public void finish() throws InterruptedException, ExecutionException {
-					super.finish();
-					redisson.shutdown();
-				}
-			};
+			consumer = new PollingConsumer(logger, queue, spewer, threads);
 
 			if (cmd.hasOption("queue-poll")) {
 				((PollingConsumer) consumer).setPollTimeout((String) cmd.getOptionValue("queue-poll"));
@@ -165,7 +161,8 @@ public class ExtractCli extends Cli {
 		}
 
 		if (ReporterType.REDIS == reporterType) {
-			final Redisson redisson = getRedisson(cmd);
+			redisson = getRedisson(cmd);
+
 			final RMap<String, Integer> report = RedisReporter.getReport(cmd.getOptionValue("redis-namespace"), redisson);
 			final Reporter reporter = new RedisReporter(logger, report);
 
@@ -202,6 +199,10 @@ public class ExtractCli extends Cli {
 			spewer.finish();
 		} catch (IOException e) {
 			logger.log(Level.SEVERE, "Spewer failed to finish.", e);
+		}
+
+		if (null != redisson) {
+			redisson.shutdown();
 		}
 
 		return cmd;
