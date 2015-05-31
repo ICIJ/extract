@@ -100,7 +100,7 @@ public class ClientUtils {
 
 	private static KeyStore createTrustStore(final String trustStorePath, final String trustStorePassword) throws IOException, NoSuchAlgorithmException, CertificateException, KeyStoreException {
 
-		final String trustStoreExtension = FilenameUtils.getExtension(trustStorePath).toUpperCase();
+		final String trustStoreExtension = FilenameUtils.getExtension(trustStorePath).toUpperCase(Locale.ROOT);
 		final String trustStoreType;
 
 		// Key store types are defined in Oracle's Cryptography Standard Algorithm Name Documentation:

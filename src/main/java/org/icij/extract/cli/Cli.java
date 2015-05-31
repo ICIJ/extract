@@ -133,7 +133,7 @@ public abstract class Cli {
 			.build();
 
 		case "queue-poll": return Option.builder()
-			.desc("Time to wait when polling the queue e.g. \"5s\". Defaults to " + PollingConsumer.DEFAULT_TIMEOUT + " " + PollingConsumer.DEFAULT_TIMEOUT_UNIT.name().toLowerCase() + ".")
+			.desc("Time to wait when polling the queue e.g. \"5s\". Defaults to " + PollingConsumer.DEFAULT_TIMEOUT + " " + PollingConsumer.DEFAULT_TIMEOUT_UNIT.name().toLowerCase(Locale.ROOT) + ".")
 			.longOpt(name)
 			.hasArg()
 			.argName("duration")
@@ -266,7 +266,7 @@ public abstract class Cli {
 		final CommandLine cli = DEFAULT_PARSER.parse(options, args);
 
 		if (cli.hasOption('v')) {
-			logger.setLevel(Level.parse(((String) cli.getOptionValue('v')).toUpperCase()));
+			logger.setLevel(Level.parse(((String) cli.getOptionValue('v')).toUpperCase(Locale.ROOT)));
 		} else {
 			logger.setLevel(Level.WARNING);
 		}

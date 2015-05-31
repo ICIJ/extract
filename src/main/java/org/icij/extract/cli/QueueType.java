@@ -13,7 +13,7 @@ public enum QueueType {
 	NONE, REDIS;
 
 	public String toString() {
-		return name().toLowerCase();
+		return name().toLowerCase(Locale.ROOT);
 	}
 
 	public static final QueueType parse(String queueType) {
@@ -29,6 +29,6 @@ public enum QueueType {
 	}
 
 	public static final QueueType fromString(String queueType) {
-		return valueOf(queueType.toUpperCase());
+		return valueOf(queueType.toUpperCase(Locale.ROOT));
 	}
 }

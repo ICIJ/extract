@@ -13,7 +13,7 @@ public enum ReporterType {
 	NONE, REDIS;
 
 	public String toString() {
-		return name().toLowerCase();
+		return name().toLowerCase(Locale.ROOT);
 	}
 
 	public static final ReporterType parse(String reporterType) {
@@ -29,6 +29,6 @@ public enum ReporterType {
 	}
 
 	public static final ReporterType fromString(String reporterType) {
-		return valueOf(reporterType.toUpperCase());
+		return valueOf(reporterType.toUpperCase(Locale.ROOT));
 	}
 }

@@ -28,7 +28,7 @@ public enum Command {
 	}
 
 	public String toString() {
-		return name().toLowerCase().replace('_', '-');
+		return name().toLowerCase(Locale.ROOT).replace('_', '-');
 	}
 
 	public Cli createCli(Logger logger) {
@@ -48,6 +48,6 @@ public enum Command {
 	}
 
 	public static Command fromString(String command) {
-		return valueOf(command.toUpperCase().replace('-', '_'));
+		return valueOf(command.toUpperCase(Locale.ROOT).replace('-', '_'));
 	}
 };
