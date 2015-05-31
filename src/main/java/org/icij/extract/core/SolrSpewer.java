@@ -169,6 +169,6 @@ public class SolrSpewer extends Spewer {
 		// Make an atomic update.
 		// See: https://cwiki.apache.org/confluence/display/solr/Updating+Parts+of+Documents
 		atomic.put("set", value);
-		document.setField(name, value);
+		document.setField(name, atomic);
 	}
 }
