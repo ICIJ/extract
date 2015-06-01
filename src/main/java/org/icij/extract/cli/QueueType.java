@@ -1,5 +1,7 @@
 package org.icij.extract.cli;
 
+import java.util.Locale;
+
 import org.icij.extract.core.*;
 
 /**

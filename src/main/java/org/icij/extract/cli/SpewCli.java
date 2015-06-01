@@ -209,6 +209,6 @@ public class SpewCli extends Cli {
 	}
 
 	public void printHelp() {
-		super.printHelp(Command.EXTRACT, "Extract from files.");
+		super.printHelp(Command.SPEW, "Extract from files.");
 	}
 }

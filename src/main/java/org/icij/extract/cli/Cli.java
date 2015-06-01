@@ -2,6 +2,7 @@ package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
 
+import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
