@@ -25,10 +25,10 @@ This is the workflow we use at ICIJ for processing millions of files. The `-n` p
 `workstation-1$ extract dump-queue -n job-1 --redis-address redis-1:6379 > queue.json`
 
  - Start processing the queue on each of your machines.  
-`workstation-2$ extract spew -n job-1 -q redis -o solr -s https://solr-1:8983/solr/core1 -r redis -v info --redis-address redis-1:6379 2> extract.log`  
+`workstation-2$ extract spew -n job-1 -q redis -o solr -s https://solr-1:8983/solr/core1 -i id -r redis -v info --redis-address redis-1:6379 2> extract.log`  
 `workstation-3$ ...`
 
-In the last step, we instruct Extract to use the queue from Redis, to output extracted text to Solr (`-o solr`) at the given address and to report results to Redis (`-r redis`).
+In the last step, we instruct Extract to use the queue from Redis, to output extracted text to Solr (`-o solr`) at the given address, to automatically generate an ID for each path (`-i id`), and to report results to Redis (`-r redis`).
 
 ## Compiling ##
 
