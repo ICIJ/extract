@@ -100,7 +100,7 @@ public abstract class Cli {
 			.argName("path")
 			.build();
 
-		case "n": return Option.builder()
+		case "n": return Option.builder("n")
 			.desc("Set the name for the job. This affects the names of queues and reports in their respective backends, avoiding conflicts. Defaults to \"extract\".")
 			.longOpt("name")
 			.hasArg()
