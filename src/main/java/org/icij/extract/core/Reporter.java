@@ -30,7 +30,13 @@ public class Reporter {
 	}
 
 	public boolean succeeded(Path file) {
-		return report.get(file.toString()) == SUCCEEDED;
+		final Integer status = (Integer) report.get(file.toString());
+
+		if (null != status) {
+			return status == SUCCEEDED;
+		}
+
+		return false;
 	}
 
 	public void save(Path file, int status) {
