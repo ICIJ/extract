@@ -115,10 +115,12 @@ public class SolrSpewer extends Spewer {
 			reader.close();
 		}
 
-		setAtomic(document, pathField, file.toString());
+		final String outputPath = filterOutputPath(file.toString());
+
+		setAtomic(document, pathField, outputPath);
 
 		if (null != idField && null != idDigest) {
-			final byte[] hash = idDigest.digest(file.toString().getBytes(outputEncoding));
+			final byte[] hash = idDigest.digest(outputPath.getBytes(outputEncoding));
 
 			setAtomic(document, idField, DatatypeConverter.printHexBinary(hash));
 		}

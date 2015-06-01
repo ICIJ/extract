@@ -20,11 +20,25 @@ public abstract class Spewer {
 
 	protected final Logger logger;
 
+	private String outputBase = null;
+
 	public Spewer(Logger logger) {
 		this.logger = logger;
 	}
 
 	public abstract void write(Path file, ParsingReader reader, Charset outputEncoding) throws IOException;
+
+	public void setOutputBase(String outputBase) {
+		this.outputBase = outputBase;
+	}
+
+	public String filterOutputPath(String path) {
+		if (path.startsWith(outputBase)) {
+			return path.substring(outputBase.length());
+		}
+
+		return path;
+	}
 
 	public void finish() throws IOException {
 		logger.info("Spewer finishing pending jobs.");

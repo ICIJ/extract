@@ -38,7 +38,7 @@ public class SpewCli extends Cli {
 
 	public SpewCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "q", "d", "n", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "ocr-disabled", "o", "output-encoding", "file-output-directory", "s", "t", "f", "i", "solr-id-algorithm", "solr-commit-interval", "solr-commit-within", "solr-pin-certificate", "solr-verify-host", "r"
+			"v", "q", "d", "n", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "ocr-disabled", "o", "output-encoding", "output-base", "file-output-directory", "s", "t", "f", "i", "solr-id-algorithm", "solr-commit-interval", "solr-commit-within", "solr-pin-certificate", "solr-verify-host", "r"
 		});
 	}
 
@@ -118,6 +118,10 @@ public class SpewCli extends Cli {
 			spewer = new FileSpewer(logger, Paths.get((String) cmd.getOptionValue("file-output-directory", ".")));
 		} else {
 			spewer = new StdOutSpewer(logger);
+		}
+
+		if (cmd.hasOption("output-base")) {
+			spewer.setOutputBase(cmd.getOptionValue("output-base"));
 		}
 
 		final QueueType queueType = QueueType.parse(cmd.getOptionValue('q'));

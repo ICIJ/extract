@@ -61,6 +61,7 @@ public class FileSpewer extends Spewer {
 			i = 1;
 		}
 
+		// TODO: Support output-base option.
 		outputFile = outputDirectory.resolve(file.subpath(i, file.getNameCount()));
 		outputFile = outputFile.getFileSystem().getPath(outputFile.toString() + "." + outputExtension);
 

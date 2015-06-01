@@ -174,6 +174,13 @@ public abstract class Cli {
 			.argName("character set")
 			.build();
 
+		case "output-base": return Option.builder()
+			.desc("This is useful if your local path contains tokens that you want to strip from the path included in the output. For example, if you're working with a path that looks like \"/home/user/data\", specify \"/home/user/\" as the value for this option so that all outputted paths start with \"data/\".")
+			.longOpt(name)
+			.hasArg()
+			.argName("path")
+			.build();
+
 		case "file-output-directory": return Option.builder()
 			.desc("Directory to output extracted text. Defaults to the current directory.")
 			.longOpt(name)
