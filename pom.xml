@@ -30,6 +30,14 @@
 		<capsule.maven.plugin.version>0.10.3</capsule.maven.plugin.version>
 	</properties>
 
+	<repositories>
+		<repository>
+			<id>jbig2.googlecode</id>
+			<name>JBIG2 ImageIO-Plugin repository at googlecode.com</name>
+			<url>http://jbig2-imageio.googlecode.com/svn/maven-repository</url>
+		</repository>
+	</repositories>
+
 	<dependencies>
 
 		<!-- FOR THE CUSTOM CAPSULE CLASS (Don't need this if using the default Capsule.class) -->
@@ -56,6 +64,13 @@
 			<groupId>org.apache.tika</groupId>
 			<artifactId>tika-parsers</artifactId>
 			<version>1.8</version>
+		</dependency>
+
+		<!-- Optional PDFBox dependency for parsing JBIG2 format images in PDF files. -->
+		<dependency>
+			<groupId>com.levigo.jbig2</groupId>
+			<artifactId>levigo-jbig2-imageio</artifactId>
+			<version>1.6.3</version>
 		</dependency>
 
 		<dependency>
