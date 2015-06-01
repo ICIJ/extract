@@ -21,7 +21,8 @@ public enum Command {
 	LOAD_QUEUE(LoadQueueCli.class),
 	SPEW(SpewCli.class),
 	SOLR_COMMIT(SolrCommitCli.class),
-	SOLR_ROLLBACK(SolrRollbackCli.class);
+	SOLR_ROLLBACK(SolrRollbackCli.class),
+	SOLR_DELETE(SolrDeleteCli.class);
 
 	private final Class klass;
 
