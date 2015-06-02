@@ -93,7 +93,7 @@ public class DumpReportCli extends Cli {
 
 		try {
 			final BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(System.out));
-			final JsonGenerator jsonGenerator = new JsonFactory().createJsonGenerator(writer);
+			final JsonGenerator jsonGenerator = new JsonFactory().createGenerator(writer);
 
 			jsonGenerator.useDefaultPrettyPrinter();
 			jsonGenerator.writeStartArray();
