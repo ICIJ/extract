@@ -24,9 +24,9 @@ public enum Command {
 	SOLR_ROLLBACK(SolrRollbackCli.class),
 	SOLR_DELETE(SolrDeleteCli.class);
 
-	private final Class klass;
+	private final Class<?> klass;
 
-	private Command(Class klass) {
+	private Command(Class<?> klass) {
 		this.klass = klass;
 	}
 
