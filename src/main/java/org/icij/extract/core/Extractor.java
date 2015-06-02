@@ -69,6 +69,10 @@ public class Extractor {
 		ocrConfig.setLanguage(ocrLanguage);
 	}
 
+	public void setOcrTimeout(int ocrTimeout) {
+		ocrConfig.setTimeout(ocrTimeout);
+	}
+
 	public void disableOcr() {
 		if (!ocrDisabled) {
 			excludeParsers(TesseractOCRParser.class);

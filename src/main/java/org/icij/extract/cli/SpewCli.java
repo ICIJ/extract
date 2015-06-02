@@ -39,7 +39,7 @@ public class SpewCli extends Cli {
 
 	public SpewCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "q", "n", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "ocr-disabled", "o", "output-encoding", "output-base", "file-output-directory", "s", "t", "f", "i", "solr-id-algorithm", "solr-commit-interval", "solr-commit-within", "solr-pin-certificate", "solr-verify-host", "r"
+			"v", "q", "n", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "ocr-disabled", "ocr-timeout", "o", "output-encoding", "output-base", "file-output-directory", "s", "t", "f", "i", "solr-id-algorithm", "solr-commit-interval", "solr-commit-within", "solr-pin-certificate", "solr-verify-host", "r"
 		});
 	}
 
@@ -132,6 +132,14 @@ public class SpewCli extends Cli {
 			.longOpt(name)
 			.hasArg()
 			.argName("language")
+			.build();
+
+		case "ocr-timeout": return Option.builder()
+			.desc("Set the timeout for the Tesseract process to finish. Default is 120s.")
+			.longOpt(name)
+			.hasArg()
+			.argName("duration")
+			.type(Number.class)
 			.build();
 
 		case "o": return Option.builder("o")
@@ -317,11 +325,15 @@ public class SpewCli extends Cli {
 		}
 
 		if (cmd.hasOption("output-encoding")) {
-			consumer.setOutputEncoding((String) cmd.getOptionValue("output-encoding"));
+			consumer.setOutputEncoding(cmd.getOptionValue("output-encoding"));
 		}
 
 		if (cmd.hasOption("ocr-language")) {
-			consumer.setOcrLanguage((String) cmd.getOptionValue("ocr-language"));
+			consumer.setOcrLanguage(cmd.getOptionValue("ocr-language"));
+		}
+
+		if (cmd.hasOption("ocr-timeout")) {
+			consumer.setOcrTimeout(((Number) cmd.getParsedOptionValue("ocr-timeout")).intValue());
 		}
 
 		if (cmd.hasOption("ocr-disabled")) {

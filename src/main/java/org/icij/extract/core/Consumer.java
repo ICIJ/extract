@@ -74,6 +74,10 @@ public abstract class Consumer {
 		extractor.setOcrLanguage(ocrLanguage);
 	}
 
+	public void setOcrTimeout(int ocrTimeout) {
+		extractor.setOcrTimeout(ocrTimeout);
+	}
+
 	public void setReporter(Reporter reporter) {
 		this.reporter = reporter;
 	}
