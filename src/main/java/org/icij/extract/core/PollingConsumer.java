@@ -65,21 +65,13 @@ public class PollingConsumer extends Consumer {
 	}
 
 	public void consume() {
-		logger.info("Polling the queue.");
+		String file;
 
-		String file = (String) queue.poll();
-
-		if (null == file && pollTimeout > 0L) {
-			file = pollWait();
-		}
-
-		// Shut down the executor if the queue is empty.
-		if (null == file) {
-			drained();
-		} else {
+		while (null != (file = poll())) {
 			consume(file);
-			consume();
 		}
+
+		drained();
 	}
 
 	public void start() {
@@ -100,6 +92,18 @@ public class PollingConsumer extends Consumer {
 
 	protected void drained() {
 		logger.info("Queue drained.");
+	}
+
+	private String poll() {
+		logger.info("Polling the queue.");
+
+		String file = (String) queue.poll();
+
+		if (null == file && pollTimeout > 0L) {
+			file = pollWait();
+		}
+
+		return file;
 	}
 
 	private String pollWait() {
