@@ -99,7 +99,7 @@ public class DumpReportCli extends Cli {
 			jsonGenerator.writeStartArray();
 
 			while (entries.hasNext()) {
-				Map.Entry<String, Integer> entry = (Map.Entry) entries.next();
+				Map.Entry<String, Integer> entry = (Map.Entry<String, Integer>) entries.next();
 
 				if (entry.getValue() == status) {
 					jsonGenerator.writeString((String) entry.getKey());

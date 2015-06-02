@@ -15,9 +15,9 @@ import java.nio.file.Path;
  */
 public class QueueingScanner extends Scanner {
 
-	private final Queue queue;
+	private final Queue<String> queue;
 
-	public QueueingScanner(Logger logger, Queue queue) {
+	public QueueingScanner(Logger logger, Queue<String> queue) {
 		super(logger);
 		this.queue = queue;
 	}

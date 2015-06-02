@@ -33,7 +33,7 @@ public abstract class Scanner {
 	private int maxDepth = Integer.MAX_VALUE;
 	private boolean followLinks = false;
 
-	private SimpleFileVisitor visitor = new SimpleFileVisitor<Path>() {
+	private SimpleFileVisitor<Path> visitor = new SimpleFileVisitor<Path>() {
 		@Override
 		public FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attrs) throws IOException {
 			if (null != excludeMatcher && excludeMatcher.matches(directory)) {
