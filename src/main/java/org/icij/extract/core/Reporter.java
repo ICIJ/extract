@@ -19,6 +19,7 @@ public class Reporter {
 	public static final int NOT_READ = 2;
 	public static final int NOT_DECRYPTED = 3;
 	public static final int NOT_PARSED = 4;
+	public static final int NOT_CLEAR = 9;
 	public static final int NOT_SAVED = 10;
 
 	protected final Logger logger;

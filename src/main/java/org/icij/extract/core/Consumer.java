@@ -148,17 +148,20 @@ public abstract class Consumer {
 		try {
 			reader = extractor.extract(file);
 		} catch (FileNotFoundException e) {
-			logger.log(Level.WARNING, "File not found: " + file + ". Skipping.", e);
+			logger.log(Level.SEVERE, "File not found: " + file + ". Skipping.", e);
 			status = Reporter.NOT_FOUND;
 		} catch (IOException e) {
-			logger.log(Level.WARNING, "The document stream could not be read: " + file + ". Skipping.", e);
+			logger.log(Level.SEVERE, "The document stream could not be read: " + file + ". Skipping.", e);
 			status = Reporter.NOT_READ;
 		} catch (EncryptedDocumentException e) {
-			logger.log(Level.WARNING, "Skipping encrypted file: " + file + ".", e);
+			logger.log(Level.SEVERE, "Skipping encrypted file: " + file + ". Skipping.", e);
 			status = Reporter.NOT_DECRYPTED;
 		} catch (TikaException e) {
-			logger.log(Level.WARNING, "The document could not be parsed: " + file + ". Skipping.", e);
+			logger.log(Level.SEVERE, "The document could not be parsed: " + file + ". Skipping.", e);
 			status = Reporter.NOT_PARSED;
+		} catch (Throwable e) {
+			logger.log(Level.SEVERE, "Unknown exception during extraction: " + file + ". Skipping.", e);
+			status = Reporter.NOT_CLEAR;
 		}
 
 		if (Reporter.SUCCEEDED != status) {
