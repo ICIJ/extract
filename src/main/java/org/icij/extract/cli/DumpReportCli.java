@@ -7,6 +7,10 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.logging.Logger;
 
+import java.io.IOException;
+import java.io.BufferedWriter;
+import java.io.OutputStreamWriter;
+
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
@@ -14,8 +18,9 @@ import org.apache.commons.cli.ParseException;
 import org.redisson.Redisson;
 import org.redisson.core.RMap;
 
-import javax.json.*;
-import javax.json.stream.JsonGenerator;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerationException;
+import com.fasterxml.jackson.core.JsonGenerator;
 
 /**
  * Extract
@@ -70,7 +75,7 @@ public class DumpReportCli extends Cli {
 		}
 	}
 
-	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
+	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException, RuntimeException {
 		final CommandLine cmd = super.parse(args);
 
 		final ReporterType reporterType = ReporterType.parse(cmd.getOptionValue('r'));
@@ -82,28 +87,33 @@ public class DumpReportCli extends Cli {
 		final Redisson redisson = getRedisson(cmd);
 		final RMap<String, Integer> report = redisson.getMap(cmd.getOptionValue('n', "extract") + ":report");
 
-		final Iterator<Map.Entry<String, Integer>> entries = report.entrySet().iterator();
-		final JsonArrayBuilder array = Json.createArrayBuilder();
-		final Map<String, Boolean> config = new HashMap<>();
-
-		config.put(JsonGenerator.PRETTY_PRINTING, Boolean.TRUE);
-
-		final JsonWriterFactory factory = Json.createWriterFactory(config);
-		final JsonWriter writer = factory.createWriter(System.out);
-
 		final int status = ((Number) cmd.getParsedOptionValue("reporter-status")).intValue();
 
-		while (entries.hasNext()) {
-			Map.Entry<String, Integer> entry = (Map.Entry) entries.next();
+		final Iterator<Map.Entry<String, Integer>> entries = report.entrySet().iterator();
 
-			if (entry.getValue() == status) {
-				array.add(entry.getKey());
+		try {
+			final BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(System.out));
+			final JsonGenerator jsonGenerator = new JsonFactory().createJsonGenerator(writer);
+
+			jsonGenerator.useDefaultPrettyPrinter();
+			jsonGenerator.writeStartArray();
+
+			while (entries.hasNext()) {
+				Map.Entry<String, Integer> entry = (Map.Entry) entries.next();
+
+				if (entry.getValue() == status) {
+					jsonGenerator.writeString((String) entry.getKey());
+				}
 			}
-		}
 
-		writer.writeArray(array.build());
-		System.out.print("\n");
-		writer.close();
+			jsonGenerator.writeEndArray();
+			jsonGenerator.close();
+
+			writer.newLine();
+			writer.close();
+		} catch (IOException e) {
+			throw new RuntimeException("Unable to output JSON.", e);
+		}
 
 		redisson.shutdown();
 

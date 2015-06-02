@@ -5,7 +5,12 @@ import org.icij.extract.core.*;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import java.io.IOException;
+import java.io.BufferedWriter;
+import java.io.OutputStreamWriter;
 
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
@@ -14,8 +19,9 @@ import org.apache.commons.cli.ParseException;
 import org.redisson.Redisson;
 import org.redisson.core.RQueue;
 
-import javax.json.*;
-import javax.json.stream.JsonGenerator;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerationException;
+import com.fasterxml.jackson.core.JsonGenerator;
 
 /**
  * Extract
@@ -61,7 +67,7 @@ public class DumpQueueCli extends Cli {
 		}
 	}
 
-	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
+	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException, RuntimeException {
 		final CommandLine cmd = super.parse(args);
 
 		final QueueType queueType = QueueType.parse(cmd.getOptionValue('q', "redis"));
@@ -74,21 +80,26 @@ public class DumpQueueCli extends Cli {
 		final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue('n', "extract") + ":queue");
 
 		final Iterator<String> files = queue.iterator();
-		final JsonArrayBuilder array = Json.createArrayBuilder();
-		final Map<String, Boolean> config = new HashMap<>();
 
-		config.put(JsonGenerator.PRETTY_PRINTING, Boolean.TRUE);
+		try {
+			final BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(System.out));
+			final JsonGenerator jsonGenerator = new JsonFactory().createJsonGenerator(writer);
 
-		final JsonWriterFactory factory = Json.createWriterFactory(config);
-		final JsonWriter writer = factory.createWriter(System.out);
+			jsonGenerator.useDefaultPrettyPrinter();
+			jsonGenerator.writeStartArray();
 
-		while (files.hasNext()) {
-			array.add((String) files.next());
+			while (files.hasNext()) {
+				jsonGenerator.writeString((String) files.next());
+			}
+
+			jsonGenerator.writeEndArray();
+			jsonGenerator.close();
+
+			writer.newLine();
+			writer.close();
+		} catch (IOException e) {
+			throw new RuntimeException("Unable to output JSON.", e);
 		}
-
-		writer.writeArray(array.build());
-		System.out.print("\n");
-		writer.close();
 
 		redisson.shutdown();
 

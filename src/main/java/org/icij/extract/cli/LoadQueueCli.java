@@ -7,8 +7,9 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.logging.Logger;
 
-import java.io.BufferedInputStream;
-import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.FileNotFoundException;
 
 import org.apache.commons.cli.Option;
@@ -18,8 +19,10 @@ import org.apache.commons.cli.ParseException;
 import org.redisson.Redisson;
 import org.redisson.core.RQueue;
 
-import javax.json.*;
-import javax.json.stream.JsonGenerator;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerationException;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 
 /**
  * Extract
@@ -81,25 +84,28 @@ public class LoadQueueCli extends Cli {
 		final String file = files[0];
 		final Redisson redisson = getRedisson(cmd);
 		final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue('n', "extract") + ":queue");
-		JsonReader reader = null;
+
+		BufferedReader reader = null;
 
 		try {
-			reader = Json.createReader(new BufferedInputStream(new FileInputStream(file)));
+			reader = new BufferedReader(new FileReader(file));
 		} catch (FileNotFoundException e) {
-			throw new RuntimeException("No file exists at the given path: " + file + ".", e);
+			throw new RuntimeException("The specified file does not exist: " + file + ".");
 		}
-
-		final JsonArray array = reader.readArray();
 
 		try {
-			for (int i = 0; i < array.size(); i++) {
-				queue.add(array.getJsonString(i).getString());
+			final JsonParser jsonParser = new JsonFactory().createParser(reader);
+
+			while (jsonParser.nextToken() != JsonToken.END_ARRAY) {
+				queue.add(jsonParser.getValueAsString());
 			}
-		} catch (IndexOutOfBoundsException | ClassCastException e) {
-			throw new RuntimeException("Unexpected exception while load JSON.", e);
+
+			jsonParser.close();
+			reader.close();
+		} catch (IOException e) {
+			throw new RuntimeException("Unable to load from JSON.", e);
 		}
 
-		reader.close();
 		redisson.shutdown();
 
 		return cmd;
