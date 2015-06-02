@@ -32,19 +32,32 @@ public class LoadQueueCli extends Cli {
 
 	public LoadQueueCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "n", "b", "redis-address"
+			"v", "n", "q", "redis-address"
 		});
 	}
 
 	protected Option createOption(String name) {
 		switch (name) {
 
-		case "b": return Option.builder("b")
-			.desc("Path to the backup JSON file. Required.")
-			.longOpt("backup-file")
+		case "n": return Option.builder("n")
+			.desc("The name of the queue to load into. Defaults to \"extract\".")
+			.longOpt("name")
 			.hasArg()
-			.argName("path")
-			.required(true)
+			.argName("name")
+			.build();
+
+		case "q": return Option.builder("q")
+			.desc("Set the queue backend type. For now, the only valid value and the default is \"redis\".")
+			.longOpt("queue")
+			.hasArg()
+			.argName("type")
+			.build();
+
+		case "redis-address": return Option.builder()
+			.desc("Set the Redis backend address. Defaults to 127.0.0.1:6379.")
+			.longOpt(name)
+			.hasArg()
+			.argName("address")
 			.build();
 
 		default:
@@ -55,10 +68,19 @@ public class LoadQueueCli extends Cli {
 	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cmd = super.parse(args);
 
+		final String[] files = cmd.getArgs();
+
+		if (files.length == 0) {
+			throw new IllegalArgumentException("Backup file path must be passed on the command line.");
+		}
+
+		if (files.length > 1) {
+			throw new IllegalArgumentException("Only one backup file path may be passed at a time.");
+		}
+
+		final String file = files[0];
 		final Redisson redisson = getRedisson(cmd);
 		final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue('n', "extract") + ":queue");
-
-		final String file = cmd.getOptionValue('f');
 		JsonReader reader = null;
 
 		try {

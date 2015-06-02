@@ -2,8 +2,9 @@ package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
 
+import java.util.List;
 import java.util.Map;
-
+import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -38,18 +39,181 @@ public class SpewCli extends Cli {
 
 	public SpewCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "q", "d", "n", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "ocr-disabled", "o", "output-encoding", "output-base", "file-output-directory", "s", "t", "f", "i", "solr-id-algorithm", "solr-commit-interval", "solr-commit-within", "solr-pin-certificate", "solr-verify-host", "r"
+			"v", "q", "n", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "ocr-disabled", "o", "output-encoding", "output-base", "file-output-directory", "s", "t", "f", "i", "solr-id-algorithm", "solr-commit-interval", "solr-commit-within", "solr-pin-certificate", "solr-verify-host", "r"
 		});
 	}
 
 	protected Option createOption(String name) {
 		switch (name) {
 
+		case "p": return Option.builder("p")
+			.desc("The number of files which are processed concurrently. Defaults to the number of available processors.")
+			.longOpt("parallel")
+			.hasArg()
+			.argName("count")
+			.type(Number.class)
+			.build();
+
+		case "q": return Option.builder("q")
+			.desc("Set the queue backend type. For now, the only valid values are \"redis\" and \"none\". Defaults to none when extracting.")
+			.longOpt("queue")
+			.hasArg()
+			.argName("type")
+			.build();
+
+		case "queue-poll": return Option.builder()
+			.desc("Time to wait when polling the queue e.g. \"5s\". Defaults to " + PollingConsumer.DEFAULT_TIMEOUT + " " + PollingConsumer.DEFAULT_TIMEOUT_UNIT.name().toLowerCase(Locale.ROOT) + ".")
+			.longOpt(name)
+			.hasArg()
+			.argName("duration")
+			.build();
+
+		case "n": return Option.builder("n")
+			.desc("If using a queue backend, set the name for the queue. Defaults to \"extract\".")
+			.longOpt("name")
+			.hasArg()
+			.argName("name")
+			.build();
+
+		case "redis-address": return Option.builder()
+			.desc("Set the Redis backend address. Defaults to 127.0.0.1:6379.")
+			.longOpt(name)
+			.hasArg()
+			.argName("address")
+			.build();
+
 		case "s": return Option.builder("s")
 			.desc("Solr server address. Required if outputting to Solr.")
 			.longOpt("solr-address")
 			.hasArg()
 			.argName("address")
+			.build();
+
+		case "solr-pin-certificate": return Option.builder()
+			.desc("The Solr server's public certificate, used for certificate pinning. Supported formats are PEM, DER, PKCS #12 and JKS.")
+			.longOpt(name)
+			.hasArg()
+			.argName("path")
+			.build();
+
+		case "solr-verify-host": return Option.builder()
+			.desc("Verify the server's public certificate against the specified host. Use the wildcard \"*\" to disable verification.")
+			.longOpt(name)
+			.hasArg()
+			.argName("hostname")
+			.build();
+
+		case "include-pattern": return Option.builder()
+			.desc("Glob pattern for matching files e.g. \"*.{tif,pdf}\". Files not matching the pattern will be ignored.")
+			.longOpt(name)
+			.hasArg()
+			.argName("pattern")
+			.build();
+
+		case "exclude-pattern": return Option.builder()
+			.desc("Glob pattern for excluding files and directories. Files and directories matching the pattern will be ignored.")
+			.longOpt(name)
+			.hasArg()
+			.argName("pattern")
+			.build();
+
+		case "follow-symlinks": return Option.builder()
+			.desc("Follow symbolic links when scanning for documents. Links are not followed by default.")
+			.longOpt(name)
+			.build();
+
+		case "ocr-disabled": return Option.builder()
+			.desc("Disable automatic OCR. On by default.")
+			.longOpt(name)
+			.build();
+
+		case "ocr-language": return Option.builder()
+			.desc("Set the language used by Tesseract. If none is specified, English is assumed. Multiple languages may be specified, separated by plus characters. Tesseract uses 3-character ISO 639-2 language codes.")
+			.longOpt(name)
+			.hasArg()
+			.argName("language")
+			.build();
+
+		case "o": return Option.builder("o")
+			.desc("Set the output type. Either \"file\", \"stdout\" or \"solr\".")
+			.longOpt("output")
+			.hasArg()
+			.argName("type")
+			.build();
+
+		case "output-encoding": return Option.builder()
+			.desc("Set Tika's output encoding. Defaults to UTF-8.")
+			.longOpt(name)
+			.hasArg()
+			.argName("character set")
+			.build();
+
+		case "output-base": return Option.builder()
+			.desc("This is useful if your local path contains tokens that you want to strip from the path included in the output. For example, if you're working with a path that looks like \"/home/user/data\", specify \"/home/user/\" as the value for this option so that all outputted paths start with \"data/\".")
+			.longOpt(name)
+			.hasArg()
+			.argName("path")
+			.build();
+
+		case "file-output-directory": return Option.builder()
+			.desc("Directory to output extracted text. Defaults to the current directory.")
+			.longOpt(name)
+			.hasArg()
+			.argName("path")
+			.build();
+
+		case "t": return Option.builder("t")
+			.desc("Solr field for extracted text. Defaults to \"" + SolrSpewer.DEFAULT_TEXT_FIELD + "\".")
+			.longOpt("solr-text-field")
+			.hasArg()
+			.argName("name")
+			.build();
+
+		case "f": return Option.builder("f")
+			.desc("Solr field for the file path. Defaults to \"" + SolrSpewer.DEFAULT_PATH_FIELD + "\".")
+			.longOpt("solr-path-field")
+			.hasArg()
+			.argName("name")
+			.build();
+
+		case "i": return Option.builder("i")
+			.desc("Solr field for an automatically generated identifier. The ID for the same file is guaranteed not to change if the path doesn't change.")
+			.longOpt("solr-id-field")
+			.hasArg()
+			.argName("name")
+			.build();
+
+		case "solr-id-algorithm": return Option.builder()
+
+			// The standard names are defined in the Oracle Standard Algorithm Name Documentation:
+			// http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#MessageDigest
+			.desc("The hashing algorithm used for generating Solr document identifiers e.g. \"MD5\" or \"SHA-1\". Defaults to SHA-256.")
+			.longOpt(name)
+			.hasArg()
+			.argName("name")
+			.build();
+
+		case "solr-commit-interval": return Option.builder()
+			.desc("Commit to Solr every time the specified number of documents is added. Disabled by default. Consider using the \"autoCommit\" \"maxDocs\" directive in your Solr update handler configuration instead.")
+			.longOpt(name)
+			.hasArg()
+			.argName("interval")
+			.type(Number.class)
+			.build();
+
+		case "solr-commit-within": return Option.builder()
+			.desc("Instruct Solr to automatically commit a document after the specified milliseconds have elapsed since it was added. Disabled by default. Consider using the \"autoCommit\" \"maxTime\" directive in your Solr update handler configuration instead.")
+			.longOpt(name)
+			.hasArg()
+			.argName("interval")
+			.type(Number.class)
+			.build();
+
+		case "r": return Option.builder("r")
+			.desc("Set the reporter backend type. This is used to skip files that have already been extracted and outputted successfully. For now, the only valid values are \"redis\" and \"none\". Defaults to none.")
+			.longOpt("reporter")
+			.hasArg()
+			.argName("type")
 			.build();
 
 		default:
@@ -177,16 +341,20 @@ public class SpewCli extends Cli {
 		consumer.start();
 
 		if (QueueType.NONE == queueType) {
-			final Scanner scanner;
-			final String directory;
+			final Scanner scanner = new ConsumingScanner(logger, (QueueingConsumer) consumer);
+			final List<String> directories = cmd.getArgList();
 
-			scanner = new ConsumingScanner(logger, (QueueingConsumer) consumer);
-			directory = (String) cmd.getOptionValue('d', ".");
+			if (directories.size() == 0) {
+				throw new IllegalArgumentException("When not using a queue, you must pass the directory paths to scan on the command line.");
+			}
 
 			QueueCli.setScannerOptions(cmd, scanner);
 
-			scanner.scan(Paths.get(directory));
-			logger.info("Completed scanning of \"" + directory + "\".");
+			for (String directory : directories) {
+				scanner.scan(Paths.get(directory));
+
+				logger.info("Completed scanning of \"" + directory + "\".");
+			}
 		}
 
 		try {

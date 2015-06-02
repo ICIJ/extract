@@ -34,6 +34,27 @@ public class MainCli extends Cli {
 		});
 	}
 
+	protected Option createOption(String name) {
+		switch (name) {
+
+		case "h": return Option.builder("h")
+			.desc("Display help for a command.")
+			.longOpt("help")
+			.hasArg()
+			.optionalArg(true)
+			.argName("command")
+			.build();
+
+		case "version": return Option.builder()
+			.desc("Display the version number.")
+			.longOpt("version")
+			.build();
+
+		default:
+			return super.createOption(name);
+		}
+	}
+
 	public CommandLine parse(String[] args) throws ParseException {
 		CommandLine cmd = null;
 
@@ -79,7 +100,7 @@ public class MainCli extends Cli {
 			commands[i++] = command.toString();
 		}
 
-		final String header = "\nA cross-platform tool for distributed content-analysis by the data team at the International Consortium of Investigative Journalists.\n\nAvailable commands: " + String.join("; ", commands) + ".\n\n";
+		final String header = "\nA cross-platform tool for distributed content-analysis by the data team at the International Consortium of Investigative Journalists.\n\nAvailable commands:\n\n " + String.join("\n ", commands) + "\n\n";
 		final String footer = "\nPlease report issues at: https://github.com/ICIJ/extract/issues.";
 
 		formatter.printHelp("\033[1mextract\033[0m [command]", header, options, footer, true);

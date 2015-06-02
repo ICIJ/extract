@@ -41,6 +41,20 @@ public class SolrRollbackCli extends Cli {
 			.required(true)
 			.build();
 
+		case "solr-pin-certificate": return Option.builder()
+			.desc("The Solr server's public certificate, used for certificate pinning. Supported formats are PEM, DER, PKCS #12 and JKS.")
+			.longOpt(name)
+			.hasArg()
+			.argName("path")
+			.build();
+
+		case "solr-verify-host": return Option.builder()
+			.desc("Verify the server's public certificate against the specified host. Use the wildcard \"*\" to disable verification.")
+			.longOpt(name)
+			.hasArg()
+			.argName("hostname")
+			.build();
+
 		default:
 			return super.createOption(name);
 		}

@@ -2,6 +2,7 @@ package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
 
+import java.util.List;
 import java.util.logging.Logger;
 
 import java.nio.file.Path;
@@ -10,6 +11,7 @@ import java.nio.file.Paths;
 import org.redisson.Redisson;
 import org.redisson.core.RQueue;
 
+import org.apache.commons.cli.Option;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.CommandLine;
 
@@ -38,12 +40,72 @@ public class QueueCli extends Cli {
 
 	public QueueCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "q", "d", "n", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks"
+			"v", "q", "n", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks"
 		});
+	}
+
+	protected Option createOption(String name) {
+		switch (name) {
+
+		case "q": return Option.builder("q")
+			.desc("Set the queue backend type. For now, the only valid values are \"redis\" and \"none\". Defaults to using Redis.")
+			.longOpt("queue")
+			.hasArg()
+			.argName("type")
+			.build();
+
+		case "n": return Option.builder("n")
+			.desc("Set the name for the queue. This is useful for avoiding conflicts with other jobs. Defaults to \"extract\".")
+			.longOpt("name")
+			.hasArg()
+			.argName("name")
+			.build();
+
+		case "redis-address": return Option.builder()
+			.desc("Set the Redis backend address. Defaults to 127.0.0.1:6379.")
+			.longOpt(name)
+			.hasArg()
+			.argName("address")
+			.build();
+
+		case "include-pattern": return Option.builder()
+			.desc("Glob pattern for matching files e.g. \"*.{tif,pdf}\". Files not matching the pattern will be ignored.")
+			.longOpt(name)
+			.hasArg()
+			.argName("pattern")
+			.build();
+
+		case "exclude-pattern": return Option.builder()
+			.desc("Glob pattern for excluding files and directories. Files and directories matching the pattern will be ignored.")
+			.longOpt(name)
+			.hasArg()
+			.argName("pattern")
+			.build();
+
+		case "follow-symlinks": return Option.builder()
+			.desc("Follow symbolic links when scanning for documents. Links are not followed by default.")
+			.longOpt(name)
+			.build();
+
+		default:
+			return super.createOption(name);
+		}
 	}
 
 	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cmd = super.parse(args);
+
+		final QueueType queueType = QueueType.parse(cmd.getOptionValue('q', "redis"));
+
+		if (QueueType.REDIS != queueType) {
+			throw new IllegalArgumentException("Invalid queue type: " + queueType + ".");
+		}
+
+		final List<String> directories = cmd.getArgList();
+
+		if (directories.size() == 0) {
+			throw new IllegalArgumentException("You must pass the directory paths to scan on the command line.");
+		}
 
 		final Redisson redisson = getRedisson(cmd);
 		final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue('n', "extract") + ":queue");
@@ -51,9 +113,10 @@ public class QueueCli extends Cli {
 
 		setScannerOptions(cmd, scanner);
 
-		final String directory = (String) cmd.getOptionValue('d', ".");
+		for (String directory : directories) {
+			scanner.scan(Paths.get(directory));
+		}
 
-		scanner.scan(Paths.get(directory));
 		redisson.shutdown();
 
 		return cmd;
