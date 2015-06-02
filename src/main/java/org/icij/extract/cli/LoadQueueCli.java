@@ -96,6 +96,7 @@ public class LoadQueueCli extends Cli {
 		try {
 			final JsonParser jsonParser = new JsonFactory().createParser(reader);
 
+			jsonParser.nextToken(); // Skip over the start of the array.
 			while (jsonParser.nextToken() != JsonToken.END_ARRAY) {
 				queue.add(jsonParser.getValueAsString());
 			}
