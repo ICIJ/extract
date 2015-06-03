@@ -22,13 +22,13 @@ public class PollingConsumer extends Consumer {
 	public static final long DEFAULT_TIMEOUT = 500L;
 	public static final TimeUnit DEFAULT_TIMEOUT_UNIT = TimeUnit.MILLISECONDS;
 
-	private final Queue queue;
+	private final Queue<String> queue;
 
 	private volatile boolean stopped = false;
 	private long pollTimeout = DEFAULT_TIMEOUT;
 	private TimeUnit pollTimeoutUnit = DEFAULT_TIMEOUT_UNIT;
 
-	public PollingConsumer(Logger logger, Queue queue, Spewer spewer, int threads) {
+	public PollingConsumer(Logger logger, Queue<String> queue, Spewer spewer, int threads) {
 		super(logger, spewer, threads);
 		this.queue = queue;
 	}
