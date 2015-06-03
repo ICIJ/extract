@@ -94,6 +94,17 @@ public class PollingConsumer extends Consumer {
 		logger.info("Queue drained.");
 	}
 
+	protected int extract(Path file) {
+		final int status = super.extract(file);
+
+		// If the file could not be written due to a storage endpoint error, put it back onto the queue.
+		if (Reporter.NOT_SAVED == status) {
+			queue.add(file.toString());
+		}
+
+		return status;
+	}
+
 	private String poll() {
 		logger.info("Polling the queue.");
 

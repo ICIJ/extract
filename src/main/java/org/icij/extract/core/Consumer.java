@@ -123,7 +123,7 @@ public abstract class Consumer {
 		logger.info("All threads finished.");
 	}
 
-	private void lazilyExtract(Path file) {
+	protected void lazilyExtract(Path file) {
 
 		// Check status in reporter. Skip if good.
 		if (null != reporter && reporter.succeeded(file)) {
@@ -139,7 +139,7 @@ public abstract class Consumer {
 		}
 	}
 
-	private int extract(Path file) {
+	protected int extract(Path file) {
 		logger.info("Beginning extraction: " + file + ".");
 
 		ParsingReader reader = null;
@@ -147,6 +147,14 @@ public abstract class Consumer {
 
 		try {
 			reader = extractor.extract(file);
+			logger.info("Outputting: " + file + ".");
+			spewer.write(file, reader, outputEncoding);
+
+		// SpewerException is thrown exclusively due to a storage endpoint error.
+		// It means that extraction succeeded, but the result could not be saved.
+		} catch (SpewerException e) {
+			logger.log(Level.SEVERE, "The extraction result could not be outputted: " + file + ".", e);
+			status = Reporter.NOT_SAVED;
 		} catch (FileNotFoundException e) {
 			logger.log(Level.SEVERE, "File not found: " + file + ". Skipping.", e);
 			status = Reporter.NOT_FOUND;
@@ -156,31 +164,22 @@ public abstract class Consumer {
 		} catch (EncryptedDocumentException e) {
 			logger.log(Level.SEVERE, "Skipping encrypted file: " + file + ". Skipping.", e);
 			status = Reporter.NOT_DECRYPTED;
+
+		// TIKA-198: IOExceptions thrown by parsers will be wrapped in a TikaException.
+		// This helps us differentiate input stream exceptions from output stream exceptions.
+		// https://issues.apache.org/jira/browse/TIKA-198
 		} catch (TikaException e) {
 			logger.log(Level.SEVERE, "The document could not be parsed: " + file + ". Skipping.", e);
 			status = Reporter.NOT_PARSED;
 		} catch (Throwable e) {
-			logger.log(Level.SEVERE, "Unknown exception during extraction: " + file + ". Skipping.", e);
+			logger.log(Level.SEVERE, "Unknown exception during extraction or output: " + file + ". Skipping.", e);
 			status = Reporter.NOT_CLEAR;
-		}
-
-		if (Reporter.SUCCEEDED != status) {
-			return status;
-		}
-
-		logger.info("Outputting: " + file + ".");
-
-		try {
-			spewer.write(file, reader, outputEncoding);
-		} catch (Throwable e) {
-			logger.log(Level.SEVERE, "The extracted text could not be outputted: " + file + ".", e);
-			status = Reporter.NOT_SAVED;
 		}
 
 		try {
 			reader.close();
 		} catch (IOException e) {
-			logger.log(Level.SEVERE, "Error while closing file: " + file + ".", e);
+			logger.log(Level.SEVERE, "Error while closing extraction reader: " + file + ".", e);
 		}
 
 		if (Reporter.SUCCEEDED == status) {

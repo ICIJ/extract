@@ -15,6 +15,7 @@ import java.nio.charset.Charset;
 import org.apache.tika.parser.ParsingReader;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.output.TaggedOutputStream;
 
 /**
  * Extract
@@ -37,7 +38,7 @@ public class FileSpewer extends Spewer {
 		this.outputExtension = extension;
 	}
 
-	public void write(Path file, ParsingReader reader, Charset outputEncoding) throws IOException {
+	public void write(Path file, ParsingReader reader, Charset outputEncoding) throws IOException, SpewerException {
 		int i = 0;
 		Path outputFile = null;
 
@@ -73,15 +74,19 @@ public class FileSpewer extends Spewer {
 
 		// The `mkdirs` method will return false if the path already exists.
 		if (false == madeDirs && !outputFileParent.isDirectory()) {
-			throw new RuntimeException("Unable to make directories for file: " + outputFile + ".");
+			throw new SpewerException("Unable to make directories for file: " + outputFile + ".");
 		}
 
-		final OutputStream outputStream = new FileOutputStream(outputFile.toFile());
+		final TaggedOutputStream outputStream = new TaggedOutputStream(new FileOutputStream(outputFile.toFile()));
 
 		try {
 			IOUtils.copy(reader, outputStream, outputEncoding);
 		} catch (IOException e) {
-			throw e;
+			if (outputStream.isCauseOf(e)) {
+				throw new SpewerException("Error writing output to file: " + outputFile + ".", e);
+			} else {
+				throw e;
+			}
 		} finally {
 			outputStream.close();
 		}
