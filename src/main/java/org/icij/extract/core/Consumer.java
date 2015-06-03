@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.Executors;
@@ -86,12 +87,6 @@ public abstract class Consumer {
 		extractor.disableOcr();
 	}
 
-	public void shutdown() {
-		logger.info("Shutting down consumer.");
-
-		executor.shutdown();
-	}
-
 	public void consume(final String file) {
 		consume(Paths.get(file));
 	}
@@ -120,7 +115,23 @@ public abstract class Consumer {
 		// Block until the thread pool is completely empty.
 		pending.acquire(threads);
 
-		logger.info("All threads finished.");
+		logger.info("All threads finished. Shutting down executor.");
+		shutdown();
+	}
+
+	public void shutdown() throws InterruptedException {
+		logger.info("Shutting down executor.");
+
+		executor.shutdown();
+
+		// Set a very long timeout to allow for Tesseract processes to finish.
+		// TODO: Make a call to the extractor to stop recursive extraction and throw an exception so that the file is returned to the queue.
+		if (!executor.awaitTermination(1, TimeUnit.HOURS)) {
+			logger.warning("Executor did not shut down in a timely manner.");
+			executor.shutdownNow();
+		} else {
+			logger.info("Executor shut down successfully.");
+		}
 	}
 
 	protected void lazilyExtract(Path file) {

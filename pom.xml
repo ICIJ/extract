@@ -26,8 +26,8 @@
 		<maven.source.plugin.version>2.3</maven.source.plugin.version>
 		<maven.exec.plugin.version>1.3.2</maven.exec.plugin.version>
 		<!-- Specify a custom capsule version (Will use latest if unspecified) -->
-		<capsule.version>0.10.0</capsule.version>
-		<capsule.maven.plugin.version>0.10.3</capsule.maven.plugin.version>
+		<capsule.version>1.0-rc1</capsule.version>
+		<capsule.maven.plugin.version>0.10.4</capsule.maven.plugin.version>
 	</properties>
 
 	<repositories>

@@ -350,6 +350,23 @@ public class SpewCli extends Cli {
 			consumer.setReporter(reporter);
 		}
 
+		final Thread shutdownHook = new Thread() {
+			public void run() {
+				final Thread thread = Thread.currentThread();
+
+				logger.warning("Shutdown hook triggered. Please wait for the process to finish cleanly.");
+
+				try {
+					consumer.shutdown();
+				} catch (InterruptedException e) {
+					logger.log(Level.WARNING, "Consumer shutdown interrupted while waiting for active threads to finish.", e);
+				}
+
+				logger.info("Shutdown complete.");
+			}
+		};
+
+		Runtime.getRuntime().addShutdownHook(shutdownHook);
 		consumer.start();
 
 		if (QueueType.NONE == queueType) {
@@ -373,11 +390,10 @@ public class SpewCli extends Cli {
 			consumer.finish();
 		} catch (InterruptedException e) {
 			logger.warning("Interrupted while waiting for extraction to terminate.");
+			Thread.currentThread().interrupt();
 		} catch (ExecutionException e) {
 			logger.log(Level.SEVERE, "Extraction failed for a pending job.", e);
 		}
-
-		consumer.shutdown();
 
 		try {
 			spewer.finish();
@@ -388,6 +404,8 @@ public class SpewCli extends Cli {
 		if (null != redisson) {
 			redisson.shutdown();
 		}
+
+		Runtime.getRuntime().removeShutdownHook(shutdownHook);
 
 		return cmd;
 	}

@@ -24,6 +24,7 @@ public class PollingConsumer extends Consumer {
 
 	private final Queue queue;
 
+	private volatile boolean stopped = false;
 	private long pollTimeout = DEFAULT_TIMEOUT;
 	private TimeUnit pollTimeoutUnit = DEFAULT_TIMEOUT_UNIT;
 
@@ -67,7 +68,7 @@ public class PollingConsumer extends Consumer {
 	public void consume() {
 		String file;
 
-		while (null != (file = poll())) {
+		while (!stopped && null != (file = poll())) {
 			consume(file);
 		}
 
@@ -79,7 +80,12 @@ public class PollingConsumer extends Consumer {
 		saturate();
 	}
 
-	public void saturate() {
+	public void shutdown() throws InterruptedException {
+		stopped = true;
+		super.shutdown();
+	}
+
+	protected void saturate() {
 		final int activeThreads = executor.getActiveCount();
 		final int absentThreads = threads - activeThreads;
 
@@ -105,7 +111,7 @@ public class PollingConsumer extends Consumer {
 		return status;
 	}
 
-	private String poll() {
+	protected String poll() {
 		logger.info("Polling the queue.");
 
 		String file = (String) queue.poll();
@@ -125,6 +131,7 @@ public class PollingConsumer extends Consumer {
 			Thread.sleep(TimeUnit.MILLISECONDS.convert(pollTimeout, pollTimeoutUnit));
 		} catch (InterruptedException e) {
 			logger.info("Thread interrupted while waiting to poll.");
+			Thread.currentThread().interrupt();
 			return null;
 		}
 
