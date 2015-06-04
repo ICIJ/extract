@@ -27,8 +27,8 @@ This is the workflow we use at ICIJ for processing millions of files. The `-n` p
  `nfs-1$ extract dump-queue -n job-1 --redis-address redis-1:6379 > queue.json`
 
  - Mount the NFS share to the same path on each of your extraction cluster machines.  
- `extract-1$ sudo mkdir /media/my_files`
- `extract-1$ sudo mount -t nfs4 -o ro,proto=tcp,port=2049 nfs-1:/my_files /media/my_files`
+ `extract-1$ sudo mkdir /media/my_files`  
+ `extract-1$ sudo mount -t nfs4 -o ro,proto=tcp,port=2049 nfs-1:/my_files /media/my_files`  
  `extract-2$ ...`
 
  - Start processing the queue on each of your machines.  
