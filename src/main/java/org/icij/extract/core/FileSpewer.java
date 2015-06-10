@@ -25,13 +25,18 @@ import org.apache.commons.io.output.TaggedOutputStream;
  * @since 1.0.0-beta
  */
 public class FileSpewer extends Spewer {
+	public static final String DEFAULT_EXTENSION = "txt";
 
 	private final Path outputDirectory;
-	private String outputExtension = "txt";
+	private String outputExtension = DEFAULT_EXTENSION;
 
 	public FileSpewer(Logger logger, Path outputDirectory) {
 		super(logger);
 		this.outputDirectory = outputDirectory;
+	}
+
+	public String getOutputExtension() {
+		return outputExtension;
 	}
 
 	public void setOutputExtension(String outputExtension) {
