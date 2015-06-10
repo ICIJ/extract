@@ -3,6 +3,7 @@ package org.icij.extract.core;
 import java.io.IOException;
 
 import java.nio.file.Path;
+import java.nio.file.FileSystems;
 import java.nio.charset.Charset;
 
 import java.util.logging.Logger;
@@ -21,7 +22,7 @@ public abstract class Spewer {
 
 	protected final Logger logger;
 
-	private String outputBase = null;
+	private Path outputBase = null;
 
 	public Spewer(Logger logger) {
 		this.logger = logger;
@@ -29,16 +30,20 @@ public abstract class Spewer {
 
 	public abstract void write(Path file, ParsingReader reader, Charset outputEncoding) throws IOException, TikaException, SpewerException;
 
-	public void setOutputBase(String outputBase) {
+	public void setOutputBase(Path outputBase) {
 		this.outputBase = outputBase;
 	}
 
-	public String filterOutputPath(String path) {
-		if (path.startsWith(outputBase)) {
-			return path.substring(outputBase.length());
+	public void setOutputBase(String outputBase) {
+		setOutputBase(FileSystems.getDefault().getPath(outputBase));
+	}
+
+	public Path filterOutputPath(Path file) {
+		if (file.startsWith(outputBase)) {
+			return file.subpath(outputBase.getNameCount(), file.getNameCount());
 		}
 
-		return path;
+		return file;
 	}
 
 	public void finish() throws IOException {

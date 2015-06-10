@@ -124,7 +124,7 @@ public class SolrSpewer extends Spewer {
 			reader.close();
 		}
 
-		final String outputPath = filterOutputPath(file.toString());
+		final String outputPath = filterOutputPath(file).toString();
 
 		setAtomic(document, pathField, outputPath);
 

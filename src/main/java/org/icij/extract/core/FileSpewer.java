@@ -34,37 +34,21 @@ public class FileSpewer extends Spewer {
 		this.outputDirectory = outputDirectory;
 	}
 
-	public void setOutputExtension(String extension) {
-		this.outputExtension = extension;
+	public void setOutputExtension(String outputExtension) {
+		if (null == outputExtension || outputExtension.trim().isEmpty()) {
+			this.outputExtension = null;
+		} else {
+			this.outputExtension = outputExtension.trim();
+		}
 	}
 
 	public void write(Path file, ParsingReader reader, Charset outputEncoding) throws IOException, SpewerException {
-		int i = 0;
-		Path outputFile = null;
+		Path outputFile = filterOutputPath(file);
 
-		// Remove the common root of the file path.
-		// If the file is at /path/to/some/random/file and the output directory is /path/to/output, then the resulting text is outputted to /path/to/output/some/random/file.
-		if (outputDirectory.isAbsolute() && file.isAbsolute()) {
-			final Iterator iterator = outputDirectory.iterator();
-
-			while (iterator.hasNext()) {
-				Object segment = iterator.next();
-
-				if (!segment.equals(file.getName(i))) {
-					break;
-				}
-
-				i++;
-			}
+		// Add the output extension.
+		if (null != outputExtension) {
+			outputFile = outputFile.getFileSystem().getPath(outputFile.toString() + "." + outputExtension);
 		}
-
-		if (i < 1) {
-			i = 1;
-		}
-
-		// TODO: Support output-base option.
-		outputFile = outputDirectory.resolve(file.subpath(i, file.getNameCount()));
-		outputFile = outputFile.getFileSystem().getPath(outputFile.toString() + "." + outputExtension);
 
 		logger.info("Outputting to file: " + outputFile + ".");
 
