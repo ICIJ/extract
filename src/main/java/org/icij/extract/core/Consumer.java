@@ -161,7 +161,7 @@ public abstract class Consumer {
 			logger.info("Outputting: " + file + ".");
 			spewer.write(file, reader, outputEncoding);
 
-		// SpewerException is thrown exclusively due to a storage endpoint error.
+		// SpewerException is thrown exclusively due to an output endpoint error.
 		// It means that extraction succeeded, but the result could not be saved.
 		} catch (SpewerException e) {
 			logger.log(Level.SEVERE, "The extraction result could not be outputted: " + file + ".", e);

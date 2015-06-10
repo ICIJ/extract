@@ -300,7 +300,7 @@ public class SpewCli extends Cli {
 				((FileSpewer) spewer).setOutputExtension(cmd.getOptionValue("file-output-extension"));
 			}
 		} else {
-			spewer = new StdOutSpewer(logger);
+			spewer = new PrintStreamSpewer(logger, System.out);
 		}
 
 		if (cmd.hasOption("output-base")) {
