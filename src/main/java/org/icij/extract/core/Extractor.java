@@ -1,7 +1,7 @@
 package org.icij.extract.core;
 
 import java.util.Map;
-import java.util.Set;
+import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -20,7 +20,6 @@ import java.io.IOException;
 
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.metadata.Metadata;
-import org.apache.tika.metadata.HttpHeaders;
 import org.apache.tika.metadata.TikaMetadataKeys;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.ParseContext;
@@ -34,8 +33,6 @@ import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.exception.TikaException;
-
-import org.xml.sax.ContentHandler;
 
 /**
  * Extract
@@ -53,6 +50,8 @@ public class Extractor {
 	private final TikaConfig config = TikaConfig.getDefaultConfig();
 	private final TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
 	private final PDFParserConfig pdfConfig = new PDFParserConfig();
+
+	private final List<Parser> excludedParsers = new ArrayList<Parser>();
 
 	public Extractor(Logger logger) {
 		this.logger = logger;
@@ -87,26 +86,20 @@ public class Extractor {
 	}
 
 	public ParsingReader extract(final Path file) throws IOException, FileNotFoundException, TikaException {
-		final Metadata metadata = new Metadata();
+		return extract(new FileInputStream(file.toString()), file, new Metadata());
+	}
 
+	public ParsingReader extract(final Path file, final Metadata metadata) throws IOException, FileNotFoundException, TikaException {
+		return extract(new FileInputStream(file.toString()), file, metadata);
+	}
+
+	public ParsingReader extract(final InputStream stream, final Path file, final Metadata metadata) throws IOException, TikaException {
 		final ParseContext context = new ParseContext();
 		final AutoDetectParser parser = new AutoDetectParser(config);
 
 		if (!ocrDisabled) {
 			context.set(TesseractOCRConfig.class, ocrConfig);
 		}
-
-		context.set(PDFParserConfig.class, pdfConfig);
-
-		parser.setFallback(new Parser() {
-			public Set<MediaType> getSupportedTypes(ParseContext context) {
-				return parser.getSupportedTypes(context);
-			}
-
-			public void parse(InputStream inputStream, ContentHandler contentHandler, Metadata metadata, ParseContext context) throws TikaException {
-				throw new TikaException("Unsupported media type: " + metadata.get(HttpHeaders.CONTENT_TYPE) + ".");
-			}
-		});
 
 		// Set up recursive parsing of archives and documents with embedded images.
 		if (!embedsIgnored) {
@@ -115,24 +108,30 @@ public class Extractor {
 		}
 
 		metadata.set(TikaMetadataKeys.RESOURCE_NAME_KEY, file.getFileName().toString());
+		context.set(PDFParserConfig.class, pdfConfig);
+		parser.setFallback(new FallbackParser(parser, excludedParsers));
 
-		final TikaInputStream stream = TikaInputStream.get(new FileInputStream(file.toString()));
-		final ParsingReader reader = new ParsingReader(parser, stream, metadata, context);
-
-		return reader;
+		return new ParsingReader(parser, TikaInputStream.get(stream), metadata, context);
 	}
 
-	private void excludeParsers(Class... excluded) {
+	private void excludeParsers(Class... classes) {
 		final CompositeParser composite = (CompositeParser) config.getParser();
 		final Map<MediaType, Parser> parsers = composite.getParsers();
 
-		final Iterator iterator = parsers.entrySet().iterator();
+		final Iterator<Map.Entry<MediaType, Parser>> iterator = parsers.entrySet().iterator();
+		final List<Class> exclude = Arrays.asList(classes);
 
 		while (iterator.hasNext()) {
-			Map.Entry pair = (Map.Entry) iterator.next();
+			Map.Entry<MediaType, Parser> pair = iterator.next();
+			Parser parser = pair.getValue();
 
-			if (Arrays.asList(excluded).contains(pair.getValue().getClass())) {
-				iterator.remove();
+			if (!exclude.contains(parser.getClass())) {
+				continue;
+			}
+
+			iterator.remove();
+			if (!excludedParsers.contains(parser)) {
+				excludedParsers.add(parser);
 			}
 		}
 

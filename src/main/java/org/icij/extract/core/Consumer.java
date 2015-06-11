@@ -25,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import java.io.FileNotFoundException;
 
+import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.ParsingReader;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.exception.EncryptedDocumentException;
@@ -141,11 +142,13 @@ public abstract class Consumer {
 	protected int extract(Path file) {
 		logger.info("Beginning extraction: " + file + ".");
 
+		final Metadata metadata = new Metadata();
+
 		ParsingReader reader = null;
 		int status = Reporter.SUCCEEDED;
 
 		try {
-			reader = extractor.extract(file);
+			reader = extractor.extract(file, metadata);
 			logger.info("Outputting: " + file + ".");
 			spewer.write(file, reader, outputEncoding);
 
@@ -158,18 +161,27 @@ public abstract class Consumer {
 			logger.log(Level.SEVERE, "File not found: " + file + ". Skipping.", e);
 			status = Reporter.NOT_FOUND;
 		} catch (IOException e) {
-			logger.log(Level.SEVERE, "The document stream could not be read: " + file + ". Skipping.", e);
-			status = Reporter.NOT_READ;
-		} catch (EncryptedDocumentException e) {
-			logger.log(Level.SEVERE, "Skipping encrypted file: " + file + ". Skipping.", e);
-			status = Reporter.NOT_DECRYPTED;
 
-		// TIKA-198: IOExceptions thrown by parsers will be wrapped in a TikaException.
-		// This helps us differentiate input stream exceptions from output stream exceptions.
-		// https://issues.apache.org/jira/browse/TIKA-198
-		} catch (TikaException e) {
-			logger.log(Level.SEVERE, "The document could not be parsed: " + file + ". Skipping.", e);
-			status = Reporter.NOT_PARSED;
+			// ParsingReader#read catches exceptions and wraps them in an IOException.
+			final Throwable c = e.getCause();
+
+			if (c instanceof ExcludedMediaTypeException) {
+				logger.log(Level.INFO, "The document was not parsed because all of the parsers that handle it were excluded: " + file + ". Skipping.", e);
+				status = Reporter.NOT_PARSED;
+			} else if (c instanceof EncryptedDocumentException) {
+				logger.log(Level.SEVERE, "Skipping encrypted file: " + file + ". Skipping.", e);
+				status = Reporter.NOT_DECRYPTED;
+
+			// TIKA-198: IOExceptions thrown by parsers will be wrapped in a TikaException.
+			// This helps us differentiate input stream exceptions from output stream exceptions.
+			// https://issues.apache.org/jira/browse/TIKA-198
+			} else if (c instanceof TikaException) {
+				logger.log(Level.SEVERE, "The document could not be parsed: " + file + ". Skipping.", e);
+				status = Reporter.NOT_PARSED;
+			} else {
+				logger.log(Level.SEVERE, "The document stream could not be read: " + file + ". Skipping.", e);
+				status = Reporter.NOT_READ;
+			}
 		} catch (Throwable e) {
 			logger.log(Level.SEVERE, "Unknown exception during extraction or output: " + file + ". Skipping.", e);
 			status = Reporter.NOT_CLEAR;
