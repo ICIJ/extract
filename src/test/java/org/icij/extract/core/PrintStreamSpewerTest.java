@@ -14,7 +14,7 @@ import org.apache.tika.parser.ParsingReader;
 import org.apache.tika.exception.TikaException;
 
 import org.junit.Test;
-import static org.junit.Assert.assertEquals;
+import org.junit.Assert;
 
 public class PrintStreamSpewerTest {
 
@@ -31,6 +31,6 @@ public class PrintStreamSpewerTest {
 
 		spewer.write(FileSystems.getDefault().getPath("test-file"), reader, StandardCharsets.UTF_8);
 
-		assertEquals("Output stream buffer must read \"test\"", buffer + "\n", outputStream.toString());
+		Assert.assertEquals("Output stream buffer must read \"test\"", buffer + "\n", outputStream.toString());
 	}
 }

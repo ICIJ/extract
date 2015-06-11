@@ -89,20 +89,7 @@ public class SolrSpewer extends Spewer {
 
 		// Commit any remaining files if autocommitting is enabled.
 		if (commitInterval > 0) {
-			commitSemaphore.acquireUninterruptibly();
-			if (pending.get() > 0) {
-				try {
-					commit();
-				} catch (SolrServerException e) {
-					throw new IOException("Failed to make final commit to Solr. A server-side error occurred.", e);
-				} catch (IOException e) {
-					throw new IOException("Failed to make final commit to Solr. An error occurred while communicating with the server.");
-				} finally {
-					commitSemaphore.release();
-				}
-			} else {
-				commitSemaphore.release();
-			}
+			commitPending(0);
 		}
 
 		client.close();
@@ -152,34 +139,31 @@ public class SolrSpewer extends Spewer {
 
 		// Autocommit if the interval is hit and enabled.
 		if (commitInterval > 0) {
-			commitSemaphore.acquireUninterruptibly();
-			if (pending.get() > commitInterval) {
-				try {
-					commit();
-
-				// Don't rethrow. Commit errors are recovarable and the file was actually output sucessfully.
-				} catch (SolrServerException e) {
-					logger.log(Level.SEVERE, "Failed to commit to Solr. A server-side error to occurred.", e);
-				} catch (IOException e) {
-					logger.log(Level.SEVERE, "Failed to commit to Solr. There was an error communicating with the server.");
-				} finally {
-					commitSemaphore.release();
-				}
-			} else {
-				commitSemaphore.release();
-			}
+			commitPending(commitInterval);
 		}
 	}
 
-	private void commit() throws IOException, SolrServerException {
-		final UpdateResponse response;
+	private void commitPending(final int threshold) {
+		commitSemaphore.acquireUninterruptibly();
+		if (pending.get() <= threshold) {
+			commitSemaphore.release();
+			return;
+		}
 
-		logger.info("Committing to Solr.");
+		try {
+			logger.info("Committing to Solr.");
+			final UpdateResponse response = client.commit();
+			pending.set(0);
+			logger.info("Committed to Solr in " + response.getElapsedTime() + "ms.");
 
-		response = client.commit();
-		pending.set(0);
-
-		logger.info("Committed to Solr in " + response.getElapsedTime() + "ms.");
+		// Don't rethrow. Commit errors are recovarable and the file was actually output sucessfully.
+		} catch (SolrServerException e) {
+			logger.log(Level.SEVERE, "Failed to commit to Solr. A server-side error to occurred.", e);
+		} catch (IOException e) {
+			logger.log(Level.SEVERE, "Failed to commit to Solr. There was an error communicating with the server.");
+		} finally {
+			commitSemaphore.release();
+		}
 	}
 
 	private void setAtomic(final SolrInputDocument document, final String name, final String value) {

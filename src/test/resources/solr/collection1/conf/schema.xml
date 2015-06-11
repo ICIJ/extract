@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<schema name="test" version="1.5">
+	<types>
+		<fieldtype name="string"  class="solr.StrField" sortMissingLast="true" omitNorms="true" />
+		<fieldType name="long" class="solr.TrieLongField" precisionStep="0" positionIncrementGap="0" />
+
+		<fieldType name="text" class="solr.TextField">
+			<analyzer>
+				<tokenizer class="solr.StandardTokenizerFactory" />
+				<filter class="solr.StandardFilterFactory" />
+				<filter class="solr.LowerCaseFilterFactory" />
+				<filter class="solr.StopFilterFactory" />
+				<filter class="solr.PorterStemFilterFactory" />
+			</analyzer>
+		</fieldType>
+
+		<fieldType name="descendent_path" class="solr.TextField">
+			<analyzer type="index">
+				<tokenizer class="solr.PathHierarchyTokenizerFactory" delimiter="/" />
+			</analyzer>
+			<analyzer type="query">
+				<tokenizer class="solr.KeywordTokenizerFactory" />
+			</analyzer>
+		</fieldType>
+	</types>
+
+	<fields>
+		<field name="_version_" type="long" indexed="true" stored="true" />
+		<field name="id" type="string" indexed="true" stored="true" multiValued="false" required="true" />
+		<field name="path" type="descendent_path" indexed="true" stored="true" />
+		<field name="text" type="text" indexed="true" stored="false" />
+
+		<!-- Main body of document. NOTE: This field is not indexed by default, since it is also copied to "text" using copyField below. This is to save space. Use this field for returning and highlighting document content. Use the "text" field to search the content. -->
+		<field name="content" type="text" indexed="false" stored="true" />
+	</fields>
+
+	<defaultSearchField>text</defaultSearchField>
+
+	<!-- Field to use to determine and enforce document uniqueness. -->
+	<uniqueKey>id</uniqueKey>
+
+	<!-- Text fields from SolrCell to search by default in our catch-all field. -->
+	<copyField source="content" dest="text" />
+
+</schema>
