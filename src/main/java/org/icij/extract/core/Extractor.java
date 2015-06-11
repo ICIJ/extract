@@ -48,6 +48,7 @@ public class Extractor {
 	private final Logger logger;
 
 	private boolean ocrDisabled = false;
+	private boolean embedsIgnored = false;
 
 	private final TikaConfig config = TikaConfig.getDefaultConfig();
 	private final TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
@@ -81,6 +82,10 @@ public class Extractor {
 		}
 	}
 
+	public void ignoreEmbeds() {
+		embedsIgnored = true;
+	}
+
 	public ParsingReader extract(final Path file) throws IOException, FileNotFoundException, TikaException {
 		final Metadata metadata = new Metadata();
 
@@ -104,8 +109,10 @@ public class Extractor {
 		});
 
 		// Set up recursive parsing of archives and documents with embedded images.
-		context.set(Parser.class, parser);
-		context.set(EmbeddedDocumentExtractor.class, new EmbedExtractor(logger, file, context));
+		if (!embedsIgnored) {
+			context.set(Parser.class, parser);
+			context.set(EmbeddedDocumentExtractor.class, new EmbedExtractor(logger, file, context));
+		}
 
 		metadata.set(TikaMetadataKeys.RESOURCE_NAME_KEY, file.getFileName().toString());
 

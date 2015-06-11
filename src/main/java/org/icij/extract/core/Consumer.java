@@ -52,15 +52,15 @@ public abstract class Consumer {
 
 	private final Extractor extractor;
 
-	public Consumer(Logger logger, Spewer spewer, int threads) {
+	public Consumer(Logger logger, Spewer spewer, Extractor extractor, int threads) {
 		this.logger = logger;
 		this.spewer = spewer;
+		this.extractor = extractor;
 
 		this.threads = threads;
 		this.pending = new Semaphore(threads);
 
 		this.executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(threads);
-		this.extractor = new Extractor(logger);
 	}
 
 	public void setOutputEncoding(Charset outputEncoding) {
@@ -71,20 +71,8 @@ public abstract class Consumer {
 		setOutputEncoding(Charset.forName(outputEncoding));
 	}
 
-	public void setOcrLanguage(String ocrLanguage) {
-		extractor.setOcrLanguage(ocrLanguage);
-	}
-
-	public void setOcrTimeout(int ocrTimeout) {
-		extractor.setOcrTimeout(ocrTimeout);
-	}
-
 	public void setReporter(Reporter reporter) {
 		this.reporter = reporter;
-	}
-
-	public void disableOcr() {
-		extractor.disableOcr();
 	}
 
 	public void consume(final String file) {

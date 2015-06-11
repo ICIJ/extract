@@ -122,6 +122,11 @@ public class SpewCli extends Cli {
 			.longOpt(name)
 			.build();
 
+		case "ignore-embeds": return Option.builder()
+			.desc("Don't extract text from embedded documents.")
+			.longOpt(name)
+			.build();
+
 		case "ocr-disabled": return Option.builder()
 			.desc("Disable automatic OCR. On by default.")
 			.longOpt(name)
@@ -309,6 +314,7 @@ public class SpewCli extends Cli {
 
 		final QueueType queueType = QueueType.parse(cmd.getOptionValue('q'));
 		final ReporterType reporterType = ReporterType.parse(cmd.getOptionValue('r'));
+		final Extractor extractor = new Extractor(logger);
 		final Consumer consumer;
 
 		Redisson redisson = null;
@@ -322,7 +328,7 @@ public class SpewCli extends Cli {
 
 			logger.info("Setting up polling consumer.");
 
-			consumer = new PollingConsumer(logger, queue, spewer, threads);
+			consumer = new PollingConsumer(logger, queue, spewer, extractor, threads);
 
 			if (cmd.hasOption("queue-poll")) {
 				((PollingConsumer) consumer).setPollTimeout((String) cmd.getOptionValue("queue-poll"));
@@ -332,7 +338,7 @@ public class SpewCli extends Cli {
 		// The scanner sends jobs straight to the consumer, the executor of which uses its own internal queue.
 		// Scanning the directory tree will most probably finish before extraction, so after scanning block until the consumer is done (finish).
 		} else {
-			consumer = new QueueingConsumer(logger, spewer, threads);
+			consumer = new QueueingConsumer(logger, spewer, extractor, threads);
 		}
 
 		if (cmd.hasOption("output-encoding")) {
@@ -340,15 +346,19 @@ public class SpewCli extends Cli {
 		}
 
 		if (cmd.hasOption("ocr-language")) {
-			consumer.setOcrLanguage(cmd.getOptionValue("ocr-language"));
+			extractor.setOcrLanguage(cmd.getOptionValue("ocr-language"));
 		}
 
 		if (cmd.hasOption("ocr-timeout")) {
-			consumer.setOcrTimeout(((Number) cmd.getParsedOptionValue("ocr-timeout")).intValue());
+			extractor.setOcrTimeout(((Number) cmd.getParsedOptionValue("ocr-timeout")).intValue());
 		}
 
 		if (cmd.hasOption("ocr-disabled")) {
-			consumer.disableOcr();
+			extractor.disableOcr();
+		}
+
+		if (cmd.hasOption("ignore-embeds")) {
+			extractor.ignoreEmbeds();
 		}
 
 		if (ReporterType.REDIS == reporterType) {

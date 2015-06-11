@@ -11,7 +11,7 @@ import java.util.logging.Logger;
  */
 public class QueueingConsumer extends Consumer {
 
-	public QueueingConsumer(Logger logger, Spewer spewer, int threads) {
-		super(logger, spewer, threads);
+	public QueueingConsumer(Logger logger, Spewer spewer, Extractor extractor, int threads) {
+		super(logger, spewer, extractor, threads);
 	}
 }

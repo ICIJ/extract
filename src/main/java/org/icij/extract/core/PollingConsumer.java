@@ -28,8 +28,8 @@ public class PollingConsumer extends Consumer {
 	private long pollTimeout = DEFAULT_TIMEOUT;
 	private TimeUnit pollTimeoutUnit = DEFAULT_TIMEOUT_UNIT;
 
-	public PollingConsumer(Logger logger, Queue<String> queue, Spewer spewer, int threads) {
-		super(logger, spewer, threads);
+	public PollingConsumer(Logger logger, Queue<String> queue, Spewer spewer, Extractor extractor, int threads) {
+		super(logger, spewer, extractor, threads);
 		this.queue = queue;
 	}
 
