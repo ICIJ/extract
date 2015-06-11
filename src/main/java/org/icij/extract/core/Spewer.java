@@ -39,7 +39,7 @@ public abstract class Spewer {
 	}
 
 	public Path filterOutputPath(Path file) {
-		if (file.startsWith(outputBase)) {
+		if (null != outputBase && file.startsWith(outputBase)) {
 			return file.subpath(outputBase.getNameCount(), file.getNameCount());
 		}
 
