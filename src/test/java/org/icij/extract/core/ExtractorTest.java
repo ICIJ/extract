@@ -178,4 +178,28 @@ public class ExtractorTest {
 		Assert.assertEquals("application/pdf", metadata.get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("\n\n\n\n", text);
 	}
+
+	@Test
+	public void testDisableOcrOnEmbed() throws Throwable {
+		final Logger logger = Logger.getLogger("extract-test");
+		final Extractor extractor = new Extractor(logger);
+		extractor.disableOcr();
+
+		final Path file = Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").toURI());
+		final Metadata metadata = new Metadata();
+		final ParsingReader reader = extractor.extract(file, metadata);
+
+		String text = null;
+
+		try {
+			text = IOUtils.toString(reader);
+		} catch (IOException e) {
+			throw e;
+		} finally {
+			reader.close();
+		}
+
+		Assert.assertEquals("application/pdf", metadata.get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals("\n\n\n\n", text);
+	}
 }
