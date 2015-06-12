@@ -48,7 +48,7 @@ public class FileSpewer extends Spewer {
 	}
 
 	public void write(Path file, ParsingReader reader, Charset outputEncoding) throws IOException, SpewerException {
-		Path outputFile = filterOutputPath(file);
+		Path outputFile = filterOutputPath(outputDirectory.resolve(file));
 
 		// Add the output extension.
 		if (null != outputExtension) {
@@ -58,12 +58,15 @@ public class FileSpewer extends Spewer {
 		logger.info("Outputting to file: " + outputFile + ".");
 
 		// Make the required directories.
-		final File outputFileParent = outputFile.getParent().toFile();
-		final boolean madeDirs = outputFileParent.mkdirs();
+		final Path outputParent = outputFile.getParent();
+		if (null != outputParent) {
+			final File outputFileParent = outputParent.toFile();
+			final boolean madeDirs = outputFileParent.mkdirs();
 
-		// The `mkdirs` method will return false if the path already exists.
-		if (false == madeDirs && !outputFileParent.isDirectory()) {
-			throw new SpewerException("Unable to make directories for file: " + outputFile + ".");
+			// The `mkdirs` method will return false if the path already exists.
+			if (false == madeDirs && !outputFileParent.isDirectory()) {
+				throw new SpewerException("Unable to make directories for file: " + outputFile + ".");
+			}
 		}
 
 		final TaggedOutputStream outputStream = new TaggedOutputStream(new FileOutputStream(outputFile.toFile()));

@@ -107,7 +107,11 @@ public class Extractor {
 			context.set(EmbeddedDocumentExtractor.class, new EmbedExtractor(logger, file, context));
 		}
 
-		metadata.set(TikaMetadataKeys.RESOURCE_NAME_KEY, file.getFileName().toString());
+		final Path filename = file.getFileName();
+		if (null != filename) {
+			metadata.set(TikaMetadataKeys.RESOURCE_NAME_KEY, filename.toString());
+		}
+
 		context.set(PDFParserConfig.class, pdfConfig);
 		parser.setFallback(new FallbackParser(parser, excludedParsers));
 

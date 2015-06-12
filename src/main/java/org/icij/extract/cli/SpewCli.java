@@ -373,8 +373,6 @@ public class SpewCli extends Cli {
 
 		final Thread shutdownHook = new Thread() {
 			public void run() {
-				final Thread thread = Thread.currentThread();
-
 				logger.warning("Shutdown hook triggered. Please wait for the process to finish cleanly.");
 
 				try {

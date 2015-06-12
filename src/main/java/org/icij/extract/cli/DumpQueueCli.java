@@ -12,6 +12,8 @@ import java.io.IOException;
 import java.io.BufferedWriter;
 import java.io.OutputStreamWriter;
 
+import java.nio.charset.StandardCharsets;
+
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
@@ -82,7 +84,7 @@ public class DumpQueueCli extends Cli {
 		final Iterator<String> files = queue.iterator();
 
 		try {
-			final BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(System.out));
+			final BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(System.out, StandardCharsets.UTF_8));
 			final JsonGenerator jsonGenerator = new JsonFactory().createGenerator(writer);
 
 			jsonGenerator.useDefaultPrettyPrinter();
