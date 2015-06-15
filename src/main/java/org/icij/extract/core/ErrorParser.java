@@ -20,14 +20,14 @@ import org.xml.sax.ContentHandler;
  * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
-public class FallbackParser implements Parser {
+public class ErrorParser implements Parser {
 
 	private final Parser parser;
-	private final List<Parser> excludedParsers;
+	private final Set<MediaType> excludedTypes;
 
-	public FallbackParser(Parser parser, List<Parser> excludedParsers) {
+	public ErrorParser(Parser parser, Set<MediaType> excludedTypes) {
 		this.parser = parser;
-		this.excludedParsers = excludedParsers;
+		this.excludedTypes = excludedTypes;
 	}
 
 	@Override
@@ -44,30 +44,12 @@ public class FallbackParser implements Parser {
 		}
 
 		// If the MIME type is supported by any of the excluded parsers, send a special exception to signal the reason.
-		if (excludedParsersSupportType(unsupportedType, context)) {
-			throw new ExcludedMediaTypeException("Excluded media type: " + unsupportedType);
-		} else {
-			throw new TikaException("Unsupported media type: " + unsupportedType + ".");
-		}
-	}
-
-	private boolean excludedParsersSupportType(final MediaType type, final ParseContext context) {
-		for (Parser parser : excludedParsers) {
-			if (parserSupportsType(type, parser, context)) {
-				return true;
+		for (MediaType excludedType : excludedTypes) {
+			if (unsupportedType.equals(excludedType)) {
+				throw new ExcludedMediaTypeException("Excluded media type: " + unsupportedType);
 			}
 		}
 
-		return false;
-	}
-
-	private boolean parserSupportsType(final MediaType type, final Parser parser, final ParseContext context) {
-		for (MediaType supportedType : parser.getSupportedTypes(context)) {
-			if (supportedType.equals(type)) {
-				return true;
-			}
-		}
-
-		return false;
+		throw new TikaException("Unsupported media type: " + unsupportedType + ".");
 	}
 }

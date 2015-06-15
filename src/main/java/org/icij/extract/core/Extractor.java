@@ -1,6 +1,8 @@
 package org.icij.extract.core;
 
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,7 +53,7 @@ public class Extractor {
 	private final TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
 	private final PDFParserConfig pdfConfig = new PDFParserConfig();
 
-	private final List<Parser> excludedParsers = new ArrayList<Parser>();
+	private final Set<MediaType> excludedTypes = new HashSet<MediaType>();
 
 	public Extractor(Logger logger) {
 		this.logger = logger;
@@ -113,7 +115,7 @@ public class Extractor {
 		}
 
 		context.set(PDFParserConfig.class, pdfConfig);
-		parser.setFallback(new FallbackParser(parser, excludedParsers));
+		parser.setFallback(new ErrorParser(parser, excludedTypes));
 
 		return new ParsingReader(parser, TikaInputStream.get(stream), metadata, context);
 	}
@@ -125,17 +127,15 @@ public class Extractor {
 		final Iterator<Map.Entry<MediaType, Parser>> iterator = parsers.entrySet().iterator();
 		final List<Class> exclude = Arrays.asList(classes);
 
+		final ParseContext context = new ParseContext();
+
 		while (iterator.hasNext()) {
 			Map.Entry<MediaType, Parser> pair = iterator.next();
 			Parser parser = pair.getValue();
 
-			if (!exclude.contains(parser.getClass())) {
-				continue;
-			}
-
-			iterator.remove();
-			if (!excludedParsers.contains(parser)) {
-				excludedParsers.add(parser);
+			if (exclude.contains(parser.getClass())) {
+				iterator.remove();
+				excludedTypes.addAll(parser.getSupportedTypes(context));
 			}
 		}
 
