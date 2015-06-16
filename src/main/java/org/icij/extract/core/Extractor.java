@@ -77,7 +77,7 @@ public class Extractor {
 
 	public void disableOcr() {
 		if (!ocrDisabled) {
-			excludeParsers(TesseractOCRParser.class);
+			excludeParser(TesseractOCRParser.class);
 			ocrDisabled = true;
 			pdfConfig.setExtractInlineImages(false);
 		}
@@ -120,20 +120,17 @@ public class Extractor {
 		return new ParsingReader(parser, TikaInputStream.get(stream), metadata, context);
 	}
 
-	private void excludeParsers(Class... classes) {
+	private void excludeParser(Class exclude) {
 		final CompositeParser composite = (CompositeParser) config.getParser();
 		final Map<MediaType, Parser> parsers = composite.getParsers();
-
 		final Iterator<Map.Entry<MediaType, Parser>> iterator = parsers.entrySet().iterator();
-		final List<Class> exclude = Arrays.asList(classes);
-
 		final ParseContext context = new ParseContext();
 
 		while (iterator.hasNext()) {
 			Map.Entry<MediaType, Parser> pair = iterator.next();
 			Parser parser = pair.getValue();
 
-			if (exclude.contains(parser.getClass())) {
+			if (exclude == parser.getClass()) {
 				iterator.remove();
 				excludedTypes.addAll(parser.getSupportedTypes(context));
 			}

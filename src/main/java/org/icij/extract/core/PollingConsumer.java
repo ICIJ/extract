@@ -9,26 +9,29 @@ import java.util.regex.Pattern;
 
 import java.nio.file.Path;
 
-import java.util.Queue;
+import java.util.concurrent.BlockingQueue;
 
 /**
- * Extract
+ * An implementation of {@link Consumer} which polls a given queue for paths to consume.
+ * The queue should contain paths serialized to {@link String} objects.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @version 1.0.0-beta
+ * When polling is started using {@link start}, the consumer will automatically saturate
+ * the thead pool with tasks. The consumer continues to poll in a loop so that the thread
+ * pool remains saturated until the queue starts to drain off.
+ *
  * @since 1.0.0-beta
  */
 public class PollingConsumer extends Consumer {
 	public static final long DEFAULT_TIMEOUT = 500L;
 	public static final TimeUnit DEFAULT_TIMEOUT_UNIT = TimeUnit.MILLISECONDS;
 
-	private final Queue<String> queue;
+	private final BlockingQueue<String> queue;
 
 	private volatile boolean stopped = false;
 	private long pollTimeout = DEFAULT_TIMEOUT;
 	private TimeUnit pollTimeoutUnit = DEFAULT_TIMEOUT_UNIT;
 
-	public PollingConsumer(Logger logger, Queue<String> queue, Spewer spewer, Extractor extractor, int threads) {
+	public PollingConsumer(Logger logger, BlockingQueue<String> queue, Spewer spewer, Extractor extractor, int threads) {
 		super(logger, spewer, extractor, threads);
 		this.queue = queue;
 	}
@@ -76,6 +79,7 @@ public class PollingConsumer extends Consumer {
 	}
 
 	public void start() {
+		stopped = false;
 		super.start();
 		saturate();
 	}
@@ -100,41 +104,36 @@ public class PollingConsumer extends Consumer {
 		logger.info("Queue drained.");
 	}
 
-	protected int extract(Path file) {
-		final int status = super.extract(file);
-
-		// If the file could not be written due to a storage endpoint error, put it back onto the queue.
-		if (Reporter.NOT_SAVED == status) {
-			queue.add(file.toString());
-		}
-
-		return status;
-	}
-
 	protected String poll() {
-		logger.info("Polling the queue.");
+		logger.info("Polling the queue, waiting up to " + pollTimeoutUnit.toMillis(pollTimeout) + "ms.");
 
-		String file = (String) queue.poll();
+		String file = null;
 
-		if (null == file && pollTimeout > 0L) {
-			file = pollWait();
+		try {
+			file = queue.poll(pollTimeout, pollTimeoutUnit);
+		} catch (InterruptedException e) {
+			logger.info("Thread interrupted while waiting to poll.");
+			Thread.currentThread().interrupt();
 		}
 
 		return file;
 	}
 
-	private String pollWait() {
-		logger.info("Polling the queue, waiting up to " + pollTimeout + " " + pollTimeoutUnit + ".");
+	protected class ConsumerTask extends Consumer.ConsumerTask {
 
-		// TODO: Use wait/notify instead.
-		try {
-			Thread.sleep(TimeUnit.MILLISECONDS.convert(pollTimeout, pollTimeoutUnit));
-		} catch (InterruptedException e) {
-			logger.info("Thread interrupted while waiting to poll.");
-			Thread.currentThread().interrupt();
-			return null;
+		public ConsumerTask(final Path file) {
+			super(file);
 		}
 
-		return (String) queue.poll();
+		protected int extract(final Path file) {
+			final int status = super.extract(file);
+
+			// If the file could not be written due to a storage endpoint error, put it back onto the queue.
+			if (Reporter.NOT_SAVED == status) {
+				queue.add(file.toString());
+			}
+
+			return status;
+		}
 	}
 }

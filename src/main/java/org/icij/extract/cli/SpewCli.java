@@ -13,11 +13,15 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutionException;
+
 import java.security.NoSuchAlgorithmException;
 
 import org.redisson.Redisson;
-import org.redisson.core.RQueue;
 import org.redisson.core.RMap;
 
 import org.apache.commons.cli.Option;
@@ -315,30 +319,21 @@ public class SpewCli extends Cli {
 		final QueueType queueType = QueueType.parse(cmd.getOptionValue('q'));
 		final ReporterType reporterType = ReporterType.parse(cmd.getOptionValue('r'));
 		final Extractor extractor = new Extractor(logger);
-		final Consumer consumer;
 
-		Redisson redisson = null;
+		final BlockingQueue<String> queue;
 
-		// With Redis it's a bit more complex.
-		// Run all the jobs in the queue and exit without waiting for more.
 		if (QueueType.REDIS == queueType) {
-			redisson = getRedisson(cmd);
-
-			final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue('n', "extract") + ":queue");
-
-			logger.info("Setting up polling consumer.");
-
-			consumer = new PollingConsumer(logger, queue, spewer, extractor, threads);
-
-			if (cmd.hasOption("queue-poll")) {
-				((PollingConsumer) consumer).setPollTimeout((String) cmd.getOptionValue("queue-poll"));
-			}
-
-		// When running in memory mode, don't use a queue.
-		// The scanner sends jobs straight to the consumer, the executor of which uses its own internal queue.
-		// Scanning the directory tree will most probably finish before extraction, so after scanning block until the consumer is done (finish).
+			queue = getRedisson(cmd).getBlockingQueue(cmd.getOptionValue('n', "extract") + ":queue");
 		} else {
-			consumer = new QueueingConsumer(logger, spewer, extractor, threads);
+
+			// Create a classic "bounded buffer", in which a fixed-sized array holds elements inserted by producers and extracted by consumers.
+			queue = new ArrayBlockingQueue<String>(threads * 2);
+		}
+
+		final Consumer consumer = new PollingConsumer(logger, queue, spewer, extractor, threads);
+
+		if (cmd.hasOption("queue-poll")) {
+			((PollingConsumer) consumer).setPollTimeout((String) cmd.getOptionValue("queue-poll"));
 		}
 
 		if (cmd.hasOption("output-encoding")) {
@@ -362,9 +357,7 @@ public class SpewCli extends Cli {
 		}
 
 		if (ReporterType.REDIS == reporterType) {
-			redisson = getRedisson(cmd);
-
-			final RMap<String, Integer> report = redisson.getMap(cmd.getOptionValue('n', "extract") + ":report");
+			final RMap<String, Integer> report = getRedisson(cmd).getMap(cmd.getOptionValue('n', "extract") + ":report");
 			final Reporter reporter = new Reporter(logger, report);
 
 			logger.info("Using Redis reporter.");
@@ -386,26 +379,30 @@ public class SpewCli extends Cli {
 		};
 
 		Runtime.getRuntime().addShutdownHook(shutdownHook);
-		consumer.start();
 
 		if (QueueType.NONE == queueType) {
-			final Scanner scanner = new ConsumingScanner(logger, (QueueingConsumer) consumer);
 			final List<String> directories = cmd.getArgList();
+			final ExecutorService scan = Executors.newSingleThreadExecutor();
 
 			if (directories.size() == 0) {
 				throw new IllegalArgumentException("When not using a queue, you must pass the directory paths to scan on the command line.");
 			}
 
-			QueueCli.setScannerOptions(cmd, scanner);
-
 			for (String directory : directories) {
-				scanner.scan(Paths.get(directory));
+				Scanner scanner = new QueueingScanner(logger, queue, Paths.get(directory));
+				QueueCli.setScannerOptions(cmd, scanner);
 
-				logger.info("Completed scanning of \"" + directory + "\".");
+				logger.info("Queuing scan of \"" + directory + "\".");
+				scan.submit(scanner);
 			}
 		}
 
+		// Blocks until the queue has drained.
+		consumer.start();
+
 		try {
+
+			// Blocks until all the consumer threads have finished, after the queue has drained.
 			consumer.finish();
 		} catch (InterruptedException e) {
 			logger.warning("Interrupted while waiting for extraction to terminate.");
@@ -420,8 +417,8 @@ public class SpewCli extends Cli {
 			logger.log(Level.SEVERE, "Spewer failed to finish.", e);
 		}
 
-		if (null != redisson) {
-			redisson.shutdown();
+		if (ReporterType.REDIS == reporterType || QueueType.REDIS == queueType) {
+			getRedisson(cmd).shutdown();
 		}
 
 		Runtime.getRuntime().removeShutdownHook(shutdownHook);
