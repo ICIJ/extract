@@ -330,10 +330,10 @@ public class SpewCli extends Cli {
 			queue = new ArrayBlockingQueue<String>(threads * 2);
 		}
 
-		final Consumer consumer = new PollingConsumer(logger, queue, spewer, extractor, threads);
+		final PollingConsumer consumer = new PollingConsumer(logger, queue, spewer, extractor, threads);
 
 		if (cmd.hasOption("queue-poll")) {
-			((PollingConsumer) consumer).setPollTimeout((String) cmd.getOptionValue("queue-poll"));
+			consumer.setPollTimeout((String) cmd.getOptionValue("queue-poll"));
 		}
 
 		if (cmd.hasOption("output-encoding")) {
