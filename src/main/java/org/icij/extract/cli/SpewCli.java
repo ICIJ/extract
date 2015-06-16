@@ -17,7 +17,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ExecutionException;
 
 import java.security.NoSuchAlgorithmException;
 
@@ -369,6 +368,8 @@ public class SpewCli extends Cli {
 				logger.warning("Shutdown hook triggered. Please wait for the process to finish cleanly.");
 
 				try {
+					consumer.stop();
+					consumer.awaitTermination();
 					consumer.shutdown();
 				} catch (InterruptedException e) {
 					logger.log(Level.WARNING, "Consumer shutdown interrupted while waiting for active threads to finish.", e);
@@ -403,12 +404,10 @@ public class SpewCli extends Cli {
 		try {
 
 			// Blocks until all the consumer threads have finished, after the queue has drained.
-			consumer.finish();
+			consumer.awaitTermination();
 		} catch (InterruptedException e) {
 			logger.warning("Interrupted while waiting for extraction to terminate.");
 			Thread.currentThread().interrupt();
-		} catch (ExecutionException e) {
-			logger.log(Level.SEVERE, "Extraction failed for a pending job.", e);
 		}
 
 		try {

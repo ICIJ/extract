@@ -27,7 +27,7 @@ public class PollingConsumer extends Consumer {
 
 	private final BlockingQueue<String> queue;
 
-	private volatile boolean stopped = false;
+	private volatile boolean started = false;
 	private long pollTimeout = DEFAULT_TIMEOUT;
 	private TimeUnit pollTimeoutUnit = DEFAULT_TIMEOUT_UNIT;
 
@@ -68,36 +68,32 @@ public class PollingConsumer extends Consumer {
 		setPollTimeout(timeout, unit);
 	}
 
-	public void consume() {
+	/**
+	 * Start consuming.
+	 */
+	public void start() {
+		logger.info("Starting consumer.");
+
+		if (started) {
+			throw new IllegalStateException("Already started.");
+		}
+
+		started = true;
+
 		String file;
 
-		while (!stopped && null != (file = poll())) {
+		while (started && null != (file = poll())) {
 			consume(file);
 		}
 
 		drained();
 	}
 
-	public void start() {
-		stopped = false;
-		super.start();
-		saturate();
-	}
-
-	public void shutdown() throws InterruptedException {
-		stopped = true;
-		super.shutdown();
-	}
-
-	protected void saturate() {
-		final int activeThreads = executor.getActiveCount();
-		final int absentThreads = threads - activeThreads;
-
-		logger.info("Saturating with " + absentThreads + " threads.");
-
-		for (int i = 0; i < absentThreads; i++) {
-			consume();
-		}
+	/**
+	 * Stop consuming.
+	 */
+	public void stop() {
+		started = false;
 	}
 
 	protected void drained() {

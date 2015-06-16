@@ -14,7 +14,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.ExecutionException;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -31,7 +30,7 @@ import org.apache.tika.exception.TikaException;
 import org.apache.tika.exception.EncryptedDocumentException;
 
 /**
- * Base consumer for file paths. Implementations should call {@link #consume(Path)}.
+ * Base consumer for file paths. Superclasses should call {@link #consume(Path)}.
  * All tasks are sent to a fixed {@link ThreadPoolExecutor} which is backed by a queue.
  * The size of the thread pool is defined in the call to the constructor.
  *
@@ -42,7 +41,7 @@ import org.apache.tika.exception.EncryptedDocumentException;
  *
  * @since 1.0.0-beta
  */
-public abstract class Consumer {
+public class Consumer {
 	public static final int DEFAULT_THREADS = Runtime.getRuntime().availableProcessors();
 
 	protected final Logger logger;
@@ -55,7 +54,7 @@ public abstract class Consumer {
 	protected Reporter reporter = null;
 	protected Charset outputEncoding = StandardCharsets.UTF_8;
 
-	private final Semaphore locks;
+	private final Semaphore slots;
 
 	public Consumer(Logger logger, Spewer spewer, Extractor extractor, int threads) {
 		this.logger = logger;
@@ -63,7 +62,7 @@ public abstract class Consumer {
 		this.extractor = extractor;
 
 		this.threads = threads;
-		this.locks = new Semaphore(threads);
+		this.slots = new Semaphore(threads);
 
 		this.executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(threads);
 	}
@@ -80,6 +79,12 @@ public abstract class Consumer {
 		this.reporter = reporter;
 	}
 
+	/**
+	 * Consume a file. If the thread pool is full, blocks until a slot is available.
+	 * This behaviour allows polling consumers to poll in a loop.
+	 *
+	 * @param file file path
+	 */
 	public void consume(final String file) {
 		consume(Paths.get(file));
 	}
@@ -93,32 +98,32 @@ public abstract class Consumer {
 	public void consume(final Path file) {
 		logger.info("Sending to thread pool; will queue if full (" + executor.getActiveCount() + " active): " + file + ".");
 
-		locks.acquireUninterruptibly();
+		slots.acquireUninterruptibly();
 		executor.submit(new ConsumerTask(file));
 	}
 
-	public void start() {
-		logger.info("Starting consumer.");
-	}
-
-	public void finish() throws InterruptedException, ExecutionException {
+	/**
+	 * Blocks until all the consumer tasks have finished and the thread pool is empty.
+	 */
+	public void awaitTermination() throws InterruptedException {
 		logger.info("Consumer waiting for all threads to finish.");
 
 		// Block until the thread pool is completely empty.
-		locks.acquire(threads);
-
-		logger.info("All threads finished. Shutting down executor.");
-		shutdown();
+		slots.acquire(threads);
+		logger.info("All threads finished.");
 	}
 
+	/**
+	 * Shuts down the consumer and causes to longer accept new tasks.
+	 * This method will forcibly shut down the consumer without waiting for pending tasks to finish.
+	 * Call {@link #awaitTermination} first for a clean shut down.
+	 */
 	public void shutdown() throws InterruptedException {
 		logger.info("Shutting down executor.");
 
 		executor.shutdown();
 
-		// Set a very long timeout to allow for Tesseract processes to finish.
-		// TODO: Make a call to the extractor to stop recursive extraction and throw an exception so that the file is returned to the queue.
-		if (!executor.awaitTermination(1, TimeUnit.HOURS)) {
+		if (!executor.awaitTermination(1, TimeUnit.MINUTES)) {
 			logger.warning("Executor did not shut down in a timely manner.");
 			executor.shutdownNow();
 		} else {
@@ -148,7 +153,7 @@ public abstract class Consumer {
 				extract(file);
 			}
 
-			locks.release();
+			slots.release();
 		}
 
 		protected int extract(final Path file) {

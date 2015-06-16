@@ -29,7 +29,7 @@ public class QueueingScanner extends Scanner {
 		try {
 			queue.put(file.toString());
 		} catch (InterruptedException e) {
-			logger.warning("Interrupted while scanning.");
+			logger.warning("Interrupted while waiting for a free queue slot.");
 			Thread.currentThread().interrupt();
 		}
 	}
