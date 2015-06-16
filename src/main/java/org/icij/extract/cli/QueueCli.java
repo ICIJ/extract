@@ -8,9 +8,6 @@ import java.util.logging.Logger;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import java.util.concurrent.CompletionService;
-import java.util.concurrent.ExecutorCompletionService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 
@@ -115,23 +112,17 @@ public class QueueCli extends Cli {
 
 		final Redisson redisson = getRedisson(cmd);
 		final RBlockingQueue<String> queue = redisson.getBlockingQueue(cmd.getOptionValue('n', "extract") + ":queue");
-		final CompletionService scan = new ExecutorCompletionService(Executors.newSingleThreadExecutor());
+		final Scanner scanner = new QueueingScanner(logger, queue);
 
+		setScannerOptions(cmd, scanner);
 		for (String directory : directories) {
-			Scanner scanner = new QueueingScanner(logger, queue, Paths.get(directory));
-			setScannerOptions(cmd, scanner);
-
-			logger.info("Queuing scan of \"" + directory + "\".");
-			scan.submit(scanner, null);
+			scanner.scan(Paths.get(directory));
 		}
 
 		try {
 
 			// Block until the scanning of each directory has completed in serial.
-			for (String directory : directories) {
-				scan.take().get();
-				logger.info("Completed scan of \"" + directory + "\".");
-			}
+			scanner.awaitTermination();
 		} catch (CancellationException | InterruptedException e) {
 			throw new RuntimeException("Directory scanning was cancelled or interruped.", e);
 		} catch (ExecutionException e) {

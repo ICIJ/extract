@@ -10,8 +10,6 @@ import java.nio.file.Paths;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import org.junit.Test;
 import org.junit.Assert;
@@ -75,11 +73,10 @@ public class ConsumerTest {
 		final int threads = 2;
 		final BlockingQueue<String> queue = new ArrayBlockingQueue<String>(threads * 2);
 		final PollingConsumer consumer = new PollingConsumer(logger, queue, spewer, extractor, threads);
+		final Scanner scanner = new QueueingScanner(logger, queue);
 
-		final ExecutorService scan = Executors.newSingleThreadExecutor();
-
-		scan.submit(new QueueingScanner(logger, queue, Paths.get(getClass().getResource("/documents/text/plain.txt").toURI())));
-		scan.submit(new QueueingScanner(logger, queue, Paths.get(getClass().getResource("/documents/ocr/simple.tiff").toURI())));
+		scanner.scan(Paths.get(getClass().getResource("/documents/text/plain.txt").toURI()));
+		scanner.scan(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").toURI()));
 
 		consumer.start();
 		consumer.awaitTermination();
@@ -100,10 +97,9 @@ public class ConsumerTest {
 		final int threads = 2;
 		final BlockingQueue<String> queue = new ArrayBlockingQueue<String>(threads * 2);
 		final PollingConsumer consumer = new PollingConsumer(logger, queue, spewer, extractor, threads);
+		final Scanner scanner = new QueueingScanner(logger, queue);
 
-		final ExecutorService scan = Executors.newSingleThreadExecutor();
-
-		scan.submit(new QueueingScanner(logger, queue, Paths.get(getClass().getResource("/documents/text/").toURI())));
+		scanner.scan(Paths.get(getClass().getResource("/documents/text/").toURI()));
 
 		consumer.start();
 		consumer.awaitTermination();

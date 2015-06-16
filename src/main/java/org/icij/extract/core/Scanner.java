@@ -8,6 +8,13 @@ import java.util.logging.Logger;
 
 import java.io.IOException;
 
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
+
 import java.nio.file.Path;
 import java.nio.file.Files;
 import java.nio.file.SimpleFileVisitor;
@@ -24,9 +31,9 @@ import java.nio.file.attribute.BasicFileAttributes;
  *
  * @since 1.0.0-beta
  */
-public abstract class Scanner implements Runnable {
+public abstract class Scanner {
 	protected final Logger logger;
-	protected final Path path;
+	protected final CompletionService<Path> service = new ExecutorCompletionService<Path>(Executors.newSingleThreadExecutor());
 
 	private PathMatcher includeMatcher;
 	private PathMatcher excludeMatcher;
@@ -34,9 +41,8 @@ public abstract class Scanner implements Runnable {
 	private int maxDepth = Integer.MAX_VALUE;
 	private boolean followLinks = false;
 
-	public Scanner(Logger logger, Path path) {
+	public Scanner(Logger logger) {
 		this.logger = logger;
-		this.path = path;
 	}
 
 	public void setIncludeGlob(String pattern) {
@@ -51,33 +57,55 @@ public abstract class Scanner implements Runnable {
 		followLinks = true;
 	}
 
-	public void run() {
-		if (Files.isRegularFile(path)) {
-			handle(path);
-		} else {
-			scanDirectory(path);
+	public void scan(Path path) {
+		logger.info("Queuing scan of \"" + path + "\".");
+		service.submit(new ScannerTask(path), path);
+	}
+
+	public void awaitTermination() throws CancellationException, InterruptedException, ExecutionException {
+		Future task;
+
+		while (null != (task = service.poll())) {
+			logger.info("Completed scan of \"" + task.get() + "\".");
 		}
 	}
 
 	protected abstract void handle(Path file);
 
-	private void scanDirectory(Path path) {
-		Set<FileVisitOption> options = null;
+	protected class ScannerTask implements Runnable {
 
-		if (followLinks) {
-			options = EnumSet.of(FileVisitOption.FOLLOW_LINKS);
-		} else {
-			options = EnumSet.noneOf(FileVisitOption.class);
+		protected final Path path;
+
+		public ScannerTask(Path path) {
+			this.path = path;
 		}
 
-		try {
-			Files.walkFileTree(path, options, maxDepth, new Visitor());
-		} catch (IOException e) {
-			logger.log(Level.SEVERE, "Error while scanning directory.", e);
+		public void run() {
+			if (Files.isRegularFile(path)) {
+				handle(path);
+			} else {
+				scanDirectory(path);
+			}
+		}
+
+		protected void scanDirectory(Path path) {
+			Set<FileVisitOption> options = null;
+
+			if (followLinks) {
+				options = EnumSet.of(FileVisitOption.FOLLOW_LINKS);
+			} else {
+				options = EnumSet.noneOf(FileVisitOption.class);
+			}
+
+			try {
+				Files.walkFileTree(path, options, maxDepth, new Visitor());
+			} catch (IOException e) {
+				logger.log(Level.SEVERE, "Error while scanning directory.", e);
+			}
 		}
 	}
 
-	private class Visitor extends SimpleFileVisitor<Path> {
+	protected class Visitor extends SimpleFileVisitor<Path> {
 
 		public FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attrs) throws IOException {
 			if (null != excludeMatcher && excludeMatcher.matches(directory)) {

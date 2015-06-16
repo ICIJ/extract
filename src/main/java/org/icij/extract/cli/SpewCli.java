@@ -15,8 +15,6 @@ import java.nio.file.Paths;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import java.security.NoSuchAlgorithmException;
 
@@ -383,18 +381,15 @@ public class SpewCli extends Cli {
 
 		if (QueueType.NONE == queueType) {
 			final List<String> directories = cmd.getArgList();
-			final ExecutorService scan = Executors.newSingleThreadExecutor();
+			final Scanner scanner = new QueueingScanner(logger, queue);
 
 			if (directories.size() == 0) {
 				throw new IllegalArgumentException("When not using a queue, you must pass the directory paths to scan on the command line.");
 			}
 
+			QueueCli.setScannerOptions(cmd, scanner);
 			for (String directory : directories) {
-				Scanner scanner = new QueueingScanner(logger, queue, Paths.get(directory));
-				QueueCli.setScannerOptions(cmd, scanner);
-
-				logger.info("Queuing scan of \"" + directory + "\".");
-				scan.submit(scanner);
+				scanner.scan(Paths.get(directory));
 			}
 		}
 

@@ -20,8 +20,8 @@ public class QueueingScanner extends Scanner {
 
 	private final BlockingQueue<String> queue;
 
-	public QueueingScanner(Logger logger, BlockingQueue<String> queue, Path path) {
-		super(logger, path);
+	public QueueingScanner(Logger logger, BlockingQueue<String> queue) {
+		super(logger);
 		this.queue = queue;
 	}
 
