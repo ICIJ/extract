@@ -10,7 +10,6 @@ import java.io.PrintStream;
 import java.nio.file.FileSystems;
 import java.nio.charset.StandardCharsets;
 
-import org.apache.tika.parser.ParsingReader;
 import org.apache.tika.exception.TikaException;
 
 import org.junit.Test;

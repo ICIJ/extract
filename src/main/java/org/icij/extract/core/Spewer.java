@@ -8,7 +8,6 @@ import java.nio.charset.Charset;
 
 import java.util.logging.Logger;
 
-import org.apache.tika.parser.ParsingReader;
 import org.apache.tika.exception.TikaException;
 
 /**

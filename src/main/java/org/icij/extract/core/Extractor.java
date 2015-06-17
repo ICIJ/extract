@@ -27,7 +27,6 @@ import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.CompositeParser;
 import org.apache.tika.parser.AutoDetectParser;
-import org.apache.tika.parser.ParsingReader;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.ocr.TesseractOCRParser;
 import org.apache.tika.parser.pdf.PDFParserConfig;

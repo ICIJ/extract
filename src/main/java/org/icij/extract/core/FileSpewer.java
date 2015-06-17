@@ -12,8 +12,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.charset.Charset;
 
-import org.apache.tika.parser.ParsingReader;
-
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.TaggedOutputStream;
 

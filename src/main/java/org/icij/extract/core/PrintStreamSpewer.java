@@ -8,8 +8,6 @@ import java.io.PrintStream;
 import java.nio.file.Path;
 import java.nio.charset.Charset;
 
-import org.apache.tika.parser.ParsingReader;
-
 import org.apache.commons.io.IOUtils;
 
 /**

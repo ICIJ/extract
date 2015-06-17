@@ -16,7 +16,6 @@ import java.security.NoSuchAlgorithmException;
 
 import javax.xml.bind.DatatypeConverter;
 
-import org.apache.tika.parser.ParsingReader;
 import org.apache.tika.exception.TikaException;
 
 import org.apache.solr.common.SolrDocument;
