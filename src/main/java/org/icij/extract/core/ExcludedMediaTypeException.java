@@ -3,10 +3,9 @@ package org.icij.extract.core;
 import org.apache.tika.exception.TikaException;
 
 /**
- * Extract
+ * The exception thrown when a file could not be parsed because the parser
+ * that would otherwise handle it was excluded.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
 public class ExcludedMediaTypeException extends TikaException {

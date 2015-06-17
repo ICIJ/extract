@@ -13,10 +13,8 @@ import org.apache.tika.parser.ParsingReader;
 import org.apache.commons.io.IOUtils;
 
 /**
- * Extract
+ * Writes the text output from a {@link ParsingReader} to the given {@link PrintStream}.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
 public class PrintStreamSpewer extends Spewer {

@@ -24,13 +24,12 @@ import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
 /**
- * Extract
+ * A custom extractor that extends Tika's default extractor for embedded documents.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @version 1.0.0-beta
+ * Logs errors that Tika's default extractor otherwise swallows.
+ *
  * @since 1.0.0-beta
  */
-
 public class EmbedExtractor extends ParsingEmbeddedDocumentExtractor {
 	private final Logger logger;
 	private final Path file;
@@ -53,7 +52,8 @@ public class EmbedExtractor extends ParsingEmbeddedDocumentExtractor {
 	public void parseEmbedded(InputStream stream, ContentHandler handler, Metadata metadata, boolean outputHtml) throws SAXException, IOException {
 		logger.info("Extracting embedded document from document: " + file + ".");
 
-		TemporaryResources tmp = new TemporaryResources();
+		final TemporaryResources tmp = new TemporaryResources();
+
 		try {
 			final TikaInputStream newStream = TikaInputStream.get(new CloseShieldInputStream(stream), tmp);
 

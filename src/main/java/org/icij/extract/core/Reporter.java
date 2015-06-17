@@ -7,10 +7,8 @@ import java.util.logging.Logger;
 import java.nio.file.Path;
 
 /**
- * Extract
+ * Logs the status of a file to the given {@link Map}.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
 public class Reporter {

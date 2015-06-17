@@ -37,10 +37,8 @@ import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.exception.TikaException;
 
 /**
- * Extract
+ * A reusable class that sets up Tika parsers based on runtime options.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
 public class Extractor {

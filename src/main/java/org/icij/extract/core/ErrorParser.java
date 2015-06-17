@@ -14,10 +14,13 @@ import org.apache.tika.exception.TikaException;
 import org.xml.sax.ContentHandler;
 
 /**
- * Extract
+ * An error parser that should be used as a fallback for the default composite parser.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @version 1.0.0-beta
+ * This parser throws a {@link TikaException} for files that could not be parsed because
+ * they are not supported by any known parsers and an {@link ExcludedMediaTypeException}
+ * for files that could not be parsed because the parser that would otherwise handle
+ * them was excluded.
+ *
  * @since 1.0.0-beta
  */
 public class ErrorParser implements Parser {

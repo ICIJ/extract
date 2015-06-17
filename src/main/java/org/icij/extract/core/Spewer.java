@@ -12,10 +12,8 @@ import org.apache.tika.parser.ParsingReader;
 import org.apache.tika.exception.TikaException;
 
 /**
- * Extract
+ * Base class for Spewer superclasses that write text output from a {@link ParsingReader} to specific endpoints.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
 public abstract class Spewer {

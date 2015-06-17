@@ -3,10 +3,10 @@ package org.icij.extract.core;
 import java.io.IOException;
 
 /**
- * Extract
+ * The Exception thrown by {@link Spewer Spewers} when writing fails due to an
+ * error with the endpoint or output stream. This helps distinguise between
+ * exceptions thrown by the {@link Parser} and those thrown by the {@link Spewer}.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
 public class SpewerException extends IOException {

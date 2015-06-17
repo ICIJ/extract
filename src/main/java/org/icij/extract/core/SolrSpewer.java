@@ -36,10 +36,8 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.commons.io.IOUtils;
 
 /**
- * Extract
+ * Writes the text output from a {@link ParsingReader} to a Solr core.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
 public class SolrSpewer extends Spewer {

@@ -18,10 +18,8 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.TaggedOutputStream;
 
 /**
- * Extract
+ * Writes the text output from a {@link ParsingReader} to the filesystem.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
 public class FileSpewer extends Spewer {
