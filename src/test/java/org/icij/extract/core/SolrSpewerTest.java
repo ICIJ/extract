@@ -44,7 +44,7 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		final Path path = FileSystems.getDefault().getPath("test-file.txt");
 		final MessageDigest idDigest = MessageDigest.getInstance("SHA-256");
 		final String pathHash = DatatypeConverter.printHexBinary(idDigest.digest(path.toString().getBytes(charset)));
-		final ParsingReader reader = new ParsingReader(new ByteArrayInputStream(buffer.getBytes(charset)));
+		final ParsingReader reader = new TextParsingReader(new ByteArrayInputStream(buffer.getBytes(charset)));
 
 		spewer.setIdField("id", "SHA-256");
 		spewer.setPathField("path");

@@ -26,7 +26,7 @@ public class PrintStreamSpewerTest {
 		final Spewer spewer = new PrintStreamSpewer(logger, printStream);
 
 		final String buffer = "test";
-		final ParsingReader reader = new ParsingReader(new ByteArrayInputStream(buffer.getBytes(StandardCharsets.UTF_8)));
+		final ParsingReader reader = new TextParsingReader(new ByteArrayInputStream(buffer.getBytes(StandardCharsets.UTF_8)));
 
 		spewer.write(FileSystems.getDefault().getPath("test-file"), reader, StandardCharsets.UTF_8);
 

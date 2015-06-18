@@ -114,7 +114,9 @@ public class Extractor {
 		context.set(PDFParserConfig.class, pdfConfig);
 		parser.setFallback(new ErrorParser(parser, excludedTypes));
 
-		return new ParsingReader(parser, TikaInputStream.get(stream), metadata, context);
+		final TikaInputStream tis = TikaInputStream.get(stream);
+
+		return new TextParsingReader(parser, tis, metadata, context);
 	}
 
 	private void excludeParser(Class exclude) {

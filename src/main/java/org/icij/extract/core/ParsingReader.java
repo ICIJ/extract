@@ -33,12 +33,12 @@ import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 
 import org.apache.tika.metadata.Metadata;
-import org.apache.tika.sax.BodyContentHandler;
+
 import org.xml.sax.ContentHandler;
 
 /**
 * Reader for the text content from a given binary stream. This class
-* uses a background parsing task with a {@link Parser} to parse the text 
+* uses a background parsing task with a {@link Parser} to parse the 
 * content from a given input stream. The {@link BodyContentHandler} class
 * and a pipe is used to convert the push-based SAX event stream to the
 * pull-based character stream defined by the {@link Reader} interface.
@@ -48,47 +48,52 @@ import org.xml.sax.ContentHandler;
 *
 * @since 1.0.0-beta
 */
-public class ParsingReader extends Reader {
+public abstract class ParsingReader extends Reader {
 
 	/**
 	 * Executor for background parsing tasks.
 	 */
-	private static final Executor executor = new ParsingExecutor();
+	protected final Executor executor = new ParsingExecutor();
 
 	/**
 	 * Parser instance used for parsing the given binary stream.
 	 */
-	private final Parser parser;
+	protected final Parser parser;
 	
 	/**
 	 * Buffered read end of the pipe.
 	 */
-	private final Reader reader;
+	protected final Reader reader;
 	
 	/**
 	 * Write end of the pipe.
 	 */
-	private final Writer writer;
+	protected final Writer writer;
 	
 	/**
 	 * The binary stream being parsed.
 	 */
-	private final InputStream stream;
+	protected final InputStream stream;
 	
 	/**
 	 * Metadata associated with the document being parsed.
 	 */
-	private final Metadata metadata;
+	protected final Metadata metadata;
 	
 	/**
 	 * The parse context.
 	 */
-	private final ParseContext context;
+	protected final ParseContext context;
+
+	/**
+	 * The content handler.
+	 */
+	protected ContentHandler handler;
 
 	/**
 	 * An exception (if any) thrown by the parsing thread.
 	 */
-	private transient Throwable throwable;
+	protected transient Throwable throwable;
 
 	/**
 	 * Utility method that returns a {@link Metadata} instance
@@ -97,7 +102,7 @@ public class ParsingReader extends Reader {
 	 * @param name resource name (or <code>null</code>)
 	 * @return metadata instance
 	 */
-	private static Metadata getMetadata(String name) {
+	protected static Metadata getMetadata(String name) {
 		Metadata metadata = new Metadata();
 
 		if (name != null && name.length() > 0) {
@@ -108,7 +113,7 @@ public class ParsingReader extends Reader {
 	}
 
 	/**
-	 * Creates a reader for the text content of the given binary stream.
+	 * Creates a reader for the content of the given binary stream.
 	 *
 	 * @param stream binary stream
 	 * @throws IOException if the document can not be parsed
@@ -119,7 +124,7 @@ public class ParsingReader extends Reader {
 	}
 	
 	/**
-	 * Creates a reader for the text content of the given binary stream
+	 * Creates a reader for the content of the given binary stream
 	 * with the given name.
 	 *
 	 * @param stream binary stream
@@ -132,7 +137,7 @@ public class ParsingReader extends Reader {
 	}
 
 	/**
-	 * Creates a reader for the text content of the given file.
+	 * Creates a reader for the content of the given file.
 	 *
 	 * @param file file
 	 * @throws FileNotFoundException if the given file does not exist
@@ -143,7 +148,7 @@ public class ParsingReader extends Reader {
 	}
 
 	/**
-	 * Creates a reader for the text content of the given binary stream
+	 * Creates a reader for the content of the given binary stream
 	 * with the given document metadata. The given parser is used for the
 	 * parsing task that is run with the given executor.
 	 *
@@ -166,16 +171,16 @@ public class ParsingReader extends Reader {
 		try {
 			this.writer = new PipedWriter(pipedReader);
 		} catch (IOException e) {
-			throw new IllegalStateException(e); // Should never happen
+			throw new IllegalStateException(e); // Should never happen.
 		}
 
 		this.stream = stream;
 		this.metadata = metadata;
 		this.context = context;
+
+		execute();
 		
-		executor.execute(new ParsingTask(metadata));
-		
-		// TIKA-203: Buffer first character to force metadata extraction
+		// TIKA-203: Buffer first character to force metadata extraction.
 		reader.mark(1);
 		reader.read();
 		reader.reset();
@@ -217,9 +222,16 @@ public class ParsingReader extends Reader {
 	}
 
 	/**
+	 * Execute a parsing task in the executor.
+	 * This method gives implementing classes a chance to override
+	 * the {@link ParsingTask}.
+	 */
+	protected abstract void execute();
+
+	/**
 	 * The executor for background parsing tasks.
 	 */
-	private static class ParsingExecutor implements Executor {
+	protected class ParsingExecutor implements Executor {
 
 		/**
 		 * Executes the given task in a daemon thread.
@@ -227,7 +239,7 @@ public class ParsingReader extends Reader {
 		 * @param task background parsing task
 		 */
         public void execute(Runnable task) {
-			String name = ((ParsingTask) task).getMetadata().get(Metadata.RESOURCE_NAME_KEY);
+			String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
 			
 			if (name != null) {
 				name = "Apache Tika: " + name;
@@ -244,25 +256,7 @@ public class ParsingReader extends Reader {
 	/**
 	 * The background parsing task.
 	 */
-	private class ParsingTask implements Runnable {
-
-		/**
-		 * The metadata of file being parsed.
-		 */
-		private final Metadata metadata;
-
-		/**
-		 * Creates a background parsing task.
-		 *
-		 * @param metadata metadata instance
-		 */
-		public ParsingTask(final Metadata metadata) {
-			this.metadata = metadata;
-		}
-
-		public Metadata getMetadata() {
-			return metadata;
-		}
+	protected class ParsingTask implements Runnable {
 
 	    /**
 	     * Parses the given binary stream and writes the text content
@@ -272,7 +266,6 @@ public class ParsingReader extends Reader {
 	     */
 		public void run() {
 			try {
-				ContentHandler handler = new BodyContentHandler(writer);
 				parser.parse(stream, handler, metadata, context);
 			} catch (Throwable t) {
 				throwable = t;
