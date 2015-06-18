@@ -26,17 +26,14 @@ import javax.xml.transform.sax.TransformerHandler;
 import javax.xml.transform.stream.StreamResult;
 
 /**
-* Reader for the text content from a given binary stream. This class
-* uses a background parsing task with a {@link Parser} to parse the text 
-* content from a given input stream. The {@link BodyContentHandler} class
-* and a pipe is used to convert the push-based SAX event stream to the
-* pull-based character stream defined by the {@link Reader} interface.
-*
-* Based on an implementation from the Tika source. This version adds
-* functionality for markup output.
-*
-* @since 1.0.0-beta
-*/
+ * Reader for the text content from a given binary stream. This class
+ * uses a background parsing task with a {@link Parser} to parse the text
+ * content from a given input stream. The {@link BodyContentHandler} class
+ * and a pipe is used to convert the push-based SAX event stream to the
+ * pull-based character stream defined by the {@link Reader} interface.
+ *
+ * @since 1.0.0-beta
+ */
 public class TextParsingReader extends ParsingReader {
 
 	/**
