@@ -3,8 +3,6 @@ package org.icij.extract.core;
 import java.util.Locale;
 
 import java.io.InputStream;
-import java.io.FileInputStream;
-import java.io.BufferedInputStream;
 import java.io.IOException;
 
 import java.security.KeyStore;
@@ -114,19 +112,21 @@ public class ClientUtils {
 		}
 
 		final KeyStore trustStore = KeyStore.getInstance(trustStoreType);
-		final InputStream inputStream = new BufferedInputStream(new FileInputStream(trustStorePath));
+		final InputStream input = new BufferedInputStream(new FileInputStream(trustStorePath));
 
 		if (trustStoreExtension.equals("PEM") || trustStoreExtension.equals("DER")) {
 			final X509Certificate certificate = (X509Certificate) CertificateFactory.getInstance("X.509")
-				.generateCertificate(inputStream);
+				.generateCertificate(input);
 
 			// Create an empty key store.
 			// This operation should never throw an exception.
 			trustStore.load(null, null);
 			trustStore.setCertificateEntry(Integer.toString(1), certificate);
 		} else {
-			trustStore.load(inputStream, trustStorePassword.toCharArray());
+			trustStore.load(input, trustStorePassword.toCharArray());
 		}
+
+		input.close();
 
 		return trustStore;
 	}
