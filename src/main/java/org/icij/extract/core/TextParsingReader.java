@@ -1,29 +1,17 @@
 package org.icij.extract.core;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PipedReader;
-import java.io.PipedWriter;
-import java.io.Reader;
-import java.io.Writer;
-import java.util.concurrent.Executor;
 
 import org.apache.tika.parser.Parser;
-import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
-
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.sax.BodyContentHandler;
 
 import org.xml.sax.ContentHandler;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.sax.SAXTransformerFactory;
-import javax.xml.transform.sax.TransformerHandler;
-import javax.xml.transform.stream.StreamResult;
 
 /**
  * Reader for the text content from a given binary stream. This class
@@ -37,36 +25,27 @@ import javax.xml.transform.stream.StreamResult;
 public class TextParsingReader extends ParsingReader {
 
 	/**
-	 * Creates a reader for the text content of the given binary stream.
+	 * Creates a reader for the content of the given binary stream.
 	 *
-	 * @param stream binary stream
+	 * @param logger logger instance
+	 * @param input binary stream
 	 * @throws IOException if the document can not be parsed
 	 */
-	public TextParsingReader(InputStream stream) throws IOException {
-		super(stream);
+	public TextParsingReader(Logger logger, InputStream input) throws IOException {
+		super(logger, input);
 	}
 	
 	/**
-	 * Creates a reader for the text content of the given binary stream
+	 * Creates a reader for the content of the given binary stream
 	 * with the given name.
 	 *
-	 * @param stream binary stream
+	 * @param logger logger instance
+	 * @param input binary stream
 	 * @param name document name
 	 * @throws IOException if the document can not be parsed
 	 */
-	public TextParsingReader(InputStream stream, String name) throws IOException {
-		super(stream, name);
-	}
-
-	/**
-	 * Creates a reader for the text content of the given file.
-	 *
-	 * @param file file
-	 * @throws FileNotFoundException if the given file does not exist
-	 * @throws IOException if the document can not be parsed
-	 */
-	public TextParsingReader(File file) throws FileNotFoundException, IOException {
-		super(file);
+	public TextParsingReader(Logger logger, InputStream input, String name) throws IOException {
+		super(logger, input, name);
 	}
 
 	/**
@@ -78,14 +57,15 @@ public class TextParsingReader extends ParsingReader {
 	 * The stream and any associated resources will be closed at or before
 	 * the time when the {@link #close()} method is called on this reader.
 	 *
+	 * @param logger logger instance
 	 * @param parser parser instance
-	 * @param stream binary stream
+	 * @param input binary stream
 	 * @param metadata document metadata
 	 * @param context parsing context
 	 * @throws IOException if the document can not be parsed
 	 */
-	public TextParsingReader(Parser parser, InputStream stream, Metadata metadata, ParseContext context) throws IOException {
-		super(parser, stream, metadata, context);
+	public TextParsingReader(Logger logger, Parser parser, InputStream input, Metadata metadata, ParseContext context) throws IOException {
+		super(logger, parser, input, metadata, context);
 	}
 
 	@Override
@@ -104,6 +84,7 @@ public class TextParsingReader extends ParsingReader {
 	     * the one caused if the read end is closed unexpectedly) are
 	     * stored before the input stream is closed and processing is stopped.
 	     */
+		@Override
 		public void run() {
 			handler = new BodyContentHandler(writer);
 			super.run();

@@ -22,9 +22,9 @@ public class ConsumerTest {
 
 		final Extractor extractor = new Extractor(logger);
 
-		final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-		final PrintStream printStream = new PrintStream(outputStream);
-		final Spewer spewer = new PrintStreamSpewer(logger, printStream);
+		final ByteArrayOutputStream output = new ByteArrayOutputStream();
+		final PrintStream print = new PrintStream(output);
+		final Spewer spewer = new PrintStreamSpewer(logger, print);
 
 		final int threads = 2;
 		final Consumer consumer = new Consumer(logger, spewer, extractor, threads);
@@ -34,7 +34,7 @@ public class ConsumerTest {
 		consumer.consume(file);
 		consumer.awaitTermination();
 
-		Assert.assertEquals("This is a test.\n\n", outputStream.toString());
+		Assert.assertEquals("This is a test.\n\n", output.toString());
 	}
 
 	@Test
@@ -43,9 +43,9 @@ public class ConsumerTest {
 
 		final Extractor extractor = new Extractor(logger);
 
-		final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-		final PrintStream printStream = new PrintStream(outputStream);
-		final Spewer spewer = new PrintStreamSpewer(logger, printStream);
+		final ByteArrayOutputStream output = new ByteArrayOutputStream();
+		final PrintStream print = new PrintStream(output);
+		final Spewer spewer = new PrintStreamSpewer(logger, print);
 
 		final int threads = 2;
 		final BlockingQueue<String> queue = new ArrayBlockingQueue<String>(threads * 2);
@@ -57,7 +57,7 @@ public class ConsumerTest {
 		consumer.start();
 		consumer.awaitTermination();
 
-		Assert.assertEquals("This is a test.\n\n", outputStream.toString());
+		Assert.assertEquals("This is a test.\n\n", output.toString());
 	}
 
 	@Test
@@ -66,9 +66,9 @@ public class ConsumerTest {
 
 		final Extractor extractor = new Extractor(logger);
 
-		final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-		final PrintStream printStream = new PrintStream(outputStream);
-		final Spewer spewer = new PrintStreamSpewer(logger, printStream);
+		final ByteArrayOutputStream output = new ByteArrayOutputStream();
+		final PrintStream print = new PrintStream(output);
+		final Spewer spewer = new PrintStreamSpewer(logger, print);
 
 		final int threads = 2;
 		final BlockingQueue<String> queue = new ArrayBlockingQueue<String>(threads * 2);
@@ -81,7 +81,7 @@ public class ConsumerTest {
 		consumer.start();
 		consumer.awaitTermination();
 
-		Assert.assertEquals("This is a test.\n\nHEAVY\nMETAL\n\n\n", outputStream.toString());
+		Assert.assertEquals("This is a test.\n\nHEAVY\nMETAL\n\n\n", output.toString());
 	}
 
 	@Test
@@ -90,9 +90,9 @@ public class ConsumerTest {
 
 		final Extractor extractor = new Extractor(logger);
 
-		final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-		final PrintStream printStream = new PrintStream(outputStream);
-		final Spewer spewer = new PrintStreamSpewer(logger, printStream);
+		final ByteArrayOutputStream output = new ByteArrayOutputStream();
+		final PrintStream print = new PrintStream(output);
+		final Spewer spewer = new PrintStreamSpewer(logger, print);
 
 		final int threads = 2;
 		final BlockingQueue<String> queue = new ArrayBlockingQueue<String>(threads * 2);
@@ -104,6 +104,6 @@ public class ConsumerTest {
 		consumer.start();
 		consumer.awaitTermination();
 
-		Assert.assertEquals("This is a test.\n\n", outputStream.toString());
+		Assert.assertEquals("This is a test.\n\nThis is a test.\n\n", output.toString());
 	}
 }

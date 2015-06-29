@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.Locale;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -15,8 +16,8 @@ import java.util.logging.Logger;
 import java.nio.file.Path;
 
 import java.io.File;
+import java.io.Reader;
 import java.io.InputStream;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
@@ -25,8 +26,11 @@ import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaMetadataKeys;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.EmptyParser;
 import org.apache.tika.parser.CompositeParser;
 import org.apache.tika.parser.AutoDetectParser;
+import org.apache.tika.parser.html.HtmlMapper;
+import org.apache.tika.parser.html.DefaultHtmlMapper;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.ocr.TesseractOCRParser;
 import org.apache.tika.parser.pdf.PDFParserConfig;
@@ -41,16 +45,43 @@ import org.apache.tika.exception.TikaException;
  * @since 1.0.0-beta
  */
 public class Extractor {
+
+	public static enum OutputFormat {
+		HTML, TEXT;
+
+		public static OutputFormat parse(String outputFormat) {
+			try {
+				return valueOf(outputFormat.toUpperCase(Locale.ROOT));
+			} catch (IllegalArgumentException e) {
+				throw new IllegalArgumentException(String.format("\"%s\" is not a valid output format.", outputFormat));
+			}
+		}
+	}
+
+	public static enum EmbedHandling {
+		IGNORE, EXTRACT, EMBED;
+
+		public static EmbedHandling parse(String embedHandling) {
+			try {
+				return valueOf(embedHandling.toUpperCase(Locale.ROOT));
+			} catch (IllegalArgumentException e) {
+				throw new IllegalArgumentException(String.format("\"%s\" is not a valid embed handling mode.", embedHandling));
+			}
+		}
+	}
+
 	private final Logger logger;
 
 	private boolean ocrDisabled = false;
-	private boolean embedsIgnored = false;
 
 	private final TikaConfig config = TikaConfig.getDefaultConfig();
 	private final TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
 	private final PDFParserConfig pdfConfig = new PDFParserConfig();
 
 	private final Set<MediaType> excludedTypes = new HashSet<MediaType>();
+
+	private EmbedHandling embedHandling = EmbedHandling.EXTRACT;
+	private OutputFormat outputFormat = OutputFormat.TEXT;
 
 	public Extractor(Logger logger) {
 		this.logger = logger;
@@ -62,6 +93,14 @@ public class Extractor {
 		// In scanned documents under test from the Panama registry, different embedded images had the same ID, leading to incomplete OCRing when uniqueness detection was turned on.
 		pdfConfig.setExtractUniqueInlineImagesOnly(false);
 		pdfConfig.setUseNonSequentialParser(true);
+	}
+
+	public void setEmbedHandling(EmbedHandling embedHandling) {
+		this.embedHandling = embedHandling;
+	}
+
+	public void setOutputFormat(OutputFormat outputFormat) {
+		this.outputFormat = outputFormat;
 	}
 
 	public void setOcrLanguage(String ocrLanguage) {
@@ -80,43 +119,60 @@ public class Extractor {
 		}
 	}
 
-	public void ignoreEmbeds() {
-		embedsIgnored = true;
+	public Reader extract(final Path file) throws IOException, FileNotFoundException, TikaException {
+		return extract(file, new Metadata());
 	}
 
-	public ParsingReader extract(final Path file) throws IOException, FileNotFoundException, TikaException {
-		return extract(new FileInputStream(file.toString()), file, new Metadata());
+	public Reader extract(final Path file, final Metadata metadata) throws IOException, FileNotFoundException, TikaException {
+
+		// Using the #get method like so, Tika will set the resource name and content length
+		// automatically on the metadata.
+		return extract(TikaInputStream.get(file.toFile(), metadata), metadata);
 	}
 
-	public ParsingReader extract(final Path file, final Metadata metadata) throws IOException, FileNotFoundException, TikaException {
-		return extract(new FileInputStream(file.toString()), file, metadata);
-	}
-
-	public ParsingReader extract(final InputStream stream, final Path file, final Metadata metadata) throws IOException, TikaException {
+	public Reader extract(final TikaInputStream input, final Metadata metadata) throws IOException, TikaException {
 		final ParseContext context = new ParseContext();
 		final AutoDetectParser parser = new AutoDetectParser(config);
+
+		// Attempt to use the more modern Path interface throughout, except
+		// where Tika requires File and doesn't support Path.
+		final Path file = input.getFile().toPath();
 
 		if (!ocrDisabled) {
 			context.set(TesseractOCRConfig.class, ocrConfig);
 		}
 
-		// Set up recursive parsing of archives and documents with embedded images.
-		if (!embedsIgnored) {
-			context.set(Parser.class, parser);
-			context.set(EmbeddedDocumentExtractor.class, new EmbedExtractor(logger, file, context));
-		}
-
-		final Path filename = file.getFileName();
-		if (null != filename) {
-			metadata.set(TikaMetadataKeys.RESOURCE_NAME_KEY, filename.toString());
-		}
-
 		context.set(PDFParserConfig.class, pdfConfig);
 		parser.setFallback(new ErrorParser(parser, excludedTypes));
 
-		final TikaInputStream tis = TikaInputStream.get(stream);
+		// Only include "safe" tags in the HTML output. This excludes script tags and objects.
+		if (OutputFormat.HTML == outputFormat) {
+			context.get(HtmlMapper.class, DefaultHtmlMapper.INSTANCE);
+		}
 
-		return new TextParsingReader(parser, tis, metadata, context);
+		ParsingReader reader;
+
+		// Return a parsing reader that embeds embedded objects as data URIs.
+		if (OutputFormat.HTML == outputFormat && EmbedHandling.EMBED == embedHandling) {
+			return new EmbeddingHTMLParsingReader(logger, parser, input, metadata, context);
+		}
+
+		// For all output types, allow text to be optionally inline-extracted into the main stream.
+		if (EmbedHandling.EXTRACT == embedHandling) {
+			context.set(Parser.class, parser);
+			context.set(EmbeddedDocumentExtractor.class, new ParsingEmbeddedDocumentExtractor(logger, file, context));
+		} else {
+			context.set(Parser.class, EmptyParser.INSTANCE);
+			context.set(EmbeddedDocumentExtractor.class, new DenyingEmbeddedDocumentExtractor());
+		}
+
+		if (OutputFormat.TEXT == outputFormat) {
+			reader = new TextParsingReader(logger, parser, input, metadata, context);
+		} else {
+			reader = new HTMLParsingReader(logger, parser, input, metadata, context);
+		}
+
+		return reader;
 	}
 
 	private void excludeParser(Class exclude) {

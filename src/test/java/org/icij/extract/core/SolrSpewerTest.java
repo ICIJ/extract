@@ -27,6 +27,8 @@ import org.junit.Before;
 
 public class SolrSpewerTest extends SolrJettyTestBase {
 
+	private final Logger logger = Logger.getLogger("extract-test");
+
 	@Before
 	public void setUp() throws Exception {
 		getSolrClient().deleteByQuery("*:*");
@@ -35,8 +37,6 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 
 	@Test
 	public void testWrite() throws IOException, TikaException, NoSuchAlgorithmException, SolrServerException {
-		final Logger logger = Logger.getLogger("extract-test");
-
 		final SolrSpewer spewer = new SolrSpewer(logger, getSolrClient());
 
 		final Charset charset = StandardCharsets.UTF_8;
@@ -44,7 +44,7 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		final Path path = FileSystems.getDefault().getPath("test-file.txt");
 		final MessageDigest idDigest = MessageDigest.getInstance("SHA-256");
 		final String pathHash = DatatypeConverter.printHexBinary(idDigest.digest(path.toString().getBytes(charset)));
-		final ParsingReader reader = new TextParsingReader(new ByteArrayInputStream(buffer.getBytes(charset)));
+		final ParsingReader reader = new TextParsingReader(logger, new ByteArrayInputStream(buffer.getBytes(charset)));
 
 		spewer.setIdField("id", "SHA-256");
 		spewer.setPathField("path");

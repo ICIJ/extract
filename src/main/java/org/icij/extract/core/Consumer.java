@@ -21,6 +21,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
+import java.io.Reader;
 import java.io.IOException;
 import java.io.FileNotFoundException;
 
@@ -160,7 +161,7 @@ public class Consumer {
 
 			final Metadata metadata = new Metadata();
 
-			ParsingReader reader = null;
+			Reader reader = null;
 			int status = Reporter.SUCCEEDED;
 
 			try {

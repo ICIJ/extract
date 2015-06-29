@@ -16,10 +16,10 @@
  */
 package org.icij.extract.core;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PipedReader;
@@ -51,6 +51,11 @@ import org.xml.sax.ContentHandler;
 public abstract class ParsingReader extends Reader {
 
 	/**
+	 * Logger for logging exceptions.
+	 */
+	protected final Logger logger;
+
+	/**
 	 * Executor for background parsing tasks.
 	 */
 	protected final Executor executor = new ParsingExecutor();
@@ -58,32 +63,32 @@ public abstract class ParsingReader extends Reader {
 	/**
 	 * Parser instance used for parsing the given binary stream.
 	 */
-	protected final Parser parser;
+	protected Parser parser;
 	
 	/**
 	 * Buffered read end of the pipe.
 	 */
-	protected final Reader reader;
+	protected Reader reader;
 	
 	/**
 	 * Write end of the pipe.
 	 */
-	protected final Writer writer;
+	protected Writer writer;
 	
 	/**
 	 * The binary stream being parsed.
 	 */
-	protected final InputStream stream;
+	protected InputStream input;
 	
 	/**
 	 * Metadata associated with the document being parsed.
 	 */
-	protected final Metadata metadata;
+	protected Metadata metadata;
 	
 	/**
 	 * The parse context.
 	 */
-	protected final ParseContext context;
+	protected ParseContext context;
 
 	/**
 	 * The content handler.
@@ -115,11 +120,12 @@ public abstract class ParsingReader extends Reader {
 	/**
 	 * Creates a reader for the content of the given binary stream.
 	 *
-	 * @param stream binary stream
+	 * @param logger logger instance
+	 * @param input binary stream
 	 * @throws IOException if the document can not be parsed
 	 */
-	public ParsingReader(InputStream stream) throws IOException {
-		this(new AutoDetectParser(), stream, new Metadata(), new ParseContext());
+	public ParsingReader(Logger logger, InputStream input) throws IOException {
+		this(logger, new AutoDetectParser(), input, new Metadata(), new ParseContext());
 		context.set(Parser.class, parser);
 	}
 	
@@ -127,24 +133,14 @@ public abstract class ParsingReader extends Reader {
 	 * Creates a reader for the content of the given binary stream
 	 * with the given name.
 	 *
-	 * @param stream binary stream
+	 * @param logger logger instance
+	 * @param input binary stream
 	 * @param name document name
 	 * @throws IOException if the document can not be parsed
 	 */
-	public ParsingReader(InputStream stream, String name) throws IOException {
-		this(new AutoDetectParser(), stream, getMetadata(name), new ParseContext());
+	public ParsingReader(Logger logger, InputStream input, String name) throws IOException {
+		this(logger, new AutoDetectParser(), input, getMetadata(name), new ParseContext());
 		context.set(Parser.class, parser);
-	}
-
-	/**
-	 * Creates a reader for the content of the given file.
-	 *
-	 * @param file file
-	 * @throws FileNotFoundException if the given file does not exist
-	 * @throws IOException if the document can not be parsed
-	 */
-	public ParsingReader(File file) throws FileNotFoundException, IOException {
-		this(new FileInputStream(file), file.getName());
 	}
 
 	/**
@@ -156,13 +152,14 @@ public abstract class ParsingReader extends Reader {
 	 * The stream and any associated resources will be closed at or before
 	 * the time when the {@link #close()} method is called on this reader.
 	 *
+	 * @param logger logger instance
 	 * @param parser parser instance
-	 * @param stream binary stream
+	 * @param input binary stream
 	 * @param metadata document metadata
 	 * @param context parsing context
 	 * @throws IOException if the document can not be parsed
 	 */
-	public ParsingReader(Parser parser, InputStream stream, Metadata metadata, ParseContext context) throws IOException {
+	public ParsingReader(Logger logger, Parser parser, InputStream input, Metadata metadata, ParseContext context) throws IOException {
 		final PipedReader pipedReader = new PipedReader();
 
 		this.parser = parser;
@@ -174,9 +171,11 @@ public abstract class ParsingReader extends Reader {
 			throw new IllegalStateException(e); // Should never happen.
 		}
 
-		this.stream = stream;
+		this.input = input;
 		this.metadata = metadata;
 		this.context = context;
+
+		this.logger = logger;
 
 		execute();
 		
@@ -266,13 +265,13 @@ public abstract class ParsingReader extends Reader {
 	     */
 		public void run() {
 			try {
-				parser.parse(stream, handler, metadata, context);
+				parser.parse(input, handler, metadata, context);
 			} catch (Throwable t) {
 				throwable = t;
 			}
 			
 			try {
-				stream.close();
+				input.close();
 			} catch (Throwable t) {
 				if (throwable == null) {
 					throwable = t;

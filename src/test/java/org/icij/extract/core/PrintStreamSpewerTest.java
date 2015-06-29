@@ -29,7 +29,7 @@ public class PrintStreamSpewerTest {
 		final String buffer = "$";
 		final String name = "imaginary-file.txt";
 		final InputStream inputStream = new ByteArrayInputStream(buffer.getBytes(StandardCharsets.UTF_8));
-		final ParsingReader reader = new TextParsingReader(inputStream, name);
+		final ParsingReader reader = new TextParsingReader(logger, inputStream, name);
 
 		spewer.write(FileSystems.getDefault().getPath(name), reader, StandardCharsets.UTF_8);
 
@@ -46,7 +46,7 @@ public class PrintStreamSpewerTest {
 		final byte[] buffer = new byte[] {(byte) 0xFF, (byte) 0xFE, 0x24, 0x00};
 		final String name = "imaginary-file.txt";
 		final InputStream inputStream = new ByteArrayInputStream(buffer);
-		final ParsingReader reader = new TextParsingReader(inputStream, name);
+		final ParsingReader reader = new TextParsingReader(logger, inputStream, name);
 
 		spewer.write(FileSystems.getDefault().getPath(name), reader, StandardCharsets.UTF_8);
 
@@ -63,7 +63,7 @@ public class PrintStreamSpewerTest {
 		final byte[] buffer = new byte[] {(byte) 0xFE, (byte) 0xFF, 0x00, 0x24};
 		final String name = "imaginary-file.txt";
 		final InputStream inputStream = new ByteArrayInputStream(buffer);
-		final ParsingReader reader = new TextParsingReader(inputStream, name);
+		final ParsingReader reader = new TextParsingReader(logger, inputStream, name);
 
 		spewer.write(FileSystems.getDefault().getPath(name), reader, StandardCharsets.UTF_8);
 
@@ -83,7 +83,7 @@ public class PrintStreamSpewerTest {
 
 		// Tika parsers always output UTF-8.
 		final InputStream inputStream = new ByteArrayInputStream(buffer.getBytes(StandardCharsets.UTF_8));
-		final ParsingReader reader = new TextParsingReader(inputStream, name);
+		final ParsingReader reader = new TextParsingReader(logger, inputStream, name);
 
 		spewer.write(FileSystems.getDefault().getPath("test-file"), reader, StandardCharsets.UTF_16LE);
 
@@ -102,7 +102,7 @@ public class PrintStreamSpewerTest {
 
 		// Tika parsers always output UTF-8.
 		final InputStream inputStream = new ByteArrayInputStream(buffer.getBytes(StandardCharsets.UTF_8));
-		final ParsingReader reader = new TextParsingReader(inputStream, name);
+		final ParsingReader reader = new TextParsingReader(logger, inputStream, name);
 
 		spewer.write(FileSystems.getDefault().getPath("test-file"), reader, StandardCharsets.UTF_16BE);
 

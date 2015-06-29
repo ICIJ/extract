@@ -5,6 +5,7 @@ import java.util.Iterator;
 import java.util.logging.Logger;
 
 import java.io.File;
+import java.io.Reader;
 import java.io.OutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -16,7 +17,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.TaggedOutputStream;
 
 /**
- * Writes the text output from a {@link ParsingReader} to the filesystem.
+ * Writes the text output from a {@link Reader} to the filesystem.
  *
  * @since 1.0.0-beta
  */
@@ -43,7 +44,7 @@ public class FileSpewer extends Spewer {
 		}
 	}
 
-	public void write(Path file, ParsingReader reader, Charset outputEncoding) throws IOException, SpewerException {
+	public void write(Path file, Reader reader, Charset outputEncoding) throws IOException, SpewerException {
 		Path outputFile = filterOutputPath(outputDirectory.resolve(file));
 
 		// Add the output extension.

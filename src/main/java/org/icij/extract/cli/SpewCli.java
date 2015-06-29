@@ -123,11 +123,6 @@ public class SpewCli extends Cli {
 			.longOpt(name)
 			.build();
 
-		case "ignore-embeds": return Option.builder()
-			.desc("Don't extract text from embedded documents.")
-			.longOpt(name)
-			.build();
-
 		case "ocr-disabled": return Option.builder()
 			.desc("Disable automatic OCR. On by default.")
 			.longOpt(name)
@@ -167,6 +162,20 @@ public class SpewCli extends Cli {
 			.longOpt(name)
 			.hasArg()
 			.argName("path")
+			.build();
+
+		case "output-format": return Option.builder()
+			.desc("Set the output format. Either \"text\" or \"HTML\". Defaults to text output.")
+			.longOpt(name)
+			.hasArg()
+			.argName("format")
+			.build();
+
+		case "e": return Option.builder("e")
+			.desc("Set the embed handling mode. Either \"ignore\", \"extract\" or \"embed\". When set to extract, embeds are parsed and the output is inlined into the main output. In embed mode, embeds are not parsed but are inlined as a data URI representation of the raw embed data. The latter mode only applies when the output format is set to HTML. Defaults to extracting.")
+			.longOpt("embed-handling")
+			.hasArg()
+			.argName("mode")
 			.build();
 
 		case "file-output-directory": return Option.builder()
@@ -337,6 +346,16 @@ public class SpewCli extends Cli {
 			consumer.setOutputEncoding(cmd.getOptionValue("output-encoding"));
 		}
 
+		if (cmd.hasOption("output-format")) {
+			extractor.setOutputFormat(Extractor
+				.OutputFormat.parse(cmd.getOptionValue("output-format")));
+		}
+
+		if (cmd.hasOption('e')) {
+			extractor.setEmbedHandling(Extractor
+				.EmbedHandling.parse(cmd.getOptionValue('e')));
+		}
+
 		if (cmd.hasOption("ocr-language")) {
 			extractor.setOcrLanguage(cmd.getOptionValue("ocr-language"));
 		}
@@ -347,10 +366,6 @@ public class SpewCli extends Cli {
 
 		if (cmd.hasOption("ocr-disabled")) {
 			extractor.disableOcr();
-		}
-
-		if (cmd.hasOption("ignore-embeds")) {
-			extractor.ignoreEmbeds();
 		}
 
 		if (ReporterType.REDIS == reporterType) {

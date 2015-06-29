@@ -1,5 +1,6 @@
 package org.icij.extract.core;
 
+import java.io.Reader;
 import java.io.IOException;
 
 import java.nio.file.Path;
@@ -7,8 +8,6 @@ import java.nio.file.FileSystems;
 import java.nio.charset.Charset;
 
 import java.util.logging.Logger;
-
-import org.apache.tika.exception.TikaException;
 
 /**
  * Base class for Spewer superclasses that write text output from a {@link ParsingReader} to specific endpoints.
@@ -25,7 +24,7 @@ public abstract class Spewer {
 		this.logger = logger;
 	}
 
-	public abstract void write(Path file, ParsingReader reader, Charset outputEncoding) throws IOException, TikaException, SpewerException;
+	public abstract void write(Path file, Reader reader, Charset outputEncoding) throws IOException, SpewerException;
 
 	public void setOutputBase(Path outputBase) {
 		this.outputBase = outputBase;

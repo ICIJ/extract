@@ -2,6 +2,7 @@ package org.icij.extract.core;
 
 import java.util.logging.Logger;
 
+import java.io.Reader;
 import java.io.IOException;
 import java.io.PrintStream;
 
@@ -24,7 +25,7 @@ public class PrintStreamSpewer extends Spewer {
 		this.printStream = printStream;
 	}
 
-	public void write(Path file, ParsingReader reader, Charset outputEncoding) throws IOException, SpewerException {
+	public void write(Path file, Reader reader, Charset outputEncoding) throws IOException, SpewerException {
 
 		// A PrintStream should never throw an IOException: the exception would always come from the input stream.
 		// There's no need to use a TaggedOutputStream or catch IOExceptions.

@@ -11,6 +11,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import java.io.File;
+import java.io.Reader;
 import java.io.OutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -95,7 +96,7 @@ public class SolrSpewer extends Spewer {
 		}
 	}
 
-	public void write(final Path file, final ParsingReader reader, final Charset outputEncoding) throws IOException, SpewerException {
+	public void write(final Path file, final Reader reader, final Charset outputEncoding) throws IOException, SpewerException {
 		final SolrInputDocument document = new SolrInputDocument();
 		final UpdateResponse response;
 

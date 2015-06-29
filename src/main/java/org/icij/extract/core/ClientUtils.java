@@ -3,6 +3,8 @@ package org.icij.extract.core;
 import java.util.Locale;
 
 import java.io.InputStream;
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
 
 import java.security.KeyStore;
