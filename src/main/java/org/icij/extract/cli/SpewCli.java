@@ -40,7 +40,7 @@ public class SpewCli extends Cli {
 
 	public SpewCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "q", "n", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "ocr-disabled", "ocr-timeout", "o", "output-encoding", "output-base", "file-output-directory", "s", "t", "f", "i", "solr-id-algorithm", "solr-commit-interval", "solr-commit-within", "solr-pin-certificate", "solr-verify-host", "r"
+			"v", "q", "n", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "ocr-disabled", "ocr-timeout", "o", "output-encoding", "output-base", "file-output-directory", "s", "t", "f", "i", "solr-id-algorithm", "solr-commit-interval", "solr-commit-within", "solr-pin-certificate", "solr-verify-host", "r", "e", "output-format"
 		});
 	}
 
