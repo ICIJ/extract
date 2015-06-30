@@ -28,6 +28,14 @@ import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
 import org.apache.tika.sax.ContentHandlerDecorator;
 
+import org.apache.poi.poifs.filesystem.Entry;
+import org.apache.poi.poifs.filesystem.DirectoryEntry;
+import org.apache.poi.poifs.filesystem.DocumentEntry;
+import org.apache.poi.poifs.filesystem.DocumentInputStream;
+import org.apache.poi.poifs.filesystem.POIFSFileSystem;
+
+import org.apache.commons.io.IOUtils;
+
 import org.xml.sax.Attributes;
 import org.xml.sax.helpers.AttributesImpl;
 import org.xml.sax.ContentHandler;
@@ -136,25 +144,53 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 			this.parent = parent;
 		}
 
+		/**
+		 * Always returns true. Files are not actually parsed. They are embedded.
+		 *
+		 * @param metadata
+		 */
+		@Override
 		public boolean shouldParseEmbedded(Metadata metadata) {
-
-			// Files are not actually parsed. They are always embedded.
 			return true;
 		}
 
+		@Override
 		public void parseEmbedded(InputStream input, ContentHandler handler, Metadata metadata,
 			boolean outputHtml) throws SAXException, IOException {
 
-			// Get the name of the embedded file or set to a default if null or empty.
-			String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
-			if (null == name || name.isEmpty()) {
-				name = String.format("untitled file %d", ++untitled);
+			final String name = getFileName(metadata);
+			final Path embed;
+
+			if (input instanceof TikaInputStream) {
+				embed = saveEmbedded(name, (TikaInputStream) input);
+			} else {
+				embed = saveEmbedded(name, input);
 			}
 
-			final Path child = saveEmbedded(name, input);
+			outputEmbedded(embed, name, handler, metadata, outputHtml);
+		}
+
+		/**
+		 * Get the name of the embedded file or set to a default if null or empty.
+		 *
+		 * @param metadata
+		 */
+		private String getFileName(final Metadata metadata) {
+			final String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
+
+			if (null == name || name.isEmpty()) {
+				return String.format("untitled file %d", ++untitled);
+			} else {
+				return name;
+			}
+		}
+
+		private void outputEmbedded(final Path embed, final String name, final ContentHandler handler,
+			final Metadata metadata, final boolean outputHtml) throws SAXException, IOException {
+
 			final String uuid = UUID.randomUUID().toString();
 
-			pathMap.put(uuid, child);
+			pathMap.put(uuid, embed);
 			metaMap.put(uuid, metadata);
 
 			// If outputHtml is false then it means that the parser already outputted
@@ -165,9 +201,6 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 
 				attributes.addAttribute("", "class", "class", "CDATA", "package-entry");
 				handler.startElement(XHTML, "div", "div", attributes);
-				handler.startElement(XHTML, "h1", "h1", new AttributesImpl());
-				handler.characters(chars, 0, chars.length);
-				handler.endElement(XHTML, "h1", "h1");
 			}
 
 			final AttributesImpl attributes = new AttributesImpl();
@@ -181,8 +214,9 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 				attributes.addAttribute("", "type", "type", "CDATA", type);
 			}
 
+			final char[] chars = name.toCharArray();
+
 	        handler.startElement(XHTML, "a", "a", attributes);
-			char[] chars = name.toCharArray();
 			handler.characters(chars, 0, chars.length);
 	        handler.endElement(XHTML, "a", "a");
 
@@ -191,23 +225,88 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 			}
 		}
 
-		private Path saveEmbedded(final String name, final InputStream input) throws IOException {
-			Path embed;
+		private void saveEntries(final String name, final DirectoryEntry source,
+			final DirectoryEntry destination) throws IOException {
 
+			for (Entry entry : source) {
+
+				// Recursively save subentries.
+				if (entry instanceof DirectoryEntry) {
+					saveEntries(name, (DirectoryEntry) entry, destination.createDirectory(entry.getName()));
+					continue;
+				}
+
+				// Copy the entry.
+				final InputStream contents = new DocumentInputStream((DocumentEntry) entry);
+				try {
+					destination.createDocument(entry.getName(), contents);
+				} catch (IOException e) {
+					logger.log(Level.SEVERE, String.format("Unable to save embedded document \"%s\" in document: %s.",
+						entry.getName(), parent), e);
+				} finally {
+					contents.close();
+				}
+			}
+		}
+
+		private Path createTemporaryFile() throws IOException {
 			try {
-				embed = tmp.createTemporaryFile().toPath();
+				return tmp.createTemporaryFile().toPath();
 			} catch (IOException e) {
-				logger.log(Level.SEVERE, String.format("Unable to create temporary file for embed in document: %s.", parent), e);
+				logger.log(Level.SEVERE, String.format("Unable to create temporary file for embed in document: %s.",
+					parent), e);
 				throw e;
 			}
+		}
+
+		private Path saveEmbedded(final String name, final TikaInputStream input) throws IOException {
+
+			if (input.getOpenContainer() != null && input.getOpenContainer() instanceof DirectoryEntry) {
+				final POIFSFileSystem fs = new POIFSFileSystem();
+				final DirectoryEntry source = (DirectoryEntry) input.getOpenContainer();
+				final DirectoryEntry destination = fs.getRoot();
+
+				final Path embed = createTemporaryFile();
+				final OutputStream output = Files.newOutputStream(embed);
+
+				saveEntries(name, source, destination);
+
+				try {
+					fs.writeFilesystem(output);
+				} catch (IOException e) {
+					logger.log(Level.SEVERE, String.format("Unable to save embedded document \"%s\" in document: %s.",
+						name, parent), e);
+					throw e;
+				} finally {
+					IOUtils.closeQuietly(output);
+				}
+
+				return embed;
+			} else {
+				return saveEmbedded(name, (InputStream) input);
+			}
+		}
+
+		private Path saveEmbedded(final String name, final InputStream input) throws IOException {
+			final Path embed = createTemporaryFile();
+			long copied = 0;
 
 			try {
-				Files.copy(input, embed, StandardCopyOption.REPLACE_EXISTING);
+				copied = Files.copy(input, embed, StandardCopyOption.REPLACE_EXISTING);
 			} catch (IOException e) {
-				logger.log(Level.SEVERE, String.format("Unable to save embedded document \"%s\" in document: %s.", name, parent), e);
+				logger.log(Level.SEVERE, String.format("Unable to save embedded document \"%s\" in document: %s.",
+					name, parent), e);
 				throw e;
 			} finally {
 				input.close();
+			}
+
+			if (copied > 0) {
+				logger.info(String.format("Copied %d bytes from embedded document \"%s\" in \"%s\" to file.",
+					copied, name, parent));
+			} else {
+				logger.warning(String.format("No bytes copied for embedded document \"%s\" in \"%s\". "
+					+ "This could indicate a downstream error.", name, parent));
 			}
 
 			return embed;
@@ -218,6 +317,7 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 
 		private boolean isEmbeddedImgTagOpen = false;
 		private boolean isEmbeddedAnchorTagOpen = false;
+		private boolean anchorTagDropped = false;
 		private AttributesImpl imgAtts = null;
 
 		private static final String IMG_TAG = "img";
@@ -267,9 +367,10 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 						super.endElement(uri, IMG_TAG, IMG_TAG);
 						isEmbeddedImgTagOpen = false;
 						imgAtts = null;
+						anchorTagDropped = true;
 					} else {
 						super.startElement(uri, localName, qName, attributes);
-						super.endElement(uri, localName, qName);
+						anchorTagDropped = false;
 					}
 				} else if (isEmbeddedImgTagOpen) {
 					isEmbeddedImgTagOpen = false;
@@ -295,17 +396,13 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 		public void characters(char[] ch, int start, int length) throws SAXException {
 
 			// Swallow the text in between UUID start and close tags.
-			if (!isEmbeddedAnchorTagOpen) {
+			if (!isEmbeddedAnchorTagOpen || !anchorTagDropped) {
 				super.characters(ch, start, length);
 			}
 		}
 
 		@Override
 		public void endElement(String uri, String localName, String qName) throws SAXException {
-			if (isEmbeddedAnchorTagOpen) {
-				isEmbeddedAnchorTagOpen = false;
-				return;
-			}
 
 			// Swallow the event if closing an embedded image tag.
 			if (isEmbeddedImgTagOpen && IMG_TAG.equalsIgnoreCase(localName) && XHTML.equals(uri)) {
@@ -319,7 +416,9 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 				imgAtts = null;
 			}
 
-			super.endElement(uri, localName, qName);
+			if (!isEmbeddedAnchorTagOpen || !anchorTagDropped) {
+				super.endElement(uri, localName, qName);
+			}
 		}
 	}
 
@@ -331,7 +430,6 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 			if (null == path) {
 				return null;
 			} else {
-				//return new java.io.StringReader("testtest");
 				return DataURIEncodingInputStream.createReader(path, metaMap.get(token));
 			}
 		}
