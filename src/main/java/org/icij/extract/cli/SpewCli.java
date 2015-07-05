@@ -185,13 +185,6 @@ public class SpewCli extends Cli {
 			.argName("path")
 			.build();
 
-		case "file-output-extension": return Option.builder()
-			.desc("Extension for files containing extracted text. Defaults to " + FileSpewer.DEFAULT_EXTENSION + ".")
-			.longOpt(name)
-			.hasArg()
-			.argName("extension")
-			.build();
-
 		case "t": return Option.builder("t")
 			.desc("Solr field for extracted text. Defaults to \"" + SolrSpewer.DEFAULT_TEXT_FIELD + "\".")
 			.longOpt("solr-text-field")
@@ -311,8 +304,8 @@ public class SpewCli extends Cli {
 		} else if (OutputType.FILE == outputType) {
 			spewer = new FileSpewer(logger, Paths.get((String) cmd.getOptionValue("file-output-directory", ".")));
 
-			if (cmd.hasOption("file-output-extension")) {
-				((FileSpewer) spewer).setOutputExtension(cmd.getOptionValue("file-output-extension"));
+			if (extractor.getOutputFormat() == Extractor.OutputFormat.HTML) {
+				((FileSpewer) spewer).setOutputExtension("html");
 			}
 		} else {
 			spewer = new PrintStreamSpewer(logger, System.out);
