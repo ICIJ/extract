@@ -58,4 +58,28 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		Assert.assertEquals(path.toString(), response.get("path"));
 		Assert.assertEquals(buffer + "\n", response.get("content"));
 	}
+
+	@Test
+	public void testWriteMetadata() throws IOException, TikaException, NoSuchAlgorithmException, SolrServerException {
+		final SolrSpewer spewer = new SolrSpewer(logger, getSolrClient());
+
+		final Charset charset = StandardCharsets.UTF_8;
+		final String buffer = "test";
+		final Path path = FileSystems.getDefault().getPath("test-file.txt");
+		final MessageDigest idDigest = MessageDigest.getInstance("SHA-256");
+		final String pathHash = DatatypeConverter.printHexBinary(idDigest.digest(path.toString().getBytes(charset)));
+		final ParsingReader reader = new TextParsingReader(logger, new ByteArrayInputStream(buffer.getBytes(charset)));
+		final Metadata metadata = new Metadata();
+
+		spewer.setIdAlgorithm("SHA-256");
+		spewer.outputMetadata(true);
+
+		final String length = Integer.toString(buffer.getBytes(charset).length);
+		metadata.set("Content-Length", length);
+
+		spewer.write(path, metadata, reader, charset);
+
+		final SolrDocument response = getSolrClient().getById(pathHash);
+		Assert.assertEquals(length, response.get("metadata_Content-Length"));
+	}
 }

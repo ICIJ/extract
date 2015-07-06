@@ -32,6 +32,9 @@
 
 		<!-- Main body of document. NOTE: This field is not indexed by default, since it is also copied to "text" using copyField below. This is to save space. Use this field for returning and highlighting document content. Use the "text" field to search the content. -->
 		<field name="content" type="text" indexed="false" stored="true" />
+
+		<!-- Dynamic fields for arbitrary metadata. -->
+		<dynamicField name="metadata_*" type="string" indexed="true"  stored="true" />
 	</fields>
 
 	<defaultSearchField>text</defaultSearchField>
