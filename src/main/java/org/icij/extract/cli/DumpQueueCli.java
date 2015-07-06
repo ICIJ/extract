@@ -22,7 +22,6 @@ import org.redisson.Redisson;
 import org.redisson.core.RQueue;
 
 import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.core.JsonGenerator;
 
 /**
