@@ -205,7 +205,7 @@ public class SpewCli extends Cli {
 			.build();
 
 		case "i": return Option.builder("i")
-			.desc("Solr field for an automatically generated identifier. The ID for the same file is guaranteed not to change if the path doesn't change.")
+			.desc("Solr field for an automatically generated identifier. The ID for the same file is guaranteed not to change if the path doesn't change. Defaults to \"" + SolrSpewer.DEFAULT_ID_FIELD + "\".")
 			.longOpt("solr-id-field")
 			.hasArg()
 			.argName("name")
@@ -215,7 +215,7 @@ public class SpewCli extends Cli {
 
 			// The standard names are defined in the Oracle Standard Algorithm Name Documentation:
 			// http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#MessageDigest
-			.desc("The hashing algorithm used for generating Solr document identifiers e.g. \"MD5\" or \"SHA-1\". Defaults to SHA-256.")
+			.desc("The hashing algorithm used for generating Solr document identifiers e.g. \"MD5\" or \"SHA-256\". Turned off by default, so no ID is added.")
 			.longOpt(name)
 			.hasArg()
 			.argName("name")
@@ -297,12 +297,15 @@ public class SpewCli extends Cli {
 			}
 
 			if (cmd.hasOption('i')) {
-				final String algorithm = (String) cmd.getOptionValue("solr-id-algorithm", "SHA-256");
+				((SolrSpewer) spewer).setIdField(cmd.getOptionValue('i'));
+			}
 
+			if (cmd.hasOption("solr-id-algorithm")) {
 				try {
-					((SolrSpewer) spewer).setIdField(cmd.getOptionValue('i'), algorithm);
+					((SolrSpewer) spewer).setIdAlgorithm(cmd.getOptionValue("solr-id-algorithm"));
 				} catch (NoSuchAlgorithmException e) {
-					throw new IllegalArgumentException("Hashing algorithm not available on this platform: " + algorithm + ".");
+					throw new IllegalArgumentException(String.format("Hashing algorithm \"%s\" not available on this platform.",
+						cmd.getOptionValue("solr-id-algorithm")));
 				}
 			}
 

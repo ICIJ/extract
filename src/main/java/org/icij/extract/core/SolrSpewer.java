@@ -42,6 +42,7 @@ import org.apache.commons.io.IOUtils;
  * @since 1.0.0-beta
  */
 public class SolrSpewer extends Spewer {
+	public static final String DEFAULT_ID_FIELD = "id";
 	public static final String DEFAULT_TEXT_FIELD = "content";
 	public static final String DEFAULT_PATH_FIELD = "path";
 	public static final String DEFAULT_METADATA_FIELD_PREFIX = "metadata_";
@@ -51,7 +52,7 @@ public class SolrSpewer extends Spewer {
 
 	private String textField = DEFAULT_TEXT_FIELD;
 	private String pathField = DEFAULT_PATH_FIELD;
-	private String idField = null;
+	private String idField = DEFAULT_ID_FIELD;
 	private String metadataFieldPrefix = DEFAULT_METADATA_FIELD_PREFIX;
 	private MessageDigest idDigest = null;
 
@@ -72,10 +73,12 @@ public class SolrSpewer extends Spewer {
 		this.pathField = pathField;
 	}
 
-	public void setIdField(final String idField, final String algorithm)
-		throws NoSuchAlgorithmException {
-		this.idDigest = MessageDigest.getInstance(algorithm);
+	public void setIdField(final String idField) {
 		this.idField = idField;
+	}
+
+	public void setIdAlgorithm(final String algorithm) throws NoSuchAlgorithmException {
+		this.idDigest = MessageDigest.getInstance(algorithm);
 	}
 
 	public void setMetadataFieldPrefix(final String metadataFieldPrefix) {
