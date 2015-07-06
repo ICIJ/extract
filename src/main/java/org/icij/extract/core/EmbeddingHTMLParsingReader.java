@@ -345,6 +345,7 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 
 					cidMap.put(uuid, src.substring("cid:".length()));
 					attributes.setAttribute(attributes.getIndex("", "src"), "", "src", "src", "CDATA", "uuid:{" + uuid + "}");
+					super.startElement(uri, localName, qName, attributes);
 				}
 
 			} else if (ANCHOR_TAG.equalsIgnoreCase(localName) && XHTML.equals(uri) &&
@@ -375,19 +376,19 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 				} else if (isEmbeddedImgTagOpen) {
 					isEmbeddedImgTagOpen = false;
 					imgAtts = null;
+					super.startElement(uri, localName, qName, attributes);
 				}
 			} else {
 				if (isEmbeddedAnchorTagOpen) {
 					isEmbeddedAnchorTagOpen = false;
+					anchorTagDropped = false;
 				}
 
 				if (isEmbeddedImgTagOpen) {
 					isEmbeddedImgTagOpen = false;
 					imgAtts = null;
 				}
-			}
 
-			if (!isEmbeddedAnchorTagOpen && !isEmbeddedImgTagOpen) {
 				super.startElement(uri, localName, qName, attributes);
 			}
 		}
@@ -416,7 +417,9 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 				imgAtts = null;
 			}
 
-			if (!isEmbeddedAnchorTagOpen || !anchorTagDropped) {
+			if (isEmbeddedAnchorTagOpen && ANCHOR_TAG.equalsIgnoreCase(localName) && XHTML.equals(uri)) {
+				isEmbeddedAnchorTagOpen = false;
+			} else {
 				super.endElement(uri, localName, qName);
 			}
 		}
