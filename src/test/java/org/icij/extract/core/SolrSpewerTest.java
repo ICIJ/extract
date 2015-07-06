@@ -16,6 +16,7 @@ import java.security.NoSuchAlgorithmException;
 
 import javax.xml.bind.DatatypeConverter;
 
+import org.apache.tika.metadata.Metadata;
 import org.apache.tika.exception.TikaException;
 
 import org.apache.solr.common.SolrDocument;
@@ -48,7 +49,7 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 
 		spewer.setIdField("id", "SHA-256");
 		spewer.setPathField("path");
-		spewer.write(path, reader, charset);
+		spewer.write(path, new Metadata(), reader, charset);
 
 		SolrDocument response = getSolrClient().getById("0");
 		Assert.assertNull(response);

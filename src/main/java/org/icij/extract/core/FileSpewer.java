@@ -16,8 +16,15 @@ import java.nio.charset.Charset;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.TaggedOutputStream;
 
+import org.apache.tika.metadata.Metadata;
+
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonEncoding;
+
 /**
- * Writes the text output from a {@link Reader} to the filesystem.
+ * Writes the text or HTML output from a {@link Reader} to the filesystem.
+ * Metadata is written to a JSON file.
  *
  * @since 1.0.0-beta
  */
@@ -44,40 +51,90 @@ public class FileSpewer extends Spewer {
 		}
 	}
 
-	public void write(Path file, Reader reader, Charset outputEncoding) throws IOException, SpewerException {
-		Path outputFile = filterOutputPath(outputDirectory.resolve(file));
+	public void write(final Path file, final Metadata metadata, final Reader reader,
+		final Charset outputEncoding) throws IOException, SpewerException {
 
-		// Add the output extension.
-		if (null != outputExtension) {
-			outputFile = outputFile.getFileSystem().getPath(outputFile.toString() + "." + outputExtension);
+		// Join the file path to the output directory path to get the ouput path.
+		// If the file path is absolute, the leading slash must be removed.
+		Path baseOutputFile = filterOutputPath(file);
+		if (baseOutputFile.isAbsolute()) {
+			baseOutputFile = outputDirectory.resolve(baseOutputFile.toString().substring(1));
+		} else {
+			baseOutputFile = outputDirectory.resolve(baseOutputFile);
 		}
 
-		logger.info("Outputting to file: " + outputFile + ".");
+		// Add the output extension.
+		Path contentsOutputFile;
+		if (null != outputExtension) {
+			contentsOutputFile = baseOutputFile.getFileSystem().getPath(baseOutputFile
+				.toString() + "." + outputExtension);
+		} else {
+			contentsOutputFile = baseOutputFile;
+		}
+
+		logger.info(String.format("Outputting to file: %s.", contentsOutputFile));
 
 		// Make the required directories.
-		final Path outputParent = outputFile.getParent();
+		final Path outputParent = contentsOutputFile.getParent();
 		if (null != outputParent) {
 			final File outputFileParent = outputParent.toFile();
 			final boolean madeDirs = outputFileParent.mkdirs();
 
 			// The `mkdirs` method will return false if the path already exists.
 			if (false == madeDirs && !outputFileParent.isDirectory()) {
-				throw new SpewerException("Unable to make directories for file: " + outputFile + ".");
+				throw new SpewerException(String.format("Unable to make directories for file: %s.", contentsOutputFile));
 			}
 		}
 
-		final TaggedOutputStream outputStream = new TaggedOutputStream(new FileOutputStream(outputFile.toFile()));
+		// IOUtils#copy buffers the input so there's no need to use an output buffer.
+		final TaggedOutputStream output =
+			new TaggedOutputStream(new FileOutputStream(contentsOutputFile.toFile()));
 
 		try {
-			IOUtils.copy(reader, outputStream, outputEncoding);
+			IOUtils.copy(reader, output, outputEncoding);
 		} catch (IOException e) {
-			if (outputStream.isCauseOf(e)) {
-				throw new SpewerException("Error writing output to file: " + outputFile + ".", e);
+			if (output.isCauseOf(e)) {
+				throw new SpewerException(String.format("Error writing output to file: %s.", contentsOutputFile), e);
 			} else {
 				throw e;
 			}
 		} finally {
-			outputStream.close();
+			output.close();
+		}
+
+		if (outputMetadata) {
+			writeMetadata(baseOutputFile.getFileSystem().getPath(baseOutputFile
+			.toString() + ".json"), metadata);
+		}
+	}
+
+	private void writeMetadata(final Path metaOutputFile, final Metadata metadata)
+		throws IOException, SpewerException {
+		final JsonGenerator jsonGenerator;
+
+		logger.info(String.format("Outputting metadata to file: %s.", metaOutputFile));
+
+		try {
+			jsonGenerator = new JsonFactory().createGenerator(metaOutputFile.toFile(),
+				JsonEncoding.UTF8);
+		} catch (IOException e) {
+			throw new SpewerException("Unable to create JSON generator.", e);
+		}
+
+		try {
+			jsonGenerator.useDefaultPrettyPrinter();
+			jsonGenerator.writeStartObject();
+
+			for (String name : metadata.names()) {
+				jsonGenerator.writeStringField(name, metadata.get(name));
+			}
+
+			jsonGenerator.writeEndObject();
+			jsonGenerator.writeRaw('\n');
+		} catch (IOException e) {
+			throw new SpewerException("Unable to output JSON.", e);
+		} finally {
+			jsonGenerator.close();
 		}
 	}
 }

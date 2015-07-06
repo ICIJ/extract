@@ -99,8 +99,16 @@ public class Extractor {
 		this.embedHandling = embedHandling;
 	}
 
+	public EmbedHandling getEmbedHandling() {
+		return embedHandling;
+	}
+
 	public void setOutputFormat(OutputFormat outputFormat) {
 		this.outputFormat = outputFormat;
+	}
+
+	public OutputFormat getOutputFormat() {
+		return outputFormat;
 	}
 
 	public void setOcrLanguage(String ocrLanguage) {

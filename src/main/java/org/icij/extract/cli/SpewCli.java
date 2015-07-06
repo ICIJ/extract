@@ -40,7 +40,7 @@ public class SpewCli extends Cli {
 
 	public SpewCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "q", "n", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "ocr-disabled", "ocr-timeout", "o", "output-encoding", "output-base", "file-output-directory", "s", "t", "f", "i", "solr-id-algorithm", "solr-commit-interval", "solr-commit-within", "solr-pin-certificate", "solr-verify-host", "r", "e", "output-format"
+			"v", "q", "n", "redis-address", "include-pattern", "exclude-pattern", "follow-symlinks", "queue-poll", "p", "ocr-language", "ocr-disabled", "ocr-timeout", "o", "output-encoding", "output-base", "output-metadata", "file-output-directory", "s", "t", "f", "i", "solr-id-algorithm", "solr-metadata-prefix", "solr-commit-interval", "solr-commit-within", "solr-pin-certificate", "solr-verify-host", "r", "e", "output-format"
 		});
 	}
 
@@ -164,6 +164,11 @@ public class SpewCli extends Cli {
 			.argName("path")
 			.build();
 
+		case "output-metadata": return Option.builder()
+			.desc("Output metadata along with extracted text. For the \"file\" output type, a corresponding JSON file is created for every input file. With Solr, metadata fields are set using an optional prefix.")
+			.longOpt(name)
+			.build();
+
 		case "output-format": return Option.builder()
 			.desc("Set the output format. Either \"text\" or \"HTML\". Defaults to text output.")
 			.longOpt(name)
@@ -211,6 +216,13 @@ public class SpewCli extends Cli {
 			// The standard names are defined in the Oracle Standard Algorithm Name Documentation:
 			// http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#MessageDigest
 			.desc("The hashing algorithm used for generating Solr document identifiers e.g. \"MD5\" or \"SHA-1\". Defaults to SHA-256.")
+			.longOpt(name)
+			.hasArg()
+			.argName("name")
+			.build();
+
+		case "solr-metadata-prefix": return Option.builder()
+			.desc("Prefix for metadata fields added to Solr. Defaults to \"" + SolrSpewer.DEFAULT_METADATA_FIELD_PREFIX + "\".")
 			.longOpt(name)
 			.hasArg()
 			.argName("name")
@@ -294,6 +306,10 @@ public class SpewCli extends Cli {
 				}
 			}
 
+			if (cmd.hasOption("solr-metadata-prefix")) {
+				((SolrSpewer) spewer).setMetadataFieldPrefix(cmd.getOptionValue("solr-metadata-prefix"));
+			}
+
 			if (cmd.hasOption("solr-commit-interval")) {
 				((SolrSpewer) spewer).setCommitInterval(((Number) cmd.getParsedOptionValue("solr-commit-interval")).intValue());
 			}
@@ -303,16 +319,16 @@ public class SpewCli extends Cli {
 			}
 		} else if (OutputType.FILE == outputType) {
 			spewer = new FileSpewer(logger, Paths.get((String) cmd.getOptionValue("file-output-directory", ".")));
-
-			if (extractor.getOutputFormat() == Extractor.OutputFormat.HTML) {
-				((FileSpewer) spewer).setOutputExtension("html");
-			}
 		} else {
 			spewer = new PrintStreamSpewer(logger, System.out);
 		}
 
 		if (cmd.hasOption("output-base")) {
 			spewer.setOutputBase(cmd.getOptionValue("output-base"));
+		}
+
+		if (cmd.hasOption("output-metadata")) {
+			spewer.outputMetadata(true);
 		}
 
 		final QueueType queueType = QueueType.parse(cmd.getOptionValue('q'));
@@ -359,6 +375,12 @@ public class SpewCli extends Cli {
 
 		if (cmd.hasOption("ocr-disabled")) {
 			extractor.disableOcr();
+		}
+
+		if (OutputType.FILE == outputType &&
+			extractor.getOutputFormat() == Extractor.OutputFormat.HTML) {
+
+			((FileSpewer) spewer).setOutputExtension("html");
 		}
 
 		if (ReporterType.REDIS == reporterType) {

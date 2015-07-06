@@ -258,6 +258,7 @@ public class ExtractorTest {
 
 		try {
 			text = IOUtils.toString(reader);
+IOUtils.write(text, new java.io.FileWriter("/Users/matt/Downloads/test.html"));
 		} catch (IOException e) {
 			throw e;
 		} finally {

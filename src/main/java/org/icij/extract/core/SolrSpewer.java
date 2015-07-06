@@ -24,6 +24,8 @@ import java.security.NoSuchAlgorithmException;
 
 import javax.xml.bind.DatatypeConverter;
 
+import org.apache.tika.metadata.Metadata;
+
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.response.UpdateResponse;
@@ -42,6 +44,7 @@ import org.apache.commons.io.IOUtils;
 public class SolrSpewer extends Spewer {
 	public static final String DEFAULT_TEXT_FIELD = "content";
 	public static final String DEFAULT_PATH_FIELD = "path";
+	public static final String DEFAULT_METADATA_FIELD_PREFIX = "metadata_";
 
 	private final SolrClient client;
 	private final Semaphore commitSemaphore = new Semaphore(1);
@@ -49,35 +52,41 @@ public class SolrSpewer extends Spewer {
 	private String textField = DEFAULT_TEXT_FIELD;
 	private String pathField = DEFAULT_PATH_FIELD;
 	private String idField = null;
+	private String metadataFieldPrefix = DEFAULT_METADATA_FIELD_PREFIX;
 	private MessageDigest idDigest = null;
 
 	private final AtomicInteger pending = new AtomicInteger(0);
 	private int commitInterval = 0;
 	private int commitWithin = 0;
 
-	public SolrSpewer(Logger logger, SolrClient client) {
+	public SolrSpewer(final Logger logger, final SolrClient client) {
 		super(logger);
 		this.client = client;
 	}
 
-	public void setTextField(String textField) {
+	public void setTextField(final String textField) {
 		this.textField = textField;
 	}
 
-	public void setPathField(String pathField) {
+	public void setPathField(final String pathField) {
 		this.pathField = pathField;
 	}
 
-	public void setIdField(String idField, String algorithm) throws NoSuchAlgorithmException {
+	public void setIdField(final String idField, final String algorithm)
+		throws NoSuchAlgorithmException {
 		this.idDigest = MessageDigest.getInstance(algorithm);
 		this.idField = idField;
 	}
 
-	public void setCommitInterval(int commitInterval) {
+	public void setMetadataFieldPrefix(final String metadataFieldPrefix) {
+		this.metadataFieldPrefix = metadataFieldPrefix;
+	}
+
+	public void setCommitInterval(final int commitInterval) {
 		this.commitInterval = commitInterval;
 	}
 
-	public void setCommitWithin(int commitWithin) {
+	public void setCommitWithin(final int commitWithin) {
 		this.commitWithin = commitWithin;
 	}
 
@@ -96,26 +105,27 @@ public class SolrSpewer extends Spewer {
 		}
 	}
 
-	public void write(final Path file, final Reader reader, final Charset outputEncoding) throws IOException, SpewerException {
+	public void write(final Path file, final Metadata metadata, final Reader reader, final Charset outputEncoding)
+		throws IOException, SpewerException {
+
+		final String outputPath = filterOutputPath(file).toString();
 		final SolrInputDocument document = new SolrInputDocument();
 		final UpdateResponse response;
 
-		try {
-			setAtomic(document, textField, IOUtils.toString(reader));
-		} catch (IOException e) {
-			throw e;
-		} finally {
-			reader.close();
+		setAtomic(document, textField, IOUtils.toString(reader));
+
+		// Set the metadata.
+		if (outputMetadata) {
+			setAtomicMeta(document, metadata);
 		}
 
-		final String outputPath = filterOutputPath(file).toString();
-
+		// Set the path on the path field.
 		setAtomic(document, pathField, outputPath);
 
+		// Set the ID.
 		if (null != idField && null != idDigest) {
-			final byte[] hash = idDigest.digest(outputPath.getBytes(outputEncoding));
-
-			document.setField(idField, DatatypeConverter.printHexBinary(hash));
+			document.setField(idField, DatatypeConverter.printHexBinary(idDigest
+				.digest(outputPath.getBytes(outputEncoding))));
 		}
 
 		try {
@@ -125,13 +135,12 @@ public class SolrSpewer extends Spewer {
 				response = client.add(document, commitWithin);
 			}
 		} catch (SolrServerException e) {
-			throw new SpewerException("Unable to add file to Solr: " + file + ". There was server-side error.", e);
+			throw new SpewerException(String.format("Unable to add file to Solr: %s. There was server-side error.", file), e);
 		} catch (IOException e) {
-			throw new SpewerException("Unable to add file to Solr: " + file + ". There was an error communicating with the server.", e);
+			throw new SpewerException(String.format("Unable to add file to Solr: %s. There was an error communicating with the server.", file), e);
 		}
 
-		logger.info("Document added to Solr in " + response.getElapsedTime() + "ms: " + file + ".");
-
+		logger.info(String.format("Document added to Solr in %dms: %s.", response.getElapsedTime(), file));
 		pending.incrementAndGet();
 
 		// Autocommit if the interval is hit and enabled.
@@ -160,6 +169,16 @@ public class SolrSpewer extends Spewer {
 			logger.log(Level.SEVERE, "Failed to commit to Solr. There was an error communicating with the server.");
 		} finally {
 			commitSemaphore.release();
+		}
+	}
+
+	private void setAtomicMeta(final SolrInputDocument document, final Metadata metadata) {
+		for (String name : metadata.names()) {
+			if (null != metadataFieldPrefix) {
+				setAtomic(document, metadataFieldPrefix + name, metadata.get(name));
+			} else {
+				setAtomic(document, name, metadata.get(name));
+			}
 		}
 	}
 

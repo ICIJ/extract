@@ -9,6 +9,8 @@ import java.nio.charset.Charset;
 
 import java.util.logging.Logger;
 
+import org.apache.tika.metadata.Metadata;
+
 /**
  * Base class for Spewer superclasses that write text output from a {@link ParsingReader} to specific endpoints.
  *
@@ -18,28 +20,42 @@ public abstract class Spewer {
 
 	protected final Logger logger;
 
-	private Path outputBase = null;
+	protected Path outputBase = null;
+	protected boolean outputMetadata = false;
 
-	public Spewer(Logger logger) {
+	public Spewer(final Logger logger) {
 		this.logger = logger;
 	}
 
-	public abstract void write(Path file, Reader reader, Charset outputEncoding) throws IOException, SpewerException;
+	public abstract void write(final Path file, final Metadata metadata, final Reader reader,
+		final Charset outputEncoding) throws IOException, SpewerException;
 
-	public void setOutputBase(Path outputBase) {
+	public void setOutputBase(final Path outputBase) {
 		this.outputBase = outputBase;
 	}
 
-	public void setOutputBase(String outputBase) {
+	public void setOutputBase(final String outputBase) {
 		setOutputBase(FileSystems.getDefault().getPath(outputBase));
 	}
 
-	public Path filterOutputPath(Path file) {
+	public Path getOutputBase() {
+		return outputBase;
+	}
+
+	public void outputMetadata(final boolean outputMetadata) {
+		this.outputMetadata = outputMetadata;
+	}
+
+	public boolean outputMetadata() {
+		return outputMetadata;
+	}
+
+	public Path filterOutputPath(final Path file) {
 		if (null != outputBase && file.startsWith(outputBase)) {
 			return file.subpath(outputBase.getNameCount(), file.getNameCount());
+		} else {
+			return file;
 		}
-
-		return file;
 	}
 
 	public void finish() throws IOException {

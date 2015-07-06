@@ -167,7 +167,7 @@ public class Consumer {
 			try {
 				reader = extractor.extract(file, metadata);
 				logger.info("Outputting: " + file + ".");
-				spewer.write(file, reader, outputEncoding);
+				spewer.write(file, metadata, reader, outputEncoding);
 
 			// SpewerException is thrown exclusively due to an output endpoint error.
 			// It means that extraction succeeded, but the result could not be saved.
