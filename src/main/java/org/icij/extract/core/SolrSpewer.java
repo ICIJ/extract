@@ -3,12 +3,15 @@ package org.icij.extract.core;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Locale;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import java.util.regex.Pattern;
 
 import java.io.File;
 import java.io.Reader;
@@ -46,6 +49,8 @@ public class SolrSpewer extends Spewer {
 	public static final String DEFAULT_TEXT_FIELD = "content";
 	public static final String DEFAULT_PATH_FIELD = "path";
 	public static final String DEFAULT_METADATA_FIELD_PREFIX = "metadata_";
+
+	private static final Pattern fieldName = Pattern.compile("[^A-Za-z0-9]");
 
 	private final SolrClient client;
 	private final Semaphore commitSemaphore = new Semaphore(1);
@@ -177,10 +182,14 @@ public class SolrSpewer extends Spewer {
 
 	private void setAtomicMeta(final SolrInputDocument document, final Metadata metadata) {
 		for (String name : metadata.names()) {
+			String value = metadata.get(name);
+
+			// Field names must consist of alphanumeric or underscore characters only.
+			name = fieldName.matcher(name).replaceAll("_").toLowerCase(Locale.ROOT);
 			if (null != metadataFieldPrefix) {
-				setAtomic(document, metadataFieldPrefix + name, metadata.get(name));
+				setAtomic(document, metadataFieldPrefix + name, value);
 			} else {
-				setAtomic(document, name, metadata.get(name));
+				setAtomic(document, name, value);
 			}
 		}
 	}
