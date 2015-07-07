@@ -26,7 +26,7 @@ public class SolrCommitCli extends Cli {
 
 	public SolrCommitCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "s", "solr-pin-certificate", "solr-verify-host", "soft"
+			"v", "s", "pin-certificate", "verify-host", "soft"
 		});
 	}
 
@@ -35,20 +35,20 @@ public class SolrCommitCli extends Cli {
 
 		case "s": return Option.builder("s")
 			.desc("Solr server address. Required.")
-			.longOpt("solr-address")
+			.longOpt("address")
 			.hasArg()
 			.argName("address")
 			.required(true)
 			.build();
 
-		case "solr-pin-certificate": return Option.builder()
+		case "pin-certificate": return Option.builder()
 			.desc("The Solr server's public certificate, used for certificate pinning. Supported formats are PEM, DER, PKCS #12 and JKS.")
 			.longOpt(name)
 			.hasArg()
 			.argName("path")
 			.build();
 
-		case "solr-verify-host": return Option.builder()
+		case "verify-host": return Option.builder()
 			.desc("Verify the server's public certificate against the specified host. Use the wildcard \"*\" to disable verification.")
 			.longOpt(name)
 			.hasArg()
@@ -68,7 +68,8 @@ public class SolrCommitCli extends Cli {
 	public CommandLine parse(String[] args) throws ParseException, RuntimeException {
 		final CommandLine cmd = super.parse(args);
 
-		final CloseableHttpClient httpClient = ClientUtils.createHttpClient(cmd.getOptionValue("solr-pin-certificate"), cmd.getOptionValue("solr-verify-host"));
+		final CloseableHttpClient httpClient = ClientUtils
+			.createHttpClient(cmd.getOptionValue("pin-certificate"), cmd.getOptionValue("verify-host"));
 		final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
 
 		try {

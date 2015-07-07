@@ -26,7 +26,7 @@ public class SolrDeleteCli extends Cli {
 
 	public SolrDeleteCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "s", "solr-pin-certificate", "solr-verify-host", "i"
+			"v", "s", "pin-certificate", "verify-host", "i"
 		});
 	}
 
@@ -35,20 +35,20 @@ public class SolrDeleteCli extends Cli {
 
 		case "s": return Option.builder("s")
 			.desc("Solr server address. Required.")
-			.longOpt("solr-address")
+			.longOpt("address")
 			.hasArg()
 			.argName("address")
 			.required(true)
 			.build();
 
-		case "solr-pin-certificate": return Option.builder()
+		case "pin-certificate": return Option.builder()
 			.desc("The Solr server's public certificate, used for certificate pinning. Supported formats are PEM, DER, PKCS #12 and JKS.")
 			.longOpt(name)
 			.hasArg()
 			.argName("path")
 			.build();
 
-		case "solr-verify-host": return Option.builder()
+		case "verify-host": return Option.builder()
 			.desc("Verify the server's public certificate against the specified host. Use the wildcard \"*\" to disable verification.")
 			.longOpt(name)
 			.hasArg()
@@ -57,7 +57,7 @@ public class SolrDeleteCli extends Cli {
 
 		case "i": return Option.builder("i")
 			.desc("The name of the unique ID field in the target Solr schema.")
-			.longOpt("solr-id-field")
+			.longOpt("id-field")
 			.hasArg()
 			.argName("name")
 			.build();
@@ -71,7 +71,7 @@ public class SolrDeleteCli extends Cli {
 		final CommandLine cmd = super.parse(args);
 
 		final CloseableHttpClient httpClient = ClientUtils
-			.createHttpClient(cmd.getOptionValue("solr-pin-certificate"), cmd.getOptionValue("solr-verify-host"));
+			.createHttpClient(cmd.getOptionValue("pin-certificate"), cmd.getOptionValue("verify-host"));
 		final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
 
 		final String idField = cmd.getOptionValue('i', SolrSpewer.DEFAULT_ID_FIELD);
