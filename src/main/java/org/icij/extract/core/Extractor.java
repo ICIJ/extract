@@ -127,6 +127,10 @@ public class Extractor {
 		setOcrTimeout((int) TimeDuration.parseTo(duration, TimeUnit.SECONDS));
 	}
 
+	public void setOcrTimeout(TimeDuration duration) {
+		setOcrTimeout((int) duration.to(TimeUnit.SECONDS));
+	}
+
 	public void disableOcr() {
 		if (!ocrDisabled) {
 			excludeParser(TesseractOCRParser.class);

@@ -1,6 +1,7 @@
 package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
+import org.icij.extract.interval.TimeDuration;
 
 import java.util.List;
 import java.util.Map;
@@ -14,6 +15,7 @@ import java.nio.file.Paths;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import java.security.NoSuchAlgorithmException;
 
@@ -36,6 +38,8 @@ import org.apache.solr.client.solrj.impl.HttpSolrClient;
  * @since 1.0.0-beta
  */
 public class SpewCli extends Cli {
+
+	public static final TimeDuration DEFAULT_OCR_TIMEOUT = new TimeDuration(1, TimeUnit.HOURS);
 
 	public SpewCli(Logger logger) {
 		super(logger, new String[] {
@@ -136,7 +140,7 @@ public class SpewCli extends Cli {
 			.build();
 
 		case "ocr-timeout": return Option.builder()
-			.desc("Set the timeout for the Tesseract process to finish e.g. \"5s\" or \"1m\". Default is 120s.")
+			.desc(String.format("Set the timeout for the Tesseract process to finish e.g. \"5s\" or \"1m\". Defaults to %s.", DEFAULT_OCR_TIMEOUT))
 			.longOpt(name)
 			.hasArg()
 			.argName("duration")
@@ -372,6 +376,9 @@ public class SpewCli extends Cli {
 
 		if (cmd.hasOption("ocr-timeout")) {
 			extractor.setOcrTimeout(cmd.getOptionValue("ocr-timeout"));
+		} else {
+			logger.info(String.format("Setting a default OCR timeout of %s.", DEFAULT_OCR_TIMEOUT));
+			extractor.setOcrTimeout(DEFAULT_OCR_TIMEOUT);
 		}
 
 		if (cmd.hasOption("ocr-disabled")) {
