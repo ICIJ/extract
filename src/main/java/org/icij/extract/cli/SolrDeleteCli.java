@@ -84,8 +84,10 @@ public class SolrDeleteCli extends Cli {
 		try {
 			for (String id : ids) {
 				if (id.contains("*")) {
+					logger.info(String.format("Deleting document matching ID pattern %s.", id));
 					client.deleteByQuery(idField + ":" + id);
 				} else {
+					logger.info(String.format("Deleting document with ID %s.", id));
 					client.deleteById(id);
 				}
 			}
@@ -102,6 +104,6 @@ public class SolrDeleteCli extends Cli {
 	}
 
 	public void printHelp() {
-		super.printHelp(Command.SOLR_DELETE, "Delete files from Solr.");
+		super.printHelp(Command.SOLR_DELETE, "Delete documents from Solr.");
 	}
 }
