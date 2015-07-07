@@ -9,10 +9,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import java.io.IOException;
-import java.io.BufferedWriter;
-import java.io.OutputStreamWriter;
-
-import java.nio.charset.StandardCharsets;
 
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
@@ -23,6 +19,7 @@ import org.redisson.core.RQueue;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonEncoding;
 
 /**
  * Extract
@@ -83,8 +80,8 @@ public class DumpQueueCli extends Cli {
 		final Iterator<String> files = queue.iterator();
 
 		try {
-			final BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(System.out, StandardCharsets.UTF_8));
-			final JsonGenerator jsonGenerator = new JsonFactory().createGenerator(writer);
+			final JsonGenerator jsonGenerator = new JsonFactory()
+				.createGenerator(System.out, JsonEncoding.UTF8);
 
 			jsonGenerator.useDefaultPrettyPrinter();
 			jsonGenerator.writeStartArray();
@@ -94,10 +91,8 @@ public class DumpQueueCli extends Cli {
 			}
 
 			jsonGenerator.writeEndArray();
+			jsonGenerator.writeRaw('\n');
 			jsonGenerator.close();
-
-			writer.newLine();
-			writer.close();
 		} catch (IOException e) {
 			throw new RuntimeException("Unable to output JSON.", e);
 		}

@@ -7,12 +7,8 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.logging.Logger;
 
+import java.io.File;
 import java.io.IOException;
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.FileNotFoundException;
-
-import java.nio.charset.StandardCharsets;
 
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
@@ -22,7 +18,6 @@ import org.redisson.Redisson;
 import org.redisson.core.RQueue;
 
 import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 
@@ -83,20 +78,12 @@ public class LoadQueueCli extends Cli {
 			throw new IllegalArgumentException("Only one backup file path may be passed at a time.");
 		}
 
-		final String file = files[0];
+		final File file = new File(files[0]);
 		final Redisson redisson = getRedisson(cmd);
 		final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue('n', "extract") + ":queue");
 
-		BufferedReader reader = null;
-
 		try {
-			reader = new BufferedReader(new FileReader(file));
-		} catch (FileNotFoundException e) {
-			throw new RuntimeException("The specified file does not exist: " + file + ".");
-		}
-
-		try {
-			final JsonParser jsonParser = new JsonFactory().createParser(reader);
+			final JsonParser jsonParser = new JsonFactory().createParser(file);
 
 			jsonParser.nextToken(); // Skip over the start of the array.
 			while (jsonParser.nextToken() != JsonToken.END_ARRAY) {
@@ -104,7 +91,6 @@ public class LoadQueueCli extends Cli {
 			}
 
 			jsonParser.close();
-			reader.close();
 		} catch (IOException e) {
 			throw new RuntimeException("Unable to load from JSON.", e);
 		}
