@@ -26,7 +26,7 @@ public class SolrDeleteCli extends Cli {
 
 	public SolrDeleteCli(Logger logger) {
 		super(logger, new String[] {
-			"v", "s", "pin-certificate", "verify-host", "i"
+			"v", "s", "pin-certificate", "verify-host", "i", "c", "soft"
 		});
 	}
 
@@ -62,6 +62,16 @@ public class SolrDeleteCli extends Cli {
 			.argName("name")
 			.build();
 
+		case "c": return Option.builder("c")
+			.desc("Perform a commit when done.")
+			.longOpt("commit")
+			.build();
+
+		case "soft": return Option.builder()
+			.desc("Modifies the commit option so that a soft commit is performed instead of a hard commit. Makes index changes visible while neither fsync-ing index files nor writing a new index descriptor. This could lead to data loss if Solr is terminated unexpectedly.")
+			.longOpt(name)
+			.build();
+
 		default:
 			return super.createOption(name);
 		}
@@ -91,11 +101,29 @@ public class SolrDeleteCli extends Cli {
 					client.deleteById(id);
 				}
 			}
-
-			client.close();
-			httpClient.close();
 		} catch (SolrServerException e) {
 			throw new RuntimeException("Unable to delete.", e);
+		} catch (IOException e) {
+			throw new RuntimeException("There was an error while communicating with Solr.", e);
+		}
+
+		if (cmd.hasOption('c')) {
+			try {
+				if (cmd.hasOption("soft")) {
+					client.commit(true, true, true);
+				} else {
+					client.commit(true, true, false);
+				}
+			} catch (SolrServerException e) {
+				throw new RuntimeException("Unable to commit.", e);
+			} catch (IOException e) {
+				throw new RuntimeException("There was an error while communicating with Solr.", e);
+			}
+		}
+
+		try {
+			client.close();
+			httpClient.close();
 		} catch (IOException e) {
 			throw new RuntimeException("There was an error while communicating with Solr.", e);
 		}
