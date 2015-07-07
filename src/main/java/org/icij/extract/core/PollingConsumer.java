@@ -1,15 +1,13 @@
 package org.icij.extract.core;
 
+import org.icij.extract.interval.TimeDuration;
+
 import java.util.logging.Logger;
 
 import java.util.concurrent.TimeUnit;
-
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.concurrent.BlockingQueue;
 
 import java.nio.file.Path;
-
-import java.util.concurrent.BlockingQueue;
 
 /**
  * An implementation of {@link Consumer} which polls a given queue for paths to consume.
@@ -22,50 +20,24 @@ import java.util.concurrent.BlockingQueue;
  * @since 1.0.0-beta
  */
 public class PollingConsumer extends Consumer {
-	public static final long DEFAULT_TIMEOUT = 500L;
-	public static final TimeUnit DEFAULT_TIMEOUT_UNIT = TimeUnit.MILLISECONDS;
+	public static final TimeDuration DEFAULT_TIMEOUT = new TimeDuration(500L, TimeUnit.MILLISECONDS);
 
 	private final BlockingQueue<String> queue;
 
 	private volatile boolean started = false;
-	private long pollTimeout = DEFAULT_TIMEOUT;
-	private TimeUnit pollTimeoutUnit = DEFAULT_TIMEOUT_UNIT;
+	private TimeDuration pollTimeout = DEFAULT_TIMEOUT;
 
 	public PollingConsumer(Logger logger, BlockingQueue<String> queue, Spewer spewer, Extractor extractor, int threads) {
 		super(logger, spewer, extractor, threads);
 		this.queue = queue;
 	}
 
-	public void setPollTimeout(long timeout, TimeUnit unit) {
-		pollTimeout = timeout;
-		pollTimeoutUnit = unit;
+	public void setPollTimeout(TimeDuration pollTimeout) {
+		this.pollTimeout = pollTimeout;
 	}
 
 	public void setPollTimeout(String duration) throws IllegalArgumentException {
-		TimeUnit unit = TimeUnit.MILLISECONDS;
-		final long timeout;
-		final Matcher matcher = Pattern.compile("^(\\d+)(h|m|s|ms)?$").matcher(duration);
-
-		if (!matcher.find()) {
-			throw new IllegalArgumentException("Invalid timeout string: " + duration + ".");
-		}
-
-		timeout = Long.parseLong(matcher.group(1));
-
-		if (1 == matcher.groupCount() || matcher.group(2).equals("ms")) {
-			setPollTimeout(timeout, unit);
-			return;
-		}
-
-		if (matcher.group(2).equals("h")) {
-			unit = TimeUnit.HOURS;
-		} else if (matcher.group(2).equals("m")) {
-			unit = TimeUnit.MINUTES;
-		} else if (matcher.group(2).equals("s")) {
-			unit = TimeUnit.SECONDS;
-		}
-
-		setPollTimeout(timeout, unit);
+		setPollTimeout(new TimeDuration(duration));
 	}
 
 	/**
@@ -101,12 +73,12 @@ public class PollingConsumer extends Consumer {
 	}
 
 	protected String poll() {
-		logger.info("Polling the queue, waiting up to " + pollTimeoutUnit.toMillis(pollTimeout) + "ms.");
+		logger.info(String.format("Polling the queue, waiting up to %s.", pollTimeout));
 
 		String file = null;
 
 		try {
-			file = queue.poll(pollTimeout, pollTimeoutUnit);
+			file = queue.poll(pollTimeout.getDuration(), pollTimeout.getUnit());
 		} catch (InterruptedException e) {
 			logger.info("Thread interrupted while waiting to poll.");
 			Thread.currentThread().interrupt();

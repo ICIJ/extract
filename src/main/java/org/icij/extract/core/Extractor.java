@@ -1,5 +1,7 @@
 package org.icij.extract.core;
 
+import org.icij.extract.interval.TimeDuration;
+
 import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
@@ -12,6 +14,8 @@ import java.util.Locale;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import java.util.concurrent.TimeUnit;
 
 import java.nio.file.Path;
 
@@ -117,6 +121,10 @@ public class Extractor {
 
 	public void setOcrTimeout(int ocrTimeout) {
 		ocrConfig.setTimeout(ocrTimeout);
+	}
+
+	public void setOcrTimeout(String duration) {
+		setOcrTimeout((int) TimeDuration.parseTo(duration, TimeUnit.SECONDS));
 	}
 
 	public void disableOcr() {

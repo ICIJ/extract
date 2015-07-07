@@ -4,7 +4,6 @@ import org.icij.extract.core.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -63,7 +62,8 @@ public class SpewCli extends Cli {
 			.build();
 
 		case "queue-poll": return Option.builder()
-			.desc("Time to wait when polling the queue e.g. \"5s\". Defaults to " + PollingConsumer.DEFAULT_TIMEOUT + " " + PollingConsumer.DEFAULT_TIMEOUT_UNIT.name().toLowerCase(Locale.ROOT) + ".")
+			.desc(String.format("Time to wait when polling the queue e.g. \"5s\" or \"1m\". Defaults to %s.",
+				PollingConsumer.DEFAULT_TIMEOUT))
 			.longOpt(name)
 			.hasArg()
 			.argName("duration")
@@ -136,11 +136,10 @@ public class SpewCli extends Cli {
 			.build();
 
 		case "ocr-timeout": return Option.builder()
-			.desc("Set the timeout for the Tesseract process to finish. Default is 120s.")
+			.desc("Set the timeout for the Tesseract process to finish e.g. \"5s\" or \"1m\". Default is 120s.")
 			.longOpt(name)
 			.hasArg()
 			.argName("duration")
-			.type(Number.class)
 			.build();
 
 		case "o": return Option.builder("o")
@@ -237,11 +236,10 @@ public class SpewCli extends Cli {
 			.build();
 
 		case "solr-commit-within": return Option.builder()
-			.desc("Instruct Solr to automatically commit a document after the specified milliseconds have elapsed since it was added. Disabled by default. Consider using the \"autoCommit\" \"maxTime\" directive in your Solr update handler configuration instead.")
+			.desc("Instruct Solr to automatically commit a document after the specified amount of time has elapsed since it was added. Disabled by default. Consider using the \"autoCommit\" \"maxTime\" directive in your Solr update handler configuration instead.")
 			.longOpt(name)
 			.hasArg()
-			.argName("interval")
-			.type(Number.class)
+			.argName("duration")
 			.build();
 
 		case "r": return Option.builder("r")
@@ -318,7 +316,7 @@ public class SpewCli extends Cli {
 			}
 
 			if (cmd.hasOption("solr-commit-within")) {
-				((SolrSpewer) spewer).setCommitWithin(((Number) cmd.getParsedOptionValue("solr-commit-within")).intValue());
+				((SolrSpewer) spewer).setCommitWithin(cmd.getOptionValue("solr-commit-within"));
 			}
 		} else if (OutputType.FILE == outputType) {
 			spewer = new FileSpewer(logger, Paths.get((String) cmd.getOptionValue("file-output-directory", ".")));
@@ -373,7 +371,7 @@ public class SpewCli extends Cli {
 		}
 
 		if (cmd.hasOption("ocr-timeout")) {
-			extractor.setOcrTimeout(((Number) cmd.getParsedOptionValue("ocr-timeout")).intValue());
+			extractor.setOcrTimeout(cmd.getOptionValue("ocr-timeout"));
 		}
 
 		if (cmd.hasOption("ocr-disabled")) {

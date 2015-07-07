@@ -1,5 +1,7 @@
 package org.icij.extract.core;
 
+import org.icij.extract.interval.TimeDuration;
+
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -10,6 +12,7 @@ import java.util.logging.Logger;
 
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.TimeUnit;
 
 import java.util.regex.Pattern;
 
@@ -96,6 +99,10 @@ public class SolrSpewer extends Spewer {
 
 	public void setCommitWithin(final int commitWithin) {
 		this.commitWithin = commitWithin;
+	}
+
+	public void setCommitWithin(final String duration) {
+		setCommitWithin((int) TimeDuration.parseTo(duration, TimeUnit.SECONDS));
 	}
 
 	public void finish() throws IOException {
