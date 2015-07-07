@@ -2,7 +2,6 @@ package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
 
-import java.util.List;
 import java.util.logging.Logger;
 
 import java.io.IOException;
@@ -71,13 +70,14 @@ public class SolrDeleteCli extends Cli {
 	public CommandLine parse(String[] args) throws ParseException, RuntimeException {
 		final CommandLine cmd = super.parse(args);
 
-		final CloseableHttpClient httpClient = ClientUtils.createHttpClient(cmd.getOptionValue("solr-pin-certificate"), cmd.getOptionValue("solr-verify-host"));
+		final CloseableHttpClient httpClient = ClientUtils
+			.createHttpClient(cmd.getOptionValue("solr-pin-certificate"), cmd.getOptionValue("solr-verify-host"));
 		final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
 
-		final String idField = cmd.getOptionValue('i', "id");
-		final List<String> ids = cmd.getArgList();
+		final String idField = cmd.getOptionValue('i', SolrSpewer.DEFAULT_ID_FIELD);
+		final String[] ids = cmd.getArgs();
 
-		if (ids.size() == 0) {
+		if (0 == ids.length) {
 			throw new IllegalArgumentException("You must pass the IDs to delete on the command line.");
 		}
 
