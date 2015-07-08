@@ -86,11 +86,12 @@ public class FileSpewer extends Spewer {
 			}
 		}
 
-		// IOUtils#copy buffers the input so there's no need to use an output buffer.
-		final TaggedOutputStream output =
-			new TaggedOutputStream(new FileOutputStream(contentsOutputFile.toFile()));
+		try (
 
-		try {
+			// IOUtils#copy buffers the input so there's no need to use an output buffer.
+			final TaggedOutputStream output =
+				new TaggedOutputStream(new FileOutputStream(contentsOutputFile.toFile()));
+		) {
 			IOUtils.copy(reader, output, outputEncoding);
 		} catch (IOException e) {
 			if (output.isCauseOf(e)) {
@@ -98,30 +99,22 @@ public class FileSpewer extends Spewer {
 			} else {
 				throw e;
 			}
-		} finally {
-			output.close();
 		}
 
 		if (outputMetadata) {
 			writeMetadata(baseOutputFile.getFileSystem().getPath(baseOutputFile
-			.toString() + ".json"), metadata);
+				.toString() + ".json"), metadata);
 		}
 	}
 
 	private void writeMetadata(final Path metaOutputFile, final Metadata metadata)
 		throws IOException, SpewerException {
-		final JsonGenerator jsonGenerator;
-
 		logger.info(String.format("Outputting metadata to file: %s.", metaOutputFile));
 
-		try {
-			jsonGenerator = new JsonFactory().createGenerator(metaOutputFile.toFile(),
+		try (
+			final JsonGenerator jsonGenerator = new JsonFactory().createGenerator(metaOutputFile.toFile(),
 				JsonEncoding.UTF8);
-		} catch (IOException e) {
-			throw new SpewerException("Unable to create JSON generator.", e);
-		}
-
-		try {
+		) {
 			jsonGenerator.useDefaultPrettyPrinter();
 			jsonGenerator.writeStartObject();
 
@@ -133,8 +126,6 @@ public class FileSpewer extends Spewer {
 			jsonGenerator.writeRaw('\n');
 		} catch (IOException e) {
 			throw new SpewerException("Unable to output JSON.", e);
-		} finally {
-			jsonGenerator.close();
 		}
 	}
 }

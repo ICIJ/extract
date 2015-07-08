@@ -70,7 +70,8 @@ public class ParsingEmbeddedDocumentExtractor implements EmbeddedDocumentExtract
 		return true;
 	}
 
-	public void parseEmbedded(InputStream input, ContentHandler handler, Metadata metadata, boolean outputHtml) throws SAXException, IOException {
+	public void parseEmbedded(InputStream input, ContentHandler handler, Metadata metadata, boolean outputHtml)
+		throws SAXException, IOException {
 		if (outputHtml) {
 			final AttributesImpl attributes = new AttributesImpl();
 			attributes.addAttribute("", "class", "class", "CDATA", "package-entry");
@@ -85,9 +86,10 @@ public class ParsingEmbeddedDocumentExtractor implements EmbeddedDocumentExtract
 			handler.endElement(XHTML, "h1", "h1");
 		}
 
-		// Use the delegate parser to parse this entry
-		final TemporaryResources tmp = new TemporaryResources();
-		try {
+		// Use the delegate parser to parse this entry.
+		try (
+			final TemporaryResources tmp = new TemporaryResources();
+		) {
 			final TikaInputStream newStream = TikaInputStream.get(new CloseShieldInputStream(input), tmp);
 			if (input instanceof TikaInputStream) {
 				final Object container = ((TikaInputStream) input).getOpenContainer();
@@ -101,8 +103,6 @@ public class ParsingEmbeddedDocumentExtractor implements EmbeddedDocumentExtract
 			logger.log(Level.SEVERE, "Encrypted document embedded in document: " + parent + ".", e);
 		} catch (TikaException e) {
 			logger.log(Level.SEVERE, "Unable to parse embedded document in document: " + parent + ".", e);
-		} finally {
-			tmp.close();
 		}
 
 		if (outputHtml) {

@@ -86,6 +86,7 @@ public class SpewCli extends Cli {
 				throw new IllegalArgumentException("The -s option is required when outputting to Solr.");
 			}
 
+			// Calling #finish on the SolrSpewer later on automatically closes these clients.
 			final CloseableHttpClient httpClient = ClientUtils
 				.createHttpClient(cmd.getOptionValue("solr-pin-certificate"),
 					cmd.getOptionValue("solr-verify-host"));

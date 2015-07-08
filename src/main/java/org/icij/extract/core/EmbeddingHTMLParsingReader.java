@@ -237,14 +237,13 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 				}
 
 				// Copy the entry.
-				final InputStream contents = new DocumentInputStream((DocumentEntry) entry);
-				try {
+				try (
+					final InputStream contents = new DocumentInputStream((DocumentEntry) entry);
+				) {
 					destination.createDocument(entry.getName(), contents);
 				} catch (IOException e) {
 					logger.log(Level.SEVERE, String.format("Unable to save embedded document \"%s\" in document: %s.",
 						entry.getName(), parent), e);
-				} finally {
-					contents.close();
 				}
 			}
 		}
@@ -267,18 +266,17 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 				final DirectoryEntry destination = fs.getRoot();
 
 				final Path embed = createTemporaryFile();
-				final OutputStream output = Files.newOutputStream(embed);
 
 				saveEntries(name, source, destination);
 
-				try {
+				try (
+					final OutputStream output = Files.newOutputStream(embed);
+				) {
 					fs.writeFilesystem(output);
 				} catch (IOException e) {
 					logger.log(Level.SEVERE, String.format("Unable to save embedded document \"%s\" in document: %s.",
 						name, parent), e);
 					throw e;
-				} finally {
-					IOUtils.closeQuietly(output);
 				}
 
 				return embed;
