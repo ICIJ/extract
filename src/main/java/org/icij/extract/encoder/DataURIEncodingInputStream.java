@@ -123,7 +123,7 @@ public class DataURIEncodingInputStream extends InputStream {
 			this.encoder = new URLEncodingInputStream(in);
 		} else {
 			this.prepend = ("data:" + type + ";base64,").getBytes(StandardCharsets.US_ASCII);
-			this.encoder = new Base64InputStream(in, true, 76, "\n".getBytes());
+			this.encoder = new Base64InputStream(in, true, 76, "\n".getBytes(StandardCharsets.US_ASCII));
 		}
 	}
 
