@@ -169,10 +169,18 @@ public abstract class Scanner {
 		}
 
 		public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+
+			// Only skip the file if all of the include matchers return false.
+			boolean matched = true;
 			for (PathMatcher includeMatcher : includeMatchers) {
-				if (!includeMatcher.matches(file)) {
-					return FileVisitResult.CONTINUE;
+				matched = includeMatcher.matches(file);
+				if (matched) {
+					break;
 				}
+			}
+
+			if (!matched) {
+				return FileVisitResult.CONTINUE;
 			}
 
 			for (PathMatcher excludeMatcher : excludeMatchers) {
