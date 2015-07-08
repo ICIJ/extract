@@ -2,6 +2,7 @@ package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
 import org.icij.extract.cli.options.*;
+import org.icij.extract.http.PinnedHttpClientBuilder;
 
 import java.util.List;
 import java.util.Map;
@@ -87,9 +88,10 @@ public class SpewCli extends Cli {
 			}
 
 			// Calling #finish on the SolrSpewer later on automatically closes these clients.
-			final CloseableHttpClient httpClient = ClientUtils
-				.createHttpClient(cmd.getOptionValue("solr-pin-certificate"),
-					cmd.getOptionValue("solr-verify-host"));
+			final CloseableHttpClient httpClient = PinnedHttpClientBuilder.createWithDefaults()
+				.setVerifyHostname(cmd.getOptionValue("verify-host"))
+				.pinCertificate(cmd.getOptionValue("pin-certificate"))
+				.build();
 
 			spewer = new SolrSpewer(logger, new HttpSolrClient(cmd.getOptionValue('s'), httpClient));
 			SolrSpewerOptionSet.configureSpewer(cmd, (SolrSpewer) spewer);

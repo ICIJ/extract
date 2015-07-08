@@ -2,6 +2,7 @@ package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
 import org.icij.extract.cli.options.*;
+import org.icij.extract.http.PinnedHttpClientBuilder;
 
 import java.util.logging.Logger;
 
@@ -38,8 +39,10 @@ public class SolrCommitCli extends Cli {
 		final CommandLine cmd = super.parse(args);
 
 		try (
-			final CloseableHttpClient httpClient = ClientUtils
-				.createHttpClient(cmd.getOptionValue("pin-certificate"), cmd.getOptionValue("verify-host"));
+			final CloseableHttpClient httpClient = PinnedHttpClientBuilder.createWithDefaults()
+				.setVerifyHostname(cmd.getOptionValue("verify-host"))
+				.pinCertificate(cmd.getOptionValue("pin-certificate"))
+				.build();
 			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
 		) {
 			if (cmd.hasOption("soft")) {
