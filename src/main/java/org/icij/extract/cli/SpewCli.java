@@ -89,8 +89,8 @@ public class SpewCli extends Cli {
 
 			// Calling #finish on the SolrSpewer later on automatically closes these clients.
 			final CloseableHttpClient httpClient = PinnedHttpClientBuilder.createWithDefaults()
-				.setVerifyHostname(cmd.getOptionValue("verify-host"))
-				.pinCertificate(cmd.getOptionValue("pin-certificate"))
+				.setVerifyHostname(cmd.getOptionValue("solr-verify-host"))
+				.pinCertificate(cmd.getOptionValue("solr-pin-certificate"))
 				.build();
 
 			spewer = new SolrSpewer(logger, new HttpSolrClient(cmd.getOptionValue('s'), httpClient));
