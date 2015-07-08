@@ -1,6 +1,7 @@
 package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
+import org.icij.extract.cli.options.*;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -30,47 +31,16 @@ import com.fasterxml.jackson.core.JsonEncoding;
 public class DumpReportCli extends Cli {
 
 	public DumpReportCli(Logger logger) {
-		super(logger, new String[] {
-			"v", "r", "n", "redis-address", "reporter-status"
-		});
-	}
+		super(logger, new ReporterOptionSet(), new RedisOptionSet());
 
-	protected Option createOption(String name) {
-		switch (name) {
-
-		case "n": return Option.builder("n")
-			.desc("The name of the report to dump from. Defaults to \"extract\".")
-			.longOpt("name")
-			.hasArg()
-			.argName("name")
-			.build();
-
-		case "r": return Option.builder("r")
-			.desc("Set the reporter backend type. For now, the only valid value and the default is \"redis\".")
-			.longOpt("reporter")
-			.hasArg()
-			.argName("type")
-			.build();
-
-		case "reporter-status": return Option.builder()
+		options.addOption(Option.builder()
 			.desc("Only dump reports matching the given status.")
-			.longOpt(name)
+			.longOpt("reporter-status")
 			.hasArg()
 			.argName("status")
 			.type(Number.class)
 			.required(true)
-			.build();
-
-		case "redis-address": return Option.builder()
-			.desc("Set the Redis backend address. Defaults to 127.0.0.1:6379.")
-			.longOpt(name)
-			.hasArg()
-			.argName("address")
-			.build();
-
-		default:
-			return super.createOption(name);
-		}
+			.build());
 	}
 
 	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException, RuntimeException {
@@ -83,7 +53,7 @@ public class DumpReportCli extends Cli {
 		}
 
 		final Redisson redisson = getRedisson(cmd);
-		final RMap<String, Integer> report = redisson.getMap(cmd.getOptionValue('n', "extract") + ":report");
+		final RMap<String, Integer> report = redisson.getMap(cmd.getOptionValue("report-name", "extract") + ":report");
 
 		final int status = ((Number) cmd.getParsedOptionValue("reporter-status")).intValue();
 

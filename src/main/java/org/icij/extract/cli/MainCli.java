@@ -1,6 +1,7 @@
 package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
+import org.icij.extract.cli.options.*;
 
 import java.lang.Runnable;
 
@@ -29,30 +30,20 @@ public class MainCli extends Cli {
 	public static final String VERSION = "v1.0.0-beta";
 
 	public MainCli(Logger logger) {
-		super(logger, new String[] {
-			"h", "version"
-		});
-	}
+		super(logger);
 
-	protected Option createOption(String name) {
-		switch (name) {
+		options.addOption(Option.builder("h")
+				.desc("Display help for a command.")
+				.longOpt("help")
+				.hasArg()
+				.optionalArg(true)
+				.argName("command")
+				.build())
 
-		case "h": return Option.builder("h")
-			.desc("Display help for a command.")
-			.longOpt("help")
-			.hasArg()
-			.optionalArg(true)
-			.argName("command")
-			.build();
-
-		case "version": return Option.builder()
-			.desc("Display the version number.")
-			.longOpt("version")
-			.build();
-
-		default:
-			return super.createOption(name);
-		}
+			.addOption(Option.builder()
+				.desc("Display the version number.")
+				.longOpt("version")
+				.build());
 	}
 
 	public CommandLine parse(String[] args) throws ParseException {

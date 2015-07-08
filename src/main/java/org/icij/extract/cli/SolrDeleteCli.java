@@ -1,6 +1,7 @@
 package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
+import org.icij.extract.cli.options.*;
 
 import java.util.logging.Logger;
 
@@ -25,56 +26,24 @@ import org.apache.solr.client.solrj.impl.HttpSolrClient;
 public class SolrDeleteCli extends Cli {
 
 	public SolrDeleteCli(Logger logger) {
-		super(logger, new String[] {
-			"v", "s", "pin-certificate", "verify-host", "i", "c", "soft"
-		});
-	}
+		super(logger, new SolrOptionSet());
 
-	protected Option createOption(String name) {
-		switch (name) {
+		options.addOption(Option.builder("i")
+				.desc("The name of the unique ID field in the target Solr schema.")
+				.longOpt("id-field")
+				.hasArg()
+				.argName("name")
+				.build())
 
-		case "s": return Option.builder("s")
-			.desc("Solr server address. Required.")
-			.longOpt("address")
-			.hasArg()
-			.argName("address")
-			.required(true)
-			.build();
+			.addOption(Option.builder("c")
+				.desc("Perform a commit when done.")
+				.longOpt("commit")
+				.build())
 
-		case "pin-certificate": return Option.builder()
-			.desc("The Solr server's public certificate, used for certificate pinning. Supported formats are PEM, DER, PKCS #12 and JKS.")
-			.longOpt(name)
-			.hasArg()
-			.argName("path")
-			.build();
-
-		case "verify-host": return Option.builder()
-			.desc("Verify the server's public certificate against the specified host. Use the wildcard \"*\" to disable verification.")
-			.longOpt(name)
-			.hasArg()
-			.argName("hostname")
-			.build();
-
-		case "i": return Option.builder("i")
-			.desc("The name of the unique ID field in the target Solr schema.")
-			.longOpt("id-field")
-			.hasArg()
-			.argName("name")
-			.build();
-
-		case "c": return Option.builder("c")
-			.desc("Perform a commit when done.")
-			.longOpt("commit")
-			.build();
-
-		case "soft": return Option.builder()
-			.desc("Modifies the commit option so that a soft commit is performed instead of a hard commit. Makes index changes visible while neither fsync-ing index files nor writing a new index descriptor. This could lead to data loss if Solr is terminated unexpectedly.")
-			.longOpt(name)
-			.build();
-
-		default:
-			return super.createOption(name);
-		}
+			.addOption(Option.builder()
+				.desc("Modifies the commit option so that a soft commit is performed instead of a hard commit. Makes index changes visible while neither fsync-ing index files nor writing a new index descriptor. This could lead to data loss if Solr is terminated unexpectedly.")
+				.longOpt("soft-commit")
+				.build());
 	}
 
 	public CommandLine parse(String[] args) throws ParseException, RuntimeException {
@@ -109,7 +78,7 @@ public class SolrDeleteCli extends Cli {
 
 		if (cmd.hasOption('c')) {
 			try {
-				if (cmd.hasOption("soft")) {
+				if (cmd.hasOption("soft-commit")) {
 					client.commit(true, true, true);
 				} else {
 					client.commit(true, true, false);

@@ -1,6 +1,7 @@
 package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
+import org.icij.extract.cli.options.*;
 
 import java.util.logging.Logger;
 
@@ -25,44 +26,12 @@ import org.apache.solr.client.solrj.impl.HttpSolrClient;
 public class SolrCommitCli extends Cli {
 
 	public SolrCommitCli(Logger logger) {
-		super(logger, new String[] {
-			"v", "s", "pin-certificate", "verify-host", "soft"
-		});
-	}
+		super(logger, new SolrOptionSet());
 
-	protected Option createOption(String name) {
-		switch (name) {
-
-		case "s": return Option.builder("s")
-			.desc("Solr server address. Required.")
-			.longOpt("address")
-			.hasArg()
-			.argName("address")
-			.required(true)
-			.build();
-
-		case "pin-certificate": return Option.builder()
-			.desc("The Solr server's public certificate, used for certificate pinning. Supported formats are PEM, DER, PKCS #12 and JKS.")
-			.longOpt(name)
-			.hasArg()
-			.argName("path")
-			.build();
-
-		case "verify-host": return Option.builder()
-			.desc("Verify the server's public certificate against the specified host. Use the wildcard \"*\" to disable verification.")
-			.longOpt(name)
-			.hasArg()
-			.argName("hostname")
-			.build();
-
-		case "soft": return Option.builder()
+		options.addOption(Option.builder()
 			.desc("Performs a soft commit. Makes index changes visible while neither fsync-ing index files nor writing a new index descriptor. This could lead to data loss if Solr is terminated unexpectedly.")
-			.longOpt(name)
-			.build();
-
-		default:
-			return super.createOption(name);
-		}
+			.longOpt("soft")
+			.build());
 	}
 
 	public CommandLine parse(String[] args) throws ParseException, RuntimeException {

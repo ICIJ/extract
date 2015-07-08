@@ -1,6 +1,7 @@
 package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
+import org.icij.extract.cli.options.*;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -31,38 +32,7 @@ import com.fasterxml.jackson.core.JsonToken;
 public class LoadQueueCli extends Cli {
 
 	public LoadQueueCli(Logger logger) {
-		super(logger, new String[] {
-			"v", "n", "q", "redis-address"
-		});
-	}
-
-	protected Option createOption(String name) {
-		switch (name) {
-
-		case "n": return Option.builder("n")
-			.desc("The name of the queue to load into. Defaults to \"extract\".")
-			.longOpt("name")
-			.hasArg()
-			.argName("name")
-			.build();
-
-		case "q": return Option.builder("q")
-			.desc("Set the queue backend type. For now, the only valid value and the default is \"redis\".")
-			.longOpt("queue")
-			.hasArg()
-			.argName("type")
-			.build();
-
-		case "redis-address": return Option.builder()
-			.desc("Set the Redis backend address. Defaults to 127.0.0.1:6379.")
-			.longOpt(name)
-			.hasArg()
-			.argName("address")
-			.build();
-
-		default:
-			return super.createOption(name);
-		}
+		super(logger, new QueueOptionSet(), new RedisOptionSet());
 	}
 
 	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
@@ -80,7 +50,7 @@ public class LoadQueueCli extends Cli {
 
 		final File file = new File(files[0]);
 		final Redisson redisson = getRedisson(cmd);
-		final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue('n', "extract") + ":queue");
+		final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue("queue-name", "extract") + ":queue");
 
 		try {
 			final JsonParser jsonParser = new JsonFactory().createParser(file);

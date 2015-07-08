@@ -1,6 +1,7 @@
 package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
+import org.icij.extract.cli.options.*;
 
 import java.util.logging.Logger;
 
@@ -21,38 +22,7 @@ import org.redisson.core.RMap;
 public class WipeReportCli extends Cli {
 
 	public WipeReportCli(Logger logger) {
-		super(logger, new String[] {
-			"v", "r", "n", "redis-address"
-		});
-	}
-
-	protected Option createOption(String name) {
-		switch (name) {
-
-		case "n": return Option.builder("n")
-			.desc("The name of the report to wipe. Defaults to \"extract\".")
-			.longOpt("name")
-			.hasArg()
-			.argName("name")
-			.build();
-
-		case "r": return Option.builder("r")
-			.desc("Set the reporter backend type. For now, the only valid value and the default is \"redis\".")
-			.longOpt("reporter")
-			.hasArg()
-			.argName("type")
-			.build();
-
-		case "redis-address": return Option.builder()
-			.desc("Set the Redis backend address. Defaults to 127.0.0.1:6379.")
-			.longOpt(name)
-			.hasArg()
-			.argName("address")
-			.build();
-
-		default:
-			return super.createOption(name);
-		}
+		super(logger, new ReporterOptionSet(), new RedisOptionSet());
 	}
 
 	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
@@ -65,7 +35,7 @@ public class WipeReportCli extends Cli {
 		}
 
 		final Redisson redisson = getRedisson(cmd);
-		final RMap<String, Integer> report = redisson.getMap(cmd.getOptionValue('n', "extract") + ":report");
+		final RMap<String, Integer> report = redisson.getMap(cmd.getOptionValue("report-name", "extract") + ":report");
 
 		logger.info("Wiping report.");
 		report.clear();

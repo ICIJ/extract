@@ -1,6 +1,7 @@
 package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
+import org.icij.extract.cli.options.*;
 
 import java.util.logging.Logger;
 
@@ -25,39 +26,7 @@ import org.apache.solr.client.solrj.impl.HttpSolrClient;
 public class SolrRollbackCli extends Cli {
 
 	public SolrRollbackCli(Logger logger) {
-		super(logger, new String[] {
-			"v", "s", "pin-certificate", "verify-host"
-		});
-	}
-
-	protected Option createOption(String name) {
-		switch (name) {
-
-		case "s": return Option.builder("s")
-			.desc("Solr server address. Required.")
-			.longOpt("address")
-			.hasArg()
-			.argName("address")
-			.required(true)
-			.build();
-
-		case "pin-certificate": return Option.builder()
-			.desc("The Solr server's public certificate, used for certificate pinning. Supported formats are PEM, DER, PKCS #12 and JKS.")
-			.longOpt(name)
-			.hasArg()
-			.argName("path")
-			.build();
-
-		case "verify-host": return Option.builder()
-			.desc("Verify the server's public certificate against the specified host. Use the wildcard \"*\" to disable verification.")
-			.longOpt(name)
-			.hasArg()
-			.argName("hostname")
-			.build();
-
-		default:
-			return super.createOption(name);
-		}
+		super(logger, new SolrOptionSet());
 	}
 
 	public CommandLine parse(String[] args) throws ParseException, RuntimeException {

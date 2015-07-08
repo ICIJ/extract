@@ -1,6 +1,7 @@
 package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
+import org.icij.extract.cli.options.*;
 
 import java.util.Locale;
 import java.util.logging.Level;
@@ -55,39 +56,22 @@ public abstract class Cli {
 	protected final Logger logger;
 	protected final Options options = new Options();
 
-	public Cli(Logger logger, String[] options) {
+	public Cli(Logger logger, OptionSet... optionSets) {
 		this.logger = logger;
 
-		for (String name: options) {
-			this.options.addOption(createOption(name));
-		}
-	}
+		new LoggerOptionSet().addToOptions(options);
 
-	protected Option createOption(String name) {
-		switch (name) {
-
-		case "v": return Option.builder("v")
-			.desc("Set the log level. Either \"severe\", \"warning\" or \"info\". Defaults to \"warning\".")
-			.longOpt("verbosity")
-			.hasArg()
-			.argName("level")
-			.build();
-
-		default:
-			throw new IllegalArgumentException("Unknown option: " + name + ".");
+		for (OptionSet optionSet: optionSets) {
+			optionSet.addToOptions(options);
 		}
 	}
 
 	protected CommandLine parse(String[] args) throws ParseException, IllegalArgumentException, RuntimeException {
-		final CommandLine cli = DEFAULT_PARSER.parse(options, args);
+		final CommandLine cmd = DEFAULT_PARSER.parse(options, args);
 
-		if (cli.hasOption('v')) {
-			logger.setLevel(Level.parse(((String) cli.getOptionValue('v')).toUpperCase(Locale.ROOT)));
-		} else {
-			logger.setLevel(Level.WARNING);
-		}
+		LoggerOptionSet.configureLogger(cmd, logger);
 
-		return cli;
+		return cmd;
 	}
 
 	protected abstract void printHelp();
