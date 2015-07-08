@@ -197,7 +197,6 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 			// markup for the embed.
 			if (outputHtml) {
 				final AttributesImpl attributes = new AttributesImpl();
-				final char[] chars = name.toCharArray();
 
 				attributes.addAttribute("", "class", "class", "CDATA", "package-entry");
 				handler.startElement(XHTML, "div", "div", attributes);
