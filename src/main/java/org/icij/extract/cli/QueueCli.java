@@ -66,7 +66,10 @@ public class QueueCli extends Cli {
 			throw new RuntimeException("An error occurred while scanning.", e);
 		}
 
+		logger.info("Shutting down Redis client.");
 		redisson.shutdown();
+
+		logger.info("Done.");
 
 		return cmd;
 	}

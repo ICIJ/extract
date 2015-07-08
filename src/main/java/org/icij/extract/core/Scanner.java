@@ -41,6 +41,8 @@ public abstract class Scanner {
 	protected ArrayDeque<String> includeGlobs = new ArrayDeque<String>();
 	protected ArrayDeque<String> excludeGlobs = new ArrayDeque<String>();
 
+	private int waiting = 0;
+
 	private int maxDepth = Integer.MAX_VALUE;
 	private boolean followLinks = false;
 	private boolean ignoreHiddenFiles = false;
@@ -84,14 +86,14 @@ public abstract class Scanner {
 
 	public void scan(Path path) {
 		logger.info("Queuing scan of \"" + path + "\".");
+		waiting++;
 		service.submit(new ScannerTask(path), path);
 	}
 
 	public void awaitTermination() throws CancellationException, InterruptedException, ExecutionException {
-		Future task;
-
-		while (null != (task = service.poll())) {
-			logger.info("Completed scan of \"" + task.get() + "\".");
+		while (waiting > 0) {
+			logger.info("Completed scan of \"" + service.take().get() + "\".");
+			waiting--;
 		}
 	}
 
