@@ -90,6 +90,11 @@ public class SolrSpewerOptionSet extends OptionSet {
 				.longOpt("solr-commit-within")
 				.hasArg()
 				.argName("duration")
+				.build(),
+
+			Option.builder()
+				.desc("Make atomic updates to Solr. If your schema contains fields that are not included in the payload, this prevents their values, if any, from being erased.")
+				.longOpt("solr-atomic-writes")
 				.build());
 	}
 
@@ -126,5 +131,7 @@ public class SolrSpewerOptionSet extends OptionSet {
 		if (cmd.hasOption("solr-commit-within")) {
 			spewer.setCommitWithin(cmd.getOptionValue("solr-commit-within"));
 		}
+
+		spewer.atomicWrites(cmd.hasOption("solr-atomic-writes"));
 	}
 }

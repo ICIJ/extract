@@ -67,6 +67,7 @@ public class SolrSpewer extends Spewer {
 	private final AtomicInteger pending = new AtomicInteger(0);
 	private int commitInterval = 0;
 	private int commitWithin = 0;
+	private boolean atomicWrites = false;
 
 	public SolrSpewer(final Logger logger, final SolrClient client) {
 		super(logger);
@@ -105,6 +106,14 @@ public class SolrSpewer extends Spewer {
 		setCommitWithin((int) TimeDuration.parseTo(duration, TimeUnit.SECONDS));
 	}
 
+	public void atomicWrites(final boolean atomicWrites) {
+		this.atomicWrites = atomicWrites;
+	}
+
+	public boolean atomicWrites() {
+		return atomicWrites;
+	}
+
 	public void finish() throws IOException {
 		super.finish();
 
@@ -127,17 +136,17 @@ public class SolrSpewer extends Spewer {
 		final SolrInputDocument document = new SolrInputDocument();
 		final UpdateResponse response;
 
-		setAtomic(document, textField, IOUtils.toString(reader));
+		setField(document, textField, IOUtils.toString(reader));
 
 		// Set the metadata.
 		if (outputMetadata) {
-			setAtomicMeta(document, metadata);
+			setMetaFields(document, metadata);
 		}
 
 		// Set the path on the path field.
-		setAtomic(document, pathField, outputPath);
+		setField(document, pathField, outputPath);
 
-		// Set the ID.
+		// Set the ID. Must never be written atomically.
 		if (null != idField && null != idDigest) {
 			document.setField(idField, DatatypeConverter.printHexBinary(idDigest
 				.digest(outputPath.getBytes(outputEncoding))));
@@ -187,26 +196,28 @@ public class SolrSpewer extends Spewer {
 		}
 	}
 
-	private void setAtomicMeta(final SolrInputDocument document, final Metadata metadata) {
+	private void setMetaFields(final SolrInputDocument document, final Metadata metadata) {
 		for (String name : metadata.names()) {
 			String value = metadata.get(name);
 
 			// Field names must consist of alphanumeric or underscore characters only.
 			name = fieldName.matcher(name).replaceAll("_").toLowerCase(Locale.ROOT);
 			if (null != metadataFieldPrefix) {
-				setAtomic(document, metadataFieldPrefix + name, value);
+				setField(document, metadataFieldPrefix + name, value);
 			} else {
-				setAtomic(document, name, value);
+				setField(document, name, value);
 			}
 		}
 	}
 
-	private void setAtomic(final SolrInputDocument document, final String name, final String value) {
-		final Map<String, String> atomic = new HashMap<String, String>();
+	private void setField(final SolrInputDocument document, final String name, final String value) {
+		if (atomicWrites) {
+			final Map<String, String> atomic = new HashMap<String, String>();
 
-		// Make an atomic update.
-		// See: https://cwiki.apache.org/confluence/display/solr/Updating+Parts+of+Documents
-		atomic.put("set", value);
-		document.setField(name, atomic);
+			atomic.put("set", value);
+			document.setField(name, atomic);
+		} else {
+			document.setField(name, value);
+		}
 	}
 }
