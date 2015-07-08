@@ -37,7 +37,7 @@ public class QueueCli extends Cli {
 		}
 
 		if (cmd.hasOption("follow-symlinks")) {
-			scanner.followSymLinks();
+			scanner.followSymLinks(true);
 		}
 	}
 

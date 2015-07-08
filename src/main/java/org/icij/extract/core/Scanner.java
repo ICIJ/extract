@@ -53,8 +53,12 @@ public abstract class Scanner {
 		excludeMatcher = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
 	}
 
-	public void followSymLinks() {
-		followLinks = true;
+	public void followSymLinks(final boolean followLinks) {
+		this.followLinks = followLinks;
+	}
+
+	public boolean followSymLinks() {
+		return followLinks;
 	}
 
 	public void scan(Path path) {
