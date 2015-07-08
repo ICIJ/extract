@@ -86,15 +86,17 @@ public class FileSpewer extends Spewer {
 			}
 		}
 
+		TaggedOutputStream tagged = null;
+
 		try (
 
 			// IOUtils#copy buffers the input so there's no need to use an output buffer.
-			final TaggedOutputStream output =
-				new TaggedOutputStream(new FileOutputStream(contentsOutputFile.toFile()));
+			final OutputStream output = new FileOutputStream(contentsOutputFile.toFile());
 		) {
-			IOUtils.copy(reader, output, outputEncoding);
+			tagged = new TaggedOutputStream(output);
+			IOUtils.copy(reader, tagged, outputEncoding);
 		} catch (IOException e) {
-			if (output.isCauseOf(e)) {
+			if (null != tagged && tagged.isCauseOf(e)) {
 				throw new SpewerException(String.format("Error writing output to file: %s.", contentsOutputFile), e);
 			} else {
 				throw e;
