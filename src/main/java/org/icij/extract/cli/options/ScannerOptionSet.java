@@ -60,7 +60,7 @@ public class ScannerOptionSet extends OptionSet {
 			}
 		}
 
-		scanner.ignoreOSFiles(cmd.hasOption("include-os-files"));
+		scanner.ignoreOSFiles(!cmd.hasOption("include-os-files"));
 		scanner.ignoreHiddenFiles(cmd.hasOption("exclude-hidden-files"));
 		scanner.followSymLinks(cmd.hasOption("follow-symlinks"));
 	}
