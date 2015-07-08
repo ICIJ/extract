@@ -47,14 +47,12 @@ public class DataURIEncodingInputStream extends InputStream {
 		}
 
 		if (null == type) {
-			final InputStream input = new BufferedInputStream(Files.newInputStream(path));
-	
-			try {
+			try (
+				final InputStream input = new BufferedInputStream(Files.newInputStream(path));
+			) {
 				type = new DefaultDetector().detect(input, metadata);
 			} catch (IOException e) {
 				throw e;
-			} finally {
-				IOUtils.closeQuietly(input);
 			}
 		}
 
@@ -89,25 +87,15 @@ public class DataURIEncodingInputStream extends InputStream {
 			return Charset.forName(orig);
 		}
 
-		InputStream input = null;
-		AutoDetectReader detector = null;
-
-		try {
-			input = new BufferedInputStream(Files.newInputStream(path));
-			detector = new AutoDetectReader(input, metadata);
+		try (
+			final InputStream input = new BufferedInputStream(Files.newInputStream(path));
+			final AutoDetectReader detector = new AutoDetectReader(input, metadata);
+		) {
 			charset = detector.getCharset();
 		} catch (TikaException e) {
 			throw new IOException("Unable to detect charset.", e);
 		} catch (IOException e) {
 			throw e;
-		} finally {
-			if (null != input) {
-				IOUtils.closeQuietly(input);
-			}
-
-			if (null != detector) {
-				IOUtils.closeQuietly(detector);
-			}
 		}
 
 		return charset;
