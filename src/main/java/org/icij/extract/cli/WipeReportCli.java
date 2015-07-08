@@ -28,7 +28,7 @@ public class WipeReportCli extends Cli {
 	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cmd = super.parse(args);
 
-		final ReporterType reporterType = ReporterType.parse(cmd.getOptionValue('r'));
+		final ReporterType reporterType = ReporterType.parse(cmd.getOptionValue('r', "redis"));
 
 		if (ReporterType.REDIS != reporterType) {
 			throw new IllegalArgumentException("Invalid reporter type: " + reporterType + ".");

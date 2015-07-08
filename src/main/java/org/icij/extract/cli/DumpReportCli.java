@@ -46,7 +46,7 @@ public class DumpReportCli extends Cli {
 	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException, RuntimeException {
 		final CommandLine cmd = super.parse(args);
 
-		final ReporterType reporterType = ReporterType.parse(cmd.getOptionValue('r'));
+		final ReporterType reporterType = ReporterType.parse(cmd.getOptionValue('r', "redis"));
 
 		if (ReporterType.REDIS != reporterType) {
 			throw new IllegalArgumentException("Invalid reporter type: " + reporterType + ".");
