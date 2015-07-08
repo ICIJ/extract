@@ -51,10 +51,10 @@ public class DumpQueueCli extends Cli {
 
 		final Iterator<String> files = queue.iterator();
 
-		try {
+		try (
 			final JsonGenerator jsonGenerator = new JsonFactory()
 				.createGenerator(System.out, JsonEncoding.UTF8);
-
+		) {
 			jsonGenerator.useDefaultPrettyPrinter();
 			jsonGenerator.writeStartArray();
 
@@ -64,7 +64,6 @@ public class DumpQueueCli extends Cli {
 
 			jsonGenerator.writeEndArray();
 			jsonGenerator.writeRaw('\n');
-			jsonGenerator.close();
 		} catch (IOException e) {
 			throw new RuntimeException("Unable to output JSON.", e);
 		}

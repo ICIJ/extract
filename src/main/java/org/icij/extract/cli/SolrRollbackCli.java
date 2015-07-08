@@ -32,14 +32,12 @@ public class SolrRollbackCli extends Cli {
 	public CommandLine parse(String[] args) throws ParseException, RuntimeException {
 		final CommandLine cmd = super.parse(args);
 
-		final CloseableHttpClient httpClient = ClientUtils
-			.createHttpClient(cmd.getOptionValue("pin-certificate"), cmd.getOptionValue("verify-host"));
-		final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
-
-		try {
+		try (
+			final CloseableHttpClient httpClient = ClientUtils
+				.createHttpClient(cmd.getOptionValue("pin-certificate"), cmd.getOptionValue("verify-host"));
+			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
+		) {
 			client.rollback();
-			client.close();
-			httpClient.close();
 		} catch (SolrServerException e) {
 			throw new RuntimeException("Unable to roll back uncommitted documents.", e);
 		} catch (IOException e) {

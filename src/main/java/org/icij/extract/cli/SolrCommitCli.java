@@ -37,19 +37,16 @@ public class SolrCommitCli extends Cli {
 	public CommandLine parse(String[] args) throws ParseException, RuntimeException {
 		final CommandLine cmd = super.parse(args);
 
-		final CloseableHttpClient httpClient = ClientUtils
-			.createHttpClient(cmd.getOptionValue("pin-certificate"), cmd.getOptionValue("verify-host"));
-		final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
-
-		try {
+		try (
+			final CloseableHttpClient httpClient = ClientUtils
+				.createHttpClient(cmd.getOptionValue("pin-certificate"), cmd.getOptionValue("verify-host"));
+			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
+		) {
 			if (cmd.hasOption("soft")) {
 				client.commit(true, true, true);
 			} else {
 				client.commit(true, true, false);
 			}
-	
-			client.close();
-			httpClient.close();
 		} catch (SolrServerException e) {
 			throw new RuntimeException("Unable to commit.", e);
 		} catch (IOException e) {

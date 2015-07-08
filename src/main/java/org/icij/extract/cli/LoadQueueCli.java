@@ -52,15 +52,13 @@ public class LoadQueueCli extends Cli {
 		final Redisson redisson = getRedisson(cmd);
 		final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue("queue-name", "extract") + ":queue");
 
-		try {
+		try (
 			final JsonParser jsonParser = new JsonFactory().createParser(file);
-
+		) {
 			jsonParser.nextToken(); // Skip over the start of the array.
 			while (jsonParser.nextToken() != JsonToken.END_ARRAY) {
 				queue.add(jsonParser.getValueAsString());
 			}
-
-			jsonParser.close();
 		} catch (IOException e) {
 			throw new RuntimeException("Unable to load from JSON.", e);
 		}

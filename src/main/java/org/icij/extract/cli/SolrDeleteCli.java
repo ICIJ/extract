@@ -49,10 +49,6 @@ public class SolrDeleteCli extends Cli {
 	public CommandLine parse(String[] args) throws ParseException, RuntimeException {
 		final CommandLine cmd = super.parse(args);
 
-		final CloseableHttpClient httpClient = ClientUtils
-			.createHttpClient(cmd.getOptionValue("pin-certificate"), cmd.getOptionValue("verify-host"));
-		final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
-
 		final String idField = cmd.getOptionValue('i', SolrSpewer.DEFAULT_ID_FIELD);
 		final String[] ids = cmd.getArgs();
 
@@ -60,7 +56,11 @@ public class SolrDeleteCli extends Cli {
 			throw new IllegalArgumentException("You must pass the IDs to delete on the command line.");
 		}
 
-		try {
+		try (
+			final CloseableHttpClient httpClient = ClientUtils
+				.createHttpClient(cmd.getOptionValue("pin-certificate"), cmd.getOptionValue("verify-host"));
+			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
+		) {
 			for (String id : ids) {
 				if (id.contains("*")) {
 					logger.info(String.format("Deleting document matching ID pattern %s.", id));
@@ -70,31 +70,18 @@ public class SolrDeleteCli extends Cli {
 					client.deleteById(id);
 				}
 			}
-		} catch (SolrServerException e) {
-			throw new RuntimeException("Unable to delete.", e);
-		} catch (IOException e) {
-			throw new RuntimeException("There was an error while communicating with Solr.", e);
-		}
 
-		if (cmd.hasOption('c')) {
-			try {
+			if (cmd.hasOption('c')) {
 				if (cmd.hasOption("soft-commit")) {
 					client.commit(true, true, true);
 				} else {
 					client.commit(true, true, false);
 				}
-			} catch (SolrServerException e) {
-				throw new RuntimeException("Unable to commit.", e);
-			} catch (IOException e) {
-				throw new RuntimeException("There was an error while communicating with Solr.", e);
 			}
-		}
-
-		try {
-			client.close();
-			httpClient.close();
+		} catch (SolrServerException e) {
+			throw new RuntimeException("Unable to delete.", e);
 		} catch (IOException e) {
-			throw new RuntimeException("There was an error while communicating with Solr.", e);
+			throw new RuntimeException("Unable to delete because of an error while communicating with Solr.", e);
 		}
 
 		return cmd;
