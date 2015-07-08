@@ -167,7 +167,7 @@ public class Extractor {
 
 		// Only include "safe" tags in the HTML output. This excludes script tags and objects.
 		if (OutputFormat.HTML == outputFormat) {
-			context.get(HtmlMapper.class, DefaultHtmlMapper.INSTANCE);
+			context.set(HtmlMapper.class, DefaultHtmlMapper.INSTANCE);
 		}
 
 		ParsingReader reader;
