@@ -25,7 +25,10 @@ import java.nio.file.Path;
 public class QueueingScanner extends Scanner {
 
 	private final BlockingQueue<String> queue;
+
 	private BlockingQueue<String> slow = null;
+	private int threshold = 0;
+	private ExecutorService executor = null;
 
 	/**
 	 * Creates a {@code QueueingScanner} that sends all results from the
@@ -44,8 +47,8 @@ public class QueueingScanner extends Scanner {
 	 * Creates a {@code QueueingScanner} that buffers all results from the
 	 * the scanner in an {@link ArrayBlockingQueue} with the given capacity.
 	 *
-	 * For each directory scanned, a separate thread is created which monitors
-	 * the buffer capacity and drains it to the underlying queue.
+	 * When the internal queue is nearing capacity, a separate thread is
+	 * started which drains it to the underlying queue.
 	 *
 	 * Use this constructor when the underlying queue suffers from latency
 	 * that would slow down an otherwise fast directory scanning operation.
@@ -57,10 +60,16 @@ public class QueueingScanner extends Scanner {
 		final int buffer) {
 		this(logger, new ArrayBlockingQueue<String>(buffer));
 		this.slow = queue;
+		this.executor = Executors.newSingleThreadExecutor();
+		this.threshold = (int) Math.ceil((double) buffer / 1.6);
 	}
 
 	@Override
 	protected void handle(final Path file) {
+		if (null != slow && queue.size() > threshold) {
+			executor.submit(new DrainingTask());
+		}
+
 		try {
 			queue.put(file.toString());
 		} catch (InterruptedException e) {
@@ -69,37 +78,15 @@ public class QueueingScanner extends Scanner {
 		}
 	}
 
-	@Override
-	protected void scanDirectory(final Path directory) {
-		if (null != slow) {
-			final DrainingTask task = new DrainingTask();
-			final ExecutorService executor = Executors.newSingleThreadExecutor();
-
-			executor.submit(task);
-			super.scanDirectory(directory);
-			task.stop();
-		} else {
-			super.scanDirectory(directory);
-		}
-	}
-
+	/**
+	 * Runnable task that drains the internal queue to an underlying queue
+	 * which is where we actually want the file paths to go.
+	 */
 	protected class DrainingTask implements Runnable {
-
-		private volatile boolean stopped = false;
-
-		public void stop() {
-			stopped = true;
-		}
 
 		@Override
 		public void run() {
-			stopped = false;
-
-			while (!stopped) {
-				if (queue.size() > 1) {
-					queue.drainTo(slow);
-				}
-			}
+			queue.drainTo(slow);
 		}
 	}
 }
