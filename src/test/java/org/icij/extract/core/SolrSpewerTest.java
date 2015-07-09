@@ -78,7 +78,6 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 
 		spewer.setIdAlgorithm("SHA-256");
 		spewer.outputMetadata(true);
-		spewer.setCommitInterval(1);
 
 		final String length = Integer.toString(buffer.getBytes(charset).length);
 		metadata.set("Content-Length", length);
