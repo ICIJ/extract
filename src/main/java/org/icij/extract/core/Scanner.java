@@ -11,6 +11,7 @@ import java.util.logging.Logger;
 
 import java.io.IOException;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.Executors;
@@ -41,7 +42,7 @@ public abstract class Scanner {
 	protected ArrayDeque<String> includeGlobs = new ArrayDeque<String>();
 	protected ArrayDeque<String> excludeGlobs = new ArrayDeque<String>();
 
-	private int waiting = 0;
+	private final AtomicInteger pending = new AtomicInteger(0);
 
 	private int maxDepth = Integer.MAX_VALUE;
 	private boolean followLinks = false;
@@ -86,14 +87,14 @@ public abstract class Scanner {
 
 	public void scan(Path path) {
 		logger.info("Queuing scan of \"" + path + "\".");
-		waiting++;
+		pending.incrementAndGet();
 		service.submit(new ScannerTask(path), path);
 	}
 
 	public void awaitTermination() throws CancellationException, InterruptedException, ExecutionException {
-		while (waiting > 0) {
+		while (pending.get() > 0) {
 			logger.info("Completed scan of \"" + service.take().get() + "\".");
-			waiting--;
+			pending.decrementAndGet();
 		}
 	}
 
