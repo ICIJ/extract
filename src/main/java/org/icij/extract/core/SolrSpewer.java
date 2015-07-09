@@ -3,9 +3,8 @@ package org.icij.extract.core;
 import org.icij.extract.interval.TimeDuration;
 
 import java.util.Map;
-import java.util.Set;
+import java.util.List;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Locale;
@@ -215,30 +214,29 @@ public class SolrSpewer extends Spewer {
 		}
 	}
 
-	private static final Set<String> dateFieldNames =
-		new HashSet<String>(Arrays.asList(
-			"dcterms:created",
-			"dcterms:modified",
-			"meta:save-date",
-			"meta:creation-date",
-			Metadata.MODIFIED,
-			Metadata.DATE.getName(),
-			Metadata.LAST_MODIFIED.getName(),
-			Metadata.LAST_SAVED.getName(),
-			Metadata.CREATION_DATE.getName()));
+	private static final List<String> dateFieldNames = Arrays.asList(
+		"dcterms:created",
+		"dcterms:modified",
+		"meta:save-date",
+		"meta:creation-date",
+		Metadata.MODIFIED,
+		Metadata.DATE.getName(),
+		Metadata.LAST_MODIFIED.getName(),
+		Metadata.LAST_SAVED.getName(),
+		Metadata.CREATION_DATE.getName());
 
 	private void setMetaFields(final SolrInputDocument document, final Metadata metadata) {
 		for (String name : metadata.names()) {
 			String value = metadata.get(name);
 
+			if (utcDates && dateFieldNames.contains(name) && !value.endsWith("Z")) {
+				value = value + "Z";
+			}
+
 			// Field names must consist of alphanumeric or underscore characters only.
 			name = fieldName.matcher(name).replaceAll("_").toLowerCase(Locale.ROOT);
 			if (null != metadataFieldPrefix) {
 				name = metadataFieldPrefix + name;
-			}
-
-			if (utcDates && dateFieldNames.contains(name) && !value.endsWith("Z")) {
-				value = value + "Z";
 			}
 
 			setField(document, name, value);
