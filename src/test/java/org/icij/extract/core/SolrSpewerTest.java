@@ -48,7 +48,6 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		final ParsingReader reader = new TextParsingReader(logger, new ByteArrayInputStream(buffer.getBytes(charset)));
 
 		spewer.setIdAlgorithm("SHA-256");
-		spewer.setPathField("path");
 		spewer.write(path, new Metadata(), reader, charset);
 
 		SolrDocument response = getSolrClient().getById("0");
@@ -73,6 +72,9 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 
 		spewer.setIdAlgorithm("SHA-256");
 		spewer.outputMetadata(true);
+
+		// Need to commit since the file from the previous test is being updated.
+		spewer.setCommitInterval(1);
 
 		final String length = Integer.toString(buffer.getBytes(charset).length);
 		metadata.set("Content-Length", length);
