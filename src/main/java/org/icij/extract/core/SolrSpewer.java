@@ -32,11 +32,12 @@ import javax.xml.bind.DatatypeConverter;
 
 import org.apache.tika.metadata.Metadata;
 
+import org.apache.solr.common.SolrInputDocument;
+import org.apache.solr.common.SolrException;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.response.UpdateResponse;
 import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.common.SolrInputDocument;
 
 import org.apache.http.impl.client.CloseableHttpClient;
 
@@ -159,9 +160,14 @@ public class SolrSpewer extends Spewer {
 				response = client.add(document, commitWithin);
 			}
 		} catch (SolrServerException e) {
-			throw new SpewerException(String.format("Unable to add file to Solr: %s. There was server-side error.", file), e);
+			throw new SpewerException(String.format("Unable to add file to Solr: %s. " +
+				"There was server-side error.", file), e);
+		} catch (SolrException e) {
+			throw new SpewerException(String.format("Unable to add file to Solr: %s. " +
+				"HTTP error %d was returned.", file, e.code()), e);
 		} catch (IOException e) {
-			throw new SpewerException(String.format("Unable to add file to Solr: %s. There was an error communicating with the server.", file), e);
+			throw new SpewerException(String.format("Unable to add file to Solr: %s. " +
+				"There was an error communicating with the server.", file), e);
 		}
 
 		logger.info(String.format("Document added to Solr in %dms: %s.", response.getElapsedTime(), file));
@@ -189,8 +195,10 @@ public class SolrSpewer extends Spewer {
 		// Don't rethrow. Commit errors are recovarable and the file was actually output sucessfully.
 		} catch (SolrServerException e) {
 			logger.log(Level.SEVERE, "Failed to commit to Solr. A server-side error to occurred.", e);
+		} catch (SolrException e) {
+			logger.log(Level.SEVERE, String.format("Failed to commit to Solr. HTTP error %d was returned.", e.code()), e);
 		} catch (IOException e) {
-			logger.log(Level.SEVERE, "Failed to commit to Solr. There was an error communicating with the server.");
+			logger.log(Level.SEVERE, "Failed to commit to Solr. There was an error communicating with the server.", e);
 		} finally {
 			commitSemaphore.release();
 		}
