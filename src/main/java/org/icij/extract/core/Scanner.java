@@ -169,12 +169,11 @@ public abstract class Scanner {
 		}
 
 		public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+			boolean matched = true;
 
 			// Only skip the file if all of the include matchers return false.
-			boolean matched = true;
 			for (PathMatcher includeMatcher : includeMatchers) {
-				matched = includeMatcher.matches(file);
-				if (matched) {
+				if (matched = includeMatcher.matches(file)) {
 					break;
 				}
 			}
@@ -194,9 +193,21 @@ public abstract class Scanner {
 		}
 
 		public FileVisitResult visitFileFailed(Path file, IOException e) throws IOException {
+			boolean excluded = false;
+
+			// If the file or directory was going to be excluded anyway, supress
+			// the exception.
+			for (PathMatcher excludeMatcher : excludeMatchers) {
+				if (excluded = excludeMatcher.matches(file)) {
+					break;
+				}
+			}
 
 			// Don't re-throw the error. Scanning must be robust. Just log it.
-			logger.log(Level.SEVERE, "Unable to read file attributes.", e);
+			if (!excluded) {
+				logger.log(Level.SEVERE, "Unable to read file attributes.", e);
+			}
+
 			return FileVisitResult.CONTINUE;
 		}
 	}
