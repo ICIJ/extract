@@ -20,6 +20,7 @@ import org.apache.tika.metadata.Metadata;
 import org.apache.tika.exception.TikaException;
 
 import org.apache.solr.common.SolrDocument;
+import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrServerException;
 
 import org.junit.Test;
@@ -32,13 +33,16 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 
 	@Before
 	public void setUp() throws Exception {
-		getSolrClient().deleteByQuery("*:*");
-		getSolrClient().commit(true, true);
+		final SolrClient client = getSolrClient();
+
+		client.deleteByQuery("*:*");
+		client.commit(true, true);
 	}
 
 	@Test
 	public void testWrite() throws IOException, TikaException, NoSuchAlgorithmException, SolrServerException {
-		final SolrSpewer spewer = new SolrSpewer(logger, getSolrClient());
+		final SolrClient client = getSolrClient();
+		final SolrSpewer spewer = new SolrSpewer(logger, client);
 
 		final Charset charset = StandardCharsets.UTF_8;
 		final String buffer = "test";
@@ -48,21 +52,21 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		final ParsingReader reader = new TextParsingReader(logger, new ByteArrayInputStream(buffer.getBytes(charset)));
 
 		spewer.setIdAlgorithm("SHA-256");
-		spewer.setCommitInterval(1);
-
 		spewer.write(path, new Metadata(), reader, charset);
+		client.commit(true, true);
 
-		SolrDocument response = getSolrClient().getById("0");
+		SolrDocument response = client.getById("0");
 		Assert.assertNull(response);
 
-		response = getSolrClient().getById(pathHash);
+		response = client.getById(pathHash);
 		Assert.assertEquals(path.toString(), response.get("path"));
 		Assert.assertEquals(buffer + "\n", response.get("content"));
 	}
 
 	@Test
 	public void testWriteMetadata() throws IOException, TikaException, NoSuchAlgorithmException, SolrServerException {
-		final SolrSpewer spewer = new SolrSpewer(logger, getSolrClient());
+		final SolrClient client = getSolrClient();
+		final SolrSpewer spewer = new SolrSpewer(logger, client);
 
 		final Charset charset = StandardCharsets.UTF_8;
 		final String buffer = "test";
@@ -80,8 +84,9 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		metadata.set("Content-Length", length);
 
 		spewer.write(path, metadata, reader, charset);
+		client.commit(true, true);
 
-		final SolrDocument response = getSolrClient().getById(pathHash);
+		final SolrDocument response = client.getById(pathHash);
 		Assert.assertEquals(length, response.get("metadata_content_length"));
 	}
 }
