@@ -16,6 +16,7 @@ public class OSFileMatcher implements PathMatcher {
 
 		switch (name) {
 		case ".DS_Store":
+		case ".AppleDouble":
 		case ".Spotlight-V100":
 		case ".Trashes":
 		case "._.Trashes":
@@ -24,9 +25,13 @@ public class OSFileMatcher implements PathMatcher {
 		case "Thumbs.db":
 		case "$RECYCLE.BIN":
 			return true;
-
-		default:
-			return false;
 		}
+
+		// Ignore AppleDouble dot files.
+		if (name.startsWith("._")) {
+			return true;
+		}
+
+		return false;
 	}
 }
