@@ -87,6 +87,6 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		client.commit(true, true, true);
 
 		final SolrDocument response = client.getById(pathHash);
-		Assert.assertEquals(length, response.get("metadata_content_length"));
+		Assert.assertEquals(length, response.getFieldValue("metadata_content_length"));
 	}
 }
