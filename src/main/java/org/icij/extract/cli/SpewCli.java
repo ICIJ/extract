@@ -61,17 +61,17 @@ public class SpewCli extends Cli {
 	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cmd = super.parse(args);
 
-		int threads = Consumer.DEFAULT_THREADS;
+		int parallelism = Consumer.DEFAULT_PARALLELISM;
 
 		if (cmd.hasOption('p')) {
 			try {
-				threads = ((Number) cmd.getParsedOptionValue("p")).intValue();
+				parallelism = ((Number) cmd.getParsedOptionValue("p")).intValue();
 			} catch (ParseException e) {
 				throw new IllegalArgumentException("Invalid value for thread count.");
 			}
 		}
 
-		logger.info("Processing up to " + threads + " file(s) in parallel.");
+		logger.info("Processing up to " + parallelism + " file(s) in parallel.");
 
 		final OutputType outputType;
 		final Spewer spewer;
@@ -114,11 +114,14 @@ public class SpewCli extends Cli {
 			queue = getRedisson(cmd).getBlockingQueue(cmd.getOptionValue("queue-name", "extract") + ":queue");
 		} else {
 
-			// Create a classic "bounded buffer", in which a fixed-sized array holds elements inserted by producers and extracted by consumers.
-			queue = new ArrayBlockingQueue<String>(threads * 2);
+			// Create a classic "bounded buffer", in which a fixed-sized array holds
+			// elements inserted by producers and extracted by consumers.
+			// The scanner will pause every time the bound is hit. This prevents it
+			// from quickly using up memory with a massive file list.
+			queue = new ArrayBlockingQueue<String>(parallelism * 2);
 		}
 
-		final PollingConsumer consumer = new PollingConsumer(logger, queue, spewer, extractor, threads);
+		final PollingConsumer consumer = new PollingConsumer(logger, queue, spewer, extractor, parallelism);
 
 		ConsumerOptionSet.configureConsumer(cmd, consumer);
 		ExtractorOptionSet.configureExtractor(cmd, extractor);

@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.ExecutorService;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -31,8 +31,9 @@ import org.apache.tika.exception.EncryptedDocumentException;
 
 /**
  * Base consumer for file paths. Superclasses should call {@link #consume(Path)}.
- * All tasks are sent to a fixed {@link ThreadPoolExecutor} which is backed by a queue.
- * The size of the thread pool is defined in the call to the constructor.
+ * All tasks are sent to a work-stealing thread pool.
+ *
+ * The parallelism of the thread pool is defined in the call to the constructor.
  *
  * A task is defined as both the extraction from a file and the ouputting of extracted data.
  * Completion is only considered successful if both parts of the task complete with no exceptions.
@@ -42,29 +43,29 @@ import org.apache.tika.exception.EncryptedDocumentException;
  * @since 1.0.0-beta
  */
 public class Consumer {
-	public static final int DEFAULT_THREADS = Runtime.getRuntime().availableProcessors();
+	public static final int DEFAULT_PARALLELISM = Runtime.getRuntime().availableProcessors();
 
 	protected final Logger logger;
 	protected final Spewer spewer;
 	protected final Extractor extractor;
 
-	protected final ThreadPoolExecutor executor;
-	protected int threads;
+	protected final ExecutorService executor;
+	protected int parallelism;
 
 	protected Reporter reporter = null;
 	protected Charset outputEncoding = StandardCharsets.UTF_8;
 
 	private final Semaphore slots;
 
-	public Consumer(Logger logger, Spewer spewer, Extractor extractor, int threads) {
+	public Consumer(Logger logger, Spewer spewer, Extractor extractor, int parallelism) {
 		this.logger = logger;
 		this.spewer = spewer;
 		this.extractor = extractor;
 
-		this.threads = threads;
-		this.slots = new Semaphore(threads);
+		this.parallelism = parallelism;
+		this.slots = new Semaphore(parallelism);
 
-		this.executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(threads);
+		this.executor = Executors.newWorkStealingPool(parallelism);
 	}
 
 	public void setOutputEncoding(Charset outputEncoding) {
@@ -96,7 +97,7 @@ public class Consumer {
 	 * @param file file path
 	 */
 	public void consume(final Path file) {
-		logger.info("Sending to thread pool; will queue if full (" + executor.getActiveCount() + " active): " + file + ".");
+		logger.info(String.format("Sending to thread pool; will queue if full: %s.", file));
 
 		slots.acquireUninterruptibly();
 		executor.submit(new ConsumerTask(file));
@@ -109,7 +110,7 @@ public class Consumer {
 		logger.info("Consumer waiting for all threads to finish.");
 
 		// Block until the thread pool is completely empty.
-		slots.acquire(threads);
+		slots.acquire(parallelism);
 		logger.info("All threads finished.");
 	}
 

@@ -27,8 +27,8 @@ public class PollingConsumer extends Consumer {
 	private volatile boolean started = false;
 	private TimeDuration pollTimeout = DEFAULT_TIMEOUT;
 
-	public PollingConsumer(Logger logger, BlockingQueue<String> queue, Spewer spewer, Extractor extractor, int threads) {
-		super(logger, spewer, extractor, threads);
+	public PollingConsumer(Logger logger, BlockingQueue<String> queue, Spewer spewer, Extractor extractor, int parallelism) {
+		super(logger, spewer, extractor, parallelism);
 		this.queue = queue;
 	}
 

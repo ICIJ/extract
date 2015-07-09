@@ -42,7 +42,7 @@ public abstract class Scanner {
 	protected ArrayDeque<String> includeGlobs = new ArrayDeque<String>();
 	protected ArrayDeque<String> excludeGlobs = new ArrayDeque<String>();
 
-	private final AtomicInteger pending = new AtomicInteger(0);
+	protected final AtomicInteger pending = new AtomicInteger(0);
 
 	private int maxDepth = Integer.MAX_VALUE;
 	private boolean followLinks = false;
@@ -85,7 +85,7 @@ public abstract class Scanner {
 		return ignoreOSFiles;
 	}
 
-	public void scan(Path path) {
+	public void scan(final Path path) {
 		logger.info("Queuing scan of \"" + path + "\".");
 		pending.incrementAndGet();
 		service.submit(new ScannerTask(path), path);
@@ -98,9 +98,9 @@ public abstract class Scanner {
 		}
 	}
 
-	protected abstract void handle(Path file);
+	protected abstract void handle(final Path file);
 
-	protected void scanDirectory(Path directory) {
+	protected void scanDirectory(final Path directory) {
 		final Set<FileVisitOption> options;
 
 		if (followLinks) {
@@ -140,7 +140,7 @@ public abstract class Scanner {
 
 		protected final Path path;
 
-		public ScannerTask(Path path) {
+		public ScannerTask(final Path path) {
 			this.path = path;
 		}
 
