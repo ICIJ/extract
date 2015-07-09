@@ -3,7 +3,10 @@ package org.icij.extract.core;
 import org.icij.extract.interval.TimeDuration;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Locale;
 
@@ -69,6 +72,7 @@ public class SolrSpewer extends Spewer {
 	private int commitInterval = 0;
 	private int commitWithin = 0;
 	private boolean atomicWrites = false;
+	private boolean utcDates = false;
 
 	public SolrSpewer(final Logger logger, final SolrClient client) {
 		super(logger);
@@ -115,6 +119,14 @@ public class SolrSpewer extends Spewer {
 		return atomicWrites;
 	}
 
+	public void utcDates(final boolean utcDates) {
+		this.utcDates = utcDates;
+	}
+
+	public boolean utcDates() {
+		return utcDates;
+	}
+
 	public void finish() throws IOException {
 		super.finish();
 
@@ -137,8 +149,6 @@ public class SolrSpewer extends Spewer {
 		final SolrInputDocument document = new SolrInputDocument();
 		final UpdateResponse response;
 
-		setField(document, textField, IOUtils.toString(reader));
-
 		// Set the metadata.
 		if (outputMetadata) {
 			setMetaFields(document, metadata);
@@ -146,6 +156,7 @@ public class SolrSpewer extends Spewer {
 
 		// Set the path on the path field.
 		setField(document, pathField, outputPath);
+		setField(document, textField, IOUtils.toString(reader));
 
 		// Set the ID. Must never be written atomically.
 		if (null != idField && null != idDigest) {
@@ -204,6 +215,18 @@ public class SolrSpewer extends Spewer {
 		}
 	}
 
+	private static final Set<String> dateFieldNames =
+		new HashSet<String>(Arrays.asList(
+			"dcterms:created",
+			"dcterms:modified",
+			"meta:save-date",
+			"meta:creation-date",
+			Metadata.MODIFIED,
+			Metadata.DATE.getName(),
+			Metadata.LAST_MODIFIED.getName(),
+			Metadata.LAST_SAVED.getName(),
+			Metadata.CREATION_DATE.getName()));
+
 	private void setMetaFields(final SolrInputDocument document, final Metadata metadata) {
 		for (String name : metadata.names()) {
 			String value = metadata.get(name);
@@ -211,10 +234,14 @@ public class SolrSpewer extends Spewer {
 			// Field names must consist of alphanumeric or underscore characters only.
 			name = fieldName.matcher(name).replaceAll("_").toLowerCase(Locale.ROOT);
 			if (null != metadataFieldPrefix) {
-				setField(document, metadataFieldPrefix + name, value);
-			} else {
-				setField(document, name, value);
+				name = metadataFieldPrefix + name;
 			}
+
+			if (utcDates && dateFieldNames.contains(name) && !value.endsWith("Z")) {
+				value = value + "Z";
+			}
+
+			setField(document, name, value);
 		}
 	}
 

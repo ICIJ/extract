@@ -95,10 +95,18 @@ public class SolrSpewerOptionSet extends OptionSet {
 			Option.builder()
 				.desc("Make atomic updates to Solr. If your schema contains fields that are not included in the payload, this prevents their values, if any, from being erased.")
 				.longOpt("solr-atomic-writes")
+				.build(),
+
+			Option.builder()
+				.desc("Make all dates UTC. Tika's image metadata extractor will generate non-ISO compliant dates if the the timezone is not available in the source metadata. Turning this option on appends \"Z\" to non-compliant dates, making them compatible with the Solr date field type.")
+				.longOpt("solr-utc-dates")
 				.build());
 	}
 
 	public static void configureSpewer(final CommandLine cmd, final SolrSpewer spewer) throws ParseException {
+		spewer.atomicWrites(cmd.hasOption("solr-atomic-writes"));
+		spewer.utcDates(cmd.hasOption("solr-utc-dates"));
+
 		if (cmd.hasOption('t')) {
 			spewer.setTextField(cmd.getOptionValue('t'));
 		}
@@ -131,7 +139,5 @@ public class SolrSpewerOptionSet extends OptionSet {
 		if (cmd.hasOption("solr-commit-within")) {
 			spewer.setCommitWithin(cmd.getOptionValue("solr-commit-within"));
 		}
-
-		spewer.atomicWrites(cmd.hasOption("solr-atomic-writes"));
 	}
 }

@@ -36,7 +36,7 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		final SolrClient client = getSolrClient();
 
 		client.deleteByQuery("*:*");
-		client.commit(true, true);
+		client.commit(true, true, true);
 	}
 
 	@Test
@@ -53,7 +53,7 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 
 		spewer.setIdAlgorithm("SHA-256");
 		spewer.write(path, new Metadata(), reader, charset);
-		client.commit(true, true);
+		client.commit(true, true, true);
 
 		SolrDocument response = client.getById("0");
 		Assert.assertNull(response);
@@ -64,7 +64,8 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 	}
 
 	@Test
-	public void testWriteMetadata() throws IOException, TikaException, NoSuchAlgorithmException, SolrServerException {
+	public void testWriteMetadata()
+		throws IOException, TikaException, NoSuchAlgorithmException, SolrServerException, InterruptedException {
 		final SolrClient client = getSolrClient();
 		final SolrSpewer spewer = new SolrSpewer(logger, client);
 
@@ -83,7 +84,7 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		metadata.set("Content-Length", length);
 
 		spewer.write(path, metadata, reader, charset);
-		client.commit(true, true);
+		client.commit(true, true, true);
 
 		final SolrDocument response = client.getById(pathHash);
 		Assert.assertEquals(length, response.get("metadata_content_length"));
