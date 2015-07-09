@@ -20,7 +20,7 @@ import java.nio.file.Path;
  * @since 1.0.0-beta
  */
 public class PollingConsumer extends Consumer {
-	public static final TimeDuration DEFAULT_TIMEOUT = new TimeDuration(500L, TimeUnit.MILLISECONDS);
+	public static final TimeDuration DEFAULT_TIMEOUT = new TimeDuration(5L, TimeUnit.SECONDS);
 
 	private final BlockingQueue<String> queue;
 
@@ -79,6 +79,11 @@ public class PollingConsumer extends Consumer {
 
 		try {
 			file = queue.poll(pollTimeout.getDuration(), pollTimeout.getUnit());
+		} catch (NullPointerException e) {
+
+			// This is a temporary bodge for:
+			// https://github.com/mrniko/redisson/issues/181
+			return file;
 		} catch (InterruptedException e) {
 			logger.info("Thread interrupted while waiting to poll.");
 			Thread.currentThread().interrupt();
