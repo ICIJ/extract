@@ -95,7 +95,7 @@ public class SolrSpewer extends Spewer {
 	public void setIdAlgorithm(final String idAlgorithm) throws NoSuchAlgorithmException {
 		if (null == idAlgorithm) {
 			this.idAlgorithm = null;
-		} else if (idAlgorithm.matches("[a-zA-Z\\-\\d]+") &&
+		} else if (idAlgorithm.matches("^[a-zA-Z\\-\\d]+$") &&
 			null != Security.getProviders("MessageDigest." + idAlgorithm)) {
 			this.idAlgorithm = idAlgorithm;
 		} else {
