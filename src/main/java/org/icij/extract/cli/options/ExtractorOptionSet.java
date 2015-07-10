@@ -17,7 +17,7 @@ import org.apache.commons.cli.CommandLine;
  */
 public class ExtractorOptionSet extends OptionSet {
 
-	public static final TimeDuration DEFAULT_OCR_TIMEOUT = new TimeDuration(1, TimeUnit.HOURS);
+	public static final TimeDuration DEFAULT_OCR_TIMEOUT = new TimeDuration(12, TimeUnit.HOURS);
 
 	public ExtractorOptionSet() {
 		super(Option.builder()
