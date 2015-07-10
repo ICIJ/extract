@@ -227,15 +227,17 @@ public class SolrSpewer extends Spewer {
 
 	private void setMetaFields(final SolrInputDocument document, final Metadata metadata) {
 		for (String name : metadata.names()) {
-			for (String value : metadata.getValues(name)) {
+			String[] values = metadata.getValues(name);
+
+			for (String value : values) {
 				if (utcDates && dateFieldNames.contains(name) && !value.endsWith("Z")) {
 					value = value + "Z";
 				}
 
-				if (Metadata.CONTENT_LENGTH.equals(name)) {
-					setField(document, normalizeName(name), value);
-				} else {
+				if (values.length > 1) {
 					addField(document, normalizeName(name), value);
+				} else {
+					setField(document, normalizeName(name), value);
 				}
 			}
 		}
