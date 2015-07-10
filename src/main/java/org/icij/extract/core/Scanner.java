@@ -158,6 +158,8 @@ public abstract class Scanner {
 		protected ArrayDeque<PathMatcher> includeMatchers = new ArrayDeque<PathMatcher>();
 		protected ArrayDeque<PathMatcher> excludeMatchers = new ArrayDeque<PathMatcher>();
 
+		private int visited = 0;
+
 		@Override
 		public FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attrs) throws IOException {
 			for (PathMatcher excludeMatcher : excludeMatchers) {
@@ -173,6 +175,11 @@ public abstract class Scanner {
 		@Override
 		public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 			boolean matched = true;
+			visited++;
+
+			if (visited % 10000 == 0) {
+				logger.info(String.format("Scanner visited %d files.", visited));
+			}
 
 			// Only skip the file if all of the include matchers return false.
 			for (PathMatcher includeMatcher : includeMatchers) {

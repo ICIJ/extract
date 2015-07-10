@@ -12,7 +12,7 @@ import java.nio.file.Path;
 /**
  * An implementation of {@link Scanner} which pushes encountered file paths into a
  * given queue. This is a classic producer, putting elements into a queue which
- * are then extracted by a consumer. 
+ * are then extracted by a consumer.
  *
  * Paths are pushed into the queue synchronously and if the queue is bounded, only
  * when a space becomes available.
@@ -27,8 +27,9 @@ public class QueueingScanner extends Scanner {
 	private final BlockingQueue<String> queue;
 
 	private BlockingQueue<String> slow = null;
-	private int threshold = 0;
 	private ExecutorService executor = null;
+	private int threshold = 0;
+	private volatile boolean draining = false;
 
 	/**
 	 * Creates a {@code QueueingScanner} that sends all results from the
@@ -41,7 +42,6 @@ public class QueueingScanner extends Scanner {
 		super(logger);
 		this.queue = queue;
 	}
-
 
 	/**
 	 * Creates a {@code QueueingScanner} that buffers all results from the
@@ -66,14 +66,15 @@ public class QueueingScanner extends Scanner {
 
 	@Override
 	protected void handle(final Path file) {
-		if (null != slow && queue.size() > threshold) {
+		if (null != slow && !draining && queue.size() > threshold) {
+			draining = true;
 			executor.submit(new DrainingTask());
 		}
 
 		try {
 			queue.put(file.toString());
 		} catch (InterruptedException e) {
-			logger.warning("Interrupted while waiting for a free queue slot.");
+			logger.warning("Scanner interrupted while waiting for a free queue slot.");
 			Thread.currentThread().interrupt();
 		}
 	}
@@ -86,7 +87,9 @@ public class QueueingScanner extends Scanner {
 
 		@Override
 		public void run() {
+			logger.info("Scanner draining to slow queue.");
 			queue.drainTo(slow);
+			draining = false;
 		}
 	}
 }
