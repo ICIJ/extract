@@ -33,6 +33,7 @@ import java.security.NoSuchAlgorithmException;
 import javax.xml.bind.DatatypeConverter;
 
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.mime.MediaType;
 
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.SolrException;
@@ -226,6 +227,18 @@ public class SolrSpewer extends Spewer {
 		Metadata.CREATION_DATE.getName());
 
 	private void setMetaFields(final SolrInputDocument document, final Metadata metadata) {
+
+		// Add a convenience field that contains just the base MIME type,
+		// without any parameters. This is useful for faceting.
+		for (String value : metadata.getValues(Metadata.CONTENT_TYPE)) {
+			MediaType type = MediaType.parse(value);
+
+			if (null != type) {
+				addField(document, normalizeName("Content-Base-Type"),
+					type.getBaseType().toString());
+			}
+		}
+
 		for (String name : metadata.names()) {
 			String[] values = metadata.getValues(name);
 
