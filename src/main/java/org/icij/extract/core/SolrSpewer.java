@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.charset.Charset;
 
+import java.security.Security;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -66,7 +67,7 @@ public class SolrSpewer extends Spewer {
 	private String pathField = DEFAULT_PATH_FIELD;
 	private String idField = DEFAULT_ID_FIELD;
 	private String metadataFieldPrefix = DEFAULT_METADATA_FIELD_PREFIX;
-	private MessageDigest idDigest = null;
+	private String idAlgorithm = null;
 
 	private final AtomicInteger pending = new AtomicInteger(0);
 	private int commitInterval = 0;
@@ -91,8 +92,15 @@ public class SolrSpewer extends Spewer {
 		this.idField = idField;
 	}
 
-	public void setIdAlgorithm(final String algorithm) throws NoSuchAlgorithmException {
-		this.idDigest = MessageDigest.getInstance(algorithm);
+	public void setIdAlgorithm(final String idAlgorithm) throws NoSuchAlgorithmException {
+		if (null == idAlgorithm) {
+			this.idAlgorithm = null;
+		} else if (idAlgorithm.matches("[a-zA-Z\\-\\d]+") &&
+			null != Security.getProviders("MessageDigest." + idAlgorithm)) {
+			this.idAlgorithm = idAlgorithm;
+		} else {
+			throw new NoSuchAlgorithmException(String.format("No such algorithm: %s.", idAlgorithm));
+		}
 	}
 
 	public void setMetadataFieldPrefix(final String metadataFieldPrefix) {
@@ -159,9 +167,13 @@ public class SolrSpewer extends Spewer {
 		setField(document, textField, IOUtils.toString(reader));
 
 		// Set the ID. Must never be written atomically.
-		if (null != idField && null != idDigest) {
-			document.setField(idField, DatatypeConverter.printHexBinary(idDigest
-				.digest(outputPath.getBytes(outputEncoding))));
+		if (null != idField && null != idAlgorithm) {
+			try {
+				document.setField(idField, DatatypeConverter.printHexBinary(MessageDigest.getInstance(idAlgorithm)
+					.digest(outputPath.getBytes(outputEncoding))));
+			} catch (NoSuchAlgorithmException e) {
+				throw new IllegalStateException(e);
+			}
 		}
 
 		try {

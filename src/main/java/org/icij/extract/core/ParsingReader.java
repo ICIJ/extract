@@ -159,7 +159,8 @@ public abstract class ParsingReader extends Reader {
 	 * @param context parsing context
 	 * @throws IOException if the document can not be parsed
 	 */
-	public ParsingReader(Logger logger, Parser parser, InputStream input, Metadata metadata, ParseContext context) throws IOException {
+	public ParsingReader(Logger logger, Parser parser, InputStream input, Metadata metadata, ParseContext context)
+		throws IOException {
 		final PipedReader pipedReader = new PipedReader();
 
 		this.parser = parser;

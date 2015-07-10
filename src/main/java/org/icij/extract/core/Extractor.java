@@ -165,7 +165,8 @@ public class Extractor {
 		context.set(PDFParserConfig.class, pdfConfig);
 		parser.setFallback(new ErrorParser(parser, excludedTypes));
 
-		// Only include "safe" tags in the HTML output. This excludes script tags and objects.
+		// Only include "safe" tags in the HTML output from Tika's HTML parser.
+		// This excludes script tags and objects.
 		if (OutputFormat.HTML == outputFormat) {
 			context.set(HtmlMapper.class, DefaultHtmlMapper.INSTANCE);
 		}

@@ -52,7 +52,8 @@ public class HTMLParsingReader extends ParsingReader {
 	 * @param context parsing context
 	 * @throws IOException if the document can not be parsed
 	 */
-	public HTMLParsingReader(Logger logger, Parser parser, InputStream input, Metadata metadata, ParseContext context) throws IOException {
+	public HTMLParsingReader(Logger logger, Parser parser, InputStream input, Metadata metadata, ParseContext context)
+		throws IOException {
 		super(logger, parser, input, metadata, context);
 	}
 

@@ -2,6 +2,8 @@ package org.icij.extract.cli.options;
 
 import org.icij.extract.core.*;
 
+import java.util.Locale;
+
 import java.security.NoSuchAlgorithmException;
 
 import org.apache.commons.cli.Option;
@@ -121,7 +123,7 @@ public class SolrSpewerOptionSet extends OptionSet {
 
 		if (cmd.hasOption("solr-id-algorithm")) {
 			try {
-				spewer.setIdAlgorithm(cmd.getOptionValue("solr-id-algorithm"));
+				spewer.setIdAlgorithm(cmd.getOptionValue("solr-id-algorithm").toUpperCase(Locale.ROOT));
 			} catch (NoSuchAlgorithmException e) {
 				throw new IllegalArgumentException(String.format("Hashing algorithm \"%s\" not available on this platform.",
 					cmd.getOptionValue("solr-id-algorithm")));
