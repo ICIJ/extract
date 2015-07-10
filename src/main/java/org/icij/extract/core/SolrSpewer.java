@@ -227,28 +227,49 @@ public class SolrSpewer extends Spewer {
 
 	private void setMetaFields(final SolrInputDocument document, final Metadata metadata) {
 		for (String name : metadata.names()) {
-			String value = metadata.get(name);
+			for (String value : metadata.getValues(name)) {
+				if (utcDates && dateFieldNames.contains(name) && !value.endsWith("Z")) {
+					value = value + "Z";
+				}
 
-			if (utcDates && dateFieldNames.contains(name) && !value.endsWith("Z")) {
-				value = value + "Z";
+				if (Metadata.CONTENT_LENGTH.equals(name)) {
+					setField(document, normalizeName(name), value);
+				} else {
+					addField(document, normalizeName(name), value);
+				}
 			}
+		}
+	}
 
-			// Field names must consist of alphanumeric or underscore characters only.
-			name = fieldName.matcher(name).replaceAll("_").toLowerCase(Locale.ROOT);
-			if (null != metadataFieldPrefix) {
-				name = metadataFieldPrefix + name;
-			}
+	private String normalizeName(String name) {
 
-			setField(document, name, value);
+		// Field names must consist of alphanumeric or underscore characters only.
+		name = fieldName.matcher(name).replaceAll("_").toLowerCase(Locale.ROOT);
+		if (null != metadataFieldPrefix) {
+			return metadataFieldPrefix + name;
+		} else {
+			return name;
+		}
+	}
+
+	private Map<String, String> createAtomic(final String value) {
+		final Map<String, String> atomic = new HashMap<String, String>();
+
+		atomic.put("set", value);
+		return atomic;
+	}
+
+	private void addField(final SolrInputDocument document, final String name, final String value) {
+		if (atomicWrites) {
+			document.addField(name, createAtomic(value));
+		} else {
+			document.addField(name, value);
 		}
 	}
 
 	private void setField(final SolrInputDocument document, final String name, final String value) {
 		if (atomicWrites) {
-			final Map<String, String> atomic = new HashMap<String, String>();
-
-			atomic.put("set", value);
-			document.setField(name, atomic);
+			document.setField(name, createAtomic(value));
 		} else {
 			document.setField(name, value);
 		}
