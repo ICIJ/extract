@@ -30,7 +30,7 @@ public class SolrDeleteCli extends Cli {
 		super(logger, new SolrOptionSet());
 
 		options.addOption(Option.builder("i")
-				.desc("The name of the unique ID field in the target Solr schema.")
+				.desc(String.format("The name of the unique ID field in the target Solr schema. Defaults to %s.", SolrSpewer.DEFAULT_ID_FIELD))
 				.longOpt("id-field")
 				.hasArg()
 				.argName("name")
@@ -42,7 +42,7 @@ public class SolrDeleteCli extends Cli {
 				.build())
 
 			.addOption(Option.builder()
-				.desc("Modifies the commit option so that a soft commit is performed instead of a hard commit. Makes index changes visible while neither fsync-ing index files nor writing a new index descriptor. This could lead to data loss if Solr is terminated unexpectedly.")
+				.desc("Perform a soft commit when done.")
 				.longOpt("soft-commit")
 				.build());
 	}
@@ -74,12 +74,10 @@ public class SolrDeleteCli extends Cli {
 				}
 			}
 
-			if (cmd.hasOption('c')) {
-				if (cmd.hasOption("soft-commit")) {
-					client.commit(true, true, true);
-				} else {
-					client.commit(true, true, false);
-				}
+			if (cmd.hasOption("soft-commit")) {
+				client.commit(true, true, true);
+			} else if (cmd.hasOption('c')) {
+				client.commit(true, true, false);
 			}
 		} catch (SolrServerException e) {
 			throw new RuntimeException("Unable to delete.", e);
