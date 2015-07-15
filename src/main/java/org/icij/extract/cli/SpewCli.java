@@ -28,6 +28,9 @@ import org.apache.http.impl.client.CloseableHttpClient;
 
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 
+import java.lang.management.ManagementFactory;
+import com.sun.management.OperatingSystemMXBean;
+
 /**
  * Extract
  *
@@ -37,7 +40,7 @@ import org.apache.solr.client.solrj.impl.HttpSolrClient;
  */
 public class SpewCli extends Cli {
 
-	public SpewCli(Logger logger) {
+	public SpewCli(final Logger logger) {
 		super(logger, new QueueOptionSet(), new ReporterOptionSet(), new RedisOptionSet(),
 			new ScannerOptionSet(), new ConsumerOptionSet(), new ExtractorOptionSet(),
 			new SpewerOptionSet(), new SolrSpewerOptionSet(), new FileSpewerOptionSet());
@@ -56,6 +59,15 @@ public class SpewCli extends Cli {
 				.hasArg()
 				.argName("type")
 				.build());
+
+		final OperatingSystemMXBean os = (com.sun.management.OperatingSystemMXBean)
+			ManagementFactory.getOperatingSystemMXBean();
+		final long maxMemory = Runtime.getRuntime().maxMemory();
+
+		if (maxMemory < (os.getTotalPhysicalMemorySize() / 2)) {
+			logger.warning(String.format("Memory available to JVM (%dm) is less than half of available system memory. " +
+				"You should probably increase it.", Math.round(maxMemory / 1024 / 1024)));
+		}
 	}
 
 	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {

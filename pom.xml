@@ -157,7 +157,7 @@
 					<manifest>
 						<entry>
 							<key>JVM-Args</key>
-							<value>-Xmx512m</value>
+							<value>-Xmx1024m</value>
 						</entry>
 						<entry>
 							<key>Repositories</key>
