@@ -2,8 +2,9 @@ package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
 import org.icij.extract.cli.options.*;
-import org.icij.extract.solr.CopyMachine;
+import org.icij.extract.solr.SolrCopyMachine;
 import org.icij.extract.http.PinnedHttpClientBuilder;
+import org.icij.extract.solr.SolrDefaults;
 
 import java.util.Map;
 import java.util.List;
@@ -35,14 +36,14 @@ public class SolrCopyCli extends Cli {
 		super(logger, new SolrOptionSet());
 
 		options.addOption(Option.builder("i")
-				.desc(String.format("The name of the unique ID field in the target Solr schema. Defaults to %s.", CopyMachine.DEFAULT_ID_FIELD))
+				.desc(String.format("The name of the unique ID field in the target Solr schema. Defaults to %s.", SolrDefaults.DEFAULT_ID_FIELD))
 				.longOpt("id-field")
 				.hasArg()
 				.argName("name")
 				.build())
 
 			.addOption(Option.builder("b")
-				.desc(String.format("The number of documents to process at a time. Defaults to %d. To improve performance, set to a lower number if the fields contain very large values.", CopyMachine.DEFAULT_BATCH_SIZE))
+				.desc(String.format("The number of documents to process at a time. Defaults to %d. To improve performance, set to a lower number if the fields contain very large values.", SolrCopyMachine.DEFAULT_BATCH_SIZE))
 				.longOpt("batch-size")
 				.hasArg()
 				.argName("size")
@@ -74,8 +75,8 @@ public class SolrCopyCli extends Cli {
 				.build();
 			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
 		) {
-			final CopyMachine machine =
-				new CopyMachine(logger, client, cmd.getArgs());
+			final SolrCopyMachine machine =
+				new SolrCopyMachine(logger, client, cmd.getArgs());
 
 			if (cmd.hasOption('i')) {
 				machine.setIdField(cmd.getOptionValue('i'));

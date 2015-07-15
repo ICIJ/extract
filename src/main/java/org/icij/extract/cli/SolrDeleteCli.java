@@ -3,6 +3,7 @@ package org.icij.extract.cli;
 import org.icij.extract.core.*;
 import org.icij.extract.cli.options.*;
 import org.icij.extract.http.PinnedHttpClientBuilder;
+import org.icij.extract.solr.SolrDefaults;
 
 import java.util.logging.Logger;
 
@@ -30,7 +31,7 @@ public class SolrDeleteCli extends Cli {
 		super(logger, new SolrOptionSet());
 
 		options.addOption(Option.builder("i")
-				.desc(String.format("The name of the unique ID field in the target Solr schema. Defaults to %s.", SolrSpewer.DEFAULT_ID_FIELD))
+				.desc(String.format("The name of the unique ID field in the target Solr schema. Defaults to %s.", SolrDefaults.DEFAULT_ID_FIELD))
 				.longOpt("id-field")
 				.hasArg()
 				.argName("name")
@@ -50,7 +51,7 @@ public class SolrDeleteCli extends Cli {
 	public CommandLine parse(String[] args) throws ParseException, RuntimeException {
 		final CommandLine cmd = super.parse(args);
 
-		final String idField = cmd.getOptionValue('i', SolrSpewer.DEFAULT_ID_FIELD);
+		final String idField = cmd.getOptionValue('i', SolrDefaults.DEFAULT_ID_FIELD);
 		final String[] ids = cmd.getArgs();
 
 		if (0 == ids.length) {

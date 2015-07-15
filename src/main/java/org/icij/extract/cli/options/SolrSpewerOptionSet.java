@@ -1,6 +1,7 @@
 package org.icij.extract.cli.options;
 
 import org.icij.extract.core.*;
+import org.icij.extract.solr.SolrDefaults;
 
 import java.util.Locale;
 
@@ -42,7 +43,7 @@ public class SolrSpewerOptionSet extends OptionSet {
 				.build(),
 
 			Option.builder("i")
-				.desc("Solr field for an automatically generated identifier. The ID for the same file is guaranteed not to change if the path doesn't change. Defaults to \"" + SolrSpewer.DEFAULT_ID_FIELD + "\".")
+				.desc("Solr field for an automatically generated identifier. The ID for the same file is guaranteed not to change if the path doesn't change. Defaults to \"" + SolrDefaults.DEFAULT_ID_FIELD + "\".")
 				.longOpt("solr-id-field")
 				.hasArg()
 				.argName("name")
@@ -59,21 +60,21 @@ public class SolrSpewerOptionSet extends OptionSet {
 				.build(),
 
 			Option.builder("t")
-				.desc("Solr field for extracted text. Defaults to \"" + SolrSpewer.DEFAULT_TEXT_FIELD + "\".")
+				.desc("Solr field for extracted text. Defaults to \"" + SolrDefaults.DEFAULT_TEXT_FIELD + "\".")
 				.longOpt("solr-text-field")
 				.hasArg()
 				.argName("name")
 				.build(),
 
 			Option.builder("f")
-				.desc("Solr field for the file path. Defaults to \"" + SolrSpewer.DEFAULT_PATH_FIELD + "\".")
+				.desc("Solr field for the file path. Defaults to \"" + SolrDefaults.DEFAULT_PATH_FIELD + "\".")
 				.longOpt("solr-path-field")
 				.hasArg()
 				.argName("name")
 				.build(),
 
 			Option.builder()
-				.desc("Prefix for metadata fields added to Solr. Defaults to \"" + SolrSpewer.DEFAULT_METADATA_FIELD_PREFIX + "\".")
+				.desc("Prefix for metadata fields added to Solr. Defaults to \"" + SolrDefaults.DEFAULT_METADATA_FIELD_PREFIX + "\".")
 				.longOpt("solr-metadata-prefix")
 				.hasArg()
 				.argName("name")

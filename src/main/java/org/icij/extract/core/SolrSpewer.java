@@ -1,6 +1,7 @@
 package org.icij.extract.core;
 
 import org.icij.extract.interval.TimeDuration;
+import org.icij.extract.solr.SolrDefaults;
 
 import java.util.Map;
 import java.util.List;
@@ -53,20 +54,15 @@ import org.apache.commons.io.IOUtils;
  * @since 1.0.0-beta
  */
 public class SolrSpewer extends Spewer {
-	public static final String DEFAULT_ID_FIELD = "id";
-	public static final String DEFAULT_TEXT_FIELD = "content";
-	public static final String DEFAULT_PATH_FIELD = "path";
-	public static final String DEFAULT_METADATA_FIELD_PREFIX = "metadata_";
-
 	private static final Pattern fieldName = Pattern.compile("[^A-Za-z0-9]");
 
 	private final SolrClient client;
 	private final Semaphore commitSemaphore = new Semaphore(1);
 
-	private String textField = DEFAULT_TEXT_FIELD;
-	private String pathField = DEFAULT_PATH_FIELD;
-	private String idField = DEFAULT_ID_FIELD;
-	private String metadataFieldPrefix = DEFAULT_METADATA_FIELD_PREFIX;
+	private String textField = SolrDefaults.DEFAULT_TEXT_FIELD;
+	private String pathField = SolrDefaults.DEFAULT_PATH_FIELD;
+	private String idField = SolrDefaults.DEFAULT_ID_FIELD;
+	private String metadataFieldPrefix = SolrDefaults.DEFAULT_METADATA_FIELD_PREFIX;
 	private String idAlgorithm = null;
 
 	private final AtomicInteger pending = new AtomicInteger(0);

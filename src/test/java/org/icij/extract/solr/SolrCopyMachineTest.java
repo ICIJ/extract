@@ -18,7 +18,7 @@ import org.junit.Test;
 import org.junit.Assert;
 import org.junit.After;
 
-public class CopyMachineTest extends SolrJettyTestBase {
+public class SolrCopyMachineTest extends SolrJettyTestBase {
 
 	@After
 	public void tearDown() throws Exception {
@@ -41,7 +41,7 @@ public class CopyMachineTest extends SolrJettyTestBase {
 	@Test
 	public void testCopy() throws IOException, SolrServerException {
 		final Map<String, String> map = new HashMap<String, String>();
-		final CopyMachine machine = new CopyMachine(logger, client, map);
+		final SolrCopyMachine machine = new SolrCopyMachine(logger, client, map);
 		final int documents = 10;
 		final int fields = 10;
 

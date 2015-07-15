@@ -34,9 +34,8 @@ import org.apache.solr.client.solrj.SolrServerException;
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
  */
-public class CopyMachine {
+public class SolrCopyMachine {
 	public static final int PARALLELISM = Runtime.getRuntime().availableProcessors();
-	public static final String DEFAULT_ID_FIELD = "id";
 	public static final int DEFAULT_BATCH_SIZE = 100;
 
 	private final Logger logger;
@@ -47,17 +46,17 @@ public class CopyMachine {
 	private final ExecutorService executor = Executors.newWorkStealingPool(PARALLELISM);
 
 	private int rows = DEFAULT_BATCH_SIZE;
-	private String idField = DEFAULT_ID_FIELD;
+	private String idField = SolrDefaults.DEFAULT_ID_FIELD;
 	private AtomicInteger copied = new AtomicInteger();
 	private AtomicReference<Throwable> throwable = new AtomicReference<Throwable>();
 
-	public CopyMachine(final Logger logger, final SolrClient client, final Map<String, String> map) {
+	public SolrCopyMachine(final Logger logger, final SolrClient client, final Map<String, String> map) {
 		this.logger = logger;
 		this.client = client;
 		this.map = map;
 	}
 
-	public CopyMachine(final Logger logger, final SolrClient client, final String[] map) {
+	public SolrCopyMachine(final Logger logger, final SolrClient client, final String[] map) {
 		this.logger = logger;
 		this.client = client;
 		this.map = new HashMap<String, String>();
