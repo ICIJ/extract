@@ -51,11 +51,10 @@ public class SolrDeleteCli extends Cli {
 	public CommandLine parse(String[] args) throws ParseException, RuntimeException {
 		final CommandLine cmd = super.parse(args);
 
-		final String idField = cmd.getOptionValue('i', SolrDefaults.DEFAULT_ID_FIELD);
-		final String[] ids = cmd.getArgs();
+		final String[] queries = cmd.getArgs();
 
-		if (0 == ids.length) {
-			throw new IllegalArgumentException("You must pass the IDs to delete on the command line.");
+		if (0 == queries.length) {
+			throw new IllegalArgumentException("You must pass the queries or IDs to delete on the command line.");
 		}
 
 		try (
@@ -65,13 +64,13 @@ public class SolrDeleteCli extends Cli {
 				.build();
 			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
 		) {
-			for (String id : ids) {
-				if (id.contains("*")) {
-					logger.info(String.format("Deleting document matching ID pattern %s.", id));
-					client.deleteByQuery(idField + ":" + id);
+			for (String query : queries) {
+				if (query.contains(":")) {
+					logger.info(String.format("Deleting documents matching pattern %s.", query));
+					client.deleteByQuery(query);
 				} else {
-					logger.info(String.format("Deleting document with ID %s.", id));
-					client.deleteById(id);
+					logger.info(String.format("Deleting document with ID %s.", query));
+					client.deleteById(query);
 				}
 			}
 
