@@ -4,6 +4,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import java.util.logging.Logger;
 
@@ -20,6 +21,8 @@ import java.nio.file.Path;
  * A buffer size may be specified in the constructor, in which case a separate
  * thread will be used to drain to the queue when it is close to capacity.
  *
+ * In both cases, this implementation is thread-safe.
+ *
  * @since 1.0.0-beta
  */
 public class QueueingScanner extends Scanner {
@@ -28,8 +31,8 @@ public class QueueingScanner extends Scanner {
 
 	private BlockingQueue<String> slow = null;
 	private ExecutorService executor = null;
+	private AtomicBoolean draining = null;
 	private int threshold = 0;
-	private volatile boolean draining = false;
 
 	/**
 	 * Creates a {@code QueueingScanner} that sends all results from the
@@ -61,13 +64,14 @@ public class QueueingScanner extends Scanner {
 		this(logger, new ArrayBlockingQueue<String>(buffer));
 		this.slow = queue;
 		this.executor = Executors.newSingleThreadExecutor();
+		this.draining = new AtomicBoolean();
 		this.threshold = (int) Math.ceil((double) buffer / 1.6);
 	}
 
 	@Override
 	protected void handle(final Path file) {
-		if (null != slow && !draining && queue.size() > threshold) {
-			draining = true;
+		if (null != slow && queue.size() > threshold &&
+			draining.compareAndSet(false, true)) {
 			executor.submit(new DrainingTask());
 		}
 
@@ -89,7 +93,7 @@ public class QueueingScanner extends Scanner {
 		public void run() {
 			logger.info("Scanner draining to slow queue.");
 			queue.drainTo(slow);
-			draining = false;
+			draining.set(false);
 		}
 	}
 }
