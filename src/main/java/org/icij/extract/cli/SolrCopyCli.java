@@ -63,21 +63,8 @@ public class SolrCopyCli extends Cli {
 	public CommandLine parse(String[] args) throws ParseException, RuntimeException {
 		final CommandLine cmd = super.parse(args);
 
-		final String[] mappings = cmd.getArgs();
-		final Map<String, String> map = new HashMap<String, String>();
-
 		if (0 == args.length) {
 			throw new IllegalArgumentException("You must pass the field mappings on the command line.");
-		}
-
-		for (String mapping : mappings) {
-			String[] fields = mapping.split(":", 2);
-	
-			if (fields.length > 1) {
-				map.put(fields[0], fields[1]);
-			} else {
-				map.put(fields[0], null);
-			}
 		}
 
 		try (
@@ -88,7 +75,7 @@ public class SolrCopyCli extends Cli {
 			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
 		) {
 			final CopyMachine machine =
-				new CopyMachine(logger, client, map);
+				new CopyMachine(logger, client, cmd.getArgs());
 
 			if (cmd.hasOption('i')) {
 				machine.setIdField(cmd.getOptionValue('i'));

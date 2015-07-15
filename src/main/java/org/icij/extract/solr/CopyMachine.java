@@ -57,6 +57,22 @@ public class CopyMachine {
 		this.map = map;
 	}
 
+	public CopyMachine(final Logger logger, final SolrClient client, final String[] map) {
+		this.logger = logger;
+		this.client = client;
+		this.map = new HashMap<String, String>();
+
+		for (String mapping : map) {
+			String[] fields = mapping.split(":", 2);
+
+			if (fields.length > 1) {
+				this.map.put(fields[0], fields[1]);
+			} else {
+				this.map.put(fields[0], null);
+			}
+		}
+	}
+
 	public void setIdField(final String idField) {
 		this.idField = idField;
 	}
