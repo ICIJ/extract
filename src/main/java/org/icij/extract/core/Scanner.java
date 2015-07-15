@@ -11,13 +11,11 @@ import java.util.logging.Logger;
 
 import java.io.IOException;
 
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.CompletionService;
-import java.util.concurrent.ExecutorCompletionService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 
 import java.nio.file.Path;
 import java.nio.file.Files;
@@ -33,16 +31,22 @@ import java.nio.file.attribute.BasicFileAttributes;
  *
  * Implementations must implement the {@link #handle(Path) handle} method.
  *
+ * Each time {@link #scan} is called, the job is put in an unbounded queue
+ * and executed in serial. This makes sense as it's usually the file system
+ * which is a bottleneck and not the CPU, so parallelization won't help.
+ *
+ * The {@link #scan} method is non-blocking, which is useful for creating
+ * parallelized producer-consumer setups, where files are processed as
+ * they're scanned.
+ *
  * @since 1.0.0-beta
  */
 public abstract class Scanner {
 	protected final Logger logger;
-	protected final CompletionService<Path> service = new ExecutorCompletionService<Path>(Executors.newSingleThreadExecutor());
+	protected final ExecutorService executor = Executors.newSingleThreadExecutor();
 
 	protected ArrayDeque<String> includeGlobs = new ArrayDeque<String>();
 	protected ArrayDeque<String> excludeGlobs = new ArrayDeque<String>();
-
-	protected final AtomicInteger pending = new AtomicInteger(0);
 
 	private int maxDepth = Integer.MAX_VALUE;
 	private boolean followLinks = false;
@@ -85,22 +89,56 @@ public abstract class Scanner {
 		return ignoreOSFiles;
 	}
 
-	public void scan(final Path path) {
+	/**
+	 * Queue a scanning job.
+	 *
+	 * Jobs are put in an unbounded and executed in serial, in a separate thread.
+	 * This method doesn't block. Call {@link #awaitTermination} to block.
+	 *
+	 * @return A {@code Future<Path>} for the scanning job.
+	 */
+	public Future<Path> scan(final Path path) {
 		logger.info("Queuing scan of \"" + path + "\".");
-		pending.incrementAndGet();
-		service.submit(new ScannerTask(path), path);
+		return executor.submit(new ScannerTask(path));
 	}
 
-	public void awaitTermination() throws CancellationException, InterruptedException, ExecutionException {
-		while (pending.get() > 0) {
-			logger.info("Completed scan of \"" + service.take().get() + "\".");
-			pending.decrementAndGet();
+	/**
+	 * Shut down the executor.
+	 *
+	 * This method should be called to free up resources when the scanner
+	 * is no longer needed.
+	 */
+	public void shutdown() {
+		logger.info("Shutting down scanner executor.");
+		executor.shutdown();
+	}
+
+	/**
+	 * Shut down the executor immediately.
+	 *
+	 * This method should be called to interrupt scanning.
+	 */
+	public void shutdownNow() {
+		logger.info("Forcibly shutting down scanner executor.");
+		executor.shutdownNow();
+	}
+
+	/**
+	 * Await termination of all running and waiting jobs.
+	 *
+	 * This method blocks until all paths have been scanned.
+	 *
+	 * @throws InterruptedException if the thread is interrupted while waiting.
+	 */
+	public void awaitTermination() throws InterruptedException {
+		while (!executor.awaitTermination(60, TimeUnit.MINUTES)) {
+			logger.info("Awaiting completion of scanner.");
 		}
 	}
 
-	protected abstract void handle(final Path file);
+	protected abstract void handle(final Path file) throws Exception;
 
-	protected void scanDirectory(final Path directory) {
+	protected void scanDirectory(final Path directory) throws IOException {
 		final Set<FileVisitOption> options;
 
 		if (followLinks) {
@@ -129,14 +167,10 @@ public abstract class Scanner {
 			visitor.includeMatchers.add(fileSystem.getPathMatcher(includeGlob));
 		}
 
-		try {
-			Files.walkFileTree(directory, options, maxDepth, visitor);
-		} catch (IOException e) {
-			logger.log(Level.SEVERE, "Error while scanning directory.", e);
-		}
+		Files.walkFileTree(directory, options, maxDepth, visitor);
 	}
 
-	protected class ScannerTask implements Runnable {
+	protected class ScannerTask implements Callable<Path> {
 
 		protected final Path path;
 
@@ -144,12 +178,26 @@ public abstract class Scanner {
 			this.path = path;
 		}
 
-		public void run() {
-			if (Files.isRegularFile(path)) {
-				handle(path);
-			} else {
-				scanDirectory(path);
+		@Override
+		public Path call() throws Exception {
+			try {
+				if (Files.isRegularFile(path)) {
+					handle(path);
+				} else {
+					scanDirectory(path);
+				}
+			} catch (IOException e) {
+				logger.log(Level.SEVERE, String.format("Error while scanning directory: %s.",
+					path), e);
+				throw e;
+
+			// Only this thread was interrupted.
+			// No need to stop the whole scanner.
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
 			}
+
+			return path;
 		}
 	}
 
@@ -162,6 +210,11 @@ public abstract class Scanner {
 
 		@Override
 		public FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attrs) throws IOException {
+			if (Thread.currentThread().isInterrupted()) {
+				logger.warning("Interrupted. Terminating scanner.");
+				return FileVisitResult.TERMINATE;
+			}
+
 			for (PathMatcher excludeMatcher : excludeMatchers) {
 				if (excludeMatcher.matches(directory)) {
 					return FileVisitResult.SKIP_SUBTREE;
@@ -174,6 +227,11 @@ public abstract class Scanner {
 
 		@Override
 		public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+			if (Thread.currentThread().isInterrupted()) {
+				logger.warning("Interrupted. Terminating scanner.");
+				return FileVisitResult.TERMINATE;
+			}
+
 			boolean matched = true;
 			visited++;
 
@@ -198,7 +256,15 @@ public abstract class Scanner {
 				}
 			}
 
-			handle(file);
+			try {
+				handle(file);
+			} catch (InterruptedException e) {
+				logger.warning("Interrupted. Terminating scanner.");
+				return FileVisitResult.TERMINATE;
+			} catch (Exception e) {
+				logger.log(Level.SEVERE, "Exception while handling file.", e);
+			}
+
 			return FileVisitResult.CONTINUE;
 		}
 

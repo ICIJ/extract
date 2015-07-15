@@ -140,16 +140,44 @@ public class SpewCli extends Cli {
 			consumer.setReporter(reporter);
 		}
 
+		// Allow parallel and consuming and scanning, even when the queue is Redis.
+		final Scanner scanner = new QueueingScanner(logger, queue);
+		final String[] directories = cmd.getArgs();
+
+		if (directories.length == 0 && QueueType.NONE == queueType) {
+			throw new IllegalArgumentException("When not using a queue, you must pass the directory " +
+				"paths to scan on the command line.");
+		}
+
+		ScannerOptionSet.configureScanner(cmd, scanner);
+		for (String directory : directories) {
+			scanner.scan(Paths.get(directory));
+		}
+
 		final Thread shutdownHook = new Thread() {
+
+			@Override
 			public void run() {
-				logger.warning("Shutdown hook triggered. Please wait for the process to finish cleanly.");
+				logger.warning("Shutdown hook triggered. Please wait for a clean exit.");
+
+				// The scanner may be stopped forcibly but the the consumer
+				// should be allowed to exit cleanly.
+				scanner.shutdownNow();
+				consumer.stop();
+				consumer.shutdown();
 
 				try {
-					consumer.stop();
 					consumer.awaitTermination();
-					consumer.shutdown();
 				} catch (InterruptedException e) {
-					logger.log(Level.WARNING, "Consumer shutdown interrupted while waiting for active threads to finish.", e);
+					Thread.currentThread().interrupt();
+					logger.warning("Exiting forcefully.");
+					return;
+				}
+
+				try {
+					spewer.finish();
+				} catch (IOException e) {
+					logger.log(Level.SEVERE, "Spewer failed to finish.", e);
 				}
 
 				logger.info("Shutdown complete.");
@@ -157,31 +185,25 @@ public class SpewCli extends Cli {
 		};
 
 		Runtime.getRuntime().addShutdownHook(shutdownHook);
-
-		if (QueueType.NONE == queueType) {
-			final List<String> directories = cmd.getArgList();
-			final Scanner scanner = new QueueingScanner(logger, queue);
-
-			if (directories.size() == 0) {
-				throw new IllegalArgumentException("When not using a queue, you must pass the directory paths to scan on the command line.");
-			}
-
-			ScannerOptionSet.configureScanner(cmd, scanner);
-			for (String directory : directories) {
-				scanner.scan(Paths.get(directory));
-			}
-		}
-
-		// Blocks until the queue has drained.
-		consumer.start();
-
 		try {
 
-			// Blocks until all the consumer threads have finished, after the queue has drained.
+			// Blocks until the queue has drained by the consumer.
+			// Start the consumer before the scanner finishes, so that both run in parallel.
+			consumer.start();
+
+			// Block until every single path has been scanned and queued.
+			scanner.awaitTermination();
+			scanner.shutdown();
+
+			// Block until every path in the queue has been consumed.
 			consumer.awaitTermination();
+			consumer.shutdown();
 		} catch (InterruptedException e) {
-			logger.warning("Interrupted while waiting for extraction to terminate.");
+
+			// Exit early and let the shutdown hook make a clean exit.
+			logger.warning("Interrupted.");
 			Thread.currentThread().interrupt();
+			return cmd;
 		}
 
 		try {
@@ -195,7 +217,6 @@ public class SpewCli extends Cli {
 		}
 
 		Runtime.getRuntime().removeShutdownHook(shutdownHook);
-
 		return cmd;
 	}
 

@@ -60,11 +60,12 @@ public class QueueCli extends Cli {
 
 			// Block until the scanning of each directory has completed in serial.
 			scanner.awaitTermination();
-		} catch (CancellationException | InterruptedException e) {
-			throw new RuntimeException("Directory scanning was cancelled or interruped.", e);
-		} catch (ExecutionException e) {
-			throw new RuntimeException("An error occurred while scanning.", e);
+		} catch (InterruptedException e) {
+			logger.warning("Interrupted.");
+			Thread.currentThread().interrupt();
 		}
+
+		scanner.shutdown();
 
 		logger.info("Shutting down Redis client.");
 		redisson.shutdown();

@@ -69,18 +69,13 @@ public class QueueingScanner extends Scanner {
 	}
 
 	@Override
-	protected void handle(final Path file) {
+	protected void handle(final Path file) throws InterruptedException {
 		if (null != slow && queue.size() > threshold &&
 			draining.compareAndSet(false, true)) {
 			executor.submit(new DrainingTask());
 		}
 
-		try {
-			queue.put(file.toString());
-		} catch (InterruptedException e) {
-			logger.warning("Scanner interrupted while waiting for a free queue slot.");
-			Thread.currentThread().interrupt();
-		}
+		queue.put(file.toString());
 	}
 
 	/**

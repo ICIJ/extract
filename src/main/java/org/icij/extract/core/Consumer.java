@@ -85,26 +85,31 @@ public class Consumer {
 	 * This behaviour allows polling consumers to poll in a loop.
 	 *
 	 * @param file file path
+	 * @throws InterruptedException if interrupted while waiting for a slot
 	 */
-	public void consume(final String file) {
+	public void consume(final String file) throws InterruptedException {
 		consume(Paths.get(file));
 	}
 
 	/**
 	 * Consume a file. If the thread pool is full, blocks until a slot is available.
-	 * This behaviour allows polling consumers to poll in a loop.
+	 * This behaviour allows polling consumers to poll in a loop without flooding
+	 * the queue.
 	 *
 	 * @param file file path
+	 * @throws InterruptedException if interrupted while waiting for a slot
 	 */
-	public void consume(final Path file) {
+	public void consume(final Path file) throws InterruptedException {
 		logger.info(String.format("Sending to thread pool; will queue if full: %s.", file));
 
-		slots.acquireUninterruptibly();
-		executor.submit(new ConsumerTask(file));
+		slots.acquire();
+		executor.execute(new ConsumerTask(file));
 	}
 
 	/**
 	 * Blocks until all the consumer tasks have finished and the thread pool is empty.
+	 *
+	 * @throws InterruptedException if interrupted while waiting
 	 */
 	public void awaitTermination() throws InterruptedException {
 		logger.info("Consumer waiting for all threads to finish.");
@@ -115,21 +120,85 @@ public class Consumer {
 	}
 
 	/**
-	 * Shuts down the consumer and causes to longer accept new tasks.
-	 * This method will forcibly shut down the consumer without waiting for pending tasks to finish.
-	 * Call {@link #awaitTermination} first for a clean shut down.
+	 * Shut down the executor.
+	 *
+	 * This method should be called to free up resources when the consumer
+	 * is no longer needed.
 	 */
-	public void shutdown() throws InterruptedException {
-		logger.info("Shutting down executor.");
-
+	public void shutdown() {
+		logger.info("Shutting down consumer executor.");
 		executor.shutdown();
+	}
 
-		if (!executor.awaitTermination(1, TimeUnit.MINUTES)) {
-			logger.warning("Executor did not shut down in a timely manner.");
-			executor.shutdownNow();
-		} else {
-			logger.info("Executor shut down successfully.");
+	/**
+	 * Shut down the executor immediately.
+	 *
+	 * This method should be called to interrupt the consumer.
+	 */
+	public void shutdownNow() {
+		logger.info("Forcibly shutting down scanner executor.");
+		executor.shutdownNow();
+	}
+
+	protected int extract(final Path file) {
+		logger.info("Beginning extraction: " + file + ".");
+
+		final Metadata metadata = new Metadata();
+
+		Reader reader = null;
+		int status = Reporter.SUCCEEDED;
+
+		try {
+			reader = extractor.extract(file, metadata);
+			logger.info("Outputting: " + file + ".");
+			spewer.write(file, metadata, reader, outputEncoding);
+
+		// SpewerException is thrown exclusively due to an output endpoint error.
+		// It means that extraction succeeded, but the result could not be saved.
+		} catch (SpewerException e) {
+			logger.log(Level.SEVERE, "The extraction result could not be outputted: " + file + ".", e);
+			status = Reporter.NOT_SAVED;
+		} catch (FileNotFoundException e) {
+			logger.log(Level.SEVERE, "File not found: " + file + ". Skipping.", e);
+			status = Reporter.NOT_FOUND;
+		} catch (IOException e) {
+
+			// ParsingReader#read catches exceptions and wraps them in an IOException.
+			final Throwable c = e.getCause();
+
+			if (c instanceof ExcludedMediaTypeException) {
+				logger.log(Level.INFO, "The document was not parsed because all of the parsers that handle it were excluded: " + file + ". Skipping.", e);
+				status = Reporter.NOT_PARSED;
+			} else if (c instanceof EncryptedDocumentException) {
+				logger.log(Level.SEVERE, "Skipping encrypted file: " + file + ". Skipping.", e);
+				status = Reporter.NOT_DECRYPTED;
+
+			// TIKA-198: IOExceptions thrown by parsers will be wrapped in a TikaException.
+			// This helps us differentiate input stream exceptions from output stream exceptions.
+			// https://issues.apache.org/jira/browse/TIKA-198
+			} else if (c instanceof TikaException) {
+				logger.log(Level.SEVERE, "The document could not be parsed: " + file + ". Skipping.", e);
+				status = Reporter.NOT_PARSED;
+			} else {
+				logger.log(Level.SEVERE, "The document stream could not be read: " + file + ". Skipping.", e);
+				status = Reporter.NOT_READ;
+			}
+		} catch (Throwable e) {
+			logger.log(Level.SEVERE, "Unknown exception during extraction or output: " + file + ". Skipping.", e);
+			status = Reporter.NOT_CLEAR;
 		}
+
+		try {
+			reader.close();
+		} catch (IOException e) {
+			logger.log(Level.SEVERE, "Error while closing extraction reader: " + file + ".", e);
+		}
+
+		if (Reporter.SUCCEEDED == status) {
+			logger.info("Finished outputting file: " + file + ".");
+		}
+
+		return status;
 	}
 
 	protected class ConsumerTask implements Runnable {
@@ -155,67 +224,6 @@ public class Consumer {
 			}
 
 			slots.release();
-		}
-
-		protected int extract(final Path file) {
-			logger.info("Beginning extraction: " + file + ".");
-
-			final Metadata metadata = new Metadata();
-
-			Reader reader = null;
-			int status = Reporter.SUCCEEDED;
-
-			try {
-				reader = extractor.extract(file, metadata);
-				logger.info("Outputting: " + file + ".");
-				spewer.write(file, metadata, reader, outputEncoding);
-
-			// SpewerException is thrown exclusively due to an output endpoint error.
-			// It means that extraction succeeded, but the result could not be saved.
-			} catch (SpewerException e) {
-				logger.log(Level.SEVERE, "The extraction result could not be outputted: " + file + ".", e);
-				status = Reporter.NOT_SAVED;
-			} catch (FileNotFoundException e) {
-				logger.log(Level.SEVERE, "File not found: " + file + ". Skipping.", e);
-				status = Reporter.NOT_FOUND;
-			} catch (IOException e) {
-
-				// ParsingReader#read catches exceptions and wraps them in an IOException.
-				final Throwable c = e.getCause();
-
-				if (c instanceof ExcludedMediaTypeException) {
-					logger.log(Level.INFO, "The document was not parsed because all of the parsers that handle it were excluded: " + file + ". Skipping.", e);
-					status = Reporter.NOT_PARSED;
-				} else if (c instanceof EncryptedDocumentException) {
-					logger.log(Level.SEVERE, "Skipping encrypted file: " + file + ". Skipping.", e);
-					status = Reporter.NOT_DECRYPTED;
-
-				// TIKA-198: IOExceptions thrown by parsers will be wrapped in a TikaException.
-				// This helps us differentiate input stream exceptions from output stream exceptions.
-				// https://issues.apache.org/jira/browse/TIKA-198
-				} else if (c instanceof TikaException) {
-					logger.log(Level.SEVERE, "The document could not be parsed: " + file + ". Skipping.", e);
-					status = Reporter.NOT_PARSED;
-				} else {
-					logger.log(Level.SEVERE, "The document stream could not be read: " + file + ". Skipping.", e);
-					status = Reporter.NOT_READ;
-				}
-			} catch (Throwable e) {
-				logger.log(Level.SEVERE, "Unknown exception during extraction or output: " + file + ". Skipping.", e);
-				status = Reporter.NOT_CLEAR;
-			}
-
-			try {
-				reader.close();
-			} catch (IOException e) {
-				logger.log(Level.SEVERE, "Error while closing extraction reader: " + file + ".", e);
-			}
-
-			if (Reporter.SUCCEEDED == status) {
-				logger.info("Finished outputting file: " + file + ".");
-			}
-
-			return status;
 		}
 	}
 }
