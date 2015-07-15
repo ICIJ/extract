@@ -77,11 +77,22 @@ public abstract class Cli {
 	protected abstract void printHelp();
 
 	protected void printHelp(Command command, String description) {
+		printHelp(command, description, null);
+	}
+
+	protected void printHelp(Command command, String description, String arguments) {
 		final HelpFormatter formatter = new HelpFormatter();
 
-		final String footer = "\nExtract is a cross-platform tool for distributed content-analysis.\nPlease report issues at: https://github.com/ICIJ/extract/issues.";
-		final String header = "\n" + description + "\n\n";
+		final String footer = "\nPlease report issues at: https://github.com/ICIJ/extract/issues.";
+		final String header = "\n" + description + "\n\n" +
+			"Part of Extract, a cross-platform tool for distributed content-analysis.\n\n" +
+			"\033[1mOptions\033[0m\n\n";
 
-		formatter.printHelp("\033[1mextract\033[0m " + command, header, options, footer, true);
+		String syntax = "\033[1mextract\033[0m " + command + " [options]";
+		if (null != arguments) {
+			syntax += " " + arguments;
+		}
+
+		formatter.printHelp(syntax, header, options, footer, false);
 	}
 }

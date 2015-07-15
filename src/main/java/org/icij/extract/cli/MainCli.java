@@ -91,9 +91,15 @@ public class MainCli extends Cli {
 			commands[i++] = command.toString();
 		}
 
-		final String header = "\nA cross-platform tool for distributed content-analysis by the data team at the International Consortium of Investigative Journalists.\n\nAvailable commands:\n\n " + String.join("\n ", commands) + "\n\n";
+		final String header = "\nA cross-platform tool for distributed content-analysis " +
+			"by the data team at the International Consortium of Investigative Journalists.\n\n" +
+			"\033[1mCommands\033[0m\n\n " + String.join("\n ", commands) + "\n\n" +
+			"\033[1mOptions\033[0m\n\n";
 		final String footer = "\nPlease report issues at: https://github.com/ICIJ/extract/issues.";
 
-		formatter.printHelp("\033[1mextract\033[0m [command]", header, options, footer, true);
+		formatter.printHelp("\033[1mextract\033[0m [command] [options]\n" +
+			formatter.getSyntaxPrefix() + "\033[1mextract\033[0m -h [command]\n" +
+			formatter.getSyntaxPrefix() + "\033[1mextract\033[0m --version",
+			header, options, footer, false);
 	}
 }

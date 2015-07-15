@@ -75,6 +75,7 @@ public class QueueCli extends Cli {
 	}
 
 	public void printHelp() {
-		super.printHelp(Command.QUEUE, "Queue files for processing later.");
+		super.printHelp(Command.QUEUE, "Queue files for processing later.",
+			"paths...");
 	}
 }

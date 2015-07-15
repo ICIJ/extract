@@ -89,6 +89,10 @@ public class SolrDeleteCli extends Cli {
 	}
 
 	public void printHelp() {
-		super.printHelp(Command.SOLR_DELETE, "Delete documents from Solr.");
+		super.printHelp(Command.SOLR_DELETE, "Delete documents from Solr.\n\n" +
+			"Simple arguments are assumed to be IDs. " +
+			"Everything else is assumed to be a query, for example \"path:data/*\" " +
+			"to delete all documents containing a \"path\" field value starting with \"data/\".",
+			"patterns...");
 	}
 }

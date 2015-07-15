@@ -69,6 +69,8 @@ public class LoadQueueCli extends Cli {
 	}
 
 	public void printHelp() {
-		super.printHelp(Command.DUMP_QUEUE, "Dump the queue for debugging. The name option is respected.");
+		super.printHelp(Command.DUMP_QUEUE,
+			"Dump the queue for debugging. The name option is respected.",
+			"source");
 	}
 }
