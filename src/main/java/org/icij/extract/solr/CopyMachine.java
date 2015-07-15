@@ -223,22 +223,27 @@ public class CopyMachine {
 				to = from;
 			}
 
-			atomic.put("set", input.getFieldValue(from));
-			output.setField(to, atomic);
+			// The ID field can't be set atomically.
+			if (to.equals(idField)) {
+				output.setField(to, input.getFieldValue(idField));
+			} else {
+				atomic.put("set", input.getFieldValue(from));
+				output.setField(to, atomic);
+			}
 		}
 
 		private void copy(final SolrDocument input) throws SolrServerException, IOException {
 			final SolrInputDocument output = new SolrInputDocument(); 
 
 			// Copy the source fields to the target fields.
-			for (String from : map.keySet()) {
-				copyField(from, input, output);
+			// Copy all the fields from the returned document. This ensures that
+			// wildcard matches work.
+			for (String field : input.keySet()) {
+				copyField(field, input, output);
 			}
 
-			final String id = (String) input.getFieldValue(idField);
-
-			logger.info(String.format("Adding document with ID %s.", id));
-			output.setField(idField, id);
+			logger.info(String.format("Adding document with ID %s.",
+				input.getFieldValue(idField)));
 			client.add(output);
 		}
 	}
