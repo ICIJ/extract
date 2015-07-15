@@ -1,8 +1,10 @@
-package org.icij.extract.core;
+package org.icij.extract.test;
 
 import java.util.Properties;
 
 import java.io.File;
+
+import java.net.URL;
 
 import org.apache.commons.io.FileUtils;
 
@@ -19,13 +21,12 @@ import org.junit.BeforeClass;
 import org.junit.AfterClass;
 import org.junit.rules.TemporaryFolder;
 
-public abstract class SolrJettyTestBase {
+public abstract class SolrJettyTestBase extends TestBase {
 
 	public static final int DEFAULT_CONNECTION_TIMEOUT = 60000;
 
 	public static JettySolrRunner jetty;
-	public static int port;
-	public static SolrClient client;
+	public static HttpSolrClient client;
 
 	@ClassRule
 	public static final TemporaryFolder tempSolrFolder = new TemporaryFolder();
@@ -40,6 +41,7 @@ public abstract class SolrJettyTestBase {
 
 		final JettyConfig jettyConfig = JettyConfig.builder()
 			.setContext("/solr")
+			.setPort(8080)
 			.stopAtShutdown(true)
 			.build();
 
@@ -54,7 +56,7 @@ public abstract class SolrJettyTestBase {
 		jetty = new JettySolrRunner(tempSolrHome.toString(), nodeProperties, jettyConfig);
 		jetty.start();
 
-		port = jetty.getLocalPort();
+		client = createNewSolrClient();
 	}
 
 	@AfterClass
@@ -70,18 +72,17 @@ public abstract class SolrJettyTestBase {
 		}
 	}
 
-	public SolrClient getSolrClient() {
-		if (null == client) {
-			client = createNewSolrClient();
-		}
-
-		return client;
-	}
-
-	public SolrClient createNewSolrClient() {
+	protected static HttpSolrClient createNewSolrClient() {
 		try {
-			final String url = jetty.getBaseUrl().toString() + "/collection1";
-			final HttpSolrClient client = new HttpSolrClient(url);
+			URL url = jetty.getBaseUrl();
+
+			// For debugging in Charles:
+			// - set the proxy port to 8888
+			// - enable transparent proxying
+			// - enable Map Remote and map 127.0.0.1:8888 to 127.0.0.1:8080
+			url = new URL(url.getProtocol(), url.getHost(), url.getPort(), url.getFile() + "/collection1"); 
+
+			final HttpSolrClient client = new HttpSolrClient(url.toString());
 
 			client.setConnectionTimeout(DEFAULT_CONNECTION_TIMEOUT);
 			client.setDefaultMaxConnectionsPerHost(100);

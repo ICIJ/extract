@@ -1,6 +1,6 @@
 package org.icij.extract.core;
 
-import java.util.logging.Logger;
+import org.icij.extract.test.*;
 
 import java.io.File;
 import java.io.ByteArrayInputStream;
@@ -25,23 +25,19 @@ import org.apache.solr.client.solrj.SolrServerException;
 
 import org.junit.Test;
 import org.junit.Assert;
-import org.junit.Before;
+import org.junit.After;
 
 public class SolrSpewerTest extends SolrJettyTestBase {
 
-	private final Logger logger = Logger.getLogger("extract-test");
-
-	@Before
-	public void setUp() throws Exception {
-		final SolrClient client = getSolrClient();
-
+	@After
+	public void tearDown() throws Exception {
 		client.deleteByQuery("*:*");
-		client.commit(true, true, true);
+		client.commit(true, true);
+		client.optimize(true, true);
 	}
 
 	@Test
 	public void testWrite() throws IOException, TikaException, NoSuchAlgorithmException, SolrServerException {
-		final SolrClient client = getSolrClient();
 		final SolrSpewer spewer = new SolrSpewer(logger, client);
 
 		final Charset charset = StandardCharsets.UTF_8;
@@ -53,7 +49,7 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 
 		spewer.setIdAlgorithm("SHA-256");
 		spewer.write(path, new Metadata(), reader, charset);
-		client.commit(true, true, true);
+		client.commit(true, true);
 
 		SolrDocument response = client.getById("0");
 		Assert.assertNull(response);
@@ -66,7 +62,6 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 	@Test
 	public void testWriteMetadata()
 		throws IOException, TikaException, NoSuchAlgorithmException, SolrServerException, InterruptedException {
-		final SolrClient client = getSolrClient();
 		final SolrSpewer spewer = new SolrSpewer(logger, client);
 
 		final Charset charset = StandardCharsets.UTF_8;
@@ -84,7 +79,8 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		metadata.set("Content-Length", length);
 
 		spewer.write(path, metadata, reader, charset);
-		client.commit(true, true, true);
+		client.commit(true, true);
+		client.optimize(true, true);
 
 		final SolrDocument response = client.getById(pathHash);
 		Assert.assertEquals(length, response.getFieldValue("metadata_content_length"));

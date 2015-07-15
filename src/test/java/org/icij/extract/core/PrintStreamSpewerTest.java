@@ -1,6 +1,6 @@
 package org.icij.extract.core;
 
-import java.util.logging.Logger;
+import org.icij.extract.test.*;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,9 +17,7 @@ import org.apache.tika.exception.TikaException;
 import org.junit.Test;
 import org.junit.Assert;
 
-public class PrintStreamSpewerTest {
-
-	private final Logger logger = Logger.getLogger("extract-test");
+public class PrintStreamSpewerTest extends TestBase {
 
 	@Test
 	public void testWrite() throws IOException, TikaException {

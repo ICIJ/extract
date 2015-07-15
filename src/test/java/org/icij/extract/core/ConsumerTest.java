@@ -1,7 +1,6 @@
 package org.icij.extract.core;
 
-import java.util.logging.Logger;
-import java.util.logging.Level;
+import org.icij.extract.test.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -16,18 +15,10 @@ import org.redisson.Redisson;
 import com.lambdaworks.redis.RedisConnectionException;
 
 import org.junit.Test;
-import org.junit.BeforeClass;
 import org.junit.Assert;
 import org.junit.Assume;
 
-public class ConsumerTest {
-
-	public static final Logger logger = Logger.getLogger("extract:test");
-
-	@BeforeClass
-	public static void setUpBeforeClass() {
-		logger.setLevel(Level.INFO);
-	}
+public class ConsumerTest extends TestBase {
 
 	@Test
 	public void testConsume() throws Throwable {

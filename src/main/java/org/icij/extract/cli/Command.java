@@ -22,7 +22,8 @@ public enum Command {
 	SPEW(SpewCli.class),
 	SOLR_COMMIT(SolrCommitCli.class),
 	SOLR_ROLLBACK(SolrRollbackCli.class),
-	SOLR_DELETE(SolrDeleteCli.class);
+	SOLR_DELETE(SolrDeleteCli.class),
+	SOLR_COPY(SolrCopyCli.class);
 
 	private final Class<?> klass;
 

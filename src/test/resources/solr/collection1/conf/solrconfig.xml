@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <config>
-	<luceneMatchVersion>${tests.luceneMatchVersion:LATEST}</luceneMatchVersion>
-	<indexConfig>
-		<useCompoundFile>${useCompoundFile:false}</useCompoundFile>
-	</indexConfig>
+	<luceneMatchVersion>5.2.1</luceneMatchVersion>
+
 	<dataDir>${solr.data.dir:}</dataDir>
 	<directoryFactory name="DirectoryFactory" class="${solr.directoryFactory:solr.StandardDirectoryFactory}" />
 
@@ -13,21 +11,8 @@
 		</updateLog>
 	</updateHandler>
 
-	<requestDispatcher handleSelect="true">
-		<requestParsers enableRemoteStreaming="false" multipartUploadLimitInKB="2048" />
-	</requestDispatcher>
-
-	<requestHandler name="standard" class="solr.StandardRequestHandler" default="true" />
-
-	<requestHandler name="/admin/ping" class="solr.PingRequestHandler">
-		<lst name="invariants">
-			<str name="q">*:*</str>
-		</lst>
-		<lst name="defaults">
-			<str name="echoParams">all</str>
-		</lst>
-		<str name="healthcheckFile">server-enabled.txt</str>
-	</requestHandler>
+	<requestHandler name="/select" class="solr.StandardRequestHandler" default="true" />
+	<requestHandler name="/update" class="solr.UpdateRequestHandler" />
 
 	<!-- config for the admin interface -->
 	<admin>

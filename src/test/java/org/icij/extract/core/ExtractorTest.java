@@ -1,6 +1,6 @@
 package org.icij.extract.core;
 
-import java.util.logging.Logger;
+import org.icij.extract.test.*;
 
 import java.io.Reader;
 import java.io.InputStream;
@@ -23,9 +23,7 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.rules.ExpectedException;
 
-public class ExtractorTest {
-
-	private final Logger logger = Logger.getLogger("extract-test");
+public class ExtractorTest extends TestBase {
 
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();

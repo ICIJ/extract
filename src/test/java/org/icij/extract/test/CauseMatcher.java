@@ -1,4 +1,4 @@
-package org.icij.extract.core;
+package org.icij.extract.test;
 
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
