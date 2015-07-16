@@ -131,7 +131,7 @@ public abstract class Scanner {
 	 * @throws InterruptedException if the thread is interrupted while waiting.
 	 */
 	public void awaitTermination() throws InterruptedException {
-		while (!executor.awaitTermination(60, TimeUnit.MINUTES)) {
+		while (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
 			logger.info("Awaiting completion of scanner.");
 		}
 	}

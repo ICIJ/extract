@@ -7,6 +7,7 @@ import java.lang.Runnable;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.logging.LogManager;
 
 import org.apache.commons.cli.ParseException;
 
@@ -18,6 +19,32 @@ import org.apache.commons.cli.ParseException;
  * @since 1.0.0-beta
  */
 public class Main {
+
+	// This bodge allows the logger to continue logging during the shutdown hook.
+	// http://stackoverflow.com/a/13825590/821334
+	static {
+		System.setProperty("java.util.logging.manager", BodgeLogManager.class.getName());
+	}
+
+	public static class BodgeLogManager extends LogManager {
+		static BodgeLogManager instance;
+
+		public BodgeLogManager() {
+			instance = this;
+		}
+
+		@Override
+		public void reset() {}
+
+		private void reset0() {
+			super.reset();
+		}
+
+		public static void resetFinally() {
+			instance.reset0();
+		}
+	}
+
 	private static final Logger logger = Logger.getLogger("extract");
 
 	public static void main(String[] args) {

@@ -39,7 +39,7 @@ public enum Command {
 		try {
 			return (Cli) klass.getDeclaredConstructor(Logger.class).newInstance(logger);
 		} catch (Throwable e) {
-			throw new IllegalArgumentException("Unexpected exception while constructing CLI.", e);
+			throw new RuntimeException("Unexpected exception while constructing CLI.", e);
 		}
 	}
 

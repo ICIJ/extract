@@ -59,20 +59,19 @@ public class SpewCli extends Cli {
 				.hasArg()
 				.argName("type")
 				.build());
+	}
 
+	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
 		final OperatingSystemMXBean os = (com.sun.management.OperatingSystemMXBean)
 			ManagementFactory.getOperatingSystemMXBean();
 		final long maxMemory = Runtime.getRuntime().maxMemory();
 
-		if (maxMemory < (os.getTotalPhysicalMemorySize() / 2)) {
-			logger.warning(String.format("Memory available to JVM (%dm) is less than half of available system memory. " +
+		if (maxMemory < (os.getTotalPhysicalMemorySize() / 4)) {
+			logger.warning(String.format("Memory available to JVM (%dm) is less than 25%% of available system memory. " +
 				"You should probably increase it.", Math.round(maxMemory / 1024 / 1024)));
 		}
-	}
 
-	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cmd = super.parse(args);
-
 		int parallelism = Consumer.DEFAULT_PARALLELISM;
 
 		if (cmd.hasOption('p')) {
@@ -204,12 +203,12 @@ public class SpewCli extends Cli {
 			consumer.start();
 
 			// Block until every single path has been scanned and queued.
-			scanner.awaitTermination();
 			scanner.shutdown();
+			scanner.awaitTermination();
 
 			// Block until every path in the queue has been consumed.
-			consumer.awaitTermination();
 			consumer.shutdown();
+			consumer.awaitTermination();
 		} catch (InterruptedException e) {
 
 			// Exit early and let the shutdown hook make a clean exit.
