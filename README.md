@@ -37,6 +37,17 @@ This is the workflow we use at ICIJ for processing millions of files. The `-n` p
 
 In the last step, we instruct Extract to use the queue from Redis, to output extracted text to Solr (`-o solr`) at the given address, to automatically generate an ID for each path (`-i id`), and to report results to Redis (`-r redis`).
 
+## Increasing the amount of memory available ##
+
+Extract is set to pass whatever's in the `JAVA_OPTS` environment variable to the JVM. You can set this variable to increase the amount of memory available to it.
+
+```bash
+echo "export JAVA_OPTS=\"-Xms1024m -Xmx10240m\"" >> ~/.bashrc
+source ~/.bashrc
+```
+
+From then on, Extract will have up to 10GB of memory available to it.
+
 ## Compiling ##
 
 Requires [JDK 8](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html) and Maven:
