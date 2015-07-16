@@ -157,7 +157,7 @@
 					<manifest>
 						<entry>
 							<key>JVM-Args</key>
-							<value>-Xmx1024m</value>
+							<value>$JAVA_OPTS</value>
 						</entry>
 						<entry>
 							<key>Repositories</key>
