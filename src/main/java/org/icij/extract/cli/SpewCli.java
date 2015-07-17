@@ -3,6 +3,7 @@ package org.icij.extract.cli;
 import org.icij.extract.core.*;
 import org.icij.extract.cli.options.*;
 import org.icij.extract.http.PinnedHttpClientBuilder;
+import org.icij.extract.interval.TimeDuration;
 
 import java.util.List;
 import java.util.Map;
@@ -171,13 +172,13 @@ public class SpewCli extends Cli {
 			public void run() {
 				logger.warning("Shutdown hook triggered. Please wait for a clean exit.");
 
-				// The scanner may be stopped forcibly but the the consumer
-				// should be allowed to exit cleanly.
-				scanner.shutdownNow();
-				consumer.stop();
-				consumer.shutdown();
-
 				try {
+					scanner.stop();
+					scanner.shutdown();
+					scanner.awaitTermination();
+
+					consumer.stop();
+					consumer.shutdown();
 					consumer.awaitTermination();
 				} catch (InterruptedException e) {
 					Thread.currentThread().interrupt();
@@ -197,14 +198,22 @@ public class SpewCli extends Cli {
 
 		Runtime.getRuntime().addShutdownHook(shutdownHook);
 		try {
+			final TimeDuration pollTimeout = consumer.getPollTimeout();
 
 			// Blocks until the queue has drained by the consumer.
 			// Start the consumer before the scanner finishes, so that both run in parallel.
-			consumer.start();
+			// But keep polling until the scanner finishes, to mitigate scanner latency.
+			consumer.clearPollTimeout();
+			consumer.drain();
 
 			// Block until every single path has been scanned and queued.
 			scanner.shutdown();
 			scanner.awaitTermination();
+
+			// All files have been scanned and queue.
+			// Set the poll timeout back to its previous value so that the consumer
+			// doesn't wait forever.
+			consumer.setPollTimeout(pollTimeout);
 
 			// Block until every path in the queue has been consumed.
 			consumer.shutdown();

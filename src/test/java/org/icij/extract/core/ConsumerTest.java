@@ -34,6 +34,7 @@ public class ConsumerTest extends TestBase {
 		final Path file = Paths.get(getClass().getResource("/documents/text/plain.txt").toURI());
 
 		consumer.consume(file);
+		consumer.shutdown();
 		consumer.awaitTermination();
 
 		Assert.assertEquals("This is a test.\n\n", output.toString());
@@ -54,7 +55,8 @@ public class ConsumerTest extends TestBase {
 		final Path file = Paths.get(getClass().getResource("/documents/text/plain.txt").toURI());
 
 		queue.put(file.toString());
-		consumer.start();
+		consumer.drain();
+		consumer.shutdown();
 		consumer.awaitTermination();
 
 		Assert.assertEquals("This is a test.\n\n", output.toString());
@@ -78,7 +80,8 @@ public class ConsumerTest extends TestBase {
 			final Path file = Paths.get(getClass().getResource("/documents/text/plain.txt").toURI());
 
 			queue.put(file.toString());
-			consumer.start();
+			consumer.drain();
+			consumer.shutdown();
 			consumer.awaitTermination();
 
 			redisson.shutdown();
@@ -106,7 +109,8 @@ public class ConsumerTest extends TestBase {
 		scanner.scan(Paths.get(getClass().getResource("/documents/text/plain.txt").toURI()));
 		scanner.scan(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").toURI()));
 
-		consumer.start();
+		consumer.drain();
+		consumer.shutdown();
 		consumer.awaitTermination();
 
 		Assert.assertEquals("This is a test.\n\nHEAVY\nMETAL\n\n\n", output.toString());
@@ -127,7 +131,8 @@ public class ConsumerTest extends TestBase {
 
 		scanner.scan(Paths.get(getClass().getResource("/documents/text/").toURI()));
 
-		consumer.start();
+		consumer.drain();
+		consumer.shutdown();
 		consumer.awaitTermination();
 
 		Assert.assertEquals("This is a test.\n\nThis is a test.\n\n", output.toString());

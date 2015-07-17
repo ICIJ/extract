@@ -16,6 +16,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import java.nio.file.Path;
 import java.nio.file.Files;
@@ -39,6 +41,9 @@ import java.nio.file.attribute.BasicFileAttributes;
  * parallelized producer-consumer setups, where files are processed as
  * they're scanned.
  *
+ * Scanning aims to be robust. All exceptions thrown by the handler, except
+ * {@link InterruptedException}, are swallowed.
+ *
  * @since 1.0.0-beta
  */
 public abstract class Scanner {
@@ -47,6 +52,8 @@ public abstract class Scanner {
 
 	protected ArrayDeque<String> includeGlobs = new ArrayDeque<String>();
 	protected ArrayDeque<String> excludeGlobs = new ArrayDeque<String>();
+
+	private final AtomicBoolean stopped = new AtomicBoolean();
 
 	private int maxDepth = Integer.MAX_VALUE;
 	private boolean followLinks = false;
@@ -92,14 +99,12 @@ public abstract class Scanner {
 	/**
 	 * Queue a scanning job.
 	 *
-	 * Jobs are put in an unbounded and executed in serial, in a separate thread.
+	 * Jobs are put in an unbounded queue and executed in serial, in a separate thread.
 	 * This method doesn't block. Call {@link #awaitTermination} to block.
-	 *
-	 * @return A {@code Future<Path>} for the scanning job.
 	 */
-	public Future<Path> scan(final Path path) {
+	public void scan(final Path path) {
 		logger.info("Queuing scan of \"" + path + "\".");
-		return executor.submit(new ScannerTask(path));
+		executor.execute(new FutureTask<Path>(new ScannerTask(path)));
 	}
 
 	/**
@@ -114,16 +119,6 @@ public abstract class Scanner {
 	}
 
 	/**
-	 * Shut down the executor immediately.
-	 *
-	 * This method should be called to interrupt scanning.
-	 */
-	public void shutdownNow() {
-		logger.info("Forcibly shutting down scanner executor.");
-		executor.shutdownNow();
-	}
-
-	/**
 	 * Await termination of all running and waiting jobs.
 	 *
 	 * This method blocks until all paths have been scanned.
@@ -131,9 +126,21 @@ public abstract class Scanner {
 	 * @throws InterruptedException if the thread is interrupted while waiting.
 	 */
 	public void awaitTermination() throws InterruptedException {
+		logger.info("Awaiting completion of scanner.");
 		while (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
 			logger.info("Awaiting completion of scanner.");
 		}
+
+		logger.info("Scanner finished.");
+	}
+
+	/**
+	 * Stop scanning.
+	 *
+	 * @return Whether the scanner was stopped or already stopped.
+	 */
+	public boolean stop() {
+		return stopped.compareAndSet(false, true);
 	}
 
 	protected abstract void handle(final Path file) throws Exception;
@@ -180,6 +187,10 @@ public abstract class Scanner {
 
 		@Override
 		public Path call() throws Exception {
+			if (stopped.get()) {
+				return path;
+			}
+
 			try {
 				if (Files.isRegularFile(path)) {
 					handle(path);
@@ -190,11 +201,6 @@ public abstract class Scanner {
 				logger.log(Level.SEVERE, String.format("Error while scanning directory: %s.",
 					path), e);
 				throw e;
-
-			// Only this thread was interrupted.
-			// No need to stop the whole scanner.
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
 			}
 
 			return path;
@@ -210,8 +216,8 @@ public abstract class Scanner {
 
 		@Override
 		public FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attrs) throws IOException {
-			if (Thread.currentThread().isInterrupted()) {
-				logger.warning("Interrupted. Terminating scanner.");
+			if (stopped.get() || Thread.currentThread().isInterrupted()) {
+				logger.warning("Scanner stopped. Terminating job.");
 				return FileVisitResult.TERMINATE;
 			}
 
@@ -227,8 +233,8 @@ public abstract class Scanner {
 
 		@Override
 		public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-			if (Thread.currentThread().isInterrupted()) {
-				logger.warning("Interrupted. Terminating scanner.");
+			if (stopped.get() || Thread.currentThread().isInterrupted()) {
+				logger.warning("Scanner stopped. Terminating job.");
 				return FileVisitResult.TERMINATE;
 			}
 
@@ -256,9 +262,14 @@ public abstract class Scanner {
 				}
 			}
 
+			// Handle errors robustly.
+			// This means that exceptions thrown by the handler are logged and
+			// swallowed. Except InterruptedExceptions, which are an instruction
+			// to kill the thread.
 			try {
 				handle(file);
 			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
 				logger.warning("Interrupted. Terminating scanner.");
 				return FileVisitResult.TERMINATE;
 			} catch (Exception e) {
