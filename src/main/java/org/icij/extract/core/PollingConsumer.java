@@ -119,24 +119,18 @@ public class PollingConsumer extends Consumer {
 	 * @throws InterruptedException if interrupted while polling
 	 */
 	protected String poll() throws InterruptedException {
-		logger.info(String.format("Polling the queue, waiting up to %s.", pollTimeout));
-
-		String file = null;
-
-		try {
-			if (null != pollTimeout) {
-				file = queue.poll(pollTimeout.getDuration(), pollTimeout.getUnit());
-			} else {
-				file = queue.take();
-			}
-
-		// This is a temporary bodge for:
-		// https://github.com/mrniko/redisson/issues/181
-		} catch (NullPointerException e) {
-			return null;
+		if (null == pollTimeout) {
+			logger.info("Polling the queue, waiting indefinitely.");
+			return queue.take();
 		}
 
-		return file;
+		if (0 == pollTimeout.getDuration()) {
+			logger.info("Polling the queue without waiting.");
+			return queue.poll();
+		}
+
+		logger.info(String.format("Polling the queue, waiting up to %s.", pollTimeout));
+		return queue.poll(pollTimeout.getDuration(), pollTimeout.getUnit());
 	}
 
 	/**
