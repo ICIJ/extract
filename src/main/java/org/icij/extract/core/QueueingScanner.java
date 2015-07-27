@@ -58,6 +58,7 @@ public class QueueingScanner extends Scanner {
 	 *
 	 * @param logger logger
 	 * @param queue results from the scanner will be put on this queue
+	 * @param buffer buffer size
 	 */
 	public QueueingScanner(final Logger logger, final BlockingQueue<String> queue,
 		final int buffer) {
@@ -70,12 +71,11 @@ public class QueueingScanner extends Scanner {
 
 	@Override
 	protected void handle(final Path file) throws InterruptedException {
+		queue.put(file.toString());
 		if (null != slow && queue.size() > threshold &&
 			draining.compareAndSet(false, true)) {
 			executor.submit(new DrainingTask());
 		}
-
-		queue.put(file.toString());
 	}
 
 	/**

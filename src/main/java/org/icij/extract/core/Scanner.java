@@ -16,7 +16,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import java.nio.file.Path;
@@ -101,10 +100,12 @@ public abstract class Scanner {
 	 *
 	 * Jobs are put in an unbounded queue and executed in serial, in a separate thread.
 	 * This method doesn't block. Call {@link #awaitTermination} to block.
+	 *
+	 * @return A {@link Future} that can be used to wait on the result or cancel.
 	 */
-	public void scan(final Path path) {
+	public Future<Path> scan(final Path path) {
 		logger.info("Queuing scan of \"" + path + "\".");
-		executor.execute(new FutureTask<Path>(new ScannerTask(path)));
+		return executor.submit(new ScannerTask(path));
 	}
 
 	/**

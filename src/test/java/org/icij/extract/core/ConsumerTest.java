@@ -104,10 +104,14 @@ public class ConsumerTest extends TestBase {
 		final int threads = 2;
 		final BlockingQueue<String> queue = new ArrayBlockingQueue<String>(threads * 2);
 		final PollingConsumer consumer = new PollingConsumer(logger, queue, spewer, extractor, threads);
-		final Scanner scanner = new QueueingScanner(logger, queue);
+		final QueueingScanner scanner = new QueueingScanner(logger, queue);
 
 		scanner.scan(Paths.get(getClass().getResource("/documents/text/plain.txt").toURI()));
 		scanner.scan(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").toURI()));
+
+		// Block until every single path has been scanned and queued.
+		scanner.shutdown();
+		scanner.awaitTermination();
 
 		consumer.drain();
 		consumer.shutdown();
@@ -127,9 +131,13 @@ public class ConsumerTest extends TestBase {
 		final int threads = 2;
 		final BlockingQueue<String> queue = new ArrayBlockingQueue<String>(threads * 2);
 		final PollingConsumer consumer = new PollingConsumer(logger, queue, spewer, extractor, threads);
-		final Scanner scanner = new QueueingScanner(logger, queue);
+		final QueueingScanner scanner = new QueueingScanner(logger, queue);
 
 		scanner.scan(Paths.get(getClass().getResource("/documents/text/").toURI()));
+
+		// Block until every single path has been scanned and queued.
+		scanner.shutdown();
+		scanner.awaitTermination();
 
 		consumer.drain();
 		consumer.shutdown();

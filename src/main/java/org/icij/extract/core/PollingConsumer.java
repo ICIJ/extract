@@ -4,7 +4,11 @@ import org.icij.extract.interval.TimeDuration;
 
 import java.util.logging.Logger;
 
+import java.util.concurrent.Future;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -17,10 +21,11 @@ import java.nio.file.Path;
  * @since 1.0.0-beta
  */
 public class PollingConsumer extends Consumer {
-	public static final TimeDuration DEFAULT_TIMEOUT = new TimeDuration(5L, TimeUnit.SECONDS);
+	public static final TimeDuration DEFAULT_TIMEOUT = new TimeDuration(0, TimeUnit.SECONDS);
 
 	private final BlockingQueue<String> queue;
 	private final AtomicBoolean stopped = new AtomicBoolean();
+	private final ExecutorService drainer = Executors.newCachedThreadPool();
 
 	private TimeDuration pollTimeout = DEFAULT_TIMEOUT;
 
@@ -51,8 +56,19 @@ public class PollingConsumer extends Consumer {
 	}
 
 	/**
+	 * Set the poll timeout in seconds.
+	 *
+	 * Setting to {@code 0} disables waiting.
+	 */
+	public void setPollTimeout(final long seconds) {
+		setPollTimeout(new TimeDuration(seconds, TimeUnit.SECONDS));
+	}
+
+	/**
 	 * Causes the consumer to wait until a new file is availabe,
 	 * without any timeout.
+	 *
+	 * To not wait at all, call {@link setPollTimeout(long seconds)}.
 	 */
 	public void clearPollTimeout() {
 		pollTimeout = null;
@@ -73,41 +89,47 @@ public class PollingConsumer extends Consumer {
 	 * It's up to the user to stop the consumer if the thread is
 	 * interrupted.
 	 *
+	 * @return Whether draining completed successfully or was stopped.
 	 * @throws InterruptedException if interrupted while draining
 	 */
-	public void drain() throws InterruptedException {
+	public boolean drain() throws InterruptedException {
 		logger.info("Draining consumer.");
 
 		String file;
-		while (null != (file = poll())) {
-			if (!stopped.get()) {
-				consume(file);
+		boolean stopped = this.stopped.get();
+		while (!stopped && null != (file = poll())) {
 
-			// If the consumer was stopped, add the file back to
-			// the queue and break.
-			} else {
+			// If the consumer was stopped, put the file back
+			// in queue and break.
+			stopped = this.stopped.get();
+			if (stopped) {
 				queue.add(file);
 				break;
+			} else {
+				consume(file);
 			}
 		}
 
-		drained();
+		if (stopped) {
+			logger.info("Draining stopped.");
+			return false;
+		} else {
+			logger.info("Queue drained.");
+			return true;
+		}
+	}
+
+	public Future<Integer> drainForever() {
+		return drainer.submit(new DrainingTask());
 	}
 
 	/**
-	 * Stop consuming.
+	 * Stop draining.
 	 *
-	 * @return Whether the consumer was stopped or already stopped.
+	 * @return Whether draining was stopped or already stopped.
 	 */
 	public boolean stop() {
 		return stopped.compareAndSet(false, true);
-	}
-
-	/**
-	 * Observer method that's called when the queue is drained.
-	 */
-	protected void drained() {
-		logger.info("Queue drained.");
 	}
 
 	/**
@@ -122,15 +144,13 @@ public class PollingConsumer extends Consumer {
 		if (null == pollTimeout) {
 			logger.info("Polling the queue, waiting indefinitely.");
 			return queue.take();
-		}
-
-		if (0 == pollTimeout.getDuration()) {
+		} else if (0 == pollTimeout.getDuration()) {
 			logger.info("Polling the queue without waiting.");
 			return queue.poll();
+		} else {
+			logger.info(String.format("Polling the queue, waiting up to %s.", pollTimeout));
+			return queue.poll(pollTimeout.getDuration(), pollTimeout.getUnit());
 		}
-
-		logger.info(String.format("Polling the queue, waiting up to %s.", pollTimeout));
-		return queue.poll(pollTimeout.getDuration(), pollTimeout.getUnit());
 	}
 
 	/**
@@ -157,5 +177,30 @@ public class PollingConsumer extends Consumer {
 		}
 
 		return status;
+	}
+
+	private class DrainingTask implements Callable<Integer> {
+
+		public Integer call() throws Exception {
+			logger.info("Draining consumer until stopped.");
+
+			int consumed = 0;
+			while (!stopped.get()) {
+				String file = queue.poll();
+
+				// If the consumer was stopped, put the file back
+				// in queue and break.
+				if (stopped.get()) {
+					queue.add(file);
+					break;
+				} else {
+					consume(file);
+					consumed++;
+				}
+			}
+
+			logger.info("Draining stopped.");
+			return new Integer(consumed);
+		}
 	}
 }

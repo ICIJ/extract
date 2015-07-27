@@ -19,8 +19,6 @@ import java.util.concurrent.Callable;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 
 import java.io.Reader;
 import java.io.IOException;
@@ -52,29 +50,34 @@ public class Consumer {
 
 	protected final ExecutorService executor;
 	protected final BlockingQueue<Path> pending;
-	protected int parallelism;
+	protected final int parallelism;
 
 	protected Reporter reporter = null;
-	protected Charset outputEncoding = StandardCharsets.UTF_8;
 
+	/**
+	 * Create a new consumer with the given parallelism. Calls to {@link #consume}
+	 * will block when the given parallelism is reached.
+	 *
+	 * @param logger logger
+	 * @param spewer spewer
+	 * @param extractor extractor
+	 * @param parallelism parallelism
+	 */
 	public Consumer(final Logger logger, final Spewer spewer,
 		final Extractor extractor, final int parallelism) {
 		this.logger = logger;
 		this.spewer = spewer;
 		this.extractor = extractor;
 		this.parallelism = parallelism;
-		this.executor = Executors.newWorkStealingPool(parallelism);
+		this.executor = Executors.newFixedThreadPool(parallelism);
 		this.pending = new ArrayBlockingQueue<Path>(parallelism);
 	}
 
-	public void setOutputEncoding(final Charset outputEncoding) {
-		this.outputEncoding = outputEncoding;
-	}
-
-	public void setOutputEncoding(final String outputEncoding) {
-		setOutputEncoding(Charset.forName(outputEncoding));
-	}
-
+	/**
+	 * Set the reporter.
+	 *
+	 * @param reporter reporter
+	 */
 	public void setReporter(final Reporter reporter) {
 		this.reporter = reporter;
 	}
@@ -146,7 +149,7 @@ public class Consumer {
 		try {
 			reader = extractor.extract(file, metadata);
 			logger.info(String.format("Outputting: %s.", file));
-			spewer.write(file, metadata, reader, outputEncoding);
+			spewer.write(file, metadata, reader);
 
 		// SpewerException is thrown exclusively due to an output endpoint error.
 		// It means that extraction succeeded, but the result could not be saved.

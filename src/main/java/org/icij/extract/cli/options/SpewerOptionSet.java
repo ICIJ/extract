@@ -25,6 +25,13 @@ public class SpewerOptionSet extends OptionSet {
 			Option.builder()
 				.desc("Output metadata along with extracted text. For the \"file\" output type, a corresponding JSON file is created for every input file. With Solr, metadata fields are set using an optional prefix.")
 				.longOpt("output-metadata")
+				.build(),
+
+			Option.builder()
+				.desc("Set the text output encoding. Defaults to UTF-8.")
+				.longOpt("output-encoding")
+				.hasArg()
+				.argName("character set")
 				.build());
 	}
 
@@ -35,6 +42,10 @@ public class SpewerOptionSet extends OptionSet {
 
 		if (cmd.hasOption("output-metadata")) {
 			spewer.outputMetadata(true);
+		}
+
+		if (cmd.hasOption("output-encoding")) {
+			spewer.setOutputEncoding(cmd.getOptionValue("output-encoding"));
 		}
 	}
 }

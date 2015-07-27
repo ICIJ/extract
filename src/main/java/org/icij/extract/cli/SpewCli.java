@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import java.util.concurrent.Future;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ArrayBlockingQueue;
 
@@ -73,7 +74,7 @@ public class SpewCli extends Cli {
 		}
 
 		final CommandLine cmd = super.parse(args);
-		int parallelism = Consumer.DEFAULT_PARALLELISM;
+		final int parallelism;
 
 		if (cmd.hasOption('p')) {
 			try {
@@ -81,8 +82,11 @@ public class SpewCli extends Cli {
 			} catch (ParseException e) {
 				throw new IllegalArgumentException("Invalid value for thread count.");
 			}
+		} else {
+			parallelism = Consumer.DEFAULT_PARALLELISM;
 		}
 
+		final int buffer = parallelism * 1000;
 		logger.info("Processing up to " + parallelism + " file(s) in parallel.");
 
 		final OutputType outputType;
@@ -124,13 +128,15 @@ public class SpewCli extends Cli {
 
 		if (QueueType.REDIS == queueType) {
 			queue = getRedisson(cmd).getBlockingQueue(cmd.getOptionValue("queue-name", "extract") + ":queue");
-		} else {
 
-			// Create a classic "bounded buffer", in which a fixed-sized array holds
-			// elements inserted by producers and extracted by consumers.
-			// The scanner will pause every time the bound is hit. This prevents it
-			// from quickly using up memory with a massive file list.
-			queue = new ArrayBlockingQueue<String>(parallelism * 2);
+		// Create a classic "bounded buffer", in which a fixed-sized array holds
+		// elements inserted by producers and extracted by consumers.
+		// The scanner will pause every time the bound is hit. This prevents it
+		// from quickly using up memory with a massive file list.
+		// At the same time it creates a substantial buffer between the scanner
+		// and the consumer.
+		} else {
+			queue = new ArrayBlockingQueue<String>(buffer);
 		}
 
 		final PollingConsumer consumer = new PollingConsumer(logger, queue, spewer, extractor, parallelism);
@@ -153,17 +159,29 @@ public class SpewCli extends Cli {
 		}
 
 		// Allow parallel and consuming and scanning, even when the queue is Redis.
-		final Scanner scanner = new QueueingScanner(logger, queue);
+		final Scanner scanner;
 		final String[] directories = cmd.getArgs();
 
-		if (directories.length == 0 && QueueType.NONE == queueType) {
+		if (directories.length > 0) {
+
+			// When the queue type is Redis, buffer the results from the scanner
+			// so that network latency doesn't slow down scanning. The QueueingScanner
+			// will use a separate thread internally to drain the buffer to Redis.
+			if (QueueType.REDIS == queueType) {
+				scanner = new QueueingScanner(logger, queue, buffer);
+			} else {
+				scanner = new QueueingScanner(logger, queue);
+			}
+
+			ScannerOptionSet.configureScanner(cmd, scanner);
+			for (String directory : directories) {
+				scanner.scan(Paths.get(directory));
+			}
+		} else if (QueueType.NONE == queueType) {
 			throw new IllegalArgumentException("When not using a queue, you must pass the directory " +
 				"paths to scan on the command line.");
-		}
-
-		ScannerOptionSet.configureScanner(cmd, scanner);
-		for (String directory : directories) {
-			scanner.scan(Paths.get(directory));
+		} else {
+			scanner = null;
 		}
 
 		final Thread shutdownHook = new Thread() {
@@ -173,9 +191,11 @@ public class SpewCli extends Cli {
 				logger.warning("Shutdown hook triggered. Please wait for a clean exit.");
 
 				try {
-					scanner.stop();
-					scanner.shutdown();
-					scanner.awaitTermination();
+					if (null != scanner) {
+						scanner.stop();
+						scanner.shutdown();
+						scanner.awaitTermination();
+					}
 
 					consumer.stop();
 					consumer.shutdown();
@@ -198,24 +218,24 @@ public class SpewCli extends Cli {
 
 		Runtime.getRuntime().addShutdownHook(shutdownHook);
 		try {
-			final TimeDuration pollTimeout = consumer.getPollTimeout();
 
-			// Blocks until the queue has drained by the consumer.
 			// Start the consumer before the scanner finishes, so that both run in parallel.
-			// But keep polling until the scanner finishes, to mitigate scanner latency.
-			consumer.clearPollTimeout();
-			consumer.drain();
+			// But keep polling, without a timeout i.e. wait indefinitely, until the scanner
+			// finishes, to mitigate scanner latency.
+			if (null != scanner) {
+				final Future drain = consumer.drainForever();
 
-			// Block until every single path has been scanned and queued.
-			scanner.shutdown();
-			scanner.awaitTermination();
+				// Block until every single path has been scanned and queued.
+				scanner.shutdown();
+				scanner.awaitTermination();
 
-			// All files have been scanned and queue.
-			// Set the poll timeout back to its previous value so that the consumer
-			// doesn't wait forever.
-			consumer.setPollTimeout(pollTimeout);
+				// Interrupt the forever-drain.
+				// The subsequent blocking drain will finish off.
+				drain.cancel(true);
+			}
 
 			// Block until every path in the queue has been consumed.
+			consumer.drain(); // Blocking.
 			consumer.shutdown();
 			consumer.awaitTermination();
 		} catch (InterruptedException e) {

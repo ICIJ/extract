@@ -49,7 +49,7 @@ public class QueueCli extends Cli {
 
 		final Redisson redisson = getRedisson(cmd);
 		final RBlockingQueue<String> queue = redisson.getBlockingQueue(cmd.getOptionValue("queue-name", "extract") + ":queue");
-		final Scanner scanner = new QueueingScanner(logger, queue, 1024);
+		final Scanner scanner = new QueueingScanner(logger, queue, 1000);
 
 		ScannerOptionSet.configureScanner(cmd, scanner);
 		for (String directory : directories) {
