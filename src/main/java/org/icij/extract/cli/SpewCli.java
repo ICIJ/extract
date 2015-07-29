@@ -168,7 +168,7 @@ public class SpewCli extends Cli {
 			// so that network latency doesn't slow down scanning. The QueueingScanner
 			// will use a separate thread internally to drain the buffer to Redis.
 			if (QueueType.REDIS == queueType) {
-				scanner = new QueueingScanner(logger, queue, buffer);
+				scanner = new BufferedQueueingScanner(logger, queue, buffer);
 			} else {
 				scanner = new QueueingScanner(logger, queue);
 			}

@@ -49,7 +49,7 @@ public class QueueCli extends Cli {
 
 		final Redisson redisson = getRedisson(cmd);
 		final RBlockingQueue<String> queue = redisson.getBlockingQueue(cmd.getOptionValue("queue-name", "extract") + ":queue");
-		final Scanner scanner = new QueueingScanner(logger, queue, 1000);
+		final Scanner scanner = new BufferedQueueingScanner(logger, queue, 1000);
 
 		ScannerOptionSet.configureScanner(cmd, scanner);
 		for (String directory : directories) {
@@ -59,13 +59,12 @@ public class QueueCli extends Cli {
 		try {
 
 			// Block until the scanning of each directory has completed in serial.
+			scanner.shutdown();
 			scanner.awaitTermination();
 		} catch (InterruptedException e) {
 			logger.warning("Interrupted.");
 			Thread.currentThread().interrupt();
 		}
-
-		scanner.shutdown();
 
 		logger.info("Shutting down Redis client.");
 		redisson.shutdown();
