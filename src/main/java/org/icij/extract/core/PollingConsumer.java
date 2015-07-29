@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import java.nio.file.Path;
@@ -119,8 +120,18 @@ public class PollingConsumer extends Consumer {
 		}
 	}
 
-	public Future<Integer> drainForever() {
-		return drainer.submit(new DrainingTask());
+	@Override
+	public void consume(final String file) throws InterruptedException {
+		try {
+			super.consume(file);
+
+		// If in an error case the executor is shut down before the
+		// consumer is stopped, handle the exception gracefully and
+		// put the file back in the queue.
+		} catch (RejectedExecutionException e) {
+			stop();
+			queue.add(file);
+		}
 	}
 
 	/**
@@ -130,6 +141,16 @@ public class PollingConsumer extends Consumer {
 	 */
 	public boolean stop() {
 		return stopped.compareAndSet(false, true);
+	}
+
+	/**
+	 * Drain the queue in a non-blocking way, without ever timeing out,
+	 * until the draining thread is interrupted or the task is cancelled.
+	 *
+	 * @return a {@link Future} represent the draining task
+	 */
+	public Future<Integer> drainForever() {
+		return drainer.submit(new DrainingTask());
 	}
 
 	/**
