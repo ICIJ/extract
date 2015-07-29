@@ -185,8 +185,7 @@
 				<configuration>
 					<source>${java.version}</source>
 					<target>${java.version}</target>
-					<compilerArgument>-Xlint:unchecked</compilerArgument>
-					<compilerArgument>-Xlint:deprecation</compilerArgument>
+					<compilerArgument>-Xlint:all</compilerArgument>
 				</configuration>
 			</plugin>
 

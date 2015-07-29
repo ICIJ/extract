@@ -64,7 +64,7 @@ public class BufferedQueueingScanner extends Scanner {
 
 	public BufferedQueueingScanner(final Logger logger, final BlockingQueue<String> queue,
 		final int size) {
-		this(logger, queue, new ArrayBlockingQueue(size));
+		this(logger, queue, new ArrayBlockingQueue<String>(size));
 	}
 
 	@Override
