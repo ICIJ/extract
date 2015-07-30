@@ -41,7 +41,7 @@ public abstract class SolrJettyTestBase extends TestBase {
 
 		final JettyConfig jettyConfig = JettyConfig.builder()
 			.setContext("/solr")
-			.setPort(8080)
+			.setPort(8888)
 			.stopAtShutdown(true)
 			.build();
 
