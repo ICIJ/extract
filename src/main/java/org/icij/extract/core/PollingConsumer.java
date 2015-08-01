@@ -174,32 +174,6 @@ public class PollingConsumer extends Consumer {
 		}
 	}
 
-	/**
-	 * Send a file to the {@link Extractor} and report the result and
-	 * add the file back to the queue if extraction failed due to an
-	 * I/O error.
-	 *
-	 * This helps maintain robust, failure resistant processing in
-	 * cases of poor network connectivity.
-	 *
-	 * @param file file path
-	 */
-	@Override
-	protected int extract(final Path file) {
-		final int status = super.extract(file);
-
-		// If the file could not be written due to a storage endpoint error,
-		// or could not be read due to an I/O error other than the file not
-		// being found, put it back onto the queue.
-		if (Reporter.NOT_SAVED == status ||
-			Reporter.NOT_READ == status) {
-			logger.warning(String.format("Adding back to queue: %s.", file));
-			queue.add(file.toString());
-		}
-
-		return status;
-	}
-
 	private class DrainingTask implements Callable<Integer> {
 
 		public Integer call() throws Exception {
