@@ -181,7 +181,7 @@ public class PollingConsumer extends Consumer {
 
 			int consumed = 0;
 			while (!stopped.get()) {
-				String file = queue.poll();
+				String file = queue.take();
 
 				// If the consumer was stopped, put the file back
 				// in queue and break.
