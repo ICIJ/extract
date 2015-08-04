@@ -87,7 +87,7 @@ public class Extractor {
 	private EmbedHandling embedHandling = EmbedHandling.EXTRACT;
 	private OutputFormat outputFormat = OutputFormat.TEXT;
 
-	public Extractor(Logger logger) {
+	public Extractor(final Logger logger) {
 		this.logger = logger;
 
 		// Run OCR on images contained within PDFs.
@@ -99,7 +99,7 @@ public class Extractor {
 		pdfConfig.setUseNonSequentialParser(true);
 	}
 
-	public void setEmbedHandling(EmbedHandling embedHandling) {
+	public void setEmbedHandling(final EmbedHandling embedHandling) {
 		this.embedHandling = embedHandling;
 	}
 
@@ -107,7 +107,7 @@ public class Extractor {
 		return embedHandling;
 	}
 
-	public void setOutputFormat(OutputFormat outputFormat) {
+	public void setOutputFormat(final OutputFormat outputFormat) {
 		this.outputFormat = outputFormat;
 	}
 
@@ -115,19 +115,19 @@ public class Extractor {
 		return outputFormat;
 	}
 
-	public void setOcrLanguage(String ocrLanguage) {
+	public void setOcrLanguage(final String ocrLanguage) {
 		ocrConfig.setLanguage(ocrLanguage);
 	}
 
-	public void setOcrTimeout(int ocrTimeout) {
+	public void setOcrTimeout(final int ocrTimeout) {
 		ocrConfig.setTimeout(ocrTimeout);
 	}
 
-	public void setOcrTimeout(String duration) {
+	public void setOcrTimeout(final String duration) {
 		setOcrTimeout((int) TimeDuration.parseTo(duration, TimeUnit.SECONDS));
 	}
 
-	public void setOcrTimeout(TimeDuration duration) {
+	public void setOcrTimeout(final TimeDuration duration) {
 		setOcrTimeout((int) duration.to(TimeUnit.SECONDS));
 	}
 
@@ -196,7 +196,7 @@ public class Extractor {
 		return reader;
 	}
 
-	private void excludeParser(Class exclude) {
+	private void excludeParser(final Class exclude) {
 		final CompositeParser composite = (CompositeParser) config.getParser();
 		final Map<MediaType, Parser> parsers = composite.getParsers();
 		final Iterator<Map.Entry<MediaType, Parser>> iterator = parsers.entrySet().iterator();
