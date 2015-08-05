@@ -33,7 +33,7 @@ public class ConsumerTest extends TestBase {
 
 		final Path file = Paths.get(getClass().getResource("/documents/text/plain.txt").toURI());
 
-		consumer.consume(file);
+		consumer.accept(file);
 		consumer.shutdown();
 		consumer.awaitTermination();
 
@@ -104,7 +104,7 @@ public class ConsumerTest extends TestBase {
 		final int threads = 2;
 		final BlockingQueue<String> queue = new ArrayBlockingQueue<String>(threads * 2);
 		final PollingConsumer consumer = new PollingConsumer(logger, queue, spewer, extractor, threads);
-		final QueueingScanner scanner = new QueueingScanner(logger, queue);
+		final Scanner scanner = new Scanner(logger, queue);
 
 		scanner.scan(Paths.get(getClass().getResource("/documents/text/plain.txt").toURI()));
 		scanner.scan(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").toURI()));
@@ -131,7 +131,7 @@ public class ConsumerTest extends TestBase {
 		final int threads = 2;
 		final BlockingQueue<String> queue = new ArrayBlockingQueue<String>(threads * 2);
 		final PollingConsumer consumer = new PollingConsumer(logger, queue, spewer, extractor, threads);
-		final QueueingScanner scanner = new QueueingScanner(logger, queue);
+		final Scanner scanner = new Scanner(logger, queue);
 
 		scanner.scan(Paths.get(getClass().getResource("/documents/text/").toURI()));
 

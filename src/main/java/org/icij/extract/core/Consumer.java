@@ -10,12 +10,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -29,7 +27,7 @@ import org.apache.tika.exception.TikaException;
 import org.apache.tika.exception.EncryptedDocumentException;
 
 /**
- * Base consumer for file paths. Superclasses should call {@link #consume(Path)}.
+ * Base consumer for file paths. Superclasses should call {@link #accept(Path)}.
  * All tasks are sent to a work-stealing thread pool.
  *
  * The parallelism of the thread pool is defined in the call to the constructor.
@@ -47,9 +45,8 @@ public class Consumer {
 	protected final Logger logger;
 	protected final Spewer spewer;
 	protected final Extractor extractor;
-
+	protected final Semaphore permits;
 	protected final ExecutorService executor;
-	protected final BlockingQueue<Path> pending;
 	protected final int parallelism;
 
 	protected Reporter reporter = null;
@@ -70,7 +67,7 @@ public class Consumer {
 		this.extractor = extractor;
 		this.parallelism = parallelism;
 		this.executor = Executors.newFixedThreadPool(parallelism);
-		this.pending = new ArrayBlockingQueue<Path>(parallelism);
+		this.permits = new Semaphore(parallelism);
 	}
 
 	/**
@@ -88,8 +85,8 @@ public class Consumer {
 	 * @param file file path
 	 * @throws InterruptedException if interrupted while waiting for a slot
 	 */
-	public void consume(final String file) throws InterruptedException {
-		consume(Paths.get(file));
+	public void accept(final String file) throws InterruptedException {
+		accept(Paths.get(file));
 	}
 
 	/**
@@ -101,10 +98,10 @@ public class Consumer {
 	 * @param file file path
 	 * @throws InterruptedException if interrupted while waiting for a slot
 	 */
-	public void consume(final Path file) throws InterruptedException {
+	public void accept(final Path file) throws InterruptedException {
 		logger.info(String.format("Sending to thread pool; will queue if full: %s.", file));
-		pending.put(file);
-		executor.execute(new TaskRunner(file));
+		permits.acquire();
+		executor.execute(new ConsumerTask(file));
 	}
 
 	/**
@@ -113,11 +110,9 @@ public class Consumer {
 	 * @throws InterruptedException if interrupted while waiting
 	 */
 	public void awaitTermination() throws InterruptedException {
-		logger.info("Awaiting completion of consumer.");
-		while (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+		do {
 			logger.info("Awaiting completion of consumer.");
-		}
-
+		} while (!executor.awaitTermination(60, TimeUnit.SECONDS));
 		logger.info("Consumer finished.");
 	}
 
@@ -200,28 +195,24 @@ public class Consumer {
 		return status;
 	}
 
-	protected class TaskRunner extends FutureTask<Path> {
+	protected class ConsumerTask implements Runnable, Callable<Path> {
 
 		protected final Path file;
 
-		public TaskRunner(final Path file) {
-			super(new Task(file));
+		public ConsumerTask(final Path file) {
 			this.file = file;
 		}
 
 		@Override
-		protected void done() {
-			super.done();
-			pending.remove(file);
-		}
-	}
-
-	protected class Task implements Callable<Path> {
-
-		protected final Path file;
-
-		public Task(final Path file) {
-			this.file = file;
+		public void run() {
+			try {
+				call();
+			} catch (Exception e) {
+				logger.log(Level.SEVERE, String.format("Exception while consuming file: %s.",
+					file), e);
+			} finally {
+				permits.release();
+			}
 		}
 
 		@Override
@@ -229,7 +220,7 @@ public class Consumer {
 
 			// Check status in reporter. Skip if good.
 			if (null != reporter && reporter.succeeded(file)) {
-				logger.info("File already extracted; skipping: " + file + ".");
+				logger.info(String.format("File already extracted; skipping: %s.", file));
 
 			// Save status to registry and start a new job.
 			} else if (null != reporter) {

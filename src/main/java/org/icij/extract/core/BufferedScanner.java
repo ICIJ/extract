@@ -10,6 +10,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import java.util.logging.Logger;
+import java.util.logging.Level;
 
 import java.nio.file.Path;
 
@@ -33,16 +34,15 @@ import java.nio.file.Path;
  *
  * @since 1.0.0-beta
  */
-public class BufferedQueueingScanner extends Scanner {
+public class BufferedScanner extends Scanner {
 
-	private final BlockingQueue<String> queue;
 	private final BlockingQueue<String> buffer;
-	private final ExecutorService drainer;
-	private final AtomicBoolean draining;
+	private final ExecutorService drainer = Executors.newSingleThreadExecutor();
+	private final AtomicBoolean draining = new AtomicBoolean();
 	private final int threshold;
 
 	/**
-	 * Creates a {@code BufferedQueueingScanner} that buffers all results from the
+	 * Creates a {@code BufferedScanner} that buffers all results from the
 	 * the scanner in a {@link BlockingQueue}, which should be bounded.
 	 *
 	 * When the internal queue is nearing capacity, a separate thread is
@@ -50,25 +50,22 @@ public class BufferedQueueingScanner extends Scanner {
 	 *
 	 * @param logger logger
 	 * @param queue results from the scanner will be put on this queue
-	 * @param buffer buffer
+	 * @param buffer a fast queue buffer that will drain to the slow queue
 	 */
-	public BufferedQueueingScanner(final Logger logger, final BlockingQueue<String> queue,
+	public BufferedScanner(final Logger logger, final BlockingQueue<String> queue,
 		final BlockingQueue<String> buffer) {
-		super(logger);
-		this.queue = queue;
+		super(logger, queue);
 		this.buffer = buffer;
-		this.drainer = Executors.newSingleThreadExecutor();
-		this.draining = new AtomicBoolean();
 		this.threshold = (int) Math.ceil((double) buffer.remainingCapacity() / 1.6);
 	}
 
-	public BufferedQueueingScanner(final Logger logger, final BlockingQueue<String> queue,
+	public BufferedScanner(final Logger logger, final BlockingQueue<String> queue,
 		final int size) {
 		this(logger, queue, new ArrayBlockingQueue<String>(size));
 	}
 
 	@Override
-	protected void handle(final Path file) throws InterruptedException {
+	protected void accept(final Path file) throws InterruptedException {
 		buffer.put(file.toString());
 		if (buffer.size() > threshold && draining.compareAndSet(false, true)) {
 			drainer.execute(new DrainingTask());
@@ -85,35 +82,27 @@ public class BufferedQueueingScanner extends Scanner {
 		}
 
 		drainer.shutdown();
-		logger.info("Awaiting completion of drainer.");
-		while (!drainer.awaitTermination(60, TimeUnit.SECONDS)) {
+		do {
 			logger.info("Awaiting completion of drainer.");
-		}
+		} while (!drainer.awaitTermination(60, TimeUnit.SECONDS));
 	}
 
 	/**
 	 * Runnable task that drains the internal buffer to an underlying queue.
 	 *
-	 * An implementation of {@link FutureTask} that returns the number of items
-	 * drained as its result.
-	 */
-	protected class DrainingTask extends FutureTask<Integer> {
-
-		protected DrainingTask() {
-			super(new DrainingCall());
-		}
-
-		@Override
-		protected void done() {
-			draining.set(false);
-		}
-	}
-
-	/*
 	 * An implementation of {@link Callable} that returns the number of items
 	 * drained as its result.
 	 */
-	protected class DrainingCall implements Callable<Integer> {
+	protected class DrainingTask implements Runnable, Callable<Integer> {
+
+		@Override
+		public void run() {
+			try {
+				call();
+			} catch (Exception e) {
+				logger.log(Level.SEVERE, "Exception while draining to slow queue.", e);
+			}
+		}
 
 		@Override
 		public Integer call() throws Exception {

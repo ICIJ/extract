@@ -16,6 +16,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import java.nio.file.Path;
@@ -28,9 +29,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.attribute.BasicFileAttributes;
 
 /**
- * Base scanner for scanning the directory tree starting at a given path.
- *
- * Implementations must implement the {@link #handle(Path) handle} method.
+ * Scanner for scanning the directory tree starting at a given path.
  *
  * Each time {@link #scan} is called, the job is put in an unbounded queue
  * and executed in serial. This makes sense as it's usually the file system
@@ -40,13 +39,26 @@ import java.nio.file.attribute.BasicFileAttributes;
  * parallelized producer-consumer setups, where files are processed as
  * they're scanned.
  *
+ * Encountered file paths are put in a given queue. This is a classic producer,
+ * putting elements in a queue which are then extracted by a consumer.
+ *
+ * The queue should be bounded, to avoid the scanner filling up memory, but the
+ * bound should be high enough to create a significant buffer between the scanner
+ * and the consumer.
+ *
+ * Paths are pushed into the queue synchronously and if the queue is bounded, only
+ * when a space becomes available.
+ *
+ * This implementation is thread-safe.
+ *
  * Scanning aims to be robust. All exceptions thrown by the handler, except
  * {@link InterruptedException}, are swallowed.
  *
  * @since 1.0.0-beta
  */
-public abstract class Scanner {
+public class Scanner {
 	protected final Logger logger;
+	protected final BlockingQueue<String> queue;
 	protected final ExecutorService executor = Executors.newSingleThreadExecutor();
 
 	protected ArrayDeque<String> includeGlobs = new ArrayDeque<String>();
@@ -59,8 +71,16 @@ public abstract class Scanner {
 	private boolean ignoreHiddenFiles = false;
 	private boolean ignoreOSFiles = true;
 
-	public Scanner(Logger logger) {
+	/**
+	 * Creates a {@code Scanner} that sends all results straight to
+	 * the underlying {@link BlockingQueue}.
+	 *
+	 * @param logger logger
+	 * @param queue results from the scanner will be put on this queue
+	 */
+	public Scanner(final Logger logger, final BlockingQueue<String> queue) {
 		this.logger = logger;
+		this.queue = queue;
 	}
 
 	public void addIncludeGlob(final String pattern) {
@@ -127,11 +147,9 @@ public abstract class Scanner {
 	 * @throws InterruptedException if the thread is interrupted while waiting.
 	 */
 	public void awaitTermination() throws InterruptedException {
-		logger.info("Awaiting completion of scanner.");
-		while (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+		do {
 			logger.info("Awaiting completion of scanner.");
-		}
-
+		} while (!executor.awaitTermination(60, TimeUnit.SECONDS));
 		logger.info("Scanner finished.");
 	}
 
@@ -144,7 +162,9 @@ public abstract class Scanner {
 		return stopped.compareAndSet(false, true);
 	}
 
-	protected abstract void handle(final Path file) throws Exception;
+	protected void accept(final Path file) throws InterruptedException {
+		queue.put(file.toString());
+	}
 
 	protected void scanDirectory(final Path directory) throws IOException {
 		final Set<FileVisitOption> options;
@@ -194,7 +214,7 @@ public abstract class Scanner {
 
 			try {
 				if (Files.isRegularFile(path)) {
-					handle(path);
+					accept(path);
 				} else {
 					scanDirectory(path);
 				}
@@ -268,7 +288,7 @@ public abstract class Scanner {
 			// swallowed. Except InterruptedExceptions, which are an instruction
 			// to kill the thread.
 			try {
-				handle(file);
+				accept(file);
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
 				logger.warning("Interrupted. Terminating scanner.");

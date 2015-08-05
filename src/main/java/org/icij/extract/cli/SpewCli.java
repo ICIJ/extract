@@ -15,7 +15,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import java.util.concurrent.Future;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ArrayBlockingQueue;
 
@@ -168,9 +167,9 @@ public class SpewCli extends Cli {
 			// so that network latency doesn't slow down scanning. The QueueingScanner
 			// will use a separate thread internally to drain the buffer to Redis.
 			if (QueueType.REDIS == queueType) {
-				scanner = new BufferedQueueingScanner(logger, queue, buffer);
+				scanner = new BufferedScanner(logger, queue, buffer);
 			} else {
-				scanner = new QueueingScanner(logger, queue);
+				scanner = new Scanner(logger, queue);
 			}
 
 			ScannerOptionSet.configureScanner(cmd, scanner);
@@ -182,6 +181,13 @@ public class SpewCli extends Cli {
 				"paths to scan on the command line.");
 		} else {
 			scanner = null;
+		}
+
+		// Start the consumer before the scanner finishes, so that both run in parallel.
+		// But keep polling, without a timeout i.e. wait indefinitely, until the scanner
+		// finishes, to mitigate scanner latency.
+		if (null != scanner) {
+			consumer.drainContinuously();
 		}
 
 		final Thread shutdownHook = new Thread() {
@@ -219,19 +225,16 @@ public class SpewCli extends Cli {
 		Runtime.getRuntime().addShutdownHook(shutdownHook);
 		try {
 
-			// Start the consumer before the scanner finishes, so that both run in parallel.
-			// But keep polling, without a timeout i.e. wait indefinitely, until the scanner
-			// finishes, to mitigate scanner latency.
+			// Block until every single path has been scanned and queued.
 			if (null != scanner) {
-				final Future drain = consumer.drainForever();
-
-				// Block until every single path has been scanned and queued.
 				scanner.shutdown();
 				scanner.awaitTermination();
+			}
 
-				// Interrupt the forever-drain.
-				// The subsequent blocking drain will finish off.
-				drain.cancel(true);
+			// Stop the continuous drain.
+			// The subsequent blocking drain will finish off.
+			if (null != scanner) {
+				consumer.stop();
 			}
 
 			// Block until every path in the queue has been consumed.

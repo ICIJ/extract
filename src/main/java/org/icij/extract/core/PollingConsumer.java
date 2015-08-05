@@ -3,6 +3,7 @@ package org.icij.extract.core;
 import org.icij.extract.interval.TimeDuration;
 
 import java.util.logging.Logger;
+import java.util.logging.Level;
 
 import java.util.concurrent.Future;
 import java.util.concurrent.Callable;
@@ -10,6 +11,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -27,6 +29,7 @@ public class PollingConsumer extends Consumer {
 	private final BlockingQueue<String> queue;
 	private final AtomicBoolean stopped = new AtomicBoolean();
 	private final ExecutorService drainer = Executors.newCachedThreadPool();
+	private final Semaphore draining = new Semaphore(1);
 
 	private TimeDuration pollTimeout = DEFAULT_TIMEOUT;
 
@@ -97,18 +100,26 @@ public class PollingConsumer extends Consumer {
 		logger.info("Draining consumer.");
 
 		String file;
-		boolean stopped = this.stopped.get();
-		while (!stopped && null != (file = poll())) {
+		boolean stopped;
 
-			// If the consumer was stopped, put the file back
-			// in queue and break.
-			stopped = this.stopped.get();
-			if (stopped) {
-				queue.add(file);
-				break;
-			} else {
-				consume(file);
+		draining.acquire();
+		this.stopped.set(false);
+
+		try {
+			while (!(stopped = this.stopped.get()) && null != (file = poll())) {
+
+				// If the consumer was stopped, put the file back
+				// in queue and break.
+				stopped = this.stopped.get();
+				if (stopped) {
+					queue.add(file);
+					break;
+				} else {
+					accept(file);
+				}
 			}
+		} finally {
+			draining.release();
 		}
 
 		if (stopped) {
@@ -120,18 +131,14 @@ public class PollingConsumer extends Consumer {
 		}
 	}
 
-	@Override
-	public void consume(final String file) throws InterruptedException {
-		try {
-			super.consume(file);
-
-		// If in an error case the executor is shut down before the
-		// consumer is stopped, handle the exception gracefully and
-		// put the file back in the queue.
-		} catch (RejectedExecutionException e) {
-			stop();
-			queue.add(file);
-		}
+	/**
+	 * Drain the queue in a non-blocking way, without ever timeing out,
+	 * until the draining thread is interrupted or the task is cancelled.
+	 *
+	 * @return a {@link Future} represent the draining task
+	 */
+	public Future<?> drainContinuously() {
+		return drainer.submit(new ContinuousDrain());
 	}
 
 	/**
@@ -143,14 +150,21 @@ public class PollingConsumer extends Consumer {
 		return stopped.compareAndSet(false, true);
 	}
 
-	/**
-	 * Drain the queue in a non-blocking way, without ever timeing out,
-	 * until the draining thread is interrupted or the task is cancelled.
-	 *
-	 * @return a {@link Future} represent the draining task
-	 */
-	public Future<Integer> drainForever() {
-		return drainer.submit(new DrainingTask());
+	@Override
+	public void shutdown() {
+		try {
+			draining.acquire();
+			drainer.shutdown();
+
+			// Wait for the continuous drainer to send all pending tasks
+			// the main executor service.
+			while (!drainer.awaitTermination(60, TimeUnit.SECONDS));
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			return;
+		}
+
+		super.shutdown();
 	}
 
 	/**
@@ -162,40 +176,54 @@ public class PollingConsumer extends Consumer {
 	 * @throws InterruptedException if interrupted while polling
 	 */
 	protected String poll() throws InterruptedException {
+		final String file;
+
 		if (null == pollTimeout) {
 			logger.info("Polling the queue, waiting indefinitely.");
-			return queue.take();
+			file = queue.take();
 		} else if (0 == pollTimeout.getDuration()) {
 			logger.info("Polling the queue without waiting.");
-			return queue.poll();
+			file = queue.poll();
 		} else {
 			logger.info(String.format("Polling the queue, waiting up to %s.", pollTimeout));
-			return queue.poll(pollTimeout.getDuration(), pollTimeout.getUnit());
+			file = queue.poll(pollTimeout.getDuration(), pollTimeout.getUnit());
 		}
+
+		return file;
 	}
 
-	private class DrainingTask implements Callable<Integer> {
+	/**
+	 * A {@link Runnable} class that drains the queue until
+	 * stopped or interrupted.
+	 *
+	 * Poison pills are difficult to use safely with a shared queue,
+	 * so this consumer instead polls continuously at 1-second intervals,
+	 * checking whether it should stop at each interval.
+	 */
+	private class ContinuousDrain implements Runnable {
 
-		public Integer call() throws Exception {
-			logger.info("Draining consumer until stopped.");
+		@Override
+		public void run() {
+			logger.info("Draining consumer until stopped or interrupted.");
 
-			int consumed = 0;
-			while (!stopped.get()) {
-				String file = queue.take();
+			try {
+				draining.acquire();
+				stopped.set(false);
+				while (!Thread.currentThread().isInterrupted() && !stopped.get()) {
+					String file = queue.poll(1L, TimeUnit.SECONDS);
 
-				// If the consumer was stopped, put the file back
-				// in queue and break.
-				if (stopped.get()) {
-					queue.add(file);
-					break;
-				} else {
-					consume(file);
-					consumed++;
+					if (null != file) {
+						accept(file);
+					}
 				}
+			} catch (InterruptedException e) {
+				logger.info("Continuous draining interrupted.");
+				Thread.currentThread().interrupt();
+			} finally {
+				draining.release();
 			}
 
-			logger.info("Draining stopped.");
-			return new Integer(consumed);
+			logger.info("Continuous draining stopped.");
 		}
 	}
 }
