@@ -129,24 +129,19 @@ public class Scanner {
 	}
 
 	/**
-	 * Shut down the executor.
-	 *
-	 * This method should be called to free up resources when the scanner
-	 * is no longer needed.
-	 */
-	public void shutdown() {
-		logger.info("Shutting down scanner executor.");
-		executor.shutdown();
-	}
-
-	/**
-	 * Await termination of all running and waiting jobs.
+	 * Shut down the executor and await termination of all running and waiting jobs.
 	 *
 	 * This method blocks until all paths have been scanned.
 	 *
+	 * This method should be called to free up resources when the scanner
+	 * is no longer needed.
+	 *
 	 * @throws InterruptedException if the thread is interrupted while waiting.
 	 */
-	public void awaitTermination() throws InterruptedException {
+	public void finish() throws InterruptedException {
+		logger.info("Shutting down scanner executor.");
+		executor.shutdown();
+
 		do {
 			logger.info("Awaiting completion of scanner.");
 		} while (!executor.awaitTermination(60, TimeUnit.SECONDS));
@@ -162,7 +157,12 @@ public class Scanner {
 		return stopped.compareAndSet(false, true);
 	}
 
-	protected void accept(final Path file) throws InterruptedException {
+	/**
+	 * Queue a result from the scanner. Blocks until a queue slot is available.
+	 *
+	 * @throws InterruptedException if interrupted while waiting for a queue slot
+	 */
+	protected void queue(final Path file) throws InterruptedException {
 		queue.put(file.toString());
 	}
 
@@ -214,7 +214,7 @@ public class Scanner {
 
 			try {
 				if (Files.isRegularFile(path)) {
-					accept(path);
+					queue(path);
 				} else {
 					scanDirectory(path);
 				}
@@ -288,7 +288,7 @@ public class Scanner {
 			// swallowed. Except InterruptedExceptions, which are an instruction
 			// to kill the thread.
 			try {
-				accept(file);
+				queue(file);
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
 				logger.warning("Interrupted. Terminating scanner.");

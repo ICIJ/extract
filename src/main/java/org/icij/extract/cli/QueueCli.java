@@ -59,8 +59,7 @@ public class QueueCli extends Cli {
 		try {
 
 			// Block until the scanning of each directory has completed in serial.
-			scanner.shutdown();
-			scanner.awaitTermination();
+			scanner.finish();
 		} catch (InterruptedException e) {
 			logger.warning("Interrupted.");
 			Thread.currentThread().interrupt();

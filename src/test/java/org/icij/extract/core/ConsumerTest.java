@@ -34,8 +34,7 @@ public class ConsumerTest extends TestBase {
 		final Path file = Paths.get(getClass().getResource("/documents/text/plain.txt").toURI());
 
 		consumer.accept(file);
-		consumer.shutdown();
-		consumer.awaitTermination();
+		consumer.finish();
 
 		Assert.assertEquals("This is a test.\n\n", output.toString());
 	}
@@ -56,8 +55,7 @@ public class ConsumerTest extends TestBase {
 
 		queue.put(file.toString());
 		consumer.drain();
-		consumer.shutdown();
-		consumer.awaitTermination();
+		consumer.finish();
 
 		Assert.assertEquals("This is a test.\n\n", output.toString());
 	}
@@ -81,8 +79,7 @@ public class ConsumerTest extends TestBase {
 
 			queue.put(file.toString());
 			consumer.drain();
-			consumer.shutdown();
-			consumer.awaitTermination();
+			consumer.finish();
 
 			redisson.shutdown();
 		} catch (RedisConnectionException e) {
@@ -110,12 +107,10 @@ public class ConsumerTest extends TestBase {
 		scanner.scan(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").toURI()));
 
 		// Block until every single path has been scanned and queued.
-		scanner.shutdown();
-		scanner.awaitTermination();
+		scanner.finish();
 
 		consumer.drain();
-		consumer.shutdown();
-		consumer.awaitTermination();
+		consumer.finish();
 
 		Assert.assertEquals("This is a test.\n\nHEAVY\nMETAL\n\n\n", output.toString());
 	}
@@ -136,12 +131,10 @@ public class ConsumerTest extends TestBase {
 		scanner.scan(Paths.get(getClass().getResource("/documents/text/").toURI()));
 
 		// Block until every single path has been scanned and queued.
-		scanner.shutdown();
-		scanner.awaitTermination();
+		scanner.finish();
 
 		consumer.drain();
-		consumer.shutdown();
-		consumer.awaitTermination();
+		consumer.finish();
 
 		Assert.assertEquals("This is a test.\n\nThis is a test.\n\n", output.toString());
 	}

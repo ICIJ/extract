@@ -199,13 +199,11 @@ public class SpewCli extends Cli {
 				try {
 					if (null != scanner) {
 						scanner.stop();
-						scanner.shutdown();
-						scanner.awaitTermination();
+						scanner.finish();
 					}
 
 					consumer.stop();
-					consumer.shutdown();
-					consumer.awaitTermination();
+					consumer.finish();
 				} catch (InterruptedException e) {
 					Thread.currentThread().interrupt();
 					logger.warning("Exiting forcefully.");
@@ -227,8 +225,7 @@ public class SpewCli extends Cli {
 
 			// Block until every single path has been scanned and queued.
 			if (null != scanner) {
-				scanner.shutdown();
-				scanner.awaitTermination();
+				scanner.finish();
 			}
 
 			// Stop the continuous drain.
@@ -239,8 +236,7 @@ public class SpewCli extends Cli {
 
 			// Block until every path in the queue has been consumed.
 			consumer.drain(); // Blocking.
-			consumer.shutdown();
-			consumer.awaitTermination();
+			consumer.finish();
 		} catch (InterruptedException e) {
 
 			// Exit early and let the shutdown hook make a clean exit.

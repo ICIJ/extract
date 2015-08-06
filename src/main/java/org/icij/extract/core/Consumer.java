@@ -105,26 +105,22 @@ public class Consumer {
 	}
 
 	/**
-	 * Blocks until all the queued tasks have finished and the thread pool is empty.
+	 * Shuts down the executor, then blocks until all the queued tasks have finished
+	 * and the thread pool is empty.
+	 *
+	 * This method should be called to free up resources when the consumer
+	 * is no longer needed.
 	 *
 	 * @throws InterruptedException if interrupted while waiting
 	 */
-	public void awaitTermination() throws InterruptedException {
+	public void finish() throws InterruptedException {
+		logger.info("Shutting down consumer executor.");
+		executor.shutdown();
+
 		do {
 			logger.info("Awaiting completion of consumer.");
 		} while (!executor.awaitTermination(60, TimeUnit.SECONDS));
 		logger.info("Consumer finished.");
-	}
-
-	/**
-	 * Shut down the executor.
-	 *
-	 * This method should be called to free up resources when the consumer
-	 * is no longer needed.
-	 */
-	public void shutdown() {
-		logger.info("Shutting down consumer executor.");
-		executor.shutdown();
 	}
 
 	/**
