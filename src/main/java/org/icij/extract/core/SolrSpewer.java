@@ -239,23 +239,29 @@ public class SolrSpewer extends Spewer {
 
 		// Add a convenience field that contains just the base MIME type,
 		// without any parameters. This is useful for faceting.
-		final Set<String> types = new HashSet<String>();
+		final Set<String> baseTypes = new HashSet<String>();
 		for (String value : metadata.getValues(Metadata.CONTENT_TYPE)) {
-			MediaType mediaType = MediaType.parse(value);
+			MediaType baseType = MediaType.parse(value);
 
-			if (null != mediaType) {
-				types.add(mediaType.getBaseType().toString());
+			if (null != baseType) {
+				baseTypes.add(baseType.getBaseType().toString());
 			}
 		}
 
-		// TODO: after Tika 1.10, media types with multiple parameters should be combined
-		// into a single type, so this uniqueness logic can be removed. Test on RTF files.
-		for (String type : types) {
-			addField(document, normalizeName("Content-Base-Type"), type);
+		// Only add unique types, in case stripping the parameters of the raw
+		// content type led to the same base type.
+		for (String baseType : baseTypes) {
+			addField(document, normalizeName("Content-Base-Type"), baseType);
 		}
 
 		for (String name : metadata.names()) {
 			String[] values = metadata.getValues(name);
+
+			// Remove duplicate content types.
+			// Tika seems to add these sometimes, especially for RTF files.
+			if (name.equals("Content-Type") && values.length > 1) {
+				values = Arrays.asList(values).stream().distinct().toArray(String[]::new);
+			}
 
 			for (String value : values) {
 				if (utcDates && dateFieldNames.contains(name) && !value.endsWith("Z")) {
