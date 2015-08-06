@@ -152,7 +152,7 @@ public class PollingConsumer extends Consumer {
 
 	@Override
 	public void finish() throws InterruptedException {
-		draining.acquire();
+		draining.acquireUninterruptibly();
 		drainer.shutdown();
 
 		// Wait for the continuous drainer to send all pending tasks
