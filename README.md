@@ -48,6 +48,15 @@ source ~/.bashrc
 
 From then on, Extract will have up to 10GB of memory available to it.
 
+## Metadata ##
+
+If you enable the metadata option, Extract adds a few of its own fields that we think are very useful.
+
+ - `Content-Base-Type`: the `Content-Type` without any parameters. Useful for file type based faceting.
+ - `Parent-Path`: the file's parent path. Useful for drill-down faceting when combined with Solr's `PathHierarchyTokenizerFactory`.
+
+When outputting to Solr, all metadata field names are lowercased and non-alphanumeric characters are converted to underscores.
+
 ## Compiling ##
 
 Requires [JDK 8](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html) and Maven:
