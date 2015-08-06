@@ -7,7 +7,8 @@ import java.util.Map;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Arrays;
-import java.util.Iterator;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.Locale;
 
 import java.util.logging.Level;
@@ -238,13 +239,19 @@ public class SolrSpewer extends Spewer {
 
 		// Add a convenience field that contains just the base MIME type,
 		// without any parameters. This is useful for faceting.
+		final Set<String> types = new HashSet<String>();
 		for (String value : metadata.getValues(Metadata.CONTENT_TYPE)) {
-			MediaType type = MediaType.parse(value);
+			MediaType mediaType = MediaType.parse(value);
 
-			if (null != type) {
-				addField(document, normalizeName("Content-Base-Type"),
-					type.getBaseType().toString());
+			if (null != mediaType) {
+				types.add(mediaType.getBaseType().toString());
 			}
+		}
+
+		// TODO: after Tika 1.10, media types with multiple parameters should be combined
+		// into a single type, so this uniqueness logic can be removed. Test on RTF files.
+		for (String type : types) {
+			addField(document, normalizeName("Content-Base-Type"), type);
 		}
 
 		for (String name : metadata.names()) {
