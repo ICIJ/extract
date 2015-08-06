@@ -255,7 +255,12 @@ public class SpewCli extends Cli {
 			getRedisson(cmd).shutdown();
 		}
 
-		Runtime.getRuntime().removeShutdownHook(shutdownHook);
+		try {
+			Runtime.getRuntime().removeShutdownHook(shutdownHook);
+		} catch (IllegalStateException e) {
+			log.info("Could not remove shutdown hook.");
+		}
+
 		return cmd;
 	}
 
