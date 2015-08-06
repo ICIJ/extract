@@ -1,5 +1,8 @@
 package org.icij.extract.core;
 
+import java.util.Set;
+import java.util.HashSet;
+
 import java.io.Reader;
 import java.io.IOException;
 
@@ -11,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.logging.Logger;
 
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.mime.MediaType;
 
 /**
  * Base class for Spewer superclasses that write text output from a {@link ParsingReader} to specific endpoints.
@@ -75,5 +79,27 @@ public abstract class Spewer {
 
 	public void finish() throws IOException {
 		logger.info("Spewer finishing pending jobs.");
+	}
+
+	protected void addMetadata(final Path file, final Metadata metadata) {
+		final Set<String> baseTypes = new HashSet<String>();
+
+		// Add the parent path.
+		metadata.set("Parent-Path", file.getParent().toString());
+
+		// Add the base type. Deduplicated.
+		for (String type : metadata.getValues(Metadata.CONTENT_TYPE)) {
+			MediaType mediaType = MediaType.parse(type);
+			if (null == mediaType) {
+				logger.warning(String.format("Content type could not be parsed: %s. Was: %s.",
+					file, type));
+				continue;
+			}
+
+			String baseType = mediaType.getBaseType().toString();
+			if (baseTypes.add(baseType)) {
+				metadata.add("Content-Base-Type", baseType);
+			}
+		}
 	}
 }

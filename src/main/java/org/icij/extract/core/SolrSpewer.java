@@ -7,8 +7,6 @@ import java.util.Map;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Arrays;
-import java.util.Set;
-import java.util.HashSet;
 import java.util.Locale;
 
 import java.util.logging.Level;
@@ -156,7 +154,8 @@ public class SolrSpewer extends Spewer {
 
 		// Set the metadata.
 		if (outputMetadata) {
-			setMetaFields(document, metadata);
+			addMetadata(file.getFileSystem().getPath(outputPath), metadata);
+			setMetadataFields(document, metadata);
 		}
 
 		// Set the path on the path field.
@@ -235,25 +234,7 @@ public class SolrSpewer extends Spewer {
 		Metadata.LAST_SAVED.getName(),
 		Metadata.CREATION_DATE.getName());
 
-	private void setMetaFields(final SolrInputDocument document, final Metadata metadata) {
-
-		// Add a convenience field that contains just the base MIME type,
-		// without any parameters. This is useful for faceting.
-		final Set<String> baseTypes = new HashSet<String>();
-		for (String value : metadata.getValues(Metadata.CONTENT_TYPE)) {
-			MediaType baseType = MediaType.parse(value);
-
-			if (null != baseType) {
-				baseTypes.add(baseType.getBaseType().toString());
-			}
-		}
-
-		// Only add unique types, in case stripping the parameters of the raw
-		// content type led to the same base type.
-		for (String baseType : baseTypes) {
-			addField(document, normalizeName("Content-Base-Type"), baseType);
-		}
-
+	private void setMetadataFields(final SolrInputDocument document, final Metadata metadata) {
 		for (String name : metadata.names()) {
 			String[] values = metadata.getValues(name);
 
@@ -263,16 +244,21 @@ public class SolrSpewer extends Spewer {
 				values = Arrays.asList(values).stream().distinct().toArray(String[]::new);
 			}
 
-			for (String value : values) {
-				if (utcDates && dateFieldNames.contains(name) && !value.endsWith("Z")) {
-					value = value + "Z";
-				}
+			setMetadataField(document, name, values);
+		}
+	}
 
-				if (values.length > 1) {
-					addField(document, normalizeName(name), value);
-				} else {
-					setField(document, normalizeName(name), value);
-				}
+	private void setMetadataField(final SolrInputDocument document, final String name,
+		final String[] values) {
+		for (String value : values) {
+			if (utcDates && dateFieldNames.contains(name) && !value.endsWith("Z")) {
+				value = value + "Z";
+			}
+
+			if (values.length > 1) {
+				addField(document, normalizeName(name), value);
+			} else {
+				setField(document, normalizeName(name), value);
 			}
 		}
 	}
@@ -283,9 +269,9 @@ public class SolrSpewer extends Spewer {
 		name = fieldName.matcher(name).replaceAll("_").toLowerCase(Locale.ROOT);
 		if (null != metadataFieldPrefix) {
 			return metadataFieldPrefix + name;
-		} else {
-			return name;
 		}
+
+		return name;
 	}
 
 	private Map<String, String> createAtomic(final String value) {

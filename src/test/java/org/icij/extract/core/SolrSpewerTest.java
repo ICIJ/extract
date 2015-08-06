@@ -66,7 +66,7 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 
 		final Charset charset = StandardCharsets.UTF_8;
 		final String buffer = "test";
-		final Path path = FileSystems.getDefault().getPath("test-file.txt");
+		final Path path = FileSystems.getDefault().getPath("test/file.txt");
 		final MessageDigest idDigest = MessageDigest.getInstance("SHA-256");
 		final String pathHash = DatatypeConverter.printHexBinary(idDigest.digest(path.toString().getBytes(charset)));
 		final ParsingReader reader = new TextParsingReader(logger, new ByteArrayInputStream(buffer.getBytes(charset)));
@@ -77,12 +77,16 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 
 		final String length = Integer.toString(buffer.getBytes(charset).length);
 		metadata.set("Content-Length", length);
+		metadata.set("Content-Type", "text/plain; charset=UTF-8");
 
 		spewer.write(path, metadata, reader, charset);
 		client.commit(true, true);
 		client.optimize(true, true);
 
 		final SolrDocument response = client.getById(pathHash);
+		Assert.assertEquals(path.toString(), response.getFieldValue("path"));
 		Assert.assertEquals(length, response.getFieldValue("metadata_content_length"));
+		Assert.assertEquals("text/plain", response.getFieldValue("metadata_content_base_type"));
+		Assert.assertEquals("test", response.getFieldValue("metadata_parent_path"));
 	}
 }

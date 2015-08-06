@@ -104,6 +104,7 @@ public class FileSpewer extends Spewer {
 		}
 
 		if (outputMetadata) {
+			addMetadata(baseOutputFile, metadata);
 			writeMetadata(baseOutputFile.getFileSystem().getPath(baseOutputFile
 				.toString() + ".json"), metadata);
 		}
