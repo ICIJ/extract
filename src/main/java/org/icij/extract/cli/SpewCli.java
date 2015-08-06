@@ -25,6 +25,8 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.CommandLine;
 
+import org.apache.commons.io.FileUtils;
+
 import org.apache.http.impl.client.CloseableHttpClient;
 
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
@@ -68,8 +70,8 @@ public class SpewCli extends Cli {
 		final long maxMemory = Runtime.getRuntime().maxMemory();
 
 		if (maxMemory < (os.getTotalPhysicalMemorySize() / 4)) {
-			logger.warning(String.format("Memory available to JVM (%dm) is less than 25%% of available system memory. " +
-				"You should probably increase it.", Math.round(maxMemory / 1024 / 1024)));
+			logger.warning(String.format("Memory available to JVM (%s) is less than 25%% of available system memory. " +
+				"You should probably increase it.", FileUtils.byteCountToDisplaySize(maxMemory)));
 		}
 
 		final CommandLine cmd = super.parse(args);

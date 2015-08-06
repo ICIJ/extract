@@ -17,6 +17,8 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
+import org.apache.commons.io.FileUtils;
+
 import java.io.IOException;
 
 /**
@@ -84,6 +86,7 @@ public class MainCli extends Cli {
 	public void printHelp() {
 		final HelpFormatter formatter = new HelpFormatter();
 
+		final long maxMemory = Runtime.getRuntime().maxMemory();
 		final String[] commands = new String[Command.values().length];
 		int i = 0;
 
@@ -91,15 +94,16 @@ public class MainCli extends Cli {
 			commands[i++] = command.toString();
 		}
 
-		final String header = "\nA cross-platform tool for distributed content-analysis " +
+		final String header = String.format("\nA cross-platform tool for distributed content-analysis " +
 			"by the data team at the International Consortium of Investigative Journalists.\n\n" +
-			"\033[1mCommands\033[0m\n\n " + String.join("\n ", commands) + "\n\n" +
-			"\033[1mOptions\033[0m\n\n";
-		final String footer = "\nPlease report issues at: https://github.com/ICIJ/extract/issues.";
+			"\033[1mCommands\033[0m\n\n %s\n\n" +
+			"\033[1mOptions\033[0m\n\n", String.join("\n ", commands));
+		final String footer = String.format("\nExtract will use up to %s of memory on this machine.\n\n" +
+			"Please report issues at: https://github.com/ICIJ/extract/issues.", FileUtils.byteCountToDisplaySize(maxMemory));
 
-		formatter.printHelp("\033[1mextract\033[0m [command] [options]\n" +
-			formatter.getSyntaxPrefix() + "\033[1mextract\033[0m -h [command]\n" +
-			formatter.getSyntaxPrefix() + "\033[1mextract\033[0m --version",
+		formatter.printHelp(String.format("\033[1mextract\033[0m [command] [options]\n" +
+			"%s\033[1mextract\033[0m -h [command]\n" +
+			"%s\033[1mextract\033[0m --version", formatter.getSyntaxPrefix(), formatter.getSyntaxPrefix()),
 			header, options, footer, false);
 	}
 }
