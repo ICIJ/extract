@@ -35,7 +35,7 @@ public class BufferedScanner extends Scanner {
 	/**
 	 * The "poison pill" which is signify to the worker that it should stop.
 	 */
-	protected static final String POISON_PILL = "\0";
+	protected static final String POISON_PILL = "";
 
 	protected final BlockingQueue<String> buffer;
 	protected final ExecutorService drainer = Executors.newSingleThreadExecutor();
@@ -114,6 +114,7 @@ public class BufferedScanner extends Scanner {
 			try {
 				loop();
 			} catch (InterruptedException e) {
+				logger.log(Level.WARNING, "Draining worker interrupted.");
 				Thread.currentThread().interrupt();
 			} catch (Exception e) {
 				logger.log(Level.SEVERE, "Exception while draining to queue.", e);
