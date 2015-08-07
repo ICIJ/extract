@@ -157,8 +157,12 @@ public class PollingConsumer extends Consumer {
 
 		// Wait for the continuous drainer to send all pending tasks
 		// the main executor service.
-		while (!drainer.awaitTermination(60, TimeUnit.SECONDS));
-		super.finish();
+		try {
+			while (!drainer.awaitTermination(60, TimeUnit.SECONDS));
+			super.finish();
+		} finally {
+			draining.release();
+		}
 	}
 
 	/**
