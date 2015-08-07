@@ -30,6 +30,14 @@ public class QueueCli extends Cli {
 
 	public QueueCli(Logger logger) {
 		super(logger, new QueueOptionSet(), new RedisOptionSet(), new ScannerOptionSet());
+
+		options.addOption(Option.builder()
+				.desc("The size of the internal file path buffer to use while scanning.")
+				.longOpt("buffer-size")
+				.hasArg()
+				.argName("size")
+				.type(Number.class)
+				.build());
 	}
 
 	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException, RuntimeException {
@@ -47,9 +55,17 @@ public class QueueCli extends Cli {
 			throw new IllegalArgumentException("You must pass the directory paths to scan on the command line.");
 		}
 
+		final int buffer;
+
+		if (cmd.hasOption("buffer-size")) {
+			buffer = ((Number) cmd.getParsedOptionValue("buffer-size")).intValue();
+		} else{
+			buffer = Integer.MAX_VALUE;
+		}
+
 		final Redisson redisson = getRedisson(cmd);
 		final RBlockingQueue<String> queue = redisson.getBlockingQueue(cmd.getOptionValue("queue-name", "extract") + ":queue");
-		final Scanner scanner = new BufferedScanner(logger, queue, 1000);
+		final Scanner scanner = new BufferedScanner(logger, queue, buffer);
 
 		ScannerOptionSet.configureScanner(cmd, scanner);
 		for (String directory : directories) {

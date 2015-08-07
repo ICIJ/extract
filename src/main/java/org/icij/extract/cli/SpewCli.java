@@ -61,6 +61,14 @@ public class SpewCli extends Cli {
 				.longOpt("output")
 				.hasArg()
 				.argName("type")
+				.build())
+
+			.addOption(Option.builder()
+				.desc("The size of the internal file path buffer to use while scanning.")
+				.longOpt("buffer-size")
+				.hasArg()
+				.argName("size")
+				.type(Number.class)
 				.build());
 	}
 
@@ -76,6 +84,7 @@ public class SpewCli extends Cli {
 
 		final CommandLine cmd = super.parse(args);
 		final int parallelism;
+		final int buffer;
 
 		if (cmd.hasOption('p')) {
 			try {
@@ -87,7 +96,12 @@ public class SpewCli extends Cli {
 			parallelism = Consumer.DEFAULT_PARALLELISM;
 		}
 
-		final int buffer = parallelism * 10000;
+		if (cmd.hasOption("buffer-size")) {
+			buffer = ((Number) cmd.getParsedOptionValue("buffer-size")).intValue();
+		} else{
+			buffer = Integer.MAX_VALUE;
+		}
+
 		logger.info("Processing up to " + parallelism + " file(s) in parallel.");
 
 		final OutputType outputType;
