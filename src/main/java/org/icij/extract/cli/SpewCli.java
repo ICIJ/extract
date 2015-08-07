@@ -87,7 +87,7 @@ public class SpewCli extends Cli {
 			parallelism = Consumer.DEFAULT_PARALLELISM;
 		}
 
-		final int buffer = parallelism * 1000;
+		final int buffer = parallelism * 10000;
 		logger.info("Processing up to " + parallelism + " file(s) in parallel.");
 
 		final OutputType outputType;
