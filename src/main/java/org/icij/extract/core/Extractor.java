@@ -87,6 +87,13 @@ public class Extractor {
 	private EmbedHandling embedHandling = EmbedHandling.EXTRACT;
 	private OutputFormat outputFormat = OutputFormat.TEXT;
 
+	/**
+	 * Create a new extractor, which will OCR images by default if Tesseract is
+	 * available locally, extract inline images from PDF files and OCR them
+	 * and use PDFBox's non-sequential PDF parser.
+	 *
+	 * @param logger
+	 */
 	public Extractor(final Logger logger) {
 		this.logger = logger;
 
@@ -99,57 +106,124 @@ public class Extractor {
 		pdfConfig.setUseNonSequentialParser(true);
 	}
 
+	/**
+	 * Set the embed handling mode.
+	 *
+	 * @param embedHandling the embed handling mode
+	 */
 	public void setEmbedHandling(final EmbedHandling embedHandling) {
 		this.embedHandling = embedHandling;
 	}
 
+	/**
+	 * Get the embed handling mode.
+	 *
+	 * @return the embed handling mode
+	 */
 	public EmbedHandling getEmbedHandling() {
 		return embedHandling;
 	}
 
+	/**
+	 * Set the output format.
+	 *
+	 * @param outputFormat
+	 */
 	public void setOutputFormat(final OutputFormat outputFormat) {
 		this.outputFormat = outputFormat;
 	}
 
+	/**
+	 * Get the extraction output format.
+	 *
+	 * @return the output format
+	 */
 	public OutputFormat getOutputFormat() {
 		return outputFormat;
 	}
 
+	/**
+	 * Set the languages used by Tesseract.
+	 *
+	 * @param ocrLanguage the languages to use, for example "eng" or "ita+spa"
+	 */
 	public void setOcrLanguage(final String ocrLanguage) {
 		ocrConfig.setLanguage(ocrLanguage);
 	}
 
+	/**
+	 * @see #setOcrTimeout(TimeDuration)
+	 *
+	 * @param duration the duration in seconds
+	 */
 	public void setOcrTimeout(final int ocrTimeout) {
 		ocrConfig.setTimeout(ocrTimeout);
 	}
 
+	/**
+	 * @see #setOcrTimeout(TimeDuration)
+	 *
+	 * @param duration a duration, for example "1m" or "30s"
+	 */
 	public void setOcrTimeout(final String duration) {
 		setOcrTimeout((int) TimeDuration.parseTo(duration, TimeUnit.SECONDS));
 	}
 
+	/**
+	 * Instructs Tesseract to attempt OCR for no longer than the given duration.
+	 *
+	 * @param duration
+	 */
 	public void setOcrTimeout(final TimeDuration duration) {
 		setOcrTimeout((int) duration.to(TimeUnit.SECONDS));
 	}
 
-	public void disableOcr() {
+	/**
+	 * Disable OCR. This method only has an effect if Tesseract is installed.
+	 *
+	 * @return true if OCR was already disabled, false otherwise
+	 */
+	public boolean disableOcr() {
 		if (!ocrDisabled) {
 			excludeParser(TesseractOCRParser.class);
 			ocrDisabled = true;
 			pdfConfig.setExtractInlineImages(false);
+			return true;
 		}
+
+		return false;
 	}
 
+	/**
+	 * A convenience method for when access to metadata is not required.
+	 *
+	 * @param file the file to extract from
+	 */
 	public Reader extract(final Path file) throws IOException, FileNotFoundException, TikaException {
 		return extract(file, new Metadata());
 	}
 
+	/**
+	 * This method will wrap the given {@link Path} in a {@link TikaInputStream} and
+	 * return a {@link ParsingReader} which can be used to initiate extraction on demand.
+	 *
+	 * Internally, this method uses {@link TikaInputStream#get} which ensures that the
+	 * resource name and content length metadata properties are set automatically.
+	 *
+	 * @param file the file to extract from
+	 * @param metadata will be populated with metadata extracted from the file
+	 */
 	public Reader extract(final Path file, final Metadata metadata) throws IOException, FileNotFoundException, TikaException {
-
-		// Using the #get method like so, Tika will set the resource name and content length
-		// automatically on the metadata.
 		return extract(TikaInputStream.get(file.toFile(), metadata), metadata);
 	}
 
+	/**
+	 * Extract from the given {@link TikaInputStream}, populating the given metadata
+	 * object.
+	 *
+	 * @param input the stream to extract from
+	 * @param metadata the metadata object to populate
+	 */
 	public Reader extract(final TikaInputStream input, final Metadata metadata) throws IOException, TikaException {
 		final ParseContext context = new ParseContext();
 		final AutoDetectParser parser = new AutoDetectParser(config);
