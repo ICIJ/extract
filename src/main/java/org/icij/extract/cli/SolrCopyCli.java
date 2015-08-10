@@ -2,7 +2,7 @@ package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
 import org.icij.extract.cli.options.*;
-import org.icij.extract.solr.SolrCopyMachine;
+import org.icij.extract.solr.*;
 import org.icij.extract.http.PinnedHttpClientBuilder;
 import org.icij.extract.solr.SolrDefaults;
 
@@ -42,9 +42,9 @@ public class SolrCopyCli extends Cli {
 				.argName("name")
 				.build())
 
-			.addOption(Option.builder("b")
-				.desc(String.format("The number of documents to process at a time. Defaults to %d. To improve performance, set to a lower number if the fields contain very large values.", SolrCopyMachine.DEFAULT_BATCH_SIZE))
-				.longOpt("batch-size")
+			.addOption(Option.builder("p")
+				.desc(String.format("The number of documents to process at a time. Defaults to the number of available processors. To improve performance, set to a lower number if the fields contain very large values."))
+				.longOpt("parallel")
 				.hasArg()
 				.argName("size")
 				.type(Number.class)
@@ -68,6 +68,26 @@ public class SolrCopyCli extends Cli {
 			throw new IllegalArgumentException("You must pass the field mappings on the command line.");
 		}
 
+		final Map<String, String> map = new HashMap<String, String>();
+
+		for (String mapping : cmd.getArgs()) {
+			String[] fields = mapping.split(":", 2);
+
+			if (fields.length > 1) {
+				map.put(fields[0], fields[1]);
+			} else {
+				map.put(fields[0], null);
+			}
+		}
+
+		final int parallelism;
+
+		if (cmd.hasOption('p')) {
+			parallelism = ((Number) cmd.getParsedOptionValue("p")).intValue();
+		} else {
+			parallelism = Runtime.getRuntime().availableProcessors();
+		}
+
 		try (
 			final CloseableHttpClient httpClient = PinnedHttpClientBuilder.createWithDefaults()
 				.setVerifyHostname(cmd.getOptionValue("verify-host"))
@@ -75,18 +95,18 @@ public class SolrCopyCli extends Cli {
 				.build();
 			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
 		) {
-			final SolrCopyMachine machine =
-				new SolrCopyMachine(logger, client, cmd.getArgs());
+			final SolrMachineConsumer consumer = new SolrCopyConsumer(logger, client, map);
+			final SolrMachineProducer producer = new SolrMachineProducer(logger, client, map.keySet(), parallelism);
+			final SolrMachine machine =
+				new SolrMachine(logger, consumer, producer, parallelism);
 
 			if (cmd.hasOption('i')) {
-				machine.setIdField(cmd.getOptionValue('i'));
+				consumer.setIdField(cmd.getOptionValue('i'));
+				producer.setIdField(cmd.getOptionValue('i'));
 			}
 
-			if (cmd.hasOption('b')) {
-				machine.setBatchSize(((Number) cmd.getParsedOptionValue("b")).intValue());
-			}
-
-			final int copied = machine.copy();
+			final Integer copied = machine.call();
+			machine.terminate();
 			logger.info(String.format("Copied a total of %d documents.", copied));
 
 			if (cmd.hasOption("soft-commit")) {
@@ -98,6 +118,8 @@ public class SolrCopyCli extends Cli {
 			throw new RuntimeException("Unable to copy.", e);
 		} catch (IOException e) {
 			throw new RuntimeException("Unable to copy because of an error while communicating with Solr.", e);
+		} catch (InterruptedException e) {
+			logger.warning("Interrupted.");
 		}
 
 		return cmd;

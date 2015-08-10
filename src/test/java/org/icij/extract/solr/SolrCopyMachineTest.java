@@ -39,9 +39,14 @@ public class SolrCopyMachineTest extends SolrJettyTestBase {
 	}
 
 	@Test
-	public void testCopy() throws IOException, SolrServerException {
+	public void testCopy() throws IOException, SolrServerException, InterruptedException {
 		final Map<String, String> map = new HashMap<String, String>();
-		final SolrCopyMachine machine = new SolrCopyMachine(logger, client, map);
+
+		final SolrMachineConsumer consumer = new SolrCopyConsumer(logger, client, map);
+		final SolrMachineProducer producer = new SolrMachineProducer(logger, client, map.keySet());
+		final SolrMachine machine =
+			new SolrMachine(logger, consumer, producer);
+
 		final int documents = 10;
 		final int fields = 10;
 
@@ -56,9 +61,8 @@ public class SolrCopyMachineTest extends SolrJettyTestBase {
 			map.put("metadata_setA_" + i, "metadata_setB_" + i);
 		}
 
-		machine.setBatchSize(5);
-		Assert.assertEquals(documents, machine.copy());
-		machine.shutdown();
+		Assert.assertEquals(documents, (Object) machine.call());
+		machine.terminate();
 		client.commit();
 
 		final SolrDocumentList results = client.query(new SolrQuery("*:*"))
