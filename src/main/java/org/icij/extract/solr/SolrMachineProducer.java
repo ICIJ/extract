@@ -33,7 +33,7 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 
 	private volatile boolean stopped = false;
 	private int start = 0;
-	private int fetched = 0;
+	private volatile int fetched = 0;
 
 	public SolrMachineProducer(final Logger logger, final SolrClient client,
 		final Set<String> fields, final int parallelism) {
