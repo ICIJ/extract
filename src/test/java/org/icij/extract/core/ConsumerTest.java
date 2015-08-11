@@ -12,7 +12,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ArrayBlockingQueue;
 
 import org.redisson.Redisson;
-import com.lambdaworks.redis.RedisConnectionException;
+import org.redisson.client.RedisConnectionException;
 
 import org.junit.Test;
 import org.junit.Assert;
