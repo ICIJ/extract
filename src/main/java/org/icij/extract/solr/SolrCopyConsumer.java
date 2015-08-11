@@ -65,5 +65,6 @@ public class SolrCopyConsumer extends SolrMachineConsumer {
 		logger.info(String.format("Adding document with ID %s.",
 			input.getFieldValue(idField)));
 		client.add(output);
+		consumed.incrementAndGet();
 	}
 }

@@ -73,6 +73,10 @@ public abstract class SolrJettyTestBase extends TestBase {
 	}
 
 	protected static HttpSolrClient createNewSolrClient() {
+		return createNewSolrClient("collection1");
+	}
+
+	protected static HttpSolrClient createNewSolrClient(final String core) {
 		try {
 			URL url = jetty.getBaseUrl();
 
@@ -80,7 +84,7 @@ public abstract class SolrJettyTestBase extends TestBase {
 			// - set the proxy port to 8888
 			// - enable transparent proxying
 			// - enable Map Remote and map 127.0.0.1:8888 to 127.0.0.1:8080
-			url = new URL(url.getProtocol(), url.getHost(), url.getPort(), url.getFile() + "/collection1"); 
+			url = new URL(url.getProtocol(), url.getHost(), url.getPort(), url.getFile() + "/" + core);
 
 			final HttpSolrClient client = new HttpSolrClient(url.toString());
 

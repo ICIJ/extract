@@ -23,7 +23,8 @@ public enum Command {
 	SOLR_COMMIT(SolrCommitCli.class),
 	SOLR_ROLLBACK(SolrRollbackCli.class),
 	SOLR_DELETE(SolrDeleteCli.class),
-	SOLR_COPY(SolrCopyCli.class);
+	SOLR_COPY(SolrCopyCli.class),
+	SOLR_INTERSECT(SolrIntersectCli.class);
 
 	private final Class<?> klass;
 

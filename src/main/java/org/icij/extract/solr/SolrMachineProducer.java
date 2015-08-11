@@ -128,8 +128,11 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 
 		// Only request the fields to be copied and the ID.
 		query.setFields(idField);
-		for (String field : fields) {
-			query.addField(field);
+
+		if (null != fields) {
+			for (String field : fields) {
+				query.addField(field);
+			}
 		}
 
 		logger.info(String.format("Fetching up to %d documents, skipping %d.",
