@@ -16,6 +16,8 @@ import org.apache.solr.client.solrj.SolrServerException;
 
 public class SolrCopyConsumer extends SolrMachineConsumer {
 
+	private static final String BAD_VALUE = "ERROR:SCHEMA-INDEX-MISMATCH,stringValue=";
+
 	private final SolrClient client;
 	private final Map<String, String> map;
 
@@ -49,7 +51,14 @@ public class SolrCopyConsumer extends SolrMachineConsumer {
 		if (to.equals(idField)) {
 			output.setField(to, input.getFieldValue(idField));
 		} else {
-			atomic.put("set", input.getFieldValue(from));
+			Object value = input.getFieldValue(from);
+
+			// Fix bad values.
+			if (value instanceof String && ((String) value).startsWith(BAD_VALUE)) {
+				value = ((String) value).substring(BAD_VALUE.length());
+			}
+
+			atomic.put("set", value);
 			output.setField(to, atomic);
 		}
 	}

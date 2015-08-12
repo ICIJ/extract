@@ -42,6 +42,13 @@ public class SolrCopyCli extends Cli {
 				.argName("name")
 				.build())
 
+			.addOption(Option.builder("f")
+				.desc("Filter documents for which to perform copying using the specified query.")
+				.longOpt("filter")
+				.hasArg()
+				.argName("query")
+				.build())
+
 			.addOption(Option.builder("p")
 				.desc(String.format("The number of documents to process at a time. Defaults to the number of available processors. To improve performance, set to a lower number if the fields contain very large values."))
 				.longOpt("parallel")
@@ -103,6 +110,10 @@ public class SolrCopyCli extends Cli {
 			if (cmd.hasOption('i')) {
 				consumer.setIdField(cmd.getOptionValue('i'));
 				producer.setIdField(cmd.getOptionValue('i'));
+			}
+
+			if (cmd.hasOption('f')) {
+				producer.setFilter(cmd.getOptionValue('f'));
 			}
 
 			final Integer copied = machine.call();

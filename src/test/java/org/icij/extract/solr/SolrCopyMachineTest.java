@@ -32,6 +32,7 @@ public class SolrCopyMachineTest extends SolrJettyTestBase {
 
 		for (int i = 0; i < fields; i++) {
 			input.setField("id", id);
+			input.setField("metadata_bad_trie_test", "ERROR:SCHEMA-INDEX-MISMATCH,stringValue=123");
 			input.setField("metadata_setA_" + i, "value " + i);
 		}
 
@@ -57,6 +58,7 @@ public class SolrCopyMachineTest extends SolrJettyTestBase {
 
 		client.commit();
 
+		map.put("metadata_bad_trie_test", "metadata_bad_trie_test");
 		for (int i = 0; i < fields; i++) {
 			map.put("metadata_setA_" + i, "metadata_setB_" + i);
 		}
@@ -87,6 +89,10 @@ public class SolrCopyMachineTest extends SolrJettyTestBase {
 
 		// Test that in each document added, all the fields were copied.
 		for (SolrDocument document : results) {
+
+			// Test that the bad field was fixed.
+			Assert.assertEquals("123", document.getFieldValue("metadata_bad_trie_test"));
+
 			for (int i = 0; i < fields; i++) {
 				Assert.assertEquals("value " + i, document.getFieldValue("metadata_setA_" + i));
 				Assert.assertEquals("value " + i, document.getFieldValue("metadata_setB_" + i));
