@@ -57,6 +57,20 @@ If you enable the metadata option, Extract adds a few of its own fields that we 
 
 When outputting to Solr, all metadata field names are lowercased and non-alphanumeric characters are converted to underscores.
 
+## Cheating at reindexing after Solr schema changes ##
+
+You might have made a mistake in your original schema and now need to change the type of a field, or changed the way it's tokenised. You can edit the schema and make as many changes as you like, but the original data would still be stored and indexed as specified in the old schema.
+
+There are two ways you can work around this: reindex all your files again, or use the `solr-copy` command, which pulls the fields you specify from each document and adds them back to the same document, forcing reindexing.
+
+A common example is when you change a string field to a `Trie` number field after indexing. Solr will then return an error message in place of these fields. To fix them automatically, run `solr-copy` filtering on the bad field.
+
+```bash
+extract solr-copy -f "my_numeric_field:* AND -my_numeric_field:[0 TO *]" -s ...
+```
+
+This will cause the copy command to run only on those fields which have a non-number value on the number-type field.
+
 ## Compiling ##
 
 Requires [JDK 8](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html) and Maven:
