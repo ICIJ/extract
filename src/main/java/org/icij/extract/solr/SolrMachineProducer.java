@@ -81,8 +81,15 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 	public Integer call() throws IOException, SolrServerException, InterruptedException {
 		int total = 0;
 
-		while (!stopped && !Thread.currentThread().isInterrupted()) {
-			total += fetch();
+		try {
+			while (!stopped && !Thread.currentThread().isInterrupted()) {
+				total += fetch();
+			}
+
+		// Always poison: whether the thread exits in error or not, the consumers
+		// still need to stop.
+		} finally {
+			poison();
 		}
 
 		return new Integer(total);
@@ -111,8 +118,7 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 		}
 	}
 
-	private void stop() throws InterruptedException {
-		stopped = true;
+	private void poison() throws InterruptedException {
 		for (int i = 0; i < parallelism; i++) {
 			queue.transfer(new PoisonDocument());
 		}
@@ -142,7 +148,7 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 		// Stop if there are no more results.
 		// Intruct consumers to stop by sending a poison pill.
 		if (fetched < rows) {
-			stop();
+			stopped = true;
 		}
 
 		// Reset for the next run.
