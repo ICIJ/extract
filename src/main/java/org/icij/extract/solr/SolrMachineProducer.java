@@ -28,6 +28,7 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 	protected Set<String> fields;
 
 	private final int rows;
+	private final int parallelism;
 
 	private String idField = SolrDefaults.DEFAULT_ID_FIELD;
 
@@ -39,6 +40,7 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 		final Set<String> fields, final int parallelism) {
 		this.logger = logger;
 		this.client = client;
+		this.parallelism = parallelism;
 		this.rows = parallelism;
 		this.fields = fields;
 	}
@@ -59,10 +61,6 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 	public SolrDocument get() {
 		final SolrDocument document;
 
-		if (stopped) {
-			return null;
-		}
-
 		try {
 			document = queue.take();
 		} catch (InterruptedException e) {
@@ -72,7 +70,7 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 
 		// For convenience on the consumer end, the poison pill instance
 		// is converted to null.
-		if (stopped) {
+		if (document instanceof PoisonDocument) {
 			return null;
 		}
 
@@ -115,7 +113,7 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 
 	private void stop() throws InterruptedException {
 		stopped = true;
-		while (queue.hasWaitingConsumer()) {
+		for (int i = 0; i < parallelism; i++) {
 			queue.transfer(new PoisonDocument());
 		}
 	}
