@@ -35,12 +35,18 @@ public class SolrTagCli extends Cli {
 	public SolrTagCli(Logger logger) {
 		super(logger, new SolrOptionSet());
 
-		options.addOption(Option.builder("m")
-				.desc("The mode. Either \"intersection\" or \"complement\".")
-				.longOpt("mode")
+		options.addOption(Option.builder("f")
+				.desc("Filter documents to tag using the specified query.")
+				.longOpt("filter")
+				.hasArg()
+				.argName("query")
+				.build())
+
+			.addOption(Option.builder("m")
+				.desc("The mode to use if calculating a subset of two cores. When specified, either \"intersection\" or \"complement\".")
+				.longOpt("subset-mode")
 				.hasArg()
 				.argName("mode")
-				.required(true)
 				.build())
 
 			.addOption(Option.builder("i")
@@ -55,7 +61,6 @@ public class SolrTagCli extends Cli {
 				.longOpt("a-address")
 				.hasArg()
 				.argName("address")
-				.required(true)
 				.build())
 
 			.addOption(Option.builder("b")
@@ -63,7 +68,6 @@ public class SolrTagCli extends Cli {
 				.longOpt("b-address")
 				.hasArg()
 				.argName("address")
-				.required(true)
 				.build())
 
 			.addOption(Option.builder("p")
@@ -112,46 +116,87 @@ public class SolrTagCli extends Cli {
 			parallelism = Runtime.getRuntime().availableProcessors();
 		}
 
+		final String subsetMode = cmd.getOptionValue('m');
+
+		if (null != subsetMode && !(subsetMode.equals("intersection") || subsetMode.equals("complement"))) {
+			throw new IllegalArgumentException(String.format("Invalid mode: ", subsetMode));
+		}
+
+		final String addressA = cmd.getOptionValue('a');
+		final String addressB = cmd.getOptionValue('b');
+
+		if (null != subsetMode && (null == addressA || null == addressB)) {
+			throw new IllegalArgumentException("Both cores of the set must be specified if operating " +
+				"on an intersection or complement.");
+		}
+
 		try (
 			final CloseableHttpClient httpClient = PinnedHttpClientBuilder.createWithDefaults()
 				.setVerifyHostname(cmd.getOptionValue("verify-host"))
 				.pinCertificate(cmd.getOptionValue("pin-certificate"))
 				.build();
-			final SolrClient a = new HttpSolrClient(cmd.getOptionValue('a'), httpClient);
-			final SolrClient b = new HttpSolrClient(cmd.getOptionValue('b'), httpClient);
-			final SolrClient destination = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
+			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
 		) {
 			final SolrMachineConsumer consumer;
+			final SolrMachineProducer producer;
+			final Integer processed;
 
-			if (cmd.getOptionValue('m').equals("intersection")) {
-				consumer = new SolrIntersectionConsumer(logger, b, destination, literals);
-			} else if (cmd.getOptionValue('m').equals("complement")) {
-				consumer = new SolrComplementConsumer(logger, b, destination, literals);
+			if (null != subsetMode) {
+				try (
+					final SolrClient clientA = new HttpSolrClient(addressA, httpClient);
+					final SolrClient clientB = new HttpSolrClient(addressB, httpClient);
+				) {
+					producer = new SolrMachineProducer(logger, clientA, null, parallelism);
+
+					if (subsetMode.equals("intersection")) {
+						consumer = new SolrIntersectionConsumer(logger, clientB, client, literals);
+					} else {
+						consumer = new SolrComplementConsumer(logger, clientB, client, literals);
+					}
+
+					if (cmd.hasOption('i')) {
+						consumer.setIdField(cmd.getOptionValue('i'));
+						producer.setIdField(cmd.getOptionValue('i'));
+					}
+
+					if (cmd.hasOption('f')) {
+						producer.setFilter(cmd.getOptionValue('f'));
+					}
+
+					final SolrMachine machine = new SolrMachine(logger, consumer, producer, parallelism);
+
+					processed = machine.call();
+					machine.terminate();
+				}
 			} else {
-				throw new IllegalArgumentException(String.format("Invalid mode: ", cmd.getOptionValue('m')));
+				consumer = new SolrTaggingConsumer(logger, client, literals);
+				producer = new SolrMachineProducer(logger, client, null, parallelism);
+
+				if (cmd.hasOption('i')) {
+					consumer.setIdField(cmd.getOptionValue('i'));
+					producer.setIdField(cmd.getOptionValue('i'));
+				}
+
+				if (cmd.hasOption('f')) {
+					producer.setFilter(cmd.getOptionValue('f'));
+				}
+
+				final SolrMachine machine = new SolrMachine(logger, consumer, producer, parallelism);
+
+				processed = machine.call();
+				machine.terminate();
 			}
 
-			final SolrMachineProducer producer = new SolrMachineProducer(logger, a, null, parallelism);
-			final SolrMachine machine =
-				new SolrMachine(logger, consumer, producer, parallelism);
-
-			if (cmd.hasOption('i')) {
-				consumer.setIdField(cmd.getOptionValue('i'));
-				producer.setIdField(cmd.getOptionValue('i'));
-			}
-
-			final Integer processed = machine.call();
-			machine.terminate();
 			logger.info(String.format("Processed a total of %d documents.", processed));
-			logger.info(String.format("Tagged %d documents in subset.", consumer.getConsumeCount()));
+			logger.info(String.format("Tagged %d documents.", consumer.getConsumeCount()));
 
 			if (cmd.hasOption("soft-commit")) {
-				destination.commit(true, true, true);
+				client.commit(true, true, true);
 			} else if (cmd.hasOption('c')) {
-				destination.commit(true, true, false);
+				client.commit(true, true, false);
 			}
 		} catch (SolrServerException e) {
-			throw new RuntimeException("Unable to copy.", e);
+			throw new RuntimeException("Unable to tag.", e);
 		} catch (IOException e) {
 			throw new RuntimeException("Unable to tag because of an error while communicating with Solr.", e);
 		} catch (InterruptedException e) {
@@ -163,7 +208,7 @@ public class SolrTagCli extends Cli {
 
 	public void printHelp() {
 		super.printHelp(Command.SOLR_TAG,
-			"Tag the intersect or complement of two Solr cores.\n\n" +
+			"Tag the intersect or complement of two Solr cores, or a single core.\n\n" +
 			"An intersect subset is calculated by iterating over documents in the core specified by the " +
 			"\033[1m-a\033[0m option and checking whether they exist in the core specified by the " +
 			"\033[1m-b\033[0m option.\n\n" +

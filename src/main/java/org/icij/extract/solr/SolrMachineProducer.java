@@ -31,6 +31,7 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 	private final int parallelism;
 
 	private String idField = SolrDefaults.DEFAULT_ID_FIELD;
+	private String filter = "*:*";
 
 	private volatile boolean stopped = false;
 	private int start = 0;
@@ -55,6 +56,14 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 
 	public String getIdField() {
 		return idField;
+	}
+
+	public void setFilter(final String filter) {
+		this.filter = filter;
+	}
+
+	public String getFilter() {
+		return filter;
 	}
 
 	@Override
@@ -125,7 +134,7 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 	}
 
 	private int fetch() throws IOException, SolrServerException, InterruptedException {
-		final SolrQuery query = new SolrQuery("*:*");
+		final SolrQuery query = new SolrQuery(filter);
 
 		query.setRows(rows);
 		query.setStart(start);
