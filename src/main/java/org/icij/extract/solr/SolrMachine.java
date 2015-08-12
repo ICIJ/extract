@@ -131,7 +131,7 @@ public class SolrMachine implements Callable<Integer> {
 				// Log run-time exceptions and continue.
 				} catch (RuntimeException e) {
 					logger.log(Level.SEVERE, String.format("Could not consume document: %s",
-						document.getFieldValue(producer.getIdField())), e.getCause());
+						document.getFieldValue(producer.getIdField())), e);
 				}
 			}
 
