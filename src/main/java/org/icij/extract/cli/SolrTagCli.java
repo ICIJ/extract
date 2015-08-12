@@ -30,12 +30,20 @@ import org.apache.solr.client.solrj.impl.HttpSolrClient;
  * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
-public class SolrIntersectCli extends Cli {
+public class SolrTagCli extends Cli {
 
-	public SolrIntersectCli(Logger logger) {
+	public SolrTagCli(Logger logger) {
 		super(logger, new SolrOptionSet());
 
-		options.addOption(Option.builder("i")
+		options.addOption(Option.builder("m")
+				.desc("The mode. Either \"intersection\" or \"complement\".")
+				.longOpt("mode")
+				.hasArg()
+				.argName("mode")
+				.required(true)
+				.build())
+
+			.addOption(Option.builder("i")
 				.desc(String.format("The name of the unique ID field in the target Solr schema. Defaults to %s.", SolrDefaults.DEFAULT_ID_FIELD))
 				.longOpt("id-field")
 				.hasArg()
@@ -43,7 +51,7 @@ public class SolrIntersectCli extends Cli {
 				.build())
 
 			.addOption(Option.builder("a")
-				.desc(String.format("Address of the first Solr core in the set."))
+				.desc(String.format("Address of the first Solr core in the set. This should be the smaller of the two cores, as iteration will occur over this set."))
 				.longOpt("a-address")
 				.hasArg()
 				.argName("address")
@@ -51,7 +59,7 @@ public class SolrIntersectCli extends Cli {
 				.build())
 
 			.addOption(Option.builder("b")
-				.desc(String.format("Address of the second Solr core in the set."))
+				.desc(String.format("Address of the second Solr core in the set. This should be the larger of the two cores."))
 				.longOpt("b-address")
 				.hasArg()
 				.argName("address")
@@ -111,9 +119,18 @@ public class SolrIntersectCli extends Cli {
 				.build();
 			final SolrClient a = new HttpSolrClient(cmd.getOptionValue('a'), httpClient);
 			final SolrClient b = new HttpSolrClient(cmd.getOptionValue('b'), httpClient);
-			final SolrClient c = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
+			final SolrClient destination = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
 		) {
-			final SolrMachineConsumer consumer = new SolrIntersectionConsumer(logger, a, b, c, literals);
+			final SolrMachineConsumer consumer;
+
+			if (cmd.getOptionValue('m').equals("intersection")) {
+				consumer = new SolrIntersectionConsumer(logger, b, destination, literals);
+			} else if (cmd.getOptionValue('m').equals("complement")) {
+				consumer = new SolrComplementConsumer(logger, b, destination, literals);
+			} else {
+				throw new IllegalArgumentException(String.format("Invalid mode: ", cmd.getOptionValue('m')));
+			}
+
 			final SolrMachineProducer producer = new SolrMachineProducer(logger, a, null, parallelism);
 			final SolrMachine machine =
 				new SolrMachine(logger, consumer, producer, parallelism);
@@ -123,20 +140,20 @@ public class SolrIntersectCli extends Cli {
 				producer.setIdField(cmd.getOptionValue('i'));
 			}
 
-			final Integer copied = machine.call();
+			final Integer processed = machine.call();
 			machine.terminate();
-			logger.info(String.format("Copied a total of %d documents.", copied));
-			logger.info(String.format("%d documents in intersection.", consumer.getConsumeCount()));
+			logger.info(String.format("Processed a total of %d documents.", processed));
+			logger.info(String.format("Tagged %d documents in subset.", consumer.getConsumeCount()));
 
 			if (cmd.hasOption("soft-commit")) {
-				c.commit(true, true, true);
+				destination.commit(true, true, true);
 			} else if (cmd.hasOption('c')) {
-				c.commit(true, true, false);
+				destination.commit(true, true, false);
 			}
 		} catch (SolrServerException e) {
 			throw new RuntimeException("Unable to copy.", e);
 		} catch (IOException e) {
-			throw new RuntimeException("Unable to copy because of an error while communicating with Solr.", e);
+			throw new RuntimeException("Unable to tag because of an error while communicating with Solr.", e);
 		} catch (InterruptedException e) {
 			logger.warning("Interrupted.");
 		}
@@ -145,9 +162,14 @@ public class SolrIntersectCli extends Cli {
 	}
 
 	public void printHelp() {
-		super.printHelp(Command.SOLR_INTERSECT,
-			"Tag the intersect of two Solr cores.\n\n" +
-			"User literals to tag the documents in core B, for example, \"in_old:true\".",
+		super.printHelp(Command.SOLR_TAG,
+			"Tag the intersect or complement of two Solr cores.\n\n" +
+			"An intersect subset is calculated by iterating over documents in the core specified by the " +
+			"\033[1m-a\033[0m option and checking whether they exist in the core specified by the " +
+			"\033[1m-b\033[0m option.\n\n" +
+			"A complement subset consists of those documents in the core specified by the \033[1m-a\033[0m option " +
+			"which are not present in the core specified by the \033[1m-b\033[0m option.\n\n" +
+			"Use literals to tag the documents in the core specified by the \033[1m-s\033[0m option, for example, \"batch:1\".",
 			"literals...");
 	}
 }

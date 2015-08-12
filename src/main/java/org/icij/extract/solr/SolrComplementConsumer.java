@@ -12,11 +12,11 @@ import org.apache.solr.common.SolrDocument;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrServerException;
 
-public class SolrIntersectionConsumer extends SolrTaggingConsumer {
+public class SolrComplementConsumer extends SolrTaggingConsumer {
 
 	private final SolrClient other;
 
-	public SolrIntersectionConsumer(final Logger logger, final SolrClient other,
+	public SolrComplementConsumer(final Logger logger, final SolrClient other,
 		final SolrClient destination, final Map<String, String> literals) {
 		super(logger, destination, literals);
 		this.other = other;
@@ -26,7 +26,7 @@ public class SolrIntersectionConsumer extends SolrTaggingConsumer {
 	protected void tag(final SolrDocument input) throws SolrServerException, IOException {
 		final String id = (String) input.getFieldValue(idField);
 
-		if (null != other.getById(id)) {
+		if (null == other.getById(id)) {
 			super.tag(input);
 		}
 	}

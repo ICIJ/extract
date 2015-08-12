@@ -24,7 +24,7 @@ public enum Command {
 	SOLR_ROLLBACK(SolrRollbackCli.class),
 	SOLR_DELETE(SolrDeleteCli.class),
 	SOLR_COPY(SolrCopyCli.class),
-	SOLR_INTERSECT(SolrIntersectCli.class);
+	SOLR_TAG(SolrTagCli.class);
 
 	private final Class<?> klass;
 

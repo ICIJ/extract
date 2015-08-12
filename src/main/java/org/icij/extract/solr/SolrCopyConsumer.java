@@ -16,10 +16,12 @@ import org.apache.solr.client.solrj.SolrServerException;
 
 public class SolrCopyConsumer extends SolrMachineConsumer {
 
+	private final SolrClient client;
 	private final Map<String, String> map;
 
 	public SolrCopyConsumer(final Logger logger, final SolrClient client, final Map<String, String> map) {
-		super(logger, client);
+		super(logger);
+		this.client = client;
 		this.map = map;
 	}
 

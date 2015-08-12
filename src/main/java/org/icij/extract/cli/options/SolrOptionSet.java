@@ -13,7 +13,7 @@ public class SolrOptionSet extends OptionSet {
 
 	public SolrOptionSet() {
 		super(Option.builder("s")
-				.desc("Solr server address. Required.")
+				.desc("Solr core address. Required.")
 				.longOpt("address")
 				.hasArg()
 				.argName("address")
