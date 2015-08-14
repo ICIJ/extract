@@ -2,7 +2,7 @@ package org.icij.extract.core;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.FutureTask;
@@ -67,7 +67,7 @@ public class BufferedScanner extends Scanner {
 	 */
 	public BufferedScanner(final Logger logger, final BlockingQueue<String> queue,
 		final int size) {
-		this(logger, queue, new ArrayBlockingQueue<String>(size));
+		this(logger, queue, new LinkedBlockingQueue<String>(size));
 	}
 
 	@Override
