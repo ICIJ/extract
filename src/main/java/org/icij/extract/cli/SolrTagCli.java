@@ -92,17 +92,18 @@ public class SolrTagCli extends Cli {
 	public CommandLine parse(String[] args) throws ParseException, RuntimeException {
 		final CommandLine cmd = super.parse(args);
 
-		if (0 == args.length) {
+		final Map<String, String> pairs = new HashMap<String, String>();
+		final String[] literals = cmd.getArgs();
+
+		if (0 == literals.length) {
 			throw new IllegalArgumentException("You must pass literals on the command line.");
 		}
 
-		final Map<String, String> literals = new HashMap<String, String>();
-
-		for (String literal : cmd.getArgs()) {
+		for (String literal : literals) {
 			String[] pair = literal.split(":", 2);
 
 			if (2 == pair.length) {
-				literals.put(pair[0], pair[1]);
+				pairs.put(pair[0], pair[1]);
 			} else {
 				throw new IllegalArgumentException(String.format("Invalid literal pair: %s.", literal));
 			}
@@ -149,9 +150,9 @@ public class SolrTagCli extends Cli {
 					producer = new SolrMachineProducer(logger, clientA, null, parallelism);
 
 					if (subsetMode.equals("intersection")) {
-						consumer = new SolrIntersectionConsumer(logger, clientB, client, literals);
+						consumer = new SolrIntersectionConsumer(logger, clientB, client, pairs);
 					} else {
-						consumer = new SolrComplementConsumer(logger, clientB, client, literals);
+						consumer = new SolrComplementConsumer(logger, clientB, client, pairs);
 					}
 
 					if (cmd.hasOption('i')) {
@@ -169,7 +170,7 @@ public class SolrTagCli extends Cli {
 					machine.terminate();
 				}
 			} else {
-				consumer = new SolrTaggingConsumer(logger, client, literals);
+				consumer = new SolrTaggingConsumer(logger, client, pairs);
 				producer = new SolrMachineProducer(logger, client, null, parallelism);
 
 				if (cmd.hasOption('i')) {
