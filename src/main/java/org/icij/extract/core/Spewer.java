@@ -1,5 +1,6 @@
 package org.icij.extract.core;
 
+import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
 
@@ -28,6 +29,7 @@ public abstract class Spewer {
 	protected Path outputBase = null;
 	protected boolean outputMetadata = false;
 	protected Charset outputEncoding = StandardCharsets.UTF_8;
+	protected Map<String, String> tags = null;
 
 	public Spewer(final Logger logger) {
 		this.logger = logger;
@@ -67,6 +69,10 @@ public abstract class Spewer {
 
 	public boolean outputMetadata() {
 		return outputMetadata;
+	}
+
+	public void setTags(final Map<String, String> tags) {
+		this.tags = tags;
 	}
 
 	public Path filterOutputPath(final Path file) {

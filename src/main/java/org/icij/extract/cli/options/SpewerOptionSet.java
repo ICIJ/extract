@@ -2,6 +2,9 @@ package org.icij.extract.cli.options;
 
 import org.icij.extract.core.*;
 
+import java.util.Map;
+import java.util.HashMap;
+
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
 
@@ -28,6 +31,13 @@ public class SpewerOptionSet extends OptionSet {
 				.build(),
 
 			Option.builder()
+				.desc("Set the given fields to their corresponding values on each document output.")
+				.longOpt("tags")
+				.hasArg()
+				.argName("name and value pairs")
+				.build(),
+
+			Option.builder()
 				.desc("Set the text output encoding. Defaults to UTF-8.")
 				.longOpt("output-encoding")
 				.hasArg()
@@ -42,6 +52,23 @@ public class SpewerOptionSet extends OptionSet {
 
 		if (cmd.hasOption("output-metadata")) {
 			spewer.outputMetadata(true);
+		}
+
+		if (cmd.hasOption("tags")) {
+			final String[] literals = cmd.getOptionValue("tags").split(" ");
+			final Map<String, String> pairs = new HashMap<String, String>();
+
+			for (String literal : literals) {
+				String[] pair = literal.split(":", 2);
+
+				if (2 == pair.length) {
+					pairs.put(pair[0], pair[1]);
+				} else {
+					throw new IllegalArgumentException(String.format("Invalid tag pair: %s.", literal));
+				}
+			}
+
+			spewer.setTags(pairs);
 		}
 
 		if (cmd.hasOption("output-encoding")) {

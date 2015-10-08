@@ -2,6 +2,9 @@ package org.icij.extract.core;
 
 import org.icij.extract.test.*;
 
+import java.util.Map;
+import java.util.HashMap;
+
 import java.io.File;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -43,8 +46,6 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		final Charset charset = StandardCharsets.UTF_8;
 		final String buffer = "test";
 		final Path path = FileSystems.getDefault().getPath("test-file.txt");
-		final MessageDigest idDigest = MessageDigest.getInstance("SHA-256");
-		final String pathHash = DatatypeConverter.printHexBinary(idDigest.digest(path.toString().getBytes(charset)));
 		final ParsingReader reader = new TextParsingReader(logger, new ByteArrayInputStream(buffer.getBytes(charset)));
 
 		spewer.setIdAlgorithm("SHA-256");
@@ -54,6 +55,7 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		SolrDocument response = client.getById("0");
 		Assert.assertNull(response);
 
+		final String pathHash = spewer.generateId(path.toString());
 		response = client.getById(pathHash);
 		Assert.assertEquals(path.toString(), response.get("path"));
 		Assert.assertEquals(buffer + "\n", response.get("content"));
@@ -67,8 +69,6 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		final Charset charset = StandardCharsets.UTF_8;
 		final String buffer = "test";
 		final Path path = FileSystems.getDefault().getPath("test/file.txt");
-		final MessageDigest idDigest = MessageDigest.getInstance("SHA-256");
-		final String pathHash = DatatypeConverter.printHexBinary(idDigest.digest(path.toString().getBytes(charset)));
 		final ParsingReader reader = new TextParsingReader(logger, new ByteArrayInputStream(buffer.getBytes(charset)));
 		final Metadata metadata = new Metadata();
 
@@ -83,10 +83,39 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		client.commit(true, true);
 		client.optimize(true, true);
 
+		final String pathHash = spewer.generateId(path.toString());
 		final SolrDocument response = client.getById(pathHash);
 		Assert.assertEquals(path.toString(), response.getFieldValue("path"));
 		Assert.assertEquals(length, response.getFieldValue("metadata_content_length"));
 		Assert.assertEquals("text/plain", response.getFieldValue("metadata_content_base_type"));
 		Assert.assertEquals("test", response.getFieldValue("metadata_parent_path"));
+	}
+
+	@Test
+	public void testWriteTags()
+		throws IOException, TikaException, NoSuchAlgorithmException, SolrServerException, InterruptedException {
+		final SolrSpewer spewer = new SolrSpewer(logger, client);
+
+		final Charset charset = StandardCharsets.UTF_8;
+		final String buffer = "test";
+		final Path path = FileSystems.getDefault().getPath("test/file.txt");
+		final ParsingReader reader = new TextParsingReader(logger, new ByteArrayInputStream(buffer.getBytes(charset)));
+		final Metadata metadata = new Metadata();
+		final Map<String, String> tags = new HashMap<String, String>();
+
+		tags.put("batch", "1");
+
+		spewer.setIdAlgorithm("SHA-256");
+		spewer.outputMetadata(true);
+		spewer.setTags(tags);
+
+		spewer.write(path, metadata, reader, charset);
+		client.commit(true, true);
+		client.optimize(true, true);
+
+		final String pathHash = spewer.generateId(path.toString());
+		final SolrDocument response = client.getById(pathHash);
+		Assert.assertEquals(path.toString(), response.getFieldValue("path"));
+		Assert.assertEquals("1", response.getFieldValue("batch"));
 	}
 }

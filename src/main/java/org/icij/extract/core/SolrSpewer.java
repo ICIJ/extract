@@ -145,6 +145,15 @@ public class SolrSpewer extends Spewer {
 		}
 	}
 
+	public String generateId(final String outputPath) throws NoSuchAlgorithmException {
+		if (null == idAlgorithm) {
+			throw new IllegalStateException("No algorithm is set.");
+		}
+
+		return DatatypeConverter.printHexBinary(MessageDigest.getInstance(idAlgorithm)
+			.digest(outputPath.getBytes(outputEncoding)));
+	}
+
 	public void write(final Path file, final Metadata metadata, final Reader reader, final Charset outputEncoding)
 		throws IOException, SpewerException {
 
@@ -158,6 +167,12 @@ public class SolrSpewer extends Spewer {
 			setMetadataFields(document, metadata);
 		}
 
+		if (null != tags) {
+			for (Map.Entry<String, String> tag : tags.entrySet()) {
+				setField(document, tag.getKey(), tag.getValue());
+			}
+		}
+
 		// Set the path on the path field.
 		setField(document, pathField, outputPath);
 		setField(document, textField, IOUtils.toString(reader));
@@ -165,8 +180,7 @@ public class SolrSpewer extends Spewer {
 		// Set the ID. Must never be written atomically.
 		if (null != idField && null != idAlgorithm) {
 			try {
-				document.setField(idField, DatatypeConverter.printHexBinary(MessageDigest.getInstance(idAlgorithm)
-					.digest(outputPath.getBytes(outputEncoding))));
+				document.setField(idField, generateId(outputPath));
 			} catch (NoSuchAlgorithmException e) {
 				throw new IllegalStateException(e);
 			}
