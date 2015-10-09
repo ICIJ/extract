@@ -2,6 +2,7 @@ package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
 import org.icij.extract.cli.options.*;
+import org.icij.extract.redis.Redis;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -41,16 +42,16 @@ public class LoadQueueCli extends Cli {
 		final String[] files = cmd.getArgs();
 
 		if (files.length == 0) {
-			throw new IllegalArgumentException("Backup file path must be passed on the command line.");
+			throw new IllegalArgumentException("Dump file path must be passed on the command line.");
 		}
 
 		if (files.length > 1) {
-			throw new IllegalArgumentException("Only one backup file path may be passed at a time.");
+			throw new IllegalArgumentException("Only one dump file path may be passed at a time.");
 		}
 
 		final File file = new File(files[0]);
-		final Redisson redisson = getRedisson(cmd);
-		final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue("queue-name", "extract") + ":queue");
+		final Redisson redisson = Redis.createClient(cmd.getOptionValue("redis-address"));
+		final RQueue<String> queue = Redis.getQueue(redisson, cmd.getOptionValue("queue-name"));
 
 		try (
 			final JsonParser jsonParser = new JsonFactory().createParser(file);
@@ -69,7 +70,7 @@ public class LoadQueueCli extends Cli {
 	}
 
 	public void printHelp() {
-		super.printHelp(Command.DUMP_QUEUE,
+		super.printHelp(Command.LOAD_QUEUE,
 			"Load a queue from a JSON dump file. The name option is respected.",
 			"source");
 	}

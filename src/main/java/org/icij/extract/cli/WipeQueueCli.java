@@ -2,6 +2,7 @@ package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
 import org.icij.extract.cli.options.*;
+import org.icij.extract.redis.Redis;
 
 import java.util.logging.Logger;
 
@@ -34,8 +35,8 @@ public class WipeQueueCli extends Cli {
 			throw new IllegalArgumentException("Invalid queue type: " + queueType + ".");
 		}
 
-		final Redisson redisson = getRedisson(cmd);
-		final RQueue<String> queue = redisson.getQueue(cmd.getOptionValue("queue-name", "extract") + ":queue");
+		final Redisson redisson = Redis.createClient(cmd.getOptionValue("redis-address"));
+		final RQueue<String> queue = Redis.getQueue(redisson, cmd.getOptionValue("queue-name"));
 
 		logger.info("Wiping queue.");
 		queue.delete();

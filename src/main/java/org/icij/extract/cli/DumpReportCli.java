@@ -2,6 +2,7 @@ package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
 import org.icij.extract.cli.options.*;
+import org.icij.extract.redis.Redis;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -39,7 +40,6 @@ public class DumpReportCli extends Cli {
 			.hasArg()
 			.argName("status")
 			.type(Number.class)
-			.required(true)
 			.build());
 	}
 
@@ -52,10 +52,13 @@ public class DumpReportCli extends Cli {
 			throw new IllegalArgumentException("Invalid reporter type: " + reporterType + ".");
 		}
 
-		final Redisson redisson = getRedisson(cmd);
-		final RMap<String, Integer> report = redisson.getMap(cmd.getOptionValue("report-name", "extract") + ":report");
+		final Redisson redisson = Redis.createClient(cmd.getOptionValue("redis-address"));
+		final RMap<String, Integer> report = Redis.getReport(redisson, cmd.getOptionValue("report-name"));
 
-		final int status = ((Number) cmd.getParsedOptionValue("reporter-status")).intValue();
+		Number status = null;
+		if (cmd.hasOption("reporter-status")) {
+			status = (Number) cmd.getParsedOptionValue("reporter-status");
+		}
 
 		final Iterator<Map.Entry<String, Integer>> entries = report.entrySet().iterator();
 
@@ -64,17 +67,17 @@ public class DumpReportCli extends Cli {
 				.createGenerator(System.out, JsonEncoding.UTF8);
 		) {
 			jsonGenerator.useDefaultPrettyPrinter();
-			jsonGenerator.writeStartArray();
+			jsonGenerator.writeStartObject();
 
 			while (entries.hasNext()) {
 				Map.Entry<String, Integer> entry = (Map.Entry<String, Integer>) entries.next();
 
-				if (entry.getValue() == status) {
-					jsonGenerator.writeString((String) entry.getKey());
+				if (null == status || entry.getValue() == status.intValue()) {
+					jsonGenerator.writeObjectField((String) entry.getKey(), entry.getValue());
 				}
 			}
 
-			jsonGenerator.writeEndArray();
+			jsonGenerator.writeEndObject();
 			jsonGenerator.writeRaw('\n');
 		} catch (IOException e) {
 			throw new RuntimeException("Unable to output JSON.", e);

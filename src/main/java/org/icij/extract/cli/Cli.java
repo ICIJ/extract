@@ -17,9 +17,6 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
-import org.redisson.Config;
-import org.redisson.Redisson;
-
 /**
  * Extract
  *
@@ -30,28 +27,6 @@ import org.redisson.Redisson;
 public abstract class Cli {
 
 	public static final CommandLineParser DEFAULT_PARSER = new DefaultParser();
-
-	private static Redisson redisson = null;
-
-	public static Redisson getRedisson(CommandLine cli) {
-		final Config config;
-
-		if (null != redisson) {
-			return redisson;
-		}
-
-		if (!cli.hasOption("redis-address")) {
-			return Redisson.create();
-		}
-
-		config = new Config();
-
-		// TODO: Create a cluster if more than one address is given.
-		config.useSingleServer().setAddress(cli.getOptionValue("redis-address"));
-
-		redisson = Redisson.create(config);
-		return redisson;
-	}
 
 	protected final Logger logger;
 	protected final Options options = new Options();

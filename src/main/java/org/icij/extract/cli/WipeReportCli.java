@@ -2,6 +2,7 @@ package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
 import org.icij.extract.cli.options.*;
+import org.icij.extract.redis.Redis;
 
 import java.util.logging.Logger;
 
@@ -34,8 +35,8 @@ public class WipeReportCli extends Cli {
 			throw new IllegalArgumentException("Invalid reporter type: " + reporterType + ".");
 		}
 
-		final Redisson redisson = getRedisson(cmd);
-		final RMap<String, Integer> report = redisson.getMap(cmd.getOptionValue("report-name", "extract") + ":report");
+		final Redisson redisson = Redis.createClient(cmd.getOptionValue("redis-address"));
+		final RMap<String, Integer> report = Redis.getReport(redisson, cmd.getOptionValue("report-name"));
 
 		logger.info("Wiping report.");
 		report.clear();

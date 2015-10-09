@@ -2,6 +2,7 @@ package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
 import org.icij.extract.cli.options.*;
+import org.icij.extract.redis.Redis;
 import org.icij.extract.http.PinnedHttpClientBuilder;
 import org.icij.extract.interval.TimeDuration;
 
@@ -141,8 +142,13 @@ public class SpewCli extends Cli {
 
 		final BlockingQueue<String> queue;
 
+		Redisson redisson = null;
+		if (ReporterType.REDIS == reporterType || QueueType.REDIS == queueType) {
+			redisson = Redis.createClient(cmd.getOptionValue("redis-address"));
+		}
+
 		if (QueueType.REDIS == queueType) {
-			queue = getRedisson(cmd).getBlockingQueue(cmd.getOptionValue("queue-name", "extract") + ":queue");
+			queue = Redis.getBlockingQueue(redisson, cmd.getOptionValue("queue-name"));
 
 		// Create a classic "bounded buffer", in which a fixed-sized array holds
 		// elements inserted by producers and extracted by consumers.
@@ -166,7 +172,7 @@ public class SpewCli extends Cli {
 		}
 
 		if (ReporterType.REDIS == reporterType) {
-			final RMap<String, Integer> report = getRedisson(cmd).getMap(cmd.getOptionValue("report-name", "extract") + ":report");
+			final RMap<String, Integer> report = Redis.getReport(redisson, cmd.getOptionValue("report-name"));
 			final Reporter reporter = new Reporter(logger, report);
 
 			logger.info("Using Redis reporter.");
@@ -267,8 +273,8 @@ public class SpewCli extends Cli {
 			logger.log(Level.SEVERE, "Spewer failed to finish.", e);
 		}
 
-		if (ReporterType.REDIS == reporterType || QueueType.REDIS == queueType) {
-			getRedisson(cmd).shutdown();
+		if (null != redisson) {
+			redisson.shutdown();
 		}
 
 		try {

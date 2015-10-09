@@ -2,6 +2,7 @@ package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
 import org.icij.extract.cli.options.*;
+import org.icij.extract.redis.Redis;
 
 import java.util.List;
 import java.util.logging.Logger;
@@ -63,8 +64,8 @@ public class QueueCli extends Cli {
 			buffer = Integer.MAX_VALUE;
 		}
 
-		final Redisson redisson = getRedisson(cmd);
-		final RBlockingQueue<String> queue = redisson.getBlockingQueue(cmd.getOptionValue("queue-name", "extract") + ":queue");
+		final Redisson redisson = Redis.createClient(cmd.getOptionValue("redis-address"));
+		final RBlockingQueue<String> queue = Redis.getBlockingQueue(redisson, cmd.getOptionValue("queue-name"));
 		final Scanner scanner = new BufferedScanner(logger, queue, buffer);
 
 		ScannerOptionSet.configureScanner(cmd, scanner);
