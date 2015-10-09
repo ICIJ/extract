@@ -70,7 +70,7 @@ public class LoadQueueCli extends Cli {
 
 	public void printHelp() {
 		super.printHelp(Command.DUMP_QUEUE,
-			"Dump the queue for debugging. The name option is respected.",
+			"Load a queue from a JSON dump file. The name option is respected.",
 			"source");
 	}
 }
