@@ -23,6 +23,9 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonEncoding;
 
+import hu.ssh.progressbar.ProgressBar;
+import hu.ssh.progressbar.console.ConsoleProgressBar;
+
 /**
  * Extract
  *
@@ -50,6 +53,10 @@ public class DumpQueueCli extends Cli {
 		final Redisson redisson = Redis.createClient(cmd.getOptionValue("redis-address"));
 		final RQueue<String> queue = Redis.getQueue(redisson, cmd.getOptionValue("queue-name"));
 
+		final ProgressBar progressBar = ConsoleProgressBar.on(System.out)
+			.withFormat("[:bar] :percent% :elapsed/:total ETA: :eta")
+			.withTotalSteps(queue.size());
+
 		final Iterator<String> files = queue.iterator();
 
 		try (
@@ -61,6 +68,7 @@ public class DumpQueueCli extends Cli {
 
 			while (files.hasNext()) {
 				jsonGenerator.writeString(files.next());
+				progressBar.tickOne();
 			}
 
 			jsonGenerator.writeEndArray();

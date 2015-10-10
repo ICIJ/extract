@@ -22,6 +22,9 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonEncoding;
 
+import hu.ssh.progressbar.ProgressBar;
+import hu.ssh.progressbar.console.ConsoleProgressBar;
+
 /**
  * Extract
  *
@@ -62,6 +65,10 @@ public class DumpReportCli extends Cli {
 
 		final Iterator<Map.Entry<String, Integer>> entries = report.entrySet().iterator();
 
+		final ProgressBar progressBar = ConsoleProgressBar.on(System.out)
+			.withFormat("[:bar] :percent% :elapsed/:total ETA: :eta")
+			.withTotalSteps(report.size());
+
 		try (
 			final JsonGenerator jsonGenerator = new JsonFactory()
 				.createGenerator(System.out, JsonEncoding.UTF8);
@@ -75,6 +82,8 @@ public class DumpReportCli extends Cli {
 				if (null == status || entry.getValue() == status.intValue()) {
 					jsonGenerator.writeObjectField((String) entry.getKey(), entry.getValue());
 				}
+
+				progressBar.tickOne();
 			}
 
 			jsonGenerator.writeEndObject();

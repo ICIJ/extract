@@ -19,6 +19,9 @@ import org.apache.commons.cli.ParseException;
 import org.redisson.Redisson;
 import org.redisson.core.RMap;
 
+import hu.ssh.progressbar.ProgressBar;
+import hu.ssh.progressbar.console.ConsoleProgressBar;
+
 /**
  * Extract
  *
@@ -45,12 +48,18 @@ public class CleanReportCli extends Cli {
 		final RMap<String, Integer> report = Redis.getReport(redisson, cmd.getOptionValue("report-name"));
 		final Iterator<String> entries = report.keySet().iterator();
 
+		final ProgressBar progressBar = ConsoleProgressBar.on(System.out)
+			.withFormat("[:bar] :percent% :elapsed/:total ETA: :eta")
+			.withTotalSteps(report.size());
+
 		while (entries.hasNext()) {
 			String path = entries.next();
 
 			if (Files.notExists(Paths.get(path))) {
-				report.remove(path);
+				entries.remove();
 			}
+
+			progressBar.tickOne();
 		}
 
 		redisson.shutdown();
