@@ -1,6 +1,7 @@
 package org.icij.extract.core;
 
 import org.icij.extract.test.*;
+import org.icij.extract.redis.Redis;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -71,8 +72,8 @@ public class ConsumerTest extends TestBase {
 		final int threads = 2;
 
 		try {
-			final Redisson redisson = Redisson.create();
-			final BlockingQueue<String> queue = redisson.getBlockingQueue("extract:test:queue");
+			final Redisson redisson = Redis.createClient();
+			final BlockingQueue<String> queue = Redis.getBlockingQueue(redisson, "extract:test");
 			final PollingConsumer consumer = new PollingConsumer(logger, queue, spewer, extractor, threads);
 
 			final Path file = Paths.get(getClass().getResource("/documents/text/plain.txt").toURI());

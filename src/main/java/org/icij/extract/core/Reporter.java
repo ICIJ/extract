@@ -23,13 +23,17 @@ public class Reporter {
 	protected final Logger logger;
 	protected final Map<String, Integer> report;
 
-	public Reporter(Logger logger, Map<String, Integer> report) {
+	public Reporter(final Logger logger, final Map<String, Integer> report) {
 		this.logger = logger;
 		this.report = report;
 	}
 
-	public boolean succeeded(Path file) {
-		final Integer status = (Integer) report.get(file.toString());
+	public Integer status(final Path file) {
+		return (Integer) report.get(file.toString());
+	}
+
+	public boolean succeeded(final Path file) {
+		final Integer status = status(file);
 
 		if (null != status) {
 			return status == SUCCEEDED;
@@ -38,7 +42,7 @@ public class Reporter {
 		return false;
 	}
 
-	public void save(Path file, int status) {
+	public void save(final Path file, final int status) {
 		report.put(file.toString(), status);
 	}
 }

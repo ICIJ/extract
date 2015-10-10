@@ -17,6 +17,10 @@ public class Redis {
 
 	public static String DEFAULT_NAME = "extract";
 
+	public static Redisson createClient() {
+		return createClient(null);
+	}
+
 	public static Redisson createClient(final String address) {
 		final Config config;
 
