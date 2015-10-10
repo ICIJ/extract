@@ -46,6 +46,6 @@ public class Redis {
 	}
 
 	public static RMap<String, Integer> getReport(final Redisson client, String name) {
-		return client.getMap((null != name ? name : DEFAULT_NAME) + ":report", new StringLongMapCodec());
+		return client.getMap((null != name ? name : DEFAULT_NAME) + ":report", new StringIntegerMapCodec());
 	}
 }
