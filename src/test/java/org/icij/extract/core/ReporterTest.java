@@ -8,6 +8,7 @@ import java.nio.file.Paths;
 
 import org.redisson.Redisson;
 import org.redisson.core.RMap;
+import org.redisson.client.RedisConnectionException;
 
 import org.junit.Test;
 import org.junit.Assert;
@@ -24,7 +25,13 @@ public class ReporterTest extends TestBase {
 		final Path a = Paths.get("/path/to/a");
 		final Path b = Paths.get("/path/to/b");
 
-		reporter.save(a, 0);
+		try {
+			reporter.save(a, 0);
+		} catch (RedisConnectionException e) {
+			Assume.assumeNoException(e);
+			return;
+		}
+
 		Assert.assertEquals(0, reporter.status(a).intValue());
 		Assert.assertTrue(reporter.succeeded(a));
 
