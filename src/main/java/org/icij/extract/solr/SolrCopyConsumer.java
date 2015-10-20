@@ -28,12 +28,19 @@ public class SolrCopyConsumer extends SolrMachineConsumer {
 	}
 
 	@Override
-	public void accept(final SolrDocument input) {
-		try {
-			copy(input);
-		} catch (SolrServerException | IOException e) {
-			throw new RuntimeException(e);
+	protected void consume(final SolrDocument input) throws SolrServerException, IOException {
+		final SolrInputDocument output = new SolrInputDocument();
+
+		// Copy the source fields to the target fields.
+		// Copy all the fields from the returned document. This ensures that
+		// wildcard matches work.
+		for (String field : input.keySet()) {
+			copyField(field, input, output);
 		}
+
+		logger.info(String.format("Adding document with ID %s.",
+			input.getFieldValue(idField)));
+		client.add(output);
 	}
 
 	private void copyField(final String from, final SolrDocument input,
@@ -61,21 +68,5 @@ public class SolrCopyConsumer extends SolrMachineConsumer {
 			atomic.put("set", value);
 			output.setField(to, atomic);
 		}
-	}
-
-	private void copy(final SolrDocument input) throws SolrServerException, IOException {
-		final SolrInputDocument output = new SolrInputDocument(); 
-
-		// Copy the source fields to the target fields.
-		// Copy all the fields from the returned document. This ensures that
-		// wildcard matches work.
-		for (String field : input.keySet()) {
-			copyField(field, input, output);
-		}
-
-		logger.info(String.format("Adding document with ID %s.",
-			input.getFieldValue(idField)));
-		client.add(output);
-		consumed.incrementAndGet();
 	}
 }

@@ -23,11 +23,11 @@ public class SolrComplementConsumer extends SolrTaggingConsumer {
 	}
 
 	@Override
-	protected void tag(final SolrDocument input) throws SolrServerException, IOException {
+	protected void consume(final SolrDocument input) throws SolrServerException, IOException {
 		final String id = (String) input.getFieldValue(idField);
 
 		if (null == other.getById(id)) {
-			super.tag(input);
+			super.consume(input);
 		}
 	}
 }

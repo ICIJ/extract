@@ -146,10 +146,6 @@ public class SolrSpewer extends Spewer {
 	}
 
 	public String generateId(final String outputPath) throws NoSuchAlgorithmException {
-		if (null == idAlgorithm) {
-			throw new IllegalStateException("No algorithm is set.");
-		}
-
 		return DatatypeConverter.printHexBinary(MessageDigest.getInstance(idAlgorithm)
 			.digest(outputPath.getBytes(outputEncoding)));
 	}

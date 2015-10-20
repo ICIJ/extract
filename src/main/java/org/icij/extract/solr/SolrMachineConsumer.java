@@ -19,6 +19,19 @@ public abstract class SolrMachineConsumer implements Consumer<SolrDocument> {
 		this.logger = logger;
 	}
 
+	@Override
+	public void accept(final SolrDocument input) {
+		try {
+			consume(input);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+
+		consumed.incrementAndGet();
+	}
+
+	protected abstract void consume(final SolrDocument input) throws Exception;
+
 	public void setIdField(final String idField) {
 		this.idField = idField;
 	}

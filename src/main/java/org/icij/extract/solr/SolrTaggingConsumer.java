@@ -26,15 +26,7 @@ public class SolrTaggingConsumer extends SolrMachineConsumer {
 	}
 
 	@Override
-	public void accept(final SolrDocument input) {
-		try {
-			tag(input);
-		} catch (SolrServerException | IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
-
-	protected void tag(final SolrDocument input) throws SolrServerException, IOException {
+	protected void consume(final SolrDocument input) throws SolrServerException, IOException {
 		final SolrInputDocument output = new SolrInputDocument(); 
 		final String id = (String) input.getFieldValue(idField);
 
@@ -48,6 +40,5 @@ public class SolrTaggingConsumer extends SolrMachineConsumer {
 
 		logger.info(String.format("Tagging document with ID %s.", id));
 		destination.add(output);
-		consumed.incrementAndGet();
 	}
 }
