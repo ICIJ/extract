@@ -24,6 +24,9 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 
+import hu.ssh.progressbar.ProgressBar;
+import hu.ssh.progressbar.console.ConsoleProgressBar;
+
 /**
  * Extract
  *
@@ -101,6 +104,9 @@ public class SolrRehashCli extends Cli {
 			parallelism = Runtime.getRuntime().availableProcessors();
 		}
 
+		final ProgressBar progressBar = ConsoleProgressBar.on(System.out)
+			.withFormat("[:bar] :percent% :elapsed/:total ETA: :eta");
+
 		try (
 			final CloseableHttpClient httpClient = PinnedHttpClientBuilder.createWithDefaults()
 				.setVerifyHostname(cmd.getOptionValue("verify-host"))
@@ -114,6 +120,9 @@ public class SolrRehashCli extends Cli {
 				new HashSet<String>(Arrays.asList("*")), parallelism);
 			final SolrMachine machine =
 				new SolrMachine(logger, consumer, producer, parallelism);
+
+			consumer.setProgressBar(progressBar);
+			producer.setProgressBar(progressBar);
 
 			if (cmd.hasOption('i')) {
 				consumer.setIdField(cmd.getOptionValue('i'));

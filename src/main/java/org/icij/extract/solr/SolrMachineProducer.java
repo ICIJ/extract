@@ -19,13 +19,16 @@ import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.StreamingResponseCallback;
 import org.apache.solr.client.solrj.SolrServerException;
 
+import hu.ssh.progressbar.ProgressBar;
+
 public class SolrMachineProducer extends StreamingResponseCallback implements Callable<Integer>,
 	Supplier<SolrDocument> {
 
 	protected final TransferQueue<SolrDocument> queue = new LinkedTransferQueue<SolrDocument>();
 	protected final Logger logger;
 	protected final SolrClient client;
-	protected Set<String> fields;
+	protected final Set<String> fields;
+	protected ProgressBar progressBar = null;
 
 	private final int rows;
 	private final int parallelism;
@@ -34,8 +37,9 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 	private String filter = "*:*";
 
 	private volatile boolean stopped = false;
-	private int start = 0;
-	private volatile int fetched = 0;
+	private long start = 0;
+	private long found = 0;
+	private volatile long fetched = 0;
 
 	public SolrMachineProducer(final Logger logger, final SolrClient client,
 		final Set<String> fields, final int parallelism) {
@@ -64,6 +68,14 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 
 	public String getFilter() {
 		return filter;
+	}
+
+	public void setProgressBar(final ProgressBar progressBar) {
+		this.progressBar = progressBar;
+	}
+
+	public ProgressBar getProgressBar() {
+		return progressBar;
 	}
 
 	@Override
@@ -108,6 +120,13 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 	public void streamDocListInfo(final long found, final long start,
 		final Float maxScore) {
 		this.start = rows + this.start;
+
+		// Update the progress bar if the number of items changed.
+		if (null != progressBar && found != this.found) {
+			progressBar.withTotalSteps((int) found);
+		}
+
+		this.found = found;
 	}
 
 	@Override
@@ -133,11 +152,11 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 		}
 	}
 
-	private int fetch() throws IOException, SolrServerException, InterruptedException {
+	private long fetch() throws IOException, SolrServerException, InterruptedException {
 		final SolrQuery query = new SolrQuery(filter);
 
 		query.setRows(rows);
-		query.setStart(start);
+		query.setStart((int) start);
 
 		// Only request the fields to be copied and the ID.
 		query.setFields(idField);
@@ -152,7 +171,7 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 			rows, start));
 		client.queryAndStreamResponse(query, this);
 
-		final int fetched = this.fetched;
+		final long fetched = this.fetched;
 
 		// Stop if there are no more results.
 		// Intruct consumers to stop by sending a poison pill.

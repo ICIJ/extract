@@ -8,12 +8,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.solr.common.SolrDocument;
 
+import hu.ssh.progressbar.ProgressBar;
+
 public abstract class SolrMachineConsumer implements Consumer<SolrDocument> {
 
 	protected final AtomicInteger consumed = new AtomicInteger();
 	protected final Logger logger;
 
 	protected String idField = SolrDefaults.DEFAULT_ID_FIELD;
+	protected ProgressBar progressBar = null;
 
 	public SolrMachineConsumer(final Logger logger) {
 		this.logger = logger;
@@ -25,6 +28,10 @@ public abstract class SolrMachineConsumer implements Consumer<SolrDocument> {
 			consume(input);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
+		} finally {
+			if (null != progressBar) {
+				progressBar.tickOne();
+			}
 		}
 
 		consumed.incrementAndGet();
@@ -42,5 +49,13 @@ public abstract class SolrMachineConsumer implements Consumer<SolrDocument> {
 
 	public int getConsumeCount() {
 		return consumed.get();
+	}
+
+	public void setProgressBar(final ProgressBar progressBar) {
+		this.progressBar = progressBar;
+	}
+
+	public ProgressBar getProgressBar() {
+		return progressBar;
 	}
 }

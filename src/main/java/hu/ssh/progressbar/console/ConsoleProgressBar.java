@@ -56,9 +56,9 @@ public final class ConsoleProgressBar extends AbstractProgressBar<ConsoleProgres
 	public static final int DEFAULT_PROGRESSBAR_WIDTH = 60;
 	private static final Set<Replacer> DEFAULT_REPLACERS = getDefaultReplacers(DEFAULT_PROGRESSBAR_WIDTH);
 
-	private final Set<Replacer> replacers;
+	private Set<Replacer> replacers;
 	private final PrintStream streamToUse;
-	private final String outputFormat;
+	private String outputFormat;
 
 	private int previousLength = 0;
 
@@ -101,20 +101,16 @@ public final class ConsoleProgressBar extends AbstractProgressBar<ConsoleProgres
 	public ConsoleProgressBar withFormat(final String outputFormat) {
 		Preconditions.checkNotNull(outputFormat);
 
-		return new ConsoleProgressBar(streamToUse,
-				totalSteps,
-				outputFormat,
-				replacers);
+		this.outputFormat = outputFormat;
+		return this;
 	}
 
 	@Override
 	public ConsoleProgressBar withTotalSteps(final int totalSteps) {
 		Preconditions.checkArgument(totalSteps != 0);
 
-		return new ConsoleProgressBar(streamToUse,
-				totalSteps,
-				outputFormat,
-				replacers);
+		this.totalSteps = totalSteps;
+		return this;
 	}
 
 	/**
@@ -127,10 +123,8 @@ public final class ConsoleProgressBar extends AbstractProgressBar<ConsoleProgres
 	public ConsoleProgressBar withReplacers(final Collection<Replacer> replacers) {
 		Preconditions.checkNotNull(replacers);
 
-		return new ConsoleProgressBar(streamToUse,
-				totalSteps,
-				outputFormat,
-				ImmutableSet.copyOf(replacers));
+		this.replacers = ImmutableSet.copyOf(replacers);
+		return this;
 	}
 
 	/**
