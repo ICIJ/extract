@@ -79,6 +79,6 @@ public class SolrRehashConsumer extends SolrMachineConsumer {
 		logger.info(String.format("Replacing path \"%s\" with \"%s\" and rehashing ID from %s to %s.",
 			inputPath, outputPath, input.getFieldValue(idField), output.getFieldValue(idField)));
 		client.add(output);
-		client.deleteById(input.getFieldValue(idField));
+		client.deleteById((String) input.getFieldValue(idField));
 	}
 }
