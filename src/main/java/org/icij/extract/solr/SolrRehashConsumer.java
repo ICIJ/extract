@@ -79,7 +79,7 @@ public class SolrRehashConsumer extends SolrMachineConsumer {
 
 		// Only replace if the IDs are different.
 		if (!inputId.equals(outputId)) {
-			output.setField("_version_", "-1"); // The new document must not exist.
+			output.setField("_version_", "0"); // The document may or may not exist.
 			output.setField(idField, outputId);
 
 			logger.info(String.format("Replacing path \"%s\" with \"%s\" and rehashing ID from %s to %s.",
