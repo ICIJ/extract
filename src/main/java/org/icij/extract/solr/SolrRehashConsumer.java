@@ -81,6 +81,7 @@ public class SolrRehashConsumer extends SolrMachineConsumer {
 		if (!inputId.equals(outputId)) {
 			output.setField("_version_", "0"); // The document may or may not exist.
 			output.setField(idField, outputId);
+			output.setField(pathField, outputPath);
 
 			logger.info(String.format("Replacing path \"%s\" with \"%s\" and rehashing ID from %s to %s.",
 				inputPath, outputPath, inputId, outputId));
