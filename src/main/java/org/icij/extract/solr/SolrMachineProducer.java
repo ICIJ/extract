@@ -121,8 +121,8 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 		final Float maxScore) {
 		this.start = rows + this.start;
 
-		// Update the progress bar if the number of items changed.
-		if (null != progressBar && found != this.found) {
+		// Update the progress bar if the number of items increases.
+		if (null != progressBar && found > this.found) {
 			progressBar.withTotalSteps((int) found);
 		}
 
