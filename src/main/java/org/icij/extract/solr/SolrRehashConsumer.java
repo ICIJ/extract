@@ -77,16 +77,17 @@ public class SolrRehashConsumer extends SolrMachineConsumer {
 		final String outputId = DatatypeConverter.printHexBinary(MessageDigest.getInstance(idAlgorithm)
 			.digest(outputPath.getBytes(outputEncoding)));
 
-		// Only replace if the IDs are different.
-		if (!inputId.equals(outputId)) {
-			output.setField("_version_", "0"); // The document may or may not exist.
-			output.setField(idField, outputId);
-			output.setField(pathField, outputPath);
+		output.setField("_version_", "0"); // The document may or may not exist.
+		output.setField(idField, outputId);
+		output.setField(pathField, outputPath);
 
-			logger.info(String.format("Replacing path \"%s\" with \"%s\" and rehashing ID from %s to %s.",
-				inputPath, outputPath, inputId, outputId));
-			client.add(output);
-			client.deleteById((String) input.getFieldValue(idField));
+		logger.info(String.format("Replacing path \"%s\" with \"%s\" and rehashing ID from %s to %s.",
+			inputPath, outputPath, inputId, outputId));
+		client.add(output);
+
+		// Only delete if the IDs are different.
+		if (!inputId.equals(outputId)) {
+			client.deleteById(inputId);
 		}
 	}
 }
