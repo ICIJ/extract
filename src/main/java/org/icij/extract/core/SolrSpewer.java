@@ -70,6 +70,25 @@ public class SolrSpewer extends Spewer {
 	private boolean atomicWrites = false;
 	private boolean utcDates = false;
 
+	/**
+	 * Normalize metadata field names.
+	 *
+	 * Field names must consist of alphanumeric or underscore characters only.
+	 *
+	 * @param name metadata field name
+	 * @param meta metadata field name prefix
+	 * @return The result code.
+	 */
+	public static String normalizeName(final String name, final String prefix) {
+		String normalized = fieldName.matcher(name).replaceAll("_").toLowerCase(Locale.ROOT);
+
+		if (null != prefix) {
+			normalized = prefix + normalized;
+		}
+
+		return normalized;
+	}
+
 	public SolrSpewer(final Logger logger, final SolrClient client) {
 		super(logger);
 		this.client = client;
@@ -273,15 +292,8 @@ public class SolrSpewer extends Spewer {
 		}
 	}
 
-	private String normalizeName(String name) {
-
-		// Field names must consist of alphanumeric or underscore characters only.
-		name = fieldName.matcher(name).replaceAll("_").toLowerCase(Locale.ROOT);
-		if (null != metadataFieldPrefix) {
-			return metadataFieldPrefix + name;
-		}
-
-		return name;
+	private String normalizeName(final String name) {
+		return normalizeName(name, metadataFieldPrefix);
 	}
 
 	private Map<String, String> createAtomic(final String value) {

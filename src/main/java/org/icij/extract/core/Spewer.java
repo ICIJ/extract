@@ -24,6 +24,9 @@ import org.apache.tika.mime.MediaType;
  */
 public abstract class Spewer {
 
+	public static final String META_PARENT_PATH = "Parent-Path";
+	public static final String META_CONTENT_BASE_TYPE = "Content-Base-Type";
+
 	protected final Logger logger;
 
 	protected Path outputBase = null;
@@ -91,7 +94,7 @@ public abstract class Spewer {
 		final Set<String> baseTypes = new HashSet<String>();
 
 		// Add the parent path.
-		metadata.set("Parent-Path", file.getParent().toString());
+		metadata.set(META_PARENT_PATH, file.getParent().toString());
 
 		// Add the base type. Deduplicated.
 		for (String type : metadata.getValues(Metadata.CONTENT_TYPE)) {
@@ -104,7 +107,7 @@ public abstract class Spewer {
 
 			String baseType = mediaType.getBaseType().toString();
 			if (baseTypes.add(baseType)) {
-				metadata.add("Content-Base-Type", baseType);
+				metadata.add(META_CONTENT_BASE_TYPE, baseType);
 			}
 		}
 	}

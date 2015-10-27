@@ -1,6 +1,6 @@
 package org.icij.extract.solr;
 
-import org.icij.extract.solr.SolrDefaults;
+import org.icij.extract.core.SolrSpewer;
 
 import java.util.Map;
 import java.util.HashMap;
@@ -10,6 +10,7 @@ import java.util.logging.Logger;
 
 import java.io.IOException;
 
+import java.nio.file.FileSystems;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
@@ -44,6 +45,7 @@ public class SolrRehashConsumer extends SolrMachineConsumer {
 	private String replacement = "";
 	private Charset outputEncoding = StandardCharsets.UTF_8;
 	private String pathField = SolrDefaults.DEFAULT_PATH_FIELD;
+	private String metadataFieldPrefix = SolrDefaults.DEFAULT_METADATA_FIELD_PREFIX;
 
 	public SolrRehashConsumer(final Logger logger, final SolrClient client, final String idAlgorithm) {
 		super(logger);
@@ -71,9 +73,12 @@ public class SolrRehashConsumer extends SolrMachineConsumer {
 		this.replacement = replacement;
 	}
 
+	public void setMetadataFieldPrefix(final String metadataFieldPrefix) {
+		this.metadataFieldPrefix = metadataFieldPrefix;
+	}
+
 	@Override
 	protected void consume(final SolrDocument input) throws SolrServerException, IOException, NoSuchAlgorithmException {
-		final SolrInputDocument output = ClientUtils.toSolrInputDocument(input);
 		final String inputPath = (String) input.getFieldValue(pathField);
 		final String outputPath;
 
@@ -87,17 +92,38 @@ public class SolrRehashConsumer extends SolrMachineConsumer {
 		final String outputId = DatatypeConverter.printHexBinary(MessageDigest.getInstance(idAlgorithm)
 			.digest(outputPath.getBytes(outputEncoding)));
 
-		output.setField("_version_", "0"); // The document may or may not exist.
-		output.setField(idField, outputId);
-		output.setField(pathField, outputPath);
+		// If the hash hasn't changed, just set the paths atomically.
+		// This is a legacy use-case for recovering from missing parent paths.
+		if (inputId.equals(outputId)) {
+			final SolrInputDocument output = new SolrInputDocument();
 
-		logger.info(String.format("Replacing path \"%s\" with \"%s\" and rehashing ID from %s to %s.",
+			output.setField("_version_", input.getFieldValue("_version_").toString());
+			output.setField(idField, inputId);
+			output.setField(pathField, createAtomic(outputPath));
+			output.setField(SolrSpewer.normalizeName(SolrSpewer.META_PARENT_PATH, metadataFieldPrefix),
+				createAtomic(FileSystems.getDefault().getPath(outputPath).getParent().toString()));
+			logger.info(String.format("Replacing path \"%s\" with \"%s\".", inputPath, outputPath));
+			client.add(output);
+		} else {
+			final SolrInputDocument output = ClientUtils.toSolrInputDocument(input);
+
+			output.setField("_version_", "-1"); // The document must not exist.
+			output.setField(idField, outputId);
+			output.setField(pathField, outputPath);
+			output.setField(SolrSpewer.normalizeName(SolrSpewer.META_PARENT_PATH, metadataFieldPrefix),
+				FileSystems.getDefault().getPath(outputPath).getParent().toString());
+
+			logger.info(String.format("Replacing path \"%s\" with \"%s\" and rehashing ID from %s to %s.",
 			inputPath, outputPath, inputId, outputId));
-		client.add(output);
-
-		// Only delete if the IDs are different.
-		if (!inputId.equals(outputId)) {
+			client.add(output);
 			client.deleteById(inputId);
 		}
+	}
+
+	private Map<String, String> createAtomic(final String value) {
+		final Map<String, String> atomic = new HashMap<String, String>();
+
+		atomic.put("set", value);
+		return atomic;
 	}
 }

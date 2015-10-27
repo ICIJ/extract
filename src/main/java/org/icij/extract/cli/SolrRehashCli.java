@@ -46,6 +46,14 @@ public class SolrRehashCli extends Cli {
 				.argName("name")
 				.build())
 
+			.addOption(Option.builder()
+				.desc(String.format("Prefix for metadata fields added to Solr. Defaults to \"%s\".",
+					SolrDefaults.DEFAULT_METADATA_FIELD_PREFIX))
+				.longOpt("metadata-prefix")
+				.hasArg()
+				.argName("name")
+				.build())
+
 			.addOption(Option.builder("a")
 				.desc("The hashing algorithm used for generating Solr document identifiers e.g. \"MD5\" or \"SHA-256\".")
 				.longOpt("id-algorithm")
@@ -145,7 +153,11 @@ public class SolrRehashCli extends Cli {
 			}
 
 			if (cmd.hasOption("replacement")) {
-				cmd.getOptionValue("replacement");
+				consumer.setReplacement(cmd.getOptionValue("replacement"));
+			}
+
+			if (cmd.hasOption("metadata-prefix")) {
+				consumer.setMetadataFieldPrefix(cmd.getOptionValue("metadata-prefix"));
 			}
 
 			final Integer copied = machine.call();
