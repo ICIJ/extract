@@ -13,7 +13,13 @@ import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrServerException;
 
-
+/**
+ * A consumer that forces reindexing by copying a field onto itself
+ * or onto another field.
+ *
+ * @author Matthew Caruana Galizia <mcaruana@icij.org>
+ * @since 1.0.0-beta
+ */
 public class SolrCopyConsumer extends SolrMachineConsumer {
 
 	private static final String BAD_VALUE = "ERROR:SCHEMA-INDEX-MISMATCH,stringValue=";

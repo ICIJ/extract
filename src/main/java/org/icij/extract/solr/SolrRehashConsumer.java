@@ -26,6 +26,16 @@ import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.util.ClientUtils;
 
+/**
+ * A consumer that recalculates ID hashes of documents after a simple
+ * regular expression replacement on the path.
+ *
+ * This is useful when you want to change the paths of documents that
+ * have already been added to Solr.
+ *
+ * @author Matthew Caruana Galizia <mcaruana@icij.org>
+ * @since 1.0.0-beta
+ */
 public class SolrRehashConsumer extends SolrMachineConsumer {
 
 	private final SolrClient client;

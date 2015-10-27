@@ -12,6 +12,13 @@ import org.apache.solr.common.SolrDocument;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrServerException;
 
+/**
+ * A consumer that tags the complement of documents in
+ * two cores.
+ *
+ * @author Matthew Caruana Galizia <mcaruana@icij.org>
+ * @since 1.0.0-beta
+ */
 public class SolrComplementConsumer extends SolrTaggingConsumer {
 
 	private final SolrClient other;

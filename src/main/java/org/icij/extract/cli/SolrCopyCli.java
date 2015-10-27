@@ -23,6 +23,9 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 
+import hu.ssh.progressbar.ProgressBar;
+import hu.ssh.progressbar.console.ConsoleProgressBar;
+
 /**
  * Extract
  *
@@ -55,6 +58,11 @@ public class SolrCopyCli extends Cli {
 				.hasArg()
 				.argName("size")
 				.type(Number.class)
+				.build())
+
+			.addOption(Option.builder()
+				.desc("Don't show a progress bar.")
+				.longOpt("no-progress")
 				.build())
 
 			.addOption(Option.builder("c")
@@ -106,6 +114,14 @@ public class SolrCopyCli extends Cli {
 			final SolrMachineProducer producer = new SolrMachineProducer(logger, client, map.keySet(), parallelism);
 			final SolrMachine machine =
 				new SolrMachine(logger, consumer, producer, parallelism);
+
+			if (!cmd.hasOption("no-progress")) {
+				final ProgressBar progressBar = ConsoleProgressBar.on(System.out)
+					.withFormat("[:bar] :percent% :elapsed/:total ETA: :eta");
+
+				consumer.setProgressBar(progressBar);
+				producer.setProgressBar(progressBar);
+			}
 
 			if (cmd.hasOption('i')) {
 				consumer.setIdField(cmd.getOptionValue('i'));
