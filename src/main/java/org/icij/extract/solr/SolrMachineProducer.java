@@ -46,7 +46,7 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 		this.logger = logger;
 		this.client = client;
 		this.parallelism = parallelism;
-		this.rows = parallelism;
+		this.rows = parallelism * 10;
 		this.fields = fields;
 	}
 
