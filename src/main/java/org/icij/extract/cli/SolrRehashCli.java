@@ -83,6 +83,11 @@ public class SolrRehashCli extends Cli {
 				.type(Number.class)
 				.build())
 
+			.addOption(Option.builder()
+				.desc("Don't show a progress bar.")
+				.longOpt("no-progress")
+				.build())
+
 			.addOption(Option.builder("c")
 				.desc("Perform a commit when done.")
 				.longOpt("commit")
@@ -104,9 +109,6 @@ public class SolrRehashCli extends Cli {
 			parallelism = Runtime.getRuntime().availableProcessors();
 		}
 
-		final ProgressBar progressBar = ConsoleProgressBar.on(System.out)
-			.withFormat("[:bar] :percent% :elapsed/:total ETA: :eta");
-
 		try (
 			final CloseableHttpClient httpClient = PinnedHttpClientBuilder.createWithDefaults()
 				.setVerifyHostname(cmd.getOptionValue("verify-host"))
@@ -121,8 +123,13 @@ public class SolrRehashCli extends Cli {
 			final SolrMachine machine =
 				new SolrMachine(logger, consumer, producer, parallelism);
 
-			consumer.setProgressBar(progressBar);
-			producer.setProgressBar(progressBar);
+			if (!cmd.hasOption("no-progress")) {
+				final ProgressBar progressBar = ConsoleProgressBar.on(System.out)
+					.withFormat("[:bar] :percent% :elapsed/:total ETA: :eta");
+
+				consumer.setProgressBar(progressBar);
+				producer.setProgressBar(progressBar);
+			}
 
 			if (cmd.hasOption('i')) {
 				consumer.setIdField(cmd.getOptionValue('i'));
