@@ -28,6 +28,16 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.params.HttpParams;
+import org.apache.http.params.SyncBasicHttpParams;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.protocol.HttpContext;
+import org.apache.http.conn.ClientConnectionManager;
+import org.apache.http.HttpHost;
+import org.apache.http.HttpRequest;
 
 /**
  * Extends {@link HttpClientBuilder} with the ability to pin a certificate
@@ -42,6 +52,15 @@ public class PinnedHttpClientBuilder extends HttpClientBuilder {
 	private HostnameVerifier hostnameVerifier = null;
 	private SSLContext sslContext = null;
 
+	/**
+	 * Consume and block until the queue is drained.
+	 *
+	 * It's up to the user to stop the consumer if the thread is
+	 * interrupted.
+	 *
+	 * @return Whether draining completed successfully or was stopped.
+	 * @throws InterruptedException if interrupted while draining
+	 */
 	public static PinnedHttpClientBuilder createWithDefaults() {
 		final PinnedHttpClientBuilder builder = new PinnedHttpClientBuilder();
 
@@ -107,6 +126,10 @@ public class PinnedHttpClientBuilder extends HttpClientBuilder {
 		return super.build();
 	}
 
+	public CloseableHttpClient buildConcurrentCompatible() {
+		return new ConcurrentCompatibileClient(build());
+	}
+
 	public static KeyStore createTrustStore(final String trustStorePath, final String trustStorePassword)
 		throws IOException, NoSuchAlgorithmException, CertificateException, KeyStoreException {
 
@@ -155,6 +178,86 @@ public class PinnedHttpClientBuilder extends HttpClientBuilder {
 		@Override
 		public final boolean verify(final String host, final SSLSession session) {
 			return defaultVerifier.verify(verifyHostname, session);
+		}
+	}
+
+	public static class ConcurrentCompatibileClient extends CloseableHttpClient {
+
+		private final CloseableHttpClient client;
+
+		public ConcurrentCompatibileClient(final CloseableHttpClient client) {
+			super();
+			this.client = client;
+		}
+
+		@Override
+		public CloseableHttpResponse doExecute(final HttpHost target, final HttpRequest request,
+			final HttpContext context) throws IOException, ClientProtocolException {
+			throw new IllegalStateException("This method should never be called.");
+		}
+
+		@Override
+		public ClientConnectionManager getConnectionManager() {
+			return client.getConnectionManager();
+		}
+
+		@Override
+		public HttpParams getParams() {
+			return new SyncBasicHttpParams();
+		}
+
+		@Override
+		public CloseableHttpResponse execute(final HttpHost target, final HttpRequest request)
+			throws IOException, ClientProtocolException {
+			return client.execute(target, request);
+		}
+
+		@Override
+		public CloseableHttpResponse execute(final HttpHost target, final HttpRequest request,
+			final HttpContext context) throws IOException, ClientProtocolException {
+			return client.execute(target, request, context);
+		}
+
+		@Override
+		public <T> T execute(final HttpHost target, final HttpRequest request,
+			final ResponseHandler<? extends T> responseHandler) throws IOException, ClientProtocolException {
+			return client.execute(target, request, responseHandler);
+		}
+
+		@Override
+		public <T> T execute(final HttpHost target, final HttpRequest request,
+			final ResponseHandler<? extends T> responseHandler, final HttpContext context)
+			throws IOException, ClientProtocolException {
+			return client.execute(target, request, responseHandler, context);
+		}
+
+		@Override
+		public CloseableHttpResponse execute(final HttpUriRequest request)
+			throws IOException, ClientProtocolException {
+			return client.execute(request);
+		}
+
+		@Override
+		public CloseableHttpResponse execute(final HttpUriRequest request, final HttpContext context)
+			throws IOException, ClientProtocolException {
+			return client.execute(request, context);
+		}
+
+		@Override
+		public <T> T execute(final HttpUriRequest request, final ResponseHandler<? extends T> responseHandler)
+			throws IOException, ClientProtocolException {
+			return client.execute(request, responseHandler);
+		}
+
+		@Override
+		public <T> T execute(final HttpUriRequest request, final ResponseHandler<? extends T> responseHandler,
+			final HttpContext context) throws IOException, ClientProtocolException {
+			return client.execute(request, responseHandler, context);
+		}
+
+		@Override
+		public void close() throws IOException {
+			client.close();
 		}
 	}
 }

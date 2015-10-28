@@ -22,7 +22,7 @@ import org.apache.commons.cli.ParseException;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.SolrClient;
-import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.client.solrj.impl.ConcurrentUpdateSolrClient;
 
 import hu.ssh.progressbar.ProgressBar;
 import hu.ssh.progressbar.console.ConsoleProgressBar;
@@ -121,8 +121,9 @@ public class SolrRehashCli extends Cli {
 			final CloseableHttpClient httpClient = PinnedHttpClientBuilder.createWithDefaults()
 				.setVerifyHostname(cmd.getOptionValue("verify-host"))
 				.pinCertificate(cmd.getOptionValue("pin-certificate"))
-				.build();
-			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
+				.buildConcurrentCompatible();
+			final ConcurrentUpdateSolrClient client = new ConcurrentUpdateSolrClient(cmd.getOptionValue('s'),
+				httpClient, parallelism * 100, parallelism);
 		) {
 			final SolrRehashConsumer consumer = new SolrRehashConsumer(logger, client,
 				cmd.getOptionValue('a').toUpperCase(Locale.ROOT));
@@ -130,6 +131,8 @@ public class SolrRehashCli extends Cli {
 				new HashSet<String>(Arrays.asList("*")), parallelism);
 			final SolrMachine machine =
 				new SolrMachine(logger, consumer, producer, parallelism);
+
+			client.setPollQueueTime(50);
 
 			if (!cmd.hasOption("no-progress")) {
 				final ProgressBar progressBar = ConsoleProgressBar.on(System.out)
@@ -162,6 +165,7 @@ public class SolrRehashCli extends Cli {
 
 			final Integer copied = machine.call();
 			machine.terminate();
+			client.blockUntilFinished();
 			logger.info(String.format("Rehashed a total of %d documents.", copied));
 
 			if (cmd.hasOption("soft-commit")) {
