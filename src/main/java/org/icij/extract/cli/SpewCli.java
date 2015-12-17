@@ -2,12 +2,13 @@ package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
 import org.icij.extract.cli.options.*;
-import org.icij.extract.redis.Redis;
+import org.icij.extract.cli.factory.ReportFactory;
+import org.icij.extract.cli.factory.QueueFactory;
+import org.icij.extract.cli.factory.ReportFactory;
+import org.icij.extract.solr.SolrSpewer;
 import org.icij.extract.http.PinnedHttpClientBuilder;
 import org.icij.extract.interval.TimeDuration;
 
-import java.util.List;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -15,12 +16,6 @@ import java.io.IOException;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
-
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ArrayBlockingQueue;
-
-import org.redisson.Redisson;
-import org.redisson.core.RMap;
 
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.ParseException;
@@ -62,14 +57,6 @@ public class SpewCli extends Cli {
 				.longOpt("output")
 				.hasArg()
 				.argName("type")
-				.build())
-
-			.addOption(Option.builder()
-				.desc("The size of the internal file path buffer to use while scanning.")
-				.longOpt("buffer-size")
-				.hasArg()
-				.argName("size")
-				.type(Number.class)
 				.build());
 	}
 
@@ -85,7 +72,6 @@ public class SpewCli extends Cli {
 
 		final CommandLine cmd = super.parse(args);
 		final int parallelism;
-		final int buffer;
 
 		if (cmd.hasOption('p')) {
 			try {
@@ -97,13 +83,7 @@ public class SpewCli extends Cli {
 			parallelism = Consumer.DEFAULT_PARALLELISM;
 		}
 
-		if (cmd.hasOption("buffer-size")) {
-			buffer = ((Number) cmd.getParsedOptionValue("buffer-size")).intValue();
-		} else{
-			buffer = Integer.MAX_VALUE;
-		}
-
-		logger.info("Processing up to " + parallelism + " file(s) in parallel.");
+		logger.info(String.format("Processing up to %d file(s) in parallel.", parallelism));
 
 		final OutputType outputType;
 		final Spewer spewer;
@@ -136,30 +116,9 @@ public class SpewCli extends Cli {
 
 		SpewerOptionSet.configureSpewer(cmd, spewer);
 
-		final QueueType queueType = QueueType.parse(cmd.getOptionValue('q'));
-		final ReporterType reporterType = ReporterType.parse(cmd.getOptionValue('r'));
 		final Extractor extractor = new Extractor(logger);
-
-		final BlockingQueue<String> queue;
-
-		Redisson redisson = null;
-		if (ReporterType.REDIS == reporterType || QueueType.REDIS == queueType) {
-			redisson = Redis.createClient(cmd.getOptionValue("redis-address"));
-		}
-
-		if (QueueType.REDIS == queueType) {
-			queue = Redis.getBlockingQueue(redisson, cmd.getOptionValue("queue-name"));
-
-		// Create a classic "bounded buffer", in which a fixed-sized array holds
-		// elements inserted by producers and extracted by consumers.
-		// The scanner will pause every time the bound is hit. This prevents it
-		// from quickly using up memory with a massive file list.
-		// At the same time it creates a substantial buffer between the scanner
-		// and the consumer.
-		} else {
-			queue = new ArrayBlockingQueue<String>(buffer);
-		}
-
+		final Queue queue = QueueFactory.createQueue(cmd);
+		final Report report = ReportFactory.createReport(cmd);
 		final PollingConsumer consumer = new PollingConsumer(logger, queue, spewer, extractor, parallelism);
 
 		ConsumerOptionSet.configureConsumer(cmd, consumer);
@@ -167,40 +126,25 @@ public class SpewCli extends Cli {
 
 		if (OutputType.FILE == outputType &&
 			extractor.getOutputFormat() == Extractor.OutputFormat.HTML) {
-
 			((FileSpewer) spewer).setOutputExtension("html");
 		}
 
-		if (ReporterType.REDIS == reporterType) {
-			final RMap<String, Integer> report = Redis.getReport(redisson, cmd.getOptionValue("report-name"));
-			final Reporter reporter = new Reporter(logger, report);
-
-			logger.info("Using Redis reporter.");
-			consumer.setReporter(reporter);
+		if (null != report) {
+			logger.info("Using reporter.");
+			consumer.setReporter(new Reporter(report));
 		}
 
-		// Allow parallel and consuming and scanning, even when the queue is Redis.
+		// Allow parallel and consuming and scanning.
 		final Scanner scanner;
 		final String[] directories = cmd.getArgs();
 
 		if (directories.length > 0) {
-
-			// When the queue type is Redis, buffer the results from the scanner
-			// so that network latency doesn't slow down scanning. The QueueingScanner
-			// will use a separate thread internally to drain the buffer to Redis.
-			if (QueueType.REDIS == queueType) {
-				scanner = new BufferedScanner(logger, queue, buffer);
-			} else {
-				scanner = new Scanner(logger, queue);
-			}
+			scanner = new Scanner(logger, queue);
 
 			ScannerOptionSet.configureScanner(cmd, scanner);
 			for (String directory : directories) {
 				scanner.scan(Paths.get(directory));
 			}
-		} else if (QueueType.NONE == queueType) {
-			throw new IllegalArgumentException("When not using a queue, you must pass the directory " +
-				"paths to scan on the command line.");
 		} else {
 			scanner = null;
 		}
@@ -273,8 +217,18 @@ public class SpewCli extends Cli {
 			logger.log(Level.SEVERE, "Spewer failed to finish.", e);
 		}
 
-		if (null != redisson) {
-			redisson.shutdown();
+		try {
+			queue.close();
+		} catch (IOException e) {
+			logger.log(Level.SEVERE, "Error while closing queue.", e);
+		}
+
+		if (null != report) {
+			try {
+				report.close();
+			} catch (IOException e) {
+				logger.log(Level.SEVERE, "Error while closing report.", e);
+			}
 		}
 
 		try {

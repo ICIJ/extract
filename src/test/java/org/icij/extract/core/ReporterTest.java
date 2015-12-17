@@ -1,7 +1,7 @@
 package org.icij.extract.core;
 
 import org.icij.extract.test.*;
-import org.icij.extract.redis.Redis;
+import org.icij.extract.redis.RedisReport;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -18,25 +18,21 @@ public class ReporterTest extends TestBase {
 
 	@Test
 	public void testSave() throws Throwable {
-		final Redisson redisson = Redis.createClient();
-		final RMap<String, Integer> report = Redis.getReport(redisson, "extract:test");
-		final Reporter reporter = new Reporter(logger, report);
-
 		final Path a = Paths.get("/path/to/a");
 		final Path b = Paths.get("/path/to/b");
 
 		try {
-			reporter.save(a, 0);
-		} catch (RedisConnectionException e) {
+			final Report report = RedisReport.create("extract:report:test");
+			final Reporter reporter = new Reporter(report);
+
+			reporter.save(a, ReportResult.SUCCEEDED);
+			Assert.assertTrue(reporter.check(a, ReportResult.SUCCEEDED));
+			reporter.save(b, ReportResult.NOT_FOUND);
+			Assert.assertTrue(reporter.check(b, ReportResult.NOT_FOUND));
+			Assert.assertFalse(reporter.check(b, ReportResult.SUCCEEDED));
+		} catch (RedisConnectionException|IllegalStateException e) {
 			Assume.assumeNoException(e);
 			return;
 		}
-
-		Assert.assertEquals(0, reporter.status(a).intValue());
-		Assert.assertTrue(reporter.succeeded(a));
-
-		reporter.save(b, 1);
-		Assert.assertEquals(1, reporter.status(b).intValue());
-		Assert.assertFalse(reporter.succeeded(b));
 	}
 }

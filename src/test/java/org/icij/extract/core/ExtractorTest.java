@@ -5,7 +5,7 @@ import org.icij.extract.test.*;
 import java.io.Reader;
 import java.io.InputStream;
 import java.io.IOException;
-import java.io.FileNotFoundException;
+import java.nio.file.NoSuchFileException;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -78,8 +78,8 @@ public class ExtractorTest extends TestBase {
 
 		final Path file = Paths.get("nothing");
 
-		thrown.expect(FileNotFoundException.class);
-		thrown.expectMessage("nothing (No such file or directory)");
+		thrown.expect(NoSuchFileException.class);
+		thrown.expectMessage("nothing");
 
 		extractor.extract(file);
 	}

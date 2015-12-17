@@ -129,13 +129,13 @@ public class Consumer {
 	 * @param file file path
 	 * @return The result code.
 	 */
-	protected int extract(final Path file) {
+	protected ReportResult extract(final Path file) {
 		logger.info("Beginning extraction: " + file + ".");
 
 		final Metadata metadata = new Metadata();
 
 		Reader reader = null;
-		int status = Reporter.SUCCEEDED;
+		ReportResult status = ReportResult.SUCCEEDED;
 
 		try {
 			reader = extractor.extract(file, metadata);
@@ -146,10 +146,10 @@ public class Consumer {
 		// It means that extraction succeeded, but the result could not be saved.
 		} catch (SpewerException e) {
 			logger.log(Level.SEVERE, String.format("The extraction result could not be outputted: %s.", file), e);
-			status = Reporter.NOT_SAVED;
+			status = ReportResult.NOT_SAVED;
 		} catch (FileNotFoundException e) {
 			logger.log(Level.SEVERE, String.format("File not found: %s. Skipping.", file), e);
-			status = Reporter.NOT_FOUND;
+			status = ReportResult.NOT_FOUND;
 		} catch (IOException e) {
 
 			// ParsingReader#read catches exceptions and wraps them in an IOException.
@@ -158,24 +158,24 @@ public class Consumer {
 			if (c instanceof ExcludedMediaTypeException) {
 				logger.log(Level.INFO, String.format("The document was not parsed because all of the " +
 					"parsers that handle it were excluded: %s.", file), e);
-				status = Reporter.NOT_PARSED;
+				status = ReportResult.NOT_PARSED;
 			} else if (c instanceof EncryptedDocumentException) {
 				logger.log(Level.SEVERE, String.format("Skipping encrypted file: %s.", file), e);
-				status = Reporter.NOT_DECRYPTED;
+				status = ReportResult.NOT_DECRYPTED;
 
 			// TIKA-198: IOExceptions thrown by parsers will be wrapped in a TikaException.
 			// This helps us differentiate input stream exceptions from output stream exceptions.
 			// https://issues.apache.org/jira/browse/TIKA-198
 			} else if (c instanceof TikaException) {
 				logger.log(Level.SEVERE, String.format("The document could not be parsed: %s.", file), e);
-				status = Reporter.NOT_PARSED;
+				status = ReportResult.NOT_PARSED;
 			} else {
 				logger.log(Level.SEVERE, String.format("The document stream could not be read: %s.", file), e);
-				status = Reporter.NOT_READ;
+				status = ReportResult.NOT_READ;
 			}
 		} catch (Throwable e) {
 			logger.log(Level.SEVERE, String.format("Unknown exception during extraction or output: %s.", file), e);
-			status = Reporter.NOT_CLEAR;
+			status = ReportResult.NOT_CLEAR;
 		}
 
 		try {
@@ -184,7 +184,7 @@ public class Consumer {
 			logger.log(Level.SEVERE, String.format("Error while closing extraction reader: %s.", file), e);
 		}
 
-		if (Reporter.SUCCEEDED == status) {
+		if (ReportResult.SUCCEEDED == status) {
 			logger.info(String.format("Finished outputting file: %s.", file));
 		}
 
@@ -215,7 +215,7 @@ public class Consumer {
 		public Path call() throws Exception {
 
 			// Check status in reporter. Skip if good.
-			if (null != reporter && reporter.succeeded(file)) {
+			if (null != reporter && reporter.check(file, ReportResult.SUCCEEDED)) {
 				logger.info(String.format("File already extracted; skipping: %s.", file));
 
 			// Save status to registry and start a new job.

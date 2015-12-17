@@ -1,12 +1,11 @@
 package org.icij.extract.cli;
 
-import org.icij.extract.core.*;
-import org.icij.extract.cli.options.*;
-import org.icij.extract.redis.Redis;
+import org.icij.extract.core.Queue;
+import org.icij.extract.json.QueueDeserializer;
+import org.icij.extract.cli.options.QueueOptionSet;
+import org.icij.extract.cli.options.RedisOptionSet;
+import org.icij.extract.cli.factory.QueueFactory;
 
-import java.util.Iterator;
-import java.util.Map;
-import java.util.HashMap;
 import java.util.logging.Logger;
 
 import java.io.File;
@@ -16,12 +15,11 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
 
-import org.redisson.Redisson;
-import org.redisson.core.RQueue;
-
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 
 /**
  * Extract
@@ -36,7 +34,7 @@ public class LoadQueueCli extends Cli {
 		super(logger, new QueueOptionSet(), new RedisOptionSet());
 	}
 
-	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
+	public CommandLine parse(final String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cmd = super.parse(args);
 
 		final String[] files = cmd.getArgs();
@@ -50,21 +48,29 @@ public class LoadQueueCli extends Cli {
 		}
 
 		final File file = new File(files[0]);
-		final Redisson redisson = Redis.createClient(cmd.getOptionValue("redis-address"));
-		final RQueue<String> queue = Redis.getQueue(redisson, cmd.getOptionValue("queue-name"));
+		final Queue queue = QueueFactory.createQueue(cmd);
+
+		final ObjectMapper mapper = new ObjectMapper();
+		final SimpleModule module = new SimpleModule();
+
+		module.addDeserializer(Queue.class, new QueueDeserializer(queue));
+		mapper.registerModule(module);
 
 		try (
-			final JsonParser jsonParser = new JsonFactory().createParser(file);
+			final JsonParser jsonParser = new JsonFactory()
+				.setCodec(mapper)
+				.createParser(file);
 		) {
-			jsonParser.nextToken(); // Skip over the start of the array.
-			while (jsonParser.nextToken() != JsonToken.END_ARRAY) {
-				queue.add(jsonParser.getValueAsString());
-			}
+			jsonParser.readValueAs(Queue.class);
 		} catch (IOException e) {
 			throw new RuntimeException("Unable to load from JSON.", e);
 		}
 
-		redisson.shutdown();
+		try {
+			queue.close();
+		} catch (IOException e) {
+			throw new RuntimeException("Exception while closing queue.", e);
+		}
 
 		return cmd;
 	}

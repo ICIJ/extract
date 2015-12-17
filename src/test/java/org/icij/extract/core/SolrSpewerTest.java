@@ -1,6 +1,7 @@
 package org.icij.extract.core;
 
 import org.icij.extract.test.*;
+import org.icij.extract.solr.SolrSpewer;
 
 import java.util.Map;
 import java.util.HashMap;

@@ -1,4 +1,7 @@
-package org.icij.extract.core;
+package org.icij.extract.solr;
+
+import org.icij.extract.core.Spewer;
+import org.icij.extract.core.SpewerException;
 
 import org.icij.extract.interval.TimeDuration;
 import org.icij.extract.solr.SolrDefaults;

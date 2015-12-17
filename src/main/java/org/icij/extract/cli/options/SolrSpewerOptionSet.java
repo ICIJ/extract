@@ -1,6 +1,7 @@
 package org.icij.extract.cli.options;
 
 import org.icij.extract.core.*;
+import org.icij.extract.solr.SolrSpewer;
 import org.icij.extract.solr.SolrDefaults;
 
 import java.util.Locale;

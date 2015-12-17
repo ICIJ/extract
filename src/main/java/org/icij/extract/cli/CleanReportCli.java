@@ -1,8 +1,9 @@
 package org.icij.extract.cli;
 
-import org.icij.extract.core.*;
-import org.icij.extract.cli.options.*;
-import org.icij.extract.redis.Redis;
+import org.icij.extract.core.Report;
+import org.icij.extract.cli.options.ReporterOptionSet;
+import org.icij.extract.cli.options.RedisOptionSet;
+import org.icij.extract.cli.factory.ReportFactory;
 
 import java.util.Iterator;
 import java.util.logging.Logger;
@@ -10,14 +11,11 @@ import java.util.logging.Logger;
 import java.io.IOException;
 
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
-
-import org.redisson.Redisson;
-import org.redisson.core.RMap;
 
 import hu.ssh.progressbar.ProgressBar;
 import hu.ssh.progressbar.console.ConsoleProgressBar;
@@ -38,31 +36,28 @@ public class CleanReportCli extends Cli {
 	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException, RuntimeException {
 		final CommandLine cmd = super.parse(args);
 
-		final ReporterType reporterType = ReporterType.parse(cmd.getOptionValue('r', "redis"));
-
-		if (ReporterType.REDIS != reporterType) {
-			throw new IllegalArgumentException("Invalid reporter type: " + reporterType + ".");
-		}
-
-		final Redisson redisson = Redis.createClient(cmd.getOptionValue("redis-address"));
-		final RMap<String, Integer> report = Redis.getReport(redisson, cmd.getOptionValue("report-name"));
-		final Iterator<String> entries = report.keySet().iterator();
+		final Report report = ReportFactory.createReport(cmd);
+		final Iterator<Path> iterator = report.keySet().iterator();
 
 		final ProgressBar progressBar = ConsoleProgressBar.on(System.out)
 			.withFormat("[:bar] :percent% :elapsed/:total ETA: :eta")
 			.withTotalSteps(report.size());
 
-		while (entries.hasNext()) {
-			String path = entries.next();
+		while (iterator.hasNext()) {
+			Path path = iterator.next();
 
-			if (Files.notExists(Paths.get(path))) {
-				entries.remove();
+			if (Files.notExists(path)) {
+				iterator.remove();
 			}
 
 			progressBar.tickOne();
 		}
 
-		redisson.shutdown();
+		try {
+			report.close();
+		} catch (IOException e) {
+			throw new RuntimeException("Exception while closing report.", e);
+		}
 
 		return cmd;
 	}

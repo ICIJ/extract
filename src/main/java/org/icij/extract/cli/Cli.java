@@ -31,7 +31,7 @@ public abstract class Cli {
 	protected final Logger logger;
 	protected final Options options = new Options();
 
-	public Cli(Logger logger, OptionSet... optionSets) {
+	public Cli(final Logger logger, OptionSet... optionSets) {
 		this.logger = logger;
 
 		new LoggerOptionSet().addToOptions(options);
@@ -41,7 +41,7 @@ public abstract class Cli {
 		}
 	}
 
-	protected CommandLine parse(String[] args) throws ParseException, IllegalArgumentException, RuntimeException {
+	protected CommandLine parse(final String[] args) throws ParseException, IllegalArgumentException, RuntimeException {
 		final CommandLine cmd = DEFAULT_PARSER.parse(options, args);
 
 		LoggerOptionSet.configureLogger(cmd, logger);
@@ -51,11 +51,11 @@ public abstract class Cli {
 
 	protected abstract void printHelp();
 
-	protected void printHelp(Command command, String description) {
+	protected void printHelp(final Command command, final String description) {
 		printHelp(command, description, null);
 	}
 
-	protected void printHelp(Command command, String description, String arguments) {
+	protected void printHelp(final Command command, final String description, final String arguments) {
 		final HelpFormatter formatter = new HelpFormatter();
 
 		final String footer = "\nPlease report issues at: https://github.com/ICIJ/extract/issues.";

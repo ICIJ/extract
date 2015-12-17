@@ -1,17 +1,17 @@
 package org.icij.extract.cli;
 
-import org.icij.extract.core.*;
-import org.icij.extract.cli.options.*;
-import org.icij.extract.redis.Redis;
+import org.icij.extract.core.Report;
+import org.icij.extract.cli.options.ReporterOptionSet;
+import org.icij.extract.cli.options.RedisOptionSet;
+import org.icij.extract.cli.factory.ReportFactory;
+
+import java.io.IOException;
 
 import java.util.logging.Logger;
 
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
-
-import org.redisson.Redisson;
-import org.redisson.core.RMap;
 
 /**
  * Extract
@@ -26,21 +26,19 @@ public class WipeReportCli extends Cli {
 		super(logger, new ReporterOptionSet(), new RedisOptionSet());
 	}
 
-	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
+	public CommandLine parse(final String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cmd = super.parse(args);
 
-		final ReporterType reporterType = ReporterType.parse(cmd.getOptionValue('r', "redis"));
-
-		if (ReporterType.REDIS != reporterType) {
-			throw new IllegalArgumentException("Invalid reporter type: " + reporterType + ".");
-		}
-
-		final Redisson redisson = Redis.createClient(cmd.getOptionValue("redis-address"));
-		final RMap<String, Integer> report = Redis.getReport(redisson, cmd.getOptionValue("report-name"));
+		final Report report = ReportFactory.createReport(cmd);
 
 		logger.info("Wiping report.");
 		report.clear();
-		redisson.shutdown();
+
+		try {
+			report.close();
+		} catch (IOException e) {
+			throw new RuntimeException("Exception while closing queue.", e);
+		}
 
 		return cmd;
 	}

@@ -1,12 +1,11 @@
 package org.icij.extract.cli;
 
-import org.icij.extract.core.*;
-import org.icij.extract.cli.options.*;
-import org.icij.extract.redis.Redis;
+import org.icij.extract.core.Report;
+import org.icij.extract.json.ReportDeserializer;
+import org.icij.extract.cli.options.ReporterOptionSet;
+import org.icij.extract.cli.options.RedisOptionSet;
+import org.icij.extract.cli.factory.ReportFactory;
 
-import java.util.Iterator;
-import java.util.Map;
-import java.util.HashMap;
 import java.util.logging.Logger;
 
 import java.io.File;
@@ -16,12 +15,10 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
 
-import org.redisson.Redisson;
-import org.redisson.core.RMap;
-
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 
 /**
  * Extract
@@ -50,21 +47,29 @@ public class LoadReportCli extends Cli {
 		}
 
 		final File file = new File(files[0]);
-		final Redisson redisson = Redis.createClient(cmd.getOptionValue("redis-address"));
-		final RMap<String, Integer> report = Redis.getReport(redisson, cmd.getOptionValue("report-name"));
+		final Report report = ReportFactory.createReport(cmd);
+
+		final ObjectMapper mapper = new ObjectMapper();
+		final SimpleModule module = new SimpleModule();
+
+		module.addDeserializer(Report.class, new ReportDeserializer(report));
+		mapper.registerModule(module);
 
 		try (
-			final JsonParser jsonParser = new JsonFactory().createParser(file);
+			final JsonParser jsonParser = new JsonFactory()
+				.setCodec(mapper)
+				.createParser(file);
 		) {
-			jsonParser.nextToken(); // Skip over the start of the object.
-			while (jsonParser.nextToken() != JsonToken.END_OBJECT && jsonParser.nextValue() != null) {
-				report.put(jsonParser.getCurrentName(), jsonParser.getValueAsInt());
-			}
+			jsonParser.readValueAs(Report.class);
 		} catch (IOException e) {
 			throw new RuntimeException("Unable to load from JSON.", e);
 		}
 
-		redisson.shutdown();
+		try {
+			report.close();
+		} catch (IOException e) {
+			throw new RuntimeException("Exception while closing report.", e);
+		}
 
 		return cmd;
 	}

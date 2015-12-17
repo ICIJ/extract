@@ -1,7 +1,5 @@
 package org.icij.extract.solr;
 
-import org.icij.extract.core.SolrSpewer;
-
 import java.util.Map;
 import java.util.HashMap;
 

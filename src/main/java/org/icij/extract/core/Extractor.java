@@ -214,7 +214,7 @@ public class Extractor {
 	 * @param metadata will be populated with metadata extracted from the file
 	 */
 	public Reader extract(final Path file, final Metadata metadata) throws IOException, FileNotFoundException, TikaException {
-		return extract(TikaInputStream.get(file.toFile(), metadata), metadata);
+		return extract(TikaInputStream.get(file, metadata), metadata);
 	}
 
 	/**

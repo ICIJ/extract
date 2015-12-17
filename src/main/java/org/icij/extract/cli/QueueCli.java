@@ -1,20 +1,23 @@
 package org.icij.extract.cli;
 
-import org.icij.extract.core.*;
-import org.icij.extract.cli.options.*;
-import org.icij.extract.redis.Redis;
+import org.icij.extract.core.Queue;
+import org.icij.extract.core.Scanner;
+
+import org.icij.extract.cli.options.QueueOptionSet;
+import org.icij.extract.cli.options.RedisOptionSet;
+import org.icij.extract.cli.options.ScannerOptionSet;
+import org.icij.extract.cli.factory.QueueFactory;
 
 import java.util.List;
 import java.util.logging.Logger;
+
+import java.io.IOException;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
-
-import org.redisson.Redisson;
-import org.redisson.core.RBlockingQueue;
 
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.ParseException;
@@ -31,42 +34,18 @@ public class QueueCli extends Cli {
 
 	public QueueCli(Logger logger) {
 		super(logger, new QueueOptionSet(), new RedisOptionSet(), new ScannerOptionSet());
-
-		options.addOption(Option.builder()
-				.desc("The size of the internal file path buffer to use while scanning.")
-				.longOpt("buffer-size")
-				.hasArg()
-				.argName("size")
-				.type(Number.class)
-				.build());
 	}
 
 	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException, RuntimeException {
 		final CommandLine cmd = super.parse(args);
-
-		final QueueType queueType = QueueType.parse(cmd.getOptionValue('q', "redis"));
-
-		if (QueueType.REDIS != queueType) {
-			throw new IllegalArgumentException("Invalid queue type: " + queueType + ".");
-		}
-
+		final Queue queue = QueueFactory.createQueue(cmd);
 		final List<String> directories = cmd.getArgList();
 
 		if (directories.size() == 0) {
 			throw new IllegalArgumentException("You must pass the directory paths to scan on the command line.");
 		}
 
-		final int buffer;
-
-		if (cmd.hasOption("buffer-size")) {
-			buffer = ((Number) cmd.getParsedOptionValue("buffer-size")).intValue();
-		} else{
-			buffer = Integer.MAX_VALUE;
-		}
-
-		final Redisson redisson = Redis.createClient(cmd.getOptionValue("redis-address"));
-		final RBlockingQueue<String> queue = Redis.getBlockingQueue(redisson, cmd.getOptionValue("queue-name"));
-		final Scanner scanner = new BufferedScanner(logger, queue, buffer);
+		final Scanner scanner = new Scanner(logger, queue);
 
 		ScannerOptionSet.configureScanner(cmd, scanner);
 		for (String directory : directories) {
@@ -82,8 +61,11 @@ public class QueueCli extends Cli {
 			Thread.currentThread().interrupt();
 		}
 
-		logger.info("Shutting down Redis client.");
-		redisson.shutdown();
+		try {
+			queue.close();
+		} catch (IOException e) {
+			throw new RuntimeException("Exception while closing queue.", e);
+		}
 
 		logger.info("Done.");
 

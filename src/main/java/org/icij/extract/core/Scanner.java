@@ -58,7 +58,7 @@ import java.nio.file.attribute.BasicFileAttributes;
  */
 public class Scanner {
 	protected final Logger logger;
-	protected final BlockingQueue<String> queue;
+	protected final Queue queue;
 	protected final ExecutorService executor = Executors.newSingleThreadExecutor();
 
 	protected ArrayDeque<String> includeGlobs = new ArrayDeque<String>();
@@ -73,12 +73,12 @@ public class Scanner {
 
 	/**
 	 * Creates a {@code Scanner} that sends all results straight to
-	 * the underlying {@link BlockingQueue}.
+	 * the underlying {@link Queue}.
 	 *
 	 * @param logger logger
 	 * @param queue results from the scanner will be put on this queue
 	 */
-	public Scanner(final Logger logger, final BlockingQueue<String> queue) {
+	public Scanner(final Logger logger, final Queue queue) {
 		this.logger = logger;
 		this.queue = queue;
 	}
@@ -124,7 +124,7 @@ public class Scanner {
 	 * @return A {@link Future} that can be used to wait on the result or cancel.
 	 */
 	public Future<Path> scan(final Path path) {
-		logger.info("Queuing scan of \"" + path + "\".");
+		logger.info(String.format("Queuing scan of: %s.", path));
 		return executor.submit(new ScannerTask(path));
 	}
 
@@ -154,6 +154,7 @@ public class Scanner {
 	 * @return Whether the scanner was stopped or already stopped.
 	 */
 	public boolean stop() {
+		logger.info("Stopping scanning.");
 		return stopped.compareAndSet(false, true);
 	}
 
@@ -163,9 +164,14 @@ public class Scanner {
 	 * @throws InterruptedException if interrupted while waiting for a queue slot
 	 */
 	protected void queue(final Path file) throws InterruptedException {
-		queue.put(file.toString());
+		queue.put(file);
 	}
 
+	/**
+	 * Recursively walks the file tree of a directory.
+	 *
+	 * @param directory the directory at which to start walking
+	 */
 	protected void scanDirectory(final Path directory) throws IOException {
 		final Set<FileVisitOption> options;
 
@@ -208,6 +214,7 @@ public class Scanner {
 
 		@Override
 		public Path call() throws Exception {
+			logger.info(String.format("Starting scan of: %s.", path));
 			if (stopped.get()) {
 				return path;
 			}

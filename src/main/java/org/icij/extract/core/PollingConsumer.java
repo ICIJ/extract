@@ -10,7 +10,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -26,14 +25,14 @@ import java.nio.file.Path;
 public class PollingConsumer extends Consumer {
 	public static final TimeDuration DEFAULT_TIMEOUT = new TimeDuration(0, TimeUnit.SECONDS);
 
-	private final BlockingQueue<String> queue;
+	private final Queue queue;
 	private final AtomicBoolean stopped = new AtomicBoolean();
 	private final ExecutorService drainer = Executors.newCachedThreadPool();
 	private final Semaphore draining = new Semaphore(1);
 
 	private TimeDuration pollTimeout = DEFAULT_TIMEOUT;
 
-	public PollingConsumer(final Logger logger, final BlockingQueue<String> queue,
+	public PollingConsumer(final Logger logger, final Queue queue,
 		final Spewer spewer, final Extractor extractor, final int parallelism) {
 		super(logger, spewer, extractor, parallelism);
 		this.queue = queue;
@@ -99,7 +98,7 @@ public class PollingConsumer extends Consumer {
 	public boolean drain() throws InterruptedException {
 		logger.info("Draining consumer.");
 
-		String file;
+		Path file;
 		boolean stopped;
 
 		draining.acquire();
@@ -173,8 +172,8 @@ public class PollingConsumer extends Consumer {
 	 *
 	 * @throws InterruptedException if interrupted while polling
 	 */
-	protected String poll() throws InterruptedException {
-		final String file;
+	protected Path poll() throws InterruptedException {
+		final Path file;
 
 		if (null == pollTimeout) {
 			logger.info("Polling the queue, waiting indefinitely.");
@@ -208,7 +207,7 @@ public class PollingConsumer extends Consumer {
 				draining.acquire();
 				stopped.set(false);
 				while (!Thread.currentThread().isInterrupted() && !stopped.get()) {
-					String file = queue.poll(1L, TimeUnit.SECONDS);
+					Path file = queue.poll(1L, TimeUnit.SECONDS);
 
 					if (null != file) {
 						accept(file);

@@ -1,17 +1,17 @@
 package org.icij.extract.cli;
 
-import org.icij.extract.core.*;
-import org.icij.extract.cli.options.*;
-import org.icij.extract.redis.Redis;
+import org.icij.extract.core.Queue;
+import org.icij.extract.cli.options.QueueOptionSet;
+import org.icij.extract.cli.options.RedisOptionSet;
+import org.icij.extract.cli.factory.QueueFactory;
+
+import java.io.IOException;
 
 import java.util.logging.Logger;
 
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
-
-import org.redisson.Redisson;
-import org.redisson.core.RQueue;
 
 /**
  * Extract
@@ -26,21 +26,19 @@ public class WipeQueueCli extends Cli {
 		super(logger, new QueueOptionSet(), new RedisOptionSet());
 	}
 
-	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
+	public CommandLine parse(final String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cmd = super.parse(args);
 
-		final QueueType queueType = QueueType.parse(cmd.getOptionValue('q', "redis"));
-
-		if (QueueType.REDIS != queueType) {
-			throw new IllegalArgumentException("Invalid queue type: " + queueType + ".");
-		}
-
-		final Redisson redisson = Redis.createClient(cmd.getOptionValue("redis-address"));
-		final RQueue<String> queue = Redis.getQueue(redisson, cmd.getOptionValue("queue-name"));
+		final Queue queue = QueueFactory.createQueue(cmd);
 
 		logger.info("Wiping queue.");
-		queue.delete();
-		redisson.shutdown();
+		queue.clear();
+
+		try {
+			queue.close();
+		} catch (IOException e) {
+			throw new RuntimeException("Exception while closing queue.", e);
+		}
 
 		return cmd;
 	}

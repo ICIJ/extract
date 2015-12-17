@@ -1,12 +1,11 @@
 package org.icij.extract.cli;
 
-import org.icij.extract.core.*;
-import org.icij.extract.cli.options.*;
-import org.icij.extract.redis.Redis;
+import org.icij.extract.core.Queue;
+import org.icij.extract.json.QueueSerializer;
+import org.icij.extract.cli.options.QueueOptionSet;
+import org.icij.extract.cli.options.RedisOptionSet;
+import org.icij.extract.cli.factory.QueueFactory;
 
-import java.util.Iterator;
-import java.util.Map;
-import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -16,12 +15,11 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
 
-import org.redisson.Redisson;
-import org.redisson.core.RQueue;
-
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonEncoding;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 
 import hu.ssh.progressbar.ProgressBar;
 import hu.ssh.progressbar.console.ConsoleProgressBar;
@@ -30,7 +28,6 @@ import hu.ssh.progressbar.console.ConsoleProgressBar;
  * Extract
  *
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
 public class DumpQueueCli extends Cli {
@@ -39,45 +36,38 @@ public class DumpQueueCli extends Cli {
 		super(logger, new QueueOptionSet(), new RedisOptionSet());
 	}
 
-	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException, RuntimeException {
+	public CommandLine parse(final String[] args) throws ParseException, IllegalArgumentException, RuntimeException {
 		final CommandLine cmd = super.parse(args);
 
-		final QueueType queueType = QueueType.parse(cmd.getOptionValue('q', "redis"));
-
-		// For now, the only allowed value (and the default) is "redis".
-		// Enforce this.
-		if (QueueType.REDIS != queueType) {
-			throw new IllegalArgumentException("Invalid queue type: " + queueType + ".");
-		}
-
-		final Redisson redisson = Redis.createClient(cmd.getOptionValue("redis-address"));
-		final RQueue<String> queue = Redis.getQueue(redisson, cmd.getOptionValue("queue-name"));
+		final Queue queue = QueueFactory.createQueue(cmd);
 
 		final ProgressBar progressBar = ConsoleProgressBar.on(System.out)
 			.withFormat("[:bar] :percent% :elapsed/:total ETA: :eta")
 			.withTotalSteps(queue.size());
 
-		final Iterator<String> files = queue.iterator();
+		final ObjectMapper mapper = new ObjectMapper();
+		final SimpleModule module = new SimpleModule();
+
+		module.addSerializer(Queue.class, new QueueSerializer(progressBar));
+		mapper.registerModule(module);
 
 		try (
 			final JsonGenerator jsonGenerator = new JsonFactory()
+				.setCodec(mapper)
 				.createGenerator(System.out, JsonEncoding.UTF8);
 		) {
 			jsonGenerator.useDefaultPrettyPrinter();
-			jsonGenerator.writeStartArray();
-
-			while (files.hasNext()) {
-				jsonGenerator.writeString(files.next());
-				progressBar.tickOne();
-			}
-
-			jsonGenerator.writeEndArray();
+			jsonGenerator.writeObject(queue);
 			jsonGenerator.writeRaw('\n');
 		} catch (IOException e) {
 			throw new RuntimeException("Unable to output JSON.", e);
 		}
 
-		redisson.shutdown();
+		try {
+			queue.close();
+		} catch (IOException e) {
+			throw new RuntimeException("Exception while closing queue.", e);
+		}
 
 		return cmd;
 	}

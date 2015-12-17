@@ -19,8 +19,16 @@ public class QueueOptionSet extends OptionSet {
 				.argName("name")
 				.build(),
 
+			Option.builder()
+				.desc("The size of the internal file path buffer used by the queue.")
+				.longOpt("queue-buffer")
+				.hasArg()
+				.argName("size")
+				.type(Number.class)
+				.build(),
+
 			Option.builder("q")
-				.desc("Set the queue backend type. For now, the only valid value is \"redis\".")
+				.desc("Set the queue backend type. For now, the only valid values are \"redis\" and \"array\" (the default).")
 				.longOpt("queue")
 				.hasArg()
 				.argName("type")
