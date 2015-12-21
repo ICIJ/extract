@@ -128,7 +128,7 @@ public class PollingConsumer extends Consumer {
 	}
 
 	/**
-	 * Drain the queue in a non-blocking way, without ever timeing out,
+	 * Drain the queue in a non-blocking way, without ever timing out,
 	 * until the draining thread is interrupted or the task is cancelled.
 	 *
 	 * @return a {@link Future} represent the draining task

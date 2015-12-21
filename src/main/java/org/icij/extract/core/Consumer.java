@@ -43,7 +43,6 @@ public class Consumer {
 	protected final Extractor extractor;
 	protected final Semaphore permits;
 	protected final ExecutorService executor;
-	protected final int parallelism;
 
 	protected Reporter reporter = null;
 
@@ -61,7 +60,6 @@ public class Consumer {
 		this.logger = logger;
 		this.spewer = spewer;
 		this.extractor = extractor;
-		this.parallelism = parallelism;
 		this.executor = Executors.newFixedThreadPool(parallelism);
 		this.permits = new Semaphore(parallelism);
 	}
