@@ -115,6 +115,14 @@ public class Scanner {
 		return ignoreOSFiles;
 	}
 
+	public void setMaxDepth(final int maxDepth) {
+		this.maxDepth = maxDepth;
+	}
+
+	public int getMaxDepth() {
+		return maxDepth;
+	}
+
 	/**
 	 * Queue a scanning job.
 	 *
