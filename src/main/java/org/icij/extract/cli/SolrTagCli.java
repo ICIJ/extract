@@ -1,13 +1,10 @@
 package org.icij.extract.cli;
 
-import org.icij.extract.core.*;
 import org.icij.extract.cli.options.*;
 import org.icij.extract.solr.*;
 import org.icij.extract.http.PinnedHttpClientBuilder;
-import org.icij.extract.solr.SolrDefaults;
 
 import java.util.Map;
-import java.util.List;
 import java.util.HashMap;
 
 import java.util.logging.Logger;
@@ -57,21 +54,21 @@ public class SolrTagCli extends Cli {
 				.build())
 
 			.addOption(Option.builder("a")
-				.desc(String.format("Address of the first Solr core in the set. This should be the smaller of the two cores, as iteration will occur over this set."))
+				.desc("Address of the first Solr core in the set. This should be the smaller of the two cores, as iteration will occur over this set.")
 				.longOpt("a-address")
 				.hasArg()
 				.argName("address")
 				.build())
 
 			.addOption(Option.builder("b")
-				.desc(String.format("Address of the second Solr core in the set. This should be the larger of the two cores."))
+				.desc("Address of the second Solr core in the set. This should be the larger of the two cores.")
 				.longOpt("b-address")
 				.hasArg()
 				.argName("address")
 				.build())
 
 			.addOption(Option.builder("p")
-				.desc(String.format("The number of documents to process at a time. Defaults to the number of available processors. To improve performance, set to a lower number if the fields contain very large values."))
+				.desc("The number of documents to process at a time. Defaults to the number of available processors. To improve performance, set to a lower number if the fields contain very large values.")
 				.longOpt("parallel")
 				.hasArg()
 				.argName("size")
@@ -92,7 +89,7 @@ public class SolrTagCli extends Cli {
 	public CommandLine parse(String[] args) throws ParseException, RuntimeException {
 		final CommandLine cmd = super.parse(args);
 
-		final Map<String, String> pairs = new HashMap<String, String>();
+		final Map<String, String> pairs = new HashMap<>();
 		final String[] literals = cmd.getArgs();
 
 		if (0 == literals.length) {
@@ -120,7 +117,7 @@ public class SolrTagCli extends Cli {
 		final String subsetMode = cmd.getOptionValue('m');
 
 		if (null != subsetMode && !(subsetMode.equals("intersection") || subsetMode.equals("complement"))) {
-			throw new IllegalArgumentException(String.format("Invalid mode: ", subsetMode));
+			throw new IllegalArgumentException(String.format("Invalid mode: %s.", subsetMode));
 		}
 
 		final String addressA = cmd.getOptionValue('a');
@@ -136,7 +133,7 @@ public class SolrTagCli extends Cli {
 				.setVerifyHostname(cmd.getOptionValue("verify-host"))
 				.pinCertificate(cmd.getOptionValue("pin-certificate"))
 				.build();
-			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
+			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient)
 		) {
 			final SolrMachineConsumer consumer;
 			final SolrMachineProducer producer;
@@ -145,7 +142,7 @@ public class SolrTagCli extends Cli {
 			if (null != subsetMode) {
 				try (
 					final SolrClient clientA = new HttpSolrClient(addressA, httpClient);
-					final SolrClient clientB = new HttpSolrClient(addressB, httpClient);
+					final SolrClient clientB = new HttpSolrClient(addressB, httpClient)
 				) {
 					producer = new SolrMachineProducer(logger, clientA, null, parallelism);
 

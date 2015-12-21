@@ -3,7 +3,6 @@ package org.icij.extract.solr;
 import java.util.Map;
 import java.util.HashMap;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import java.io.IOException;
@@ -51,7 +50,7 @@ public class SolrCopyConsumer extends SolrMachineConsumer {
 
 	private void copyField(final String from, final SolrDocument input,
 		final SolrInputDocument output) {
-		final Map<String, Object> atomic = new HashMap<String, Object>();
+		final Map<String, Object> atomic = new HashMap<>();
 		String to = map.get(from);
 
 		// If there's no target field, copy the field onto itself.

@@ -3,12 +3,8 @@ package org.icij.extract.cli.factory;
 import org.icij.extract.core.Report;
 import org.icij.extract.core.ReportType;
 import org.icij.extract.redis.RedisReport;
-import org.icij.extract.redis.ConnectionManagerFactory;
 
 import org.apache.commons.cli.CommandLine;
-
-import org.redisson.Config;
-import org.redisson.connection.ConnectionManager;
 
 /**
  * Factory methods for creating {@link Report} objects.

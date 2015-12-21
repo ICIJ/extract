@@ -4,7 +4,6 @@ import java.util.Set;
 
 import java.util.function.Supplier;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import java.util.concurrent.Callable;
@@ -24,7 +23,7 @@ import hu.ssh.progressbar.ProgressBar;
 public class SolrMachineProducer extends StreamingResponseCallback implements Callable<Integer>,
 	Supplier<SolrDocument> {
 
-	protected final TransferQueue<SolrDocument> queue = new LinkedTransferQueue<SolrDocument>();
+	protected final TransferQueue<SolrDocument> queue = new LinkedTransferQueue<>();
 	protected final Logger logger;
 	protected final SolrClient client;
 	protected final Set<String> fields;
@@ -39,7 +38,7 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 	private volatile boolean stopped = false;
 	private long start = 0;
 	private long found = 0;
-	private volatile long fetched = 0;
+	private long fetched = 0;
 
 	public SolrMachineProducer(final Logger logger, final SolrClient client,
 		final Set<String> fields, final int parallelism) {
@@ -113,7 +112,7 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 			poison();
 		}
 
-		return new Integer(total);
+		return total;
 	}
 
 	@Override
@@ -174,7 +173,7 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 		final long fetched = this.fetched;
 
 		// Stop if there are no more results.
-		// Intruct consumers to stop by sending a poison pill.
+		// Instruct consumers to stop by sending a poison pill.
 		if (fetched < rows) {
 			stopped = true;
 		}
@@ -184,7 +183,7 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 		return fetched;
 	}
 
-	private class PoisonDocument extends SolrDocument {
+	private static class PoisonDocument extends SolrDocument {
 
 	}
 }

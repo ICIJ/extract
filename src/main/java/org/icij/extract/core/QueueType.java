@@ -15,7 +15,7 @@ public enum QueueType {
 		return name().toLowerCase(Locale.ROOT);
 	}
 
-	public static final QueueType parse(final String queueType) {
+	public static QueueType parse(final String queueType) {
 		if (null == queueType) {
 			return NONE;
 		}

@@ -12,6 +12,12 @@ import java.nio.file.PathMatcher;
 public class PosixHiddenFileMatcher implements PathMatcher {
 
 	public boolean matches(final Path path) {
-		return path.getFileName().toString().startsWith(".");
+		final Path fileName = path.getFileName();
+
+		if (null != fileName) {
+			return fileName.toString().startsWith(".");
+		}
+
+		return false;
 	}
 }

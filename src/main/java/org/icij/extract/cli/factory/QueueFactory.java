@@ -4,13 +4,9 @@ import org.icij.extract.core.Queue;
 import org.icij.extract.core.QueueType;
 import org.icij.extract.core.ArrayQueue;
 import org.icij.extract.redis.RedisQueue;
-import org.icij.extract.redis.ConnectionManagerFactory;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
-
-import org.redisson.Config;
-import org.redisson.connection.ConnectionManager;
 
 /**
  * Factory methods for creating queue objects.

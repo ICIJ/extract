@@ -1,19 +1,13 @@
 package org.icij.extract.cli;
 
-import org.icij.extract.core.*;
 import org.icij.extract.cli.options.*;
 
-import java.util.Locale;
-import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import java.nio.file.Path;
 
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
@@ -41,7 +35,7 @@ public abstract class Cli {
 		}
 	}
 
-	protected CommandLine parse(final String[] args) throws ParseException, IllegalArgumentException, RuntimeException {
+	protected CommandLine parse(final String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cmd = DEFAULT_PARSER.parse(options, args);
 
 		LoggerOptionSet.configureLogger(cmd, logger);

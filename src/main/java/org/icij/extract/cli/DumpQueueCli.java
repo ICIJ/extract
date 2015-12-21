@@ -6,12 +6,10 @@ import org.icij.extract.cli.options.QueueOptionSet;
 import org.icij.extract.cli.options.RedisOptionSet;
 import org.icij.extract.cli.factory.QueueFactory;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import java.io.IOException;
 
-import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
 
@@ -36,7 +34,7 @@ public class DumpQueueCli extends Cli {
 		super(logger, new QueueOptionSet(), new RedisOptionSet());
 	}
 
-	public CommandLine parse(final String[] args) throws ParseException, IllegalArgumentException, RuntimeException {
+	public CommandLine parse(final String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cmd = super.parse(args);
 
 		final Queue queue = QueueFactory.createQueue(cmd);
@@ -54,7 +52,7 @@ public class DumpQueueCli extends Cli {
 		try (
 			final JsonGenerator jsonGenerator = new JsonFactory()
 				.setCodec(mapper)
-				.createGenerator(System.out, JsonEncoding.UTF8);
+				.createGenerator(System.out, JsonEncoding.UTF8)
 		) {
 			jsonGenerator.useDefaultPrettyPrinter();
 			jsonGenerator.writeObject(queue);

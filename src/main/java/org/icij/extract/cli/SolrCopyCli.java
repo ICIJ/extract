@@ -1,13 +1,10 @@
 package org.icij.extract.cli;
 
-import org.icij.extract.core.*;
 import org.icij.extract.cli.options.*;
 import org.icij.extract.solr.*;
 import org.icij.extract.http.PinnedHttpClientBuilder;
-import org.icij.extract.solr.SolrDefaults;
 
 import java.util.Map;
-import java.util.List;
 import java.util.HashMap;
 
 import java.util.logging.Logger;
@@ -53,7 +50,7 @@ public class SolrCopyCli extends Cli {
 				.build())
 
 			.addOption(Option.builder("p")
-				.desc(String.format("The number of documents to process at a time. Defaults to the number of available processors. To improve performance, set to a lower number if the fields contain very large values."))
+				.desc("The number of documents to process at a time. Defaults to the number of available processors. To improve performance, set to a lower number if the fields contain very large values.")
 				.longOpt("parallel")
 				.hasArg()
 				.argName("size")
@@ -83,7 +80,7 @@ public class SolrCopyCli extends Cli {
 			throw new IllegalArgumentException("You must pass the field mappings on the command line.");
 		}
 
-		final Map<String, String> map = new HashMap<String, String>();
+		final Map<String, String> map = new HashMap<>();
 
 		for (String mapping : cmd.getArgs()) {
 			String[] fields = mapping.split(":", 2);
@@ -108,7 +105,7 @@ public class SolrCopyCli extends Cli {
 				.setVerifyHostname(cmd.getOptionValue("verify-host"))
 				.pinCertificate(cmd.getOptionValue("pin-certificate"))
 				.build();
-			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
+			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient)
 		) {
 			final SolrMachineConsumer consumer = new SolrCopyConsumer(logger, client, map);
 			final SolrMachineProducer producer = new SolrMachineProducer(logger, client, map.keySet(), parallelism);

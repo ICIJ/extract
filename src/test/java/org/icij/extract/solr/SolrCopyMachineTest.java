@@ -10,7 +10,6 @@ import java.io.IOException;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.SolrDocumentList;
-import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
 
@@ -41,7 +40,7 @@ public class SolrCopyMachineTest extends SolrJettyTestBase {
 
 	@Test
 	public void testCopy() throws IOException, SolrServerException, InterruptedException {
-		final Map<String, String> map = new HashMap<String, String>();
+		final Map<String, String> map = new HashMap<>();
 
 		final SolrMachineConsumer consumer = new SolrCopyConsumer(logger, client, map);
 		final SolrMachineProducer producer = new SolrMachineProducer(logger, client, map.keySet());

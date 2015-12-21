@@ -2,10 +2,6 @@ package org.icij.extract.core;
 
 import java.lang.Runtime;
 
-import java.util.Iterator;
-import java.util.HashSet;
-import java.util.Set;
-
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -32,7 +28,7 @@ import org.apache.tika.exception.EncryptedDocumentException;
  *
  * The parallelism of the thread pool is defined in the call to the constructor.
  *
- * A task is defined as both the extraction from a file and the ouputting of extracted data.
+ * A task is defined as both the extraction from a file and the output of extracted data.
  * Completion is only considered successful if both parts of the task complete with no exceptions.
  *
  * The final status of each task is saved to the reporter, if any is set.
@@ -52,7 +48,7 @@ public class Consumer {
 	protected Reporter reporter = null;
 
 	/**
-	 * Create a new consumer with the given parallelism. Calls to {@link #consume}
+	 * Create a new consumer with the given parallelism. Calls to {@link #accept}
 	 * will block when the given parallelism is reached.
 	 *
 	 * @param logger logger
@@ -80,7 +76,7 @@ public class Consumer {
 	}
 
 	/**
-	 * Consume a file. Like {@link #consume} but accepts a {@link String} path.
+	 * Consume a file. Like {@link #accept} but accepts a {@link String} path.
 	 *
 	 * @param file file path
 	 * @throws InterruptedException if interrupted while waiting for a slot
@@ -179,7 +175,9 @@ public class Consumer {
 		}
 
 		try {
-			reader.close();
+			if (null != reader) {
+				reader.close();
+			}
 		} catch (IOException e) {
 			logger.log(Level.SEVERE, String.format("Error while closing extraction reader: %s.", file), e);
 		}

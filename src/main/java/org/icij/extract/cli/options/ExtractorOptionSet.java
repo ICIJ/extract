@@ -28,7 +28,7 @@ public class ExtractorOptionSet extends OptionSet {
 				.build(),
 
 			Option.builder("e")
-				.desc("Set the embed handling mode. Either \"ignore\", \"extract\" or \"embed\". When set to extract, embeds are parsed and the output is inlined into the main output. In embed mode, embeds are not parsed but are inlined as a data URI representation of the raw embed data. The latter mode only applies when the output format is set to HTML. Defaults to extracting.")
+				.desc("Set the embed handling mode. Either \"ignore\", \"extract\" or \"embed\". When set to extract, embeds are parsed and the output is in-lined into the main output. In embed mode, embeds are not parsed but are in-lined as a data URI representation of the raw embed data. The latter mode only applies when the output format is set to HTML. Defaults to extracting.")
 				.longOpt("embed-handling")
 				.hasArg()
 				.argName("mode")

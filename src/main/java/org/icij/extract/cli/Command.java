@@ -1,7 +1,5 @@
 package org.icij.extract.cli;
 
-import org.icij.extract.core.*;
-
 import java.util.Locale;
 import java.util.logging.Logger;
 
@@ -29,10 +27,10 @@ public enum Command {
 	SOLR_TAG(SolrTagCli.class),
 	SOLR_REHASH(SolrRehashCli.class);
 
-	private final Class<?> klass;
+	private final Class<?> c;
 
-	private Command(Class<?> klass) {
-		this.klass = klass;
+	Command(Class<?> c) {
+		this.c = c;
 	}
 
 	public String toString() {
@@ -41,7 +39,7 @@ public enum Command {
 
 	public Cli createCli(Logger logger) {
 		try {
-			return (Cli) klass.getDeclaredConstructor(Logger.class).newInstance(logger);
+			return (Cli) c.getDeclaredConstructor(Logger.class).newInstance(logger);
 		} catch (Throwable e) {
 			throw new RuntimeException("Unexpected exception while constructing CLI.", e);
 		}
@@ -58,4 +56,4 @@ public enum Command {
 	public static Command fromString(String command) {
 		return valueOf(command.toUpperCase(Locale.ROOT).replace('-', '_'));
 	}
-};
+}

@@ -15,7 +15,7 @@ public enum ReportType {
 		return name().toLowerCase(Locale.ROOT);
 	}
 
-	public static final ReportType parse(final String reportType) {
+	public static ReportType parse(final String reportType) {
 		if (null == reportType) {
 			return NONE;
 		}

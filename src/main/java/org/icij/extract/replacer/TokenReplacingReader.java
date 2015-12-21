@@ -20,16 +20,15 @@ import java.io.IOException;
 import java.io.PushbackReader;
 import java.io.Reader;
 import java.io.StringReader;
-import java.nio.CharBuffer;
 import java.util.Arrays;
 
 /**
- * Reader for inplace token replacements. It does not use as much memory as
+ * Reader for in-place token replacements. It does not use as much memory as
  * the String.replace() method.
  *
  * Based on original code by Oleg Varaksin (ovaraksin@googlemail.com), the
  * license of which is copied above. This version resolves tokens to
- * {@link InputStream} instances.
+ * {@link java.io.InputStream} instances.
  */
 public class TokenReplacingReader extends Reader {
 
@@ -154,20 +153,15 @@ public class TokenReplacingReader extends Reader {
 	}
 
 	@Override
-	public int read(CharBuffer target) throws IOException {
-		return super.read(target);
+	public int read(char[] buffer) throws IOException {
+		return read(buffer, 0, buffer.length);
 	}
 
 	@Override
-	public int read(char[] cbuf) throws IOException {
-		return read(cbuf, 0, cbuf.length);
-	}
-
-	@Override
-	public int read(char[] cbuf, int off, int len) throws IOException {
+	public int read(char[] buffer, int offset, int length) throws IOException {
 		int read = 0;
 
-		for (int i = 0; i < len; i++) {
+		for (int i = 0; i < length; i++) {
 			int c = read();
 
 			if (c == -1) {
@@ -181,7 +175,7 @@ public class TokenReplacingReader extends Reader {
 				read = i + 1;
 			}
 
-			cbuf[off + i] = (char) c;
+			buffer[offset + i] = (char) c;
 		}
 
 		return read;

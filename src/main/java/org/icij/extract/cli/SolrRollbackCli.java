@@ -1,6 +1,5 @@
 package org.icij.extract.cli;
 
-import org.icij.extract.core.*;
 import org.icij.extract.cli.options.*;
 import org.icij.extract.http.PinnedHttpClientBuilder;
 
@@ -8,7 +7,6 @@ import java.util.logging.Logger;
 
 import java.io.IOException;
 
-import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
 
@@ -38,7 +36,7 @@ public class SolrRollbackCli extends Cli {
 				.setVerifyHostname(cmd.getOptionValue("verify-host"))
 				.pinCertificate(cmd.getOptionValue("pin-certificate"))
 				.build();
-			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
+			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient)
 		) {
 			client.rollback();
 		} catch (SolrServerException e) {

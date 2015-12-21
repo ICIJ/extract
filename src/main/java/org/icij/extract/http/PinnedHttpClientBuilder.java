@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.KeyManagementException;
-import java.security.UnrecoverableKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateFactory;
@@ -124,7 +123,7 @@ public class PinnedHttpClientBuilder extends HttpClientBuilder {
 		final KeyStore trustStore = KeyStore.getInstance(trustStoreType);
 
 		try (
-			final InputStream input = new BufferedInputStream(new FileInputStream(trustStorePath));
+			final InputStream input = new BufferedInputStream(new FileInputStream(trustStorePath))
 		) {
 			if (trustStoreExtension.equals("PEM") || trustStoreExtension.equals("DER")) {
 				final X509Certificate certificate = (X509Certificate) CertificateFactory.getInstance("X.509")

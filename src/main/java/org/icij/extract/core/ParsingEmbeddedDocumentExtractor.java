@@ -88,7 +88,7 @@ public class ParsingEmbeddedDocumentExtractor implements EmbeddedDocumentExtract
 
 		// Use the delegate parser to parse this entry.
 		try (
-			final TemporaryResources tmp = new TemporaryResources();
+			final TemporaryResources tmp = new TemporaryResources()
 		) {
 			final TikaInputStream newStream = TikaInputStream.get(new CloseShieldInputStream(input), tmp);
 			if (input instanceof TikaInputStream) {

@@ -1,9 +1,7 @@
 package org.icij.extract.solr;
 
 import java.util.Map;
-import java.util.HashMap;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import java.io.IOException;

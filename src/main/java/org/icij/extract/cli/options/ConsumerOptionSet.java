@@ -26,7 +26,7 @@ public class ConsumerOptionSet extends OptionSet {
 
 	public static void configureConsumer(final CommandLine cmd, final PollingConsumer consumer) {
 		if (cmd.hasOption("queue-poll")) {
-			consumer.setPollTimeout((String) cmd.getOptionValue("queue-poll"));
+			consumer.setPollTimeout(cmd.getOptionValue("queue-poll"));
 		}
 	}
 }

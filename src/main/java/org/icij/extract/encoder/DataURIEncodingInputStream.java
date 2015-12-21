@@ -20,7 +20,6 @@ import org.apache.tika.detect.DefaultDetector;
 import org.apache.tika.detect.AutoDetectReader;
 import org.apache.tika.exception.TikaException;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.codec.binary.Base64InputStream;
 
 /**
@@ -48,16 +47,14 @@ public class DataURIEncodingInputStream extends InputStream {
 
 		if (null == type) {
 			try (
-				final InputStream input = new BufferedInputStream(Files.newInputStream(path));
+				final InputStream input = new BufferedInputStream(Files.newInputStream(path))
 			) {
 				type = new DefaultDetector().detect(input, metadata);
-			} catch (IOException e) {
-				throw e;
 			}
 		}
 
 		// If the type is text, detect the charset if it's missing from
-		// the mediatype and add it to it as a param.
+		// the media type and add it to it as a param.
 		if (type.getType().equals("text")) {
 			final Map<String, String> parameters = type.getParameters();
 
@@ -77,7 +74,7 @@ public class DataURIEncodingInputStream extends InputStream {
 	}
 
 	protected static Charset detectCharset(final Path path, final Metadata metadata) throws IOException {
-		Charset charset = null;
+		final Charset charset;
 
 		// Try to get the character set from the content-encoding.
 		String orig = metadata.get(Metadata.CONTENT_ENCODING);
@@ -89,13 +86,11 @@ public class DataURIEncodingInputStream extends InputStream {
 
 		try (
 			final InputStream input = new BufferedInputStream(Files.newInputStream(path));
-			final AutoDetectReader detector = new AutoDetectReader(input, metadata);
+			final AutoDetectReader detector = new AutoDetectReader(input, metadata)
 		) {
 			charset = detector.getCharset();
 		} catch (TikaException e) {
 			throw new IOException("Unable to detect charset.", e);
-		} catch (IOException e) {
-			throw e;
 		}
 
 		return charset;

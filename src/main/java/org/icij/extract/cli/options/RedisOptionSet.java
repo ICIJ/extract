@@ -1,11 +1,6 @@
 package org.icij.extract.cli.options;
 
-import java.util.Locale;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import org.apache.commons.cli.Option;
-import org.apache.commons.cli.CommandLine;
 
 /**
  * Extract

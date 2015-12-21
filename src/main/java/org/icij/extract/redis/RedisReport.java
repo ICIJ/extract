@@ -21,7 +21,7 @@ import org.redisson.connection.ConnectionManager;
  */
 public class RedisReport extends RedissonMap<Path, ReportResult> implements Report {
 
-	public static String DEFAULT_NAME = "extract:report";
+	public static final String DEFAULT_NAME = "extract:report";
 
 	private final ConnectionManager connectionManager;
 

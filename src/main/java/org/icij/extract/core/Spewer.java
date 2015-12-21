@@ -39,10 +39,10 @@ public abstract class Spewer {
 	}
 
 	public abstract void write(final Path file, final Metadata metadata, final Reader reader,
-		final Charset outputEncoding) throws IOException, SpewerException;
+		final Charset outputEncoding) throws IOException;
 
 	public void write(final Path file, final Metadata metadata, final Reader reader)
-		throws IOException, SpewerException {
+		throws IOException {
 		write(file, metadata, reader, outputEncoding);
 	}
 
@@ -91,12 +91,15 @@ public abstract class Spewer {
 	}
 
 	protected void addMetadata(final Path file, final Metadata metadata) {
-		final Set<String> baseTypes = new HashSet<String>();
+		final Set<String> baseTypes = new HashSet<>();
+		final Path parent = file.getParent();
 
 		// Add the parent path.
-		metadata.set(META_PARENT_PATH, file.getParent().toString());
+		if (null != parent) {
+			metadata.set(META_PARENT_PATH, parent.toString());
+		}
 
-		// Add the base type. Deduplicated.
+		// Add the base type. De-duplicated.
 		for (String type : metadata.getValues(Metadata.CONTENT_TYPE)) {
 			MediaType mediaType = MediaType.parse(type);
 			if (null == mediaType) {

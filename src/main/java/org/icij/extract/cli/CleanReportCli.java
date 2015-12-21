@@ -13,7 +13,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
 
@@ -33,7 +32,7 @@ public class CleanReportCli extends Cli {
 		super(logger, new ReporterOptionSet(), new RedisOptionSet());
 	}
 
-	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException, RuntimeException {
+	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cmd = super.parse(args);
 
 		final Report report = ReportFactory.createReport(cmd);

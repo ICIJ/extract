@@ -4,8 +4,8 @@ import java.io.IOException;
 
 /**
  * The Exception thrown by {@link Spewer Spewers} when writing fails due to an
- * error with the endpoint or output stream. This helps distinguise between
- * exceptions thrown by the {@link Parser} and those thrown by the {@link Spewer}.
+ * error with the endpoint or output stream. This helps distinguish between
+ * exceptions thrown by the {@link ParsingReader} and those thrown by the {@link Spewer}.
  *
  * @since 1.0.0-beta
  */

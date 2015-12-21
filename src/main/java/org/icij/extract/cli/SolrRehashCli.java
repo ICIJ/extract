@@ -1,12 +1,9 @@
 package org.icij.extract.cli;
 
-import org.icij.extract.core.*;
 import org.icij.extract.cli.options.*;
 import org.icij.extract.solr.*;
 import org.icij.extract.http.PinnedHttpClientBuilder;
-import org.icij.extract.solr.SolrDefaults;
 
-import java.util.Map;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Locale;
@@ -84,7 +81,7 @@ public class SolrRehashCli extends Cli {
 				.build())
 
 			.addOption(Option.builder("p")
-				.desc(String.format("The number of documents to process at a time. Defaults to the number of available processors. To improve performance, set to a lower number if the fields contain very large values."))
+				.desc("The number of documents to process at a time. Defaults to the number of available processors. To improve performance, set to a lower number if the fields contain very large values.")
 				.longOpt("parallel")
 				.hasArg()
 				.argName("size")
@@ -122,12 +119,12 @@ public class SolrRehashCli extends Cli {
 				.setVerifyHostname(cmd.getOptionValue("verify-host"))
 				.pinCertificate(cmd.getOptionValue("pin-certificate"))
 				.build();
-			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
+			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient)
 		) {
 			final SolrRehashConsumer consumer = new SolrRehashConsumer(logger, client,
 				cmd.getOptionValue('a').toUpperCase(Locale.ROOT));
 			final SolrMachineProducer producer = new SolrMachineProducer(logger, client,
-				new HashSet<String>(Arrays.asList("*")), parallelism);
+					new HashSet<>(Arrays.asList("*")), parallelism);
 			final SolrMachine machine =
 				new SolrMachine(logger, consumer, producer, parallelism);
 

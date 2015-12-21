@@ -3,15 +3,12 @@ package org.icij.extract.core;
 import org.icij.extract.interval.TimeDuration;
 
 import java.util.logging.Logger;
-import java.util.logging.Level;
 
 import java.util.concurrent.Future;
-import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import java.nio.file.Path;
@@ -71,7 +68,7 @@ public class PollingConsumer extends Consumer {
 	 * Causes the consumer to wait until a new file is availabe,
 	 * without any timeout.
 	 *
-	 * To not wait at all, call {@link setPollTimeout(long seconds)}.
+	 * To not wait at all, call {@link #setPollTimeout(long seconds)}.
 	 */
 	public void clearPollTimeout() {
 		pollTimeout = null;

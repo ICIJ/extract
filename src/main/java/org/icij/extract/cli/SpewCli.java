@@ -2,19 +2,16 @@ package org.icij.extract.cli;
 
 import org.icij.extract.core.*;
 import org.icij.extract.cli.options.*;
-import org.icij.extract.cli.factory.ReportFactory;
 import org.icij.extract.cli.factory.QueueFactory;
 import org.icij.extract.cli.factory.ReportFactory;
 import org.icij.extract.solr.SolrSpewer;
 import org.icij.extract.http.PinnedHttpClientBuilder;
-import org.icij.extract.interval.TimeDuration;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import java.io.IOException;
 
-import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.apache.commons.cli.Option;
@@ -109,7 +106,7 @@ public class SpewCli extends Cli {
 			SolrSpewerOptionSet.configureSpewer(cmd, (SolrSpewer) spewer);
 
 		} else if (OutputType.FILE == outputType) {
-			spewer = new FileSpewer(logger, Paths.get((String) cmd.getOptionValue("file-output-directory", ".")));
+			spewer = new FileSpewer(logger, Paths.get(cmd.getOptionValue("file-output-directory", ".")));
 		} else {
 			spewer = new PrintStreamSpewer(logger, System.out);
 		}

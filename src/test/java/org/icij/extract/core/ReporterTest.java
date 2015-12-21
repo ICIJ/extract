@@ -6,8 +6,6 @@ import org.icij.extract.redis.RedisReport;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import org.redisson.Redisson;
-import org.redisson.core.RMap;
 import org.redisson.client.RedisConnectionException;
 
 import org.junit.Test;
@@ -32,7 +30,6 @@ public class ReporterTest extends TestBase {
 			Assert.assertFalse(reporter.check(b, ReportResult.SUCCEEDED));
 		} catch (RedisConnectionException|IllegalStateException e) {
 			Assume.assumeNoException(e);
-			return;
 		}
 	}
 }

@@ -11,7 +11,6 @@ import java.util.logging.Logger;
 import java.io.File;
 import java.io.IOException;
 
-import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
 
@@ -58,7 +57,7 @@ public class LoadReportCli extends Cli {
 		try (
 			final JsonParser jsonParser = new JsonFactory()
 				.setCodec(mapper)
-				.createParser(file);
+				.createParser(file)
 		) {
 			jsonParser.readValueAs(Report.class);
 		} catch (IOException e) {

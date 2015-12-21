@@ -1,7 +1,5 @@
 package org.icij.extract.redis;
 
-import org.icij.extract.core.Report;
-
 import org.redisson.Config;
 import org.redisson.SingleServerConfig;
 import org.redisson.connection.ConnectionManager;

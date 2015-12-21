@@ -1,7 +1,5 @@
 package org.icij.extract.core;
 
-import java.util.Iterator;
-
 import java.util.logging.Logger;
 
 import java.io.File;
@@ -52,9 +50,9 @@ public class FileSpewer extends Spewer {
 	}
 
 	public void write(final Path file, final Metadata metadata, final Reader reader,
-		final Charset outputEncoding) throws IOException, SpewerException {
+		final Charset outputEncoding) throws IOException {
 
-		// Join the file path to the output directory path to get the ouput path.
+		// Join the file path to the output directory path to get the output path.
 		// If the file path is absolute, the leading slash must be removed.
 		Path baseOutputFile = filterOutputPath(file);
 		if (baseOutputFile.isAbsolute()) {
@@ -80,8 +78,8 @@ public class FileSpewer extends Spewer {
 			final File outputFileParent = outputParent.toFile();
 			final boolean madeDirs = outputFileParent.mkdirs();
 
-			// The `mkdirs` method will return false if the path already exists.
-			if (false == madeDirs && !outputFileParent.isDirectory()) {
+			// The {@link File#mkdirs} method will return false if the path already exists.
+			if (!madeDirs && !outputFileParent.isDirectory()) {
 				throw new SpewerException(String.format("Unable to make directories for file: %s.", contentsOutputFile));
 			}
 		}
@@ -91,7 +89,7 @@ public class FileSpewer extends Spewer {
 		try (
 
 			// IOUtils#copy buffers the input so there's no need to use an output buffer.
-			final OutputStream output = new FileOutputStream(contentsOutputFile.toFile());
+			final OutputStream output = new FileOutputStream(contentsOutputFile.toFile())
 		) {
 			tagged = new TaggedOutputStream(output);
 			IOUtils.copy(reader, tagged, outputEncoding);
@@ -111,12 +109,12 @@ public class FileSpewer extends Spewer {
 	}
 
 	private void writeMetadata(final Path metaOutputFile, final Metadata metadata)
-		throws IOException, SpewerException {
+		throws IOException {
 		logger.info(String.format("Outputting metadata to file: %s.", metaOutputFile));
 
 		try (
 			final JsonGenerator jsonGenerator = new JsonFactory().createGenerator(metaOutputFile.toFile(),
-				JsonEncoding.UTF8);
+				JsonEncoding.UTF8)
 		) {
 			jsonGenerator.useDefaultPrettyPrinter();
 			jsonGenerator.writeStartObject();

@@ -9,7 +9,6 @@ import java.io.IOException;
 
 import java.util.logging.Logger;
 
-import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
 

@@ -1,7 +1,6 @@
 package org.icij.extract.cli.options;
 
 import org.apache.commons.cli.Option;
-import org.apache.commons.cli.CommandLine;
 
 /**
  * Extract

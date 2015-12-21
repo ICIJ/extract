@@ -19,7 +19,7 @@ import org.redisson.connection.ConnectionManager;
  */
 public class RedisQueue extends RedissonBlockingQueue<Path> implements Queue {
 
-	public static String DEFAULT_NAME = "extract:queue";
+	public static final String DEFAULT_NAME = "extract:queue";
 
 	private final ConnectionManager connectionManager;
 

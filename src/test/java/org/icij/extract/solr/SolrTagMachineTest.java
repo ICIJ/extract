@@ -43,7 +43,7 @@ public class SolrTagMachineTest extends SolrJettyTestBase {
 
 	@Test
 	public void testIntersect() throws IOException, SolrServerException, InterruptedException {
-		final Map<String, String> literals = new HashMap<String, String>();
+		final Map<String, String> literals = new HashMap<>();
 
 		literals.put("metadata_in_a", "yes");
 
@@ -51,8 +51,6 @@ public class SolrTagMachineTest extends SolrJettyTestBase {
 		final SolrMachineProducer producer = new SolrMachineProducer(logger, client, null);
 		final SolrMachine machine =
 			new SolrMachine(logger, consumer, producer);
-
-		final int fields = 10;
 
 		// Commit four documents to core A.
 		for (int i = 0; i < 4; i++) {
@@ -106,7 +104,7 @@ public class SolrTagMachineTest extends SolrJettyTestBase {
 
 	@Test
 	public void testComplement() throws IOException, SolrServerException, InterruptedException {
-		final Map<String, String> literals = new HashMap<String, String>();
+		final Map<String, String> literals = new HashMap<>();
 
 		literals.put("metadata_in_a", "no");
 
@@ -117,8 +115,6 @@ public class SolrTagMachineTest extends SolrJettyTestBase {
 		final SolrMachineProducer producer = new SolrMachineProducer(logger, client, null);
 		final SolrMachine machine =
 			new SolrMachine(logger, consumer, producer);
-
-		final int fields = 10;
 
 		// Commit ten documents to core A.
 		for (int i = 0; i < 10; i++) {

@@ -19,7 +19,7 @@ public enum ReportResult {
 
 	private final int value;
 
-	private static final Map<Integer, ReportResult> lookup = new HashMap<Integer, ReportResult>();
+	private static final Map<Integer, ReportResult> lookup = new HashMap<>();
 
 	static {
 		for (ReportResult result: ReportResult.values()) {
@@ -27,11 +27,11 @@ public enum ReportResult {
 		}
 	}
 
-	public static final ReportResult get(final Number value) {
-		return get(new Integer(value.intValue()));
+	public static ReportResult get(final Number value) {
+		return get(value.intValue());
 	}
 
-	public static final ReportResult get(final Integer value) {
+	public static ReportResult get(final Integer value) {
 		return lookup.get(value);
 	}
 

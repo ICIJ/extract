@@ -3,12 +3,12 @@ package org.icij.extract.solr;
 import java.util.Map;
 import java.util.HashMap;
 
-import java.util.logging.Level;
+import java.util.Objects;
 import java.util.logging.Logger;
 
 import java.io.IOException;
 
-import java.nio.file.FileSystems;
+import java.nio.file.Paths;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
@@ -89,6 +89,7 @@ public class SolrRehashConsumer extends SolrMachineConsumer {
 		final String inputId = (String) input.getFieldValue(idField);
 		final String outputId = DatatypeConverter.printHexBinary(MessageDigest.getInstance(idAlgorithm)
 			.digest(outputPath.getBytes(outputEncoding)));
+		final String outputPathParent = Objects.toString(Paths.get(outputPath).getParent(), "");
 
 		// If the hash hasn't changed, just set the paths atomically.
 		// This is a legacy use-case for recovering from missing parent paths.
@@ -99,7 +100,7 @@ public class SolrRehashConsumer extends SolrMachineConsumer {
 			output.setField(idField, inputId);
 			output.setField(pathField, createAtomic(outputPath));
 			output.setField(SolrSpewer.normalizeName(SolrSpewer.META_PARENT_PATH, metadataFieldPrefix),
-				createAtomic(FileSystems.getDefault().getPath(outputPath).getParent().toString()));
+				createAtomic(outputPathParent));
 			logger.info(String.format("Replacing path \"%s\" with \"%s\".", inputPath, outputPath));
 			client.add(output);
 		} else {
@@ -109,7 +110,7 @@ public class SolrRehashConsumer extends SolrMachineConsumer {
 			output.setField(idField, outputId);
 			output.setField(pathField, outputPath);
 			output.setField(SolrSpewer.normalizeName(SolrSpewer.META_PARENT_PATH, metadataFieldPrefix),
-				FileSystems.getDefault().getPath(outputPath).getParent().toString());
+				outputPathParent);
 
 			logger.info(String.format("Replacing path \"%s\" with \"%s\" and rehashing ID from %s to %s.",
 			inputPath, outputPath, inputId, outputId));
@@ -119,7 +120,7 @@ public class SolrRehashConsumer extends SolrMachineConsumer {
 	}
 
 	private Map<String, String> createAtomic(final String value) {
-		final Map<String, String> atomic = new HashMap<String, String>();
+		final Map<String, String> atomic = new HashMap<>();
 
 		atomic.put("set", value);
 		return atomic;

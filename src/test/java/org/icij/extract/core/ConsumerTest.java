@@ -9,9 +9,6 @@ import java.io.PrintStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ArrayBlockingQueue;
-
 import org.redisson.client.RedisConnectionException;
 
 import org.junit.Test;

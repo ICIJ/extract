@@ -27,7 +27,7 @@ public class LoggerOptionSet extends OptionSet {
 
 	public static void configureLogger(final CommandLine cmd, final Logger logger) {
 		if (cmd.hasOption('v')) {
-			logger.setLevel(Level.parse(((String) cmd.getOptionValue('v')).toUpperCase(Locale.ROOT)));
+			logger.setLevel(Level.parse((cmd.getOptionValue('v')).toUpperCase(Locale.ROOT)));
 		} else {
 			logger.setLevel(Level.WARNING);
 		}

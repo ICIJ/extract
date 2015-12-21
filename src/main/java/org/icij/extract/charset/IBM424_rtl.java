@@ -18,7 +18,7 @@ import java.nio.charset.spi.CharsetProvider;
  */
 public class IBM424_rtl extends CharsetProvider {
 
-	private final Map<String, Charset> map = new TreeMap<String, Charset>();
+	private final Map<String, Charset> map = new TreeMap<>();
 
 	public IBM424_rtl() {
 		map.put("IBM424_rtl", new IBM424_rtlCharset());

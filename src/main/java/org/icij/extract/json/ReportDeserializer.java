@@ -9,11 +9,8 @@ import java.nio.file.Paths;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.DeserializationContext;
-
-import hu.ssh.progressbar.ProgressBar;
 
 /**
  * Deserializes a {@link Report} from JSON.
@@ -31,7 +28,7 @@ public class ReportDeserializer extends JsonDeserializer<Report> {
 
 	@Override
 	public Report deserialize(final JsonParser jsonParser, final DeserializationContext context) 
-		throws IOException, JsonProcessingException {
+		throws IOException {
 
 		jsonParser.nextToken(); // Skip over the start of the object.
 		while (jsonParser.nextToken() != JsonToken.END_OBJECT && jsonParser.nextValue() != null) {

@@ -21,10 +21,7 @@ import java.util.concurrent.TimeUnit;
 
 import java.util.regex.Pattern;
 
-import java.io.File;
 import java.io.Reader;
-import java.io.OutputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 
 import java.nio.file.Path;
@@ -37,7 +34,6 @@ import java.security.NoSuchAlgorithmException;
 import javax.xml.bind.DatatypeConverter;
 
 import org.apache.tika.metadata.Metadata;
-import org.apache.tika.mime.MediaType;
 
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.SolrException;
@@ -51,7 +47,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.commons.io.IOUtils;
 
 /**
- * Writes the text output from a {@link ParsingReader} to a Solr core.
+ * Writes the text output from a {@link org.icij.extract.core.ParsingReader} to a Solr core.
  *
  * @since 1.0.0-beta
  */
@@ -79,7 +75,7 @@ public class SolrSpewer extends Spewer {
 	 * Field names must consist of alphanumeric or underscore characters only.
 	 *
 	 * @param name metadata field name
-	 * @param meta metadata field name prefix
+	 * @param prefix metadata field name prefix
 	 * @return The result code.
 	 */
 	public static String normalizeName(final String name, final String prefix) {
@@ -155,7 +151,7 @@ public class SolrSpewer extends Spewer {
 	public void finish() throws IOException {
 		super.finish();
 
-		// Commit any remaining files if autocommitting is enabled.
+		// Commit any remaining files if auto-committing is enabled.
 		if (commitInterval > 0) {
 			commitPending(0);
 		}
@@ -173,7 +169,7 @@ public class SolrSpewer extends Spewer {
 	}
 
 	public void write(final Path file, final Metadata metadata, final Reader reader, final Charset outputEncoding)
-		throws IOException, SpewerException {
+		throws IOException {
 
 		final String outputPath = filterOutputPath(file).toString();
 		final SolrInputDocument document = new SolrInputDocument();
@@ -243,7 +239,7 @@ public class SolrSpewer extends Spewer {
 			pending.set(0);
 			logger.info("Committed to Solr in " + response.getElapsedTime() + "ms.");
 
-		// Don't rethrow. Commit errors are recovarable and the file was actually output sucessfully.
+		// Don't rethrow. Commit errors are recoverable and the file was actually output successfully.
 		} catch (SolrServerException e) {
 			logger.log(Level.SEVERE, "Failed to commit to Solr. A server-side error to occurred.", e);
 		} catch (SolrException e) {
@@ -300,7 +296,7 @@ public class SolrSpewer extends Spewer {
 	}
 
 	private Map<String, String> createAtomic(final String value) {
-		final Map<String, String> atomic = new HashMap<String, String>();
+		final Map<String, String> atomic = new HashMap<>();
 
 		atomic.put("set", value);
 		return atomic;

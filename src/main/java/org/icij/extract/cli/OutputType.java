@@ -2,8 +2,6 @@ package org.icij.extract.cli;
 
 import java.util.Locale;
 
-import org.icij.extract.core.*;
-
 /**
  * Extract
  *
@@ -18,7 +16,7 @@ public enum OutputType {
 		return name().toLowerCase(Locale.ROOT);
 	}
 
-	public static final OutputType fromString(String outputType) {
+	public static OutputType fromString(String outputType) {
 		return valueOf(outputType.toUpperCase(Locale.ROOT));
 	}
-};
+}

@@ -5,29 +5,20 @@ import org.icij.extract.interval.TimeDuration;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.Locale;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import java.util.concurrent.TimeUnit;
 
 import java.nio.file.Path;
 
-import java.io.File;
 import java.io.Reader;
-import java.io.InputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.metadata.Metadata;
-import org.apache.tika.metadata.TikaMetadataKeys;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.EmptyParser;
@@ -50,7 +41,7 @@ import org.apache.tika.exception.TikaException;
  */
 public class Extractor {
 
-	public static enum OutputFormat {
+	public enum OutputFormat {
 		HTML, TEXT;
 
 		public static OutputFormat parse(String outputFormat) {
@@ -62,7 +53,7 @@ public class Extractor {
 		}
 	}
 
-	public static enum EmbedHandling {
+	public enum EmbedHandling {
 		IGNORE, EXTRACT, EMBED;
 
 		public static EmbedHandling parse(String embedHandling) {
@@ -82,7 +73,7 @@ public class Extractor {
 	private final TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
 	private final PDFParserConfig pdfConfig = new PDFParserConfig();
 
-	private final Set<MediaType> excludedTypes = new HashSet<MediaType>();
+	private final Set<MediaType> excludedTypes = new HashSet<>();
 
 	private EmbedHandling embedHandling = EmbedHandling.EXTRACT;
 	private OutputFormat outputFormat = OutputFormat.TEXT;
@@ -154,7 +145,7 @@ public class Extractor {
 	/**
 	 * @see #setOcrTimeout(TimeDuration)
 	 *
-	 * @param duration the duration in seconds
+	 * @param ocrTimeout the duration in seconds
 	 */
 	public void setOcrTimeout(final int ocrTimeout) {
 		ocrConfig.setTimeout(ocrTimeout);
@@ -172,7 +163,7 @@ public class Extractor {
 	/**
 	 * Instructs Tesseract to attempt OCR for no longer than the given duration.
 	 *
-	 * @param duration
+	 * @param duration the duration before timeout
 	 */
 	public void setOcrTimeout(final TimeDuration duration) {
 		setOcrTimeout((int) duration.to(TimeUnit.SECONDS));
@@ -180,18 +171,13 @@ public class Extractor {
 
 	/**
 	 * Disable OCR. This method only has an effect if Tesseract is installed.
-	 *
-	 * @return true if OCR was already disabled, false otherwise
 	 */
-	public boolean disableOcr() {
+	public void disableOcr() {
 		if (!ocrDisabled) {
 			excludeParser(TesseractOCRParser.class);
 			ocrDisabled = true;
 			pdfConfig.setExtractInlineImages(false);
-			return true;
 		}
-
-		return false;
 	}
 
 	/**
@@ -199,7 +185,7 @@ public class Extractor {
 	 *
 	 * @param file the file to extract from
 	 */
-	public Reader extract(final Path file) throws IOException, FileNotFoundException, TikaException {
+	public Reader extract(final Path file) throws IOException, TikaException {
 		return extract(file, new Metadata());
 	}
 
@@ -213,7 +199,7 @@ public class Extractor {
 	 * @param file the file to extract from
 	 * @param metadata will be populated with metadata extracted from the file
 	 */
-	public Reader extract(final Path file, final Metadata metadata) throws IOException, FileNotFoundException, TikaException {
+	public Reader extract(final Path file, final Metadata metadata) throws IOException, TikaException {
 		return extract(TikaInputStream.get(file, metadata), metadata);
 	}
 

@@ -1,6 +1,5 @@
 package org.icij.extract.core;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import java.io.IOException;
@@ -11,14 +10,12 @@ import org.apache.tika.parser.ParseContext;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.sax.BodyContentHandler;
 
-import org.xml.sax.ContentHandler;
-
 /**
  * Reader for the text content from a given binary stream. This class
  * uses a background parsing task with a {@link Parser} to parse the text
  * content from a given input stream. The {@link BodyContentHandler} class
  * and a pipe is used to convert the push-based SAX event stream to the
- * pull-based character stream defined by the {@link Reader} interface.
+ * pull-based character stream defined by the {@link java.io.Reader} interface.
  *
  * @since 1.0.0-beta
  */

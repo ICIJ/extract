@@ -6,7 +6,6 @@ import java.io.FilterInputStream;
 import java.io.InputStreamReader;
 import java.io.IOException;
 
-import java.nio.file.Files;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -51,8 +50,8 @@ public class URLEncodingInputStream extends FilterInputStream {
 	}
 
 	@Override
-	public int read(byte[] bbuf) throws IOException {
-		return read(bbuf, 0, bbuf.length);
+	public int read(byte[] buffer) throws IOException {
+		return read(buffer, 0, buffer.length);
 	}
 
 	@Override

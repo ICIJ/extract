@@ -1,8 +1,5 @@
 package org.icij.extract.core;
 
-import java.util.Map;
-import java.util.logging.Logger;
-
 import java.io.Closeable;
 import java.io.IOException;
 
@@ -32,11 +29,7 @@ public class Reporter implements Closeable {
 	public boolean check(final Path file, final ReportResult result) {
 		final ReportResult status = result(file);
 
-		if (null != status) {
-			return status.equals(result);
-		}
-
-		return false;
+		return null != status && status.equals(result);
 	}
 
 	@Override

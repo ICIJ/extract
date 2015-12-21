@@ -16,7 +16,6 @@
  */
 package org.icij.extract.core;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import java.io.BufferedReader;
@@ -63,12 +62,12 @@ public abstract class ParsingReader extends Reader {
 	/**
 	 * Parser instance used for parsing the given binary stream.
 	 */
-	protected Parser parser;
+	protected final Parser parser;
 	
 	/**
 	 * Buffered read end of the pipe.
 	 */
-	protected Reader reader;
+	protected final Reader reader;
 	
 	/**
 	 * Write end of the pipe.

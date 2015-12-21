@@ -3,7 +3,6 @@ package org.icij.extract.solr;
 import java.util.Map;
 import java.util.HashMap;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import java.io.IOException;
@@ -32,7 +31,7 @@ public class SolrTaggingConsumer extends SolrMachineConsumer {
 
 		output.setField(idField, id);
 		for (Map.Entry<String, String> entry : literals.entrySet()) {
-			Map<String, Object> atomic = new HashMap<String, Object>();
+			Map<String, Object> atomic = new HashMap<>();
 
 			atomic.put("set", entry.getValue());
 			output.setField(entry.getKey(), atomic);

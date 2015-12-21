@@ -1,10 +1,5 @@
 package org.icij.extract.cli;
 
-import org.icij.extract.core.*;
-
-import java.lang.Thread;
-import java.lang.Runnable;
-
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.LogManager;

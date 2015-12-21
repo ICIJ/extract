@@ -12,7 +12,13 @@ import java.nio.file.PathMatcher;
 public class OSFileMatcher implements PathMatcher {
 
 	public boolean matches(final Path path) {
-		final String name = path.getFileName().toString();
+		final Path fileName = path.getFileName();
+
+		if (null == fileName) {
+			return false;
+		}
+
+		final String name = fileName.toString();
 
 		switch (name) {
 		case ".DS_Store":
@@ -28,10 +34,6 @@ public class OSFileMatcher implements PathMatcher {
 		}
 
 		// Ignore AppleDouble dot files.
-		if (name.startsWith("._")) {
-			return true;
-		}
-
-		return false;
+		return name.startsWith("._");
 	}
 }

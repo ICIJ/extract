@@ -3,14 +3,12 @@ package org.icij.extract.json;
 import org.icij.extract.core.Queue;
 
 import java.util.Iterator;
-import java.util.Map;
 
 import java.io.IOException;
 
 import java.nio.file.Path;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.JsonSerializer;
 
@@ -32,7 +30,7 @@ public class QueueSerializer extends JsonSerializer<Queue> {
 
 	@Override
 	public void serialize(final Queue queue, final JsonGenerator jsonGenerator, final SerializerProvider provider) 
-		throws IOException, JsonProcessingException {
+		throws IOException {
 		final Iterator<Path> iterator = queue.iterator();
 
 		jsonGenerator.writeStartArray();

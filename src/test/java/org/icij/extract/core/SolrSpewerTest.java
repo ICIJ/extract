@@ -6,7 +6,6 @@ import org.icij.extract.solr.SolrSpewer;
 import java.util.Map;
 import java.util.HashMap;
 
-import java.io.File;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
@@ -15,16 +14,12 @@ import java.nio.file.FileSystems;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-
-import javax.xml.bind.DatatypeConverter;
 
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.exception.TikaException;
 
 import org.apache.solr.common.SolrDocument;
-import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrServerException;
 
 import org.junit.Test;
@@ -102,7 +97,7 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		final Path path = FileSystems.getDefault().getPath("test/file.txt");
 		final ParsingReader reader = new TextParsingReader(logger, new ByteArrayInputStream(buffer.getBytes(charset)));
 		final Metadata metadata = new Metadata();
-		final Map<String, String> tags = new HashMap<String, String>();
+		final Map<String, String> tags = new HashMap<>();
 
 		tags.put("batch", "1");
 

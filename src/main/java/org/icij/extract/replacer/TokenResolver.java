@@ -27,5 +27,5 @@ import java.io.IOException;
  */
 public interface TokenResolver {
 
-	public Reader resolveToken(String token) throws IOException;
+	Reader resolveToken(String token) throws IOException;
 }

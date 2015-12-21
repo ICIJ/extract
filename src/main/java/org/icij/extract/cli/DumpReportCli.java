@@ -7,11 +7,9 @@ import org.icij.extract.cli.options.ReporterOptionSet;
 import org.icij.extract.cli.options.RedisOptionSet;
 import org.icij.extract.cli.factory.ReportFactory;
 
-import java.util.HashMap;
 import java.util.logging.Logger;
 
 import java.io.IOException;
-import java.nio.file.Path;
 
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
@@ -45,7 +43,7 @@ public class DumpReportCli extends Cli {
 			.build());
 	}
 
-	public CommandLine parse(final String[] args) throws ParseException, IllegalArgumentException, RuntimeException {
+	public CommandLine parse(final String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cmd = super.parse(args);
 
 		final Report report = ReportFactory.createReport(cmd);
@@ -73,7 +71,7 @@ public class DumpReportCli extends Cli {
 		try (
 			final JsonGenerator jsonGenerator = new JsonFactory()
 				.setCodec(mapper)
-				.createGenerator(System.out, JsonEncoding.UTF8);
+				.createGenerator(System.out, JsonEncoding.UTF8)
 		) {
 			jsonGenerator.useDefaultPrettyPrinter();
 			jsonGenerator.writeObject(report);

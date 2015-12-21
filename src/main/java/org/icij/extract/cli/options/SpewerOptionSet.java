@@ -56,7 +56,7 @@ public class SpewerOptionSet extends OptionSet {
 
 		if (cmd.hasOption("tags")) {
 			final String[] literals = cmd.getOptionValue("tags").split(" ");
-			final Map<String, String> pairs = new HashMap<String, String>();
+			final Map<String, String> pairs = new HashMap<>();
 
 			for (String literal : literals) {
 				String[] pair = literal.split(":", 2);

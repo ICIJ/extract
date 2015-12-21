@@ -28,7 +28,7 @@ public class PrintStreamSpewer extends Spewer {
 	}
 
 	public void write(final Path file, final Metadata metadata, final Reader reader,
-		final Charset outputEncoding) throws IOException, SpewerException {
+		final Charset outputEncoding) throws IOException {
 
 		// A PrintStream should never throw an IOException: the exception would always come from the input stream.
 		// There's no need to use a TaggedOutputStream or catch IOExceptions.

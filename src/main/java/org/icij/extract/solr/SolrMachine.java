@@ -1,12 +1,10 @@
 package org.icij.extract.solr;
 
-import java.util.Set;
 import java.util.Collection;
 import java.util.ArrayList;
 import java.util.List;
 
 import java.util.function.Supplier;
-import java.util.function.Consumer;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -24,7 +22,7 @@ import org.apache.solr.common.SolrDocument;
 import org.apache.solr.client.solrj.SolrServerException;
 
 /**
- * A multithreaded document-cycling robot for Solr.
+ * A multi-threaded document-cycling robot for Solr.
  *
  * Multiple threads are used to consume from a streaming producer which runs
  * from the current thread.
@@ -68,7 +66,7 @@ public class SolrMachine implements Callable<Integer> {
 
 	@Override
 	public Integer call() throws IOException, SolrServerException, InterruptedException {
-		final Collection<Callable<Integer>> tasks = new ArrayList<Callable<Integer>>();
+		final Collection<Callable<Integer>> tasks = new ArrayList<>();
 
 		// Add the producer to its own thread.
 		tasks.add(producer);
@@ -101,7 +99,7 @@ public class SolrMachine implements Callable<Integer> {
 			throw new RuntimeException(cause);
 		}
 
-		return new Integer(accepted);
+		return accepted;
 	}
 
 	protected class Worker implements Callable<Integer> {
@@ -135,7 +133,7 @@ public class SolrMachine implements Callable<Integer> {
 				}
 			}
 
-			return new Integer(accepted);
+			return accepted;
 		}
 	}
 }

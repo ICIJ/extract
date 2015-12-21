@@ -10,7 +10,6 @@ import java.util.logging.Logger;
 
 import java.io.Reader;
 import java.io.OutputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -25,7 +24,6 @@ import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
-import org.apache.tika.sax.ExpandedTitleContentHandler;
 import org.apache.tika.sax.ContentHandlerDecorator;
 
 import org.apache.poi.poifs.filesystem.Entry;
@@ -33,8 +31,6 @@ import org.apache.poi.poifs.filesystem.DirectoryEntry;
 import org.apache.poi.poifs.filesystem.DocumentEntry;
 import org.apache.poi.poifs.filesystem.DocumentInputStream;
 import org.apache.poi.poifs.filesystem.POIFSFileSystem;
-
-import org.apache.commons.io.IOUtils;
 
 import org.xml.sax.Attributes;
 import org.xml.sax.helpers.AttributesImpl;
@@ -53,9 +49,9 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 
 	private final TokenReplacingReader replacer;
 	private final TemporaryResources tmp = new TemporaryResources();
-	private final Map<String, String> cidMap = new HashMap<String, String>();
-	private final Map<String, Path> pathMap = new HashMap<String, Path>();
-	private final Map<String, Metadata> metaMap = new HashMap<String, Metadata>();
+	private final Map<String, String> cidMap = new HashMap<>();
+	private final Map<String, Path> pathMap = new HashMap<>();
+	private final Map<String, Metadata> metaMap = new HashMap<>();
 
 	public EmbeddingHTMLParsingReader(Logger logger, Parser parser, TikaInputStream input,
 		Metadata metadata, ParseContext context) throws IOException {
@@ -65,8 +61,8 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 	}
 
 	@Override
-	public int read(char[] cbuf, int off, int len) throws IOException {
-		return replacer.read(cbuf, off, len);
+	public int read(char[] buffer, int offset, int length) throws IOException {
+		return replacer.read(buffer, offset, length);
 	}
 
 	@Override
@@ -130,7 +126,7 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 	/**
 	 * A custom extractor that saves all embeds to temporary files and records the new paths.
 	 *
-	 * Ideally {@link #parseEmbedded} would use {@link TikaCoreProperties.EMBEDDED_RESOURCE_TYPE}
+	 * Ideally {@link #parseEmbedded} would use {@link org.apache.tika.metadata.TikaCoreProperties.EmbeddedResourceType}
 	 * but only the PDF parser seems to support it as of Tika 1.8.
 	 *
 	 * @since 1.0.0-beta
@@ -147,16 +143,17 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 		/**
 		 * Always returns true. Files are not actually parsed. They are embedded.
 		 *
-		 * @param metadata
+		 * @param metadata metadata
 		 */
 		@Override
-		public boolean shouldParseEmbedded(Metadata metadata) {
+		public boolean shouldParseEmbedded(final Metadata metadata) {
 			return true;
 		}
 
 		@Override
-		public void parseEmbedded(InputStream input, ContentHandler handler, Metadata metadata,
-			boolean outputHtml) throws SAXException, IOException {
+		public void parseEmbedded(final InputStream input, final ContentHandler handler,
+		                          final Metadata metadata, final boolean outputHtml)
+				throws SAXException, IOException {
 
 			final String name = getFileName(metadata);
 			final Path embed;
@@ -173,7 +170,7 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 		/**
 		 * Get the name of the embedded file or set to a default if null or empty.
 		 *
-		 * @param metadata
+		 * @param metadata metadata
 		 */
 		private String getFileName(final Metadata metadata) {
 			final String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
@@ -229,7 +226,7 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 
 			for (Entry entry : source) {
 
-				// Recursively save subentries.
+				// Recursively save sub-entries.
 				if (entry instanceof DirectoryEntry) {
 					saveEntries(name, (DirectoryEntry) entry, destination.createDirectory(entry.getName()));
 					continue;
@@ -237,7 +234,7 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 
 				// Copy the entry.
 				try (
-					final InputStream contents = new DocumentInputStream((DocumentEntry) entry);
+					final InputStream contents = new DocumentInputStream((DocumentEntry) entry)
 				) {
 					destination.createDocument(entry.getName(), contents);
 				} catch (IOException e) {
@@ -269,7 +266,7 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 				saveEntries(name, source, destination);
 
 				try (
-					final OutputStream output = Files.newOutputStream(embed);
+					final OutputStream output = Files.newOutputStream(embed)
 				) {
 					fs.writeFilesystem(output);
 				} catch (IOException e) {
@@ -315,7 +312,7 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 		private boolean isEmbeddedImgTagOpen = false;
 		private boolean isEmbeddedAnchorTagOpen = false;
 		private boolean anchorTagDropped = false;
-		private AttributesImpl imgAtts = null;
+		private AttributesImpl imgAttributes = null;
 
 		private static final String IMG_TAG = "img";
 		private static final String ANCHOR_TAG = "a";
@@ -335,7 +332,7 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 
 				if (null != src && src.startsWith("embedded:")) {
 					isEmbeddedImgTagOpen = true;
-					imgAtts = attributes;
+					imgAttributes = attributes;
 
 				} else if (null != src && src.startsWith("cid:")) {
 					final String uuid = UUID.randomUUID().toString();
@@ -360,11 +357,11 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 
 					// Drop the anchor tag if coming after an embedded image.
 					if (isEmbeddedImgTagOpen) {
-						imgAtts.setAttribute(imgAtts.getIndex("", "src"), "", "src", "src", "CDATA", "uuid:{" + uuid + "}");
-						super.startElement(uri, IMG_TAG, IMG_TAG, imgAtts);
+						imgAttributes.setAttribute(imgAttributes.getIndex("", "src"), "", "src", "src", "CDATA", "uuid:{" + uuid + "}");
+						super.startElement(uri, IMG_TAG, IMG_TAG, imgAttributes);
 						super.endElement(uri, IMG_TAG, IMG_TAG);
 						isEmbeddedImgTagOpen = false;
-						imgAtts = null;
+						imgAttributes = null;
 						anchorTagDropped = true;
 					} else {
 						super.startElement(uri, localName, qName, attributes);
@@ -372,7 +369,7 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 					}
 				} else if (isEmbeddedImgTagOpen) {
 					isEmbeddedImgTagOpen = false;
-					imgAtts = null;
+					imgAttributes = null;
 					super.startElement(uri, localName, qName, attributes);
 				}
 			} else {
@@ -383,7 +380,7 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 
 				if (isEmbeddedImgTagOpen) {
 					isEmbeddedImgTagOpen = false;
-					imgAtts = null;
+					imgAttributes = null;
 				}
 
 				super.startElement(uri, localName, qName, attributes);
@@ -409,9 +406,9 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 
 			// Error state. Output this event and the previous one.
 			if (isEmbeddedImgTagOpen) {
-				super.startElement(uri, IMG_TAG, IMG_TAG, imgAtts);
+				super.startElement(uri, IMG_TAG, IMG_TAG, imgAttributes);
 				isEmbeddedImgTagOpen = false;
-				imgAtts = null;
+				imgAttributes = null;
 			}
 
 			if (isEmbeddedAnchorTagOpen && ANCHOR_TAG.equalsIgnoreCase(localName) && XHTML.equals(uri)) {

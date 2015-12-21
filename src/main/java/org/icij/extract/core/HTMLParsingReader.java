@@ -16,7 +16,6 @@
  */
 package org.icij.extract.core;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import java.io.IOException;
@@ -68,14 +67,11 @@ public class HTMLParsingReader extends ParsingReader {
 	protected class ParsingTask extends ParsingReader.ParsingTask {
 
 		/**
-		 * Contstructs the transformer handler that will be used to transform
+		 * Constructs the transformer handler that will be used to transform
 		 * the SAX events emitted by the parser to HTML 5.
 		 */
 		protected ContentHandler createHandler() {
-			final ContentHandler serializer = new HTMLSerializer(writer);
-			final ContentHandler handler = new ExpandedTitleContentHandler(serializer);
-
-			return handler;
+			return new ExpandedTitleContentHandler(new HTMLSerializer(writer));
 		}
 
 	    /**

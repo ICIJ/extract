@@ -8,15 +8,11 @@ import java.net.URL;
 
 import org.apache.commons.io.FileUtils;
 
-import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.embedded.JettyConfig;
 import org.apache.solr.client.solrj.embedded.JettySolrRunner;
 
-import org.junit.Test;
 import org.junit.ClassRule;
-import org.junit.Assert;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.AfterClass;
 import org.junit.rules.TemporaryFolder;

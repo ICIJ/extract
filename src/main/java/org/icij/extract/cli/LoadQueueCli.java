@@ -11,13 +11,11 @@ import java.util.logging.Logger;
 import java.io.File;
 import java.io.IOException;
 
-import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 
@@ -59,7 +57,7 @@ public class LoadQueueCli extends Cli {
 		try (
 			final JsonParser jsonParser = new JsonFactory()
 				.setCodec(mapper)
-				.createParser(file);
+				.createParser(file)
 		) {
 			jsonParser.readValueAs(Queue.class);
 		} catch (IOException e) {

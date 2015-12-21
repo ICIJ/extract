@@ -13,13 +13,8 @@ import java.util.logging.Logger;
 
 import java.io.IOException;
 
-import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
-
-import org.apache.commons.cli.Option;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.CommandLine;
 
@@ -36,7 +31,7 @@ public class QueueCli extends Cli {
 		super(logger, new QueueOptionSet(), new RedisOptionSet(), new ScannerOptionSet());
 	}
 
-	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException, RuntimeException {
+	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cmd = super.parse(args);
 		final Queue queue = QueueFactory.createQueue(cmd);
 		final List<String> directories = cmd.getArgList();

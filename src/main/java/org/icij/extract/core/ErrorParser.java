@@ -1,7 +1,6 @@
 package org.icij.extract.core;
 
 import java.util.Set;
-import java.util.List;
 
 import java.io.InputStream;
 

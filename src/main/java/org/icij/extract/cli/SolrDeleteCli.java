@@ -1,6 +1,5 @@
 package org.icij.extract.cli;
 
-import org.icij.extract.core.*;
 import org.icij.extract.cli.options.*;
 import org.icij.extract.http.PinnedHttpClientBuilder;
 import org.icij.extract.solr.SolrDefaults;
@@ -63,7 +62,7 @@ public class SolrDeleteCli extends Cli {
 				.setVerifyHostname(cmd.getOptionValue("verify-host"))
 				.pinCertificate(cmd.getOptionValue("pin-certificate"))
 				.build();
-			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient);
+			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient)
 		) {
 			for (String query : queries) {
 				if (query.contains(":")) {

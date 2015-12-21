@@ -16,7 +16,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import java.nio.file.Path;
@@ -61,8 +60,8 @@ public class Scanner {
 	protected final Queue queue;
 	protected final ExecutorService executor = Executors.newSingleThreadExecutor();
 
-	protected ArrayDeque<String> includeGlobs = new ArrayDeque<String>();
-	protected ArrayDeque<String> excludeGlobs = new ArrayDeque<String>();
+	protected final ArrayDeque<String> includeGlobs = new ArrayDeque<>();
+	protected final ArrayDeque<String> excludeGlobs = new ArrayDeque<>();
 
 	private final AtomicBoolean stopped = new AtomicBoolean();
 
@@ -127,7 +126,7 @@ public class Scanner {
 	 * Queue a scanning job.
 	 *
 	 * Jobs are put in an unbounded queue and executed in serial, in a separate thread.
-	 * This method doesn't block. Call {@link #awaitTermination} to block.
+	 * This method doesn't block. Call {@link #finish} to block.
 	 *
 	 * @return A {@link Future} that can be used to wait on the result or cancel.
 	 */
@@ -245,8 +244,8 @@ public class Scanner {
 
 	protected class Visitor extends SimpleFileVisitor<Path> {
 
-		protected ArrayDeque<PathMatcher> includeMatchers = new ArrayDeque<PathMatcher>();
-		protected ArrayDeque<PathMatcher> excludeMatchers = new ArrayDeque<PathMatcher>();
+		protected final ArrayDeque<PathMatcher> includeMatchers = new ArrayDeque<>();
+		protected final ArrayDeque<PathMatcher> excludeMatchers = new ArrayDeque<>();
 
 		private int visited = 0;
 
@@ -319,7 +318,7 @@ public class Scanner {
 		public FileVisitResult visitFileFailed(Path file, IOException e) throws IOException {
 			boolean excluded = false;
 
-			// If the file or directory was going to be excluded anyway, supress
+			// If the file or directory was going to be excluded anyway, suppress
 			// the exception.
 			for (PathMatcher excludeMatcher : excludeMatchers) {
 				if (excluded = excludeMatcher.matches(file)) {
