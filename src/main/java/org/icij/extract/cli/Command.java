@@ -19,6 +19,7 @@ public enum Command {
 	DUMP_REPORT(DumpReportCli.class),
 	LOAD_QUEUE(LoadQueueCli.class),
 	LOAD_REPORT(LoadReportCli.class),
+	REPLACE_REPORT(ReplaceReportCli.class),
 	SPEW(SpewCli.class),
 	SOLR_COMMIT(SolrCommitCli.class),
 	SOLR_ROLLBACK(SolrRollbackCli.class),

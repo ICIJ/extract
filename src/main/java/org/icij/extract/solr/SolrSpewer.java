@@ -163,21 +163,21 @@ public class SolrSpewer extends Spewer {
 		}
 	}
 
-	public String generateId(final String outputPath) throws NoSuchAlgorithmException {
+	public String generateId(final Path outputPath) throws NoSuchAlgorithmException {
 		return DatatypeConverter.printHexBinary(MessageDigest.getInstance(idAlgorithm)
-			.digest(outputPath.getBytes(outputEncoding)));
+			.digest(outputPath.toString().getBytes(outputEncoding)));
 	}
 
 	public void write(final Path file, final Metadata metadata, final Reader reader, final Charset outputEncoding)
 		throws IOException {
 
-		final String outputPath = filterOutputPath(file).toString();
+		final Path outputPath = filterOutputPath(file);
 		final SolrInputDocument document = new SolrInputDocument();
 		final UpdateResponse response;
 
 		// Set the metadata.
 		if (outputMetadata) {
-			addMetadata(file.getFileSystem().getPath(outputPath), metadata);
+			filterMetadata(outputPath, metadata);
 			setMetadataFields(document, metadata);
 		}
 
@@ -188,7 +188,7 @@ public class SolrSpewer extends Spewer {
 		}
 
 		// Set the path on the path field.
-		setField(document, pathField, outputPath);
+		setField(document, pathField, outputPath.toString());
 		setField(document, textField, IOUtils.toString(reader));
 
 		// Set the ID. Must never be written atomically.

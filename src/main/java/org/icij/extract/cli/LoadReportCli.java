@@ -1,6 +1,7 @@
 package org.icij.extract.cli;
 
 import org.icij.extract.core.Report;
+import org.icij.extract.core.ReportType;
 import org.icij.extract.json.ReportDeserializer;
 import org.icij.extract.cli.options.ReporterOptionSet;
 import org.icij.extract.cli.options.RedisOptionSet;
@@ -20,10 +21,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 
 /**
- * Extract
+ * CLI class for loading a report from JSON.
  *
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
 public class LoadReportCli extends Cli {
@@ -46,7 +46,7 @@ public class LoadReportCli extends Cli {
 		}
 
 		final File file = new File(files[0]);
-		final Report report = ReportFactory.createReport(cmd);
+		final Report report = ReportFactory.createReport(cmd, ReportType.REDIS);
 
 		final ObjectMapper mapper = new ObjectMapper();
 		final SimpleModule module = new SimpleModule();

@@ -49,7 +49,7 @@ public abstract class Cli {
 		printHelp(command, description, null);
 	}
 
-	protected void printHelp(final Command command, final String description, final String arguments) {
+	protected void printHelp(final Command command, final String description, final String... arguments) {
 		final HelpFormatter formatter = new HelpFormatter();
 
 		final String footer = "\nPlease report issues at: https://github.com/ICIJ/extract/issues.";
@@ -59,7 +59,9 @@ public abstract class Cli {
 
 		String syntax = "\033[1mextract\033[0m " + command + " [options]";
 		if (null != arguments) {
-			syntax += " " + arguments;
+			for (String argument : arguments) {
+				syntax = syntax + " " + argument;
+			}
 		}
 
 		formatter.printHelp(syntax, header, options, footer, false);

@@ -18,15 +18,12 @@ public class RedisReportCodec extends StringCodec {
 
 	@Override
 	public Decoder<Object> getMapKeyDecoder() {
-
-		// Redisson calls getMapKeyDecoder for values and vice versa.
-		// https://github.com/mrniko/redisson/issues/258
-		return resultDecoder;
+		return pathDecoder;
 	}
 
     @Override
     public Decoder<Object> getMapValueDecoder() {
-		return pathDecoder;
+		return resultDecoder;
     }
 
     @Override

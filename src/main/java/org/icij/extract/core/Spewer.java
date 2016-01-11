@@ -90,7 +90,7 @@ public abstract class Spewer {
 		logger.info("Spewer finishing pending jobs.");
 	}
 
-	protected void addMetadata(final Path file, final Metadata metadata) {
+	protected void filterMetadata(final Path file, final Metadata metadata) {
 		final Set<String> baseTypes = new HashSet<>();
 		final Path parent = file.getParent();
 

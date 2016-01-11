@@ -2,6 +2,7 @@ package org.icij.extract.cli;
 
 import org.icij.extract.core.Report;
 import org.icij.extract.core.ReportResult;
+import org.icij.extract.core.ReportType;
 import org.icij.extract.json.ReportSerializer;
 import org.icij.extract.cli.options.ReporterOptionSet;
 import org.icij.extract.cli.options.RedisOptionSet;
@@ -46,7 +47,7 @@ public class DumpReportCli extends Cli {
 	public CommandLine parse(final String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cmd = super.parse(args);
 
-		final Report report = ReportFactory.createReport(cmd);
+		final Report report = ReportFactory.createReport(cmd, ReportType.REDIS);
 		ReportResult match = null;
 
 		if (cmd.hasOption("reporter-status")) {

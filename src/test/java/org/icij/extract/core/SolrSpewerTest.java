@@ -51,7 +51,7 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		SolrDocument response = client.getById("0");
 		Assert.assertNull(response);
 
-		final String pathHash = spewer.generateId(path.toString());
+		final String pathHash = spewer.generateId(path);
 		response = client.getById(pathHash);
 		Assert.assertEquals(path.toString(), response.get("path"));
 		Assert.assertEquals(buffer + "\n", response.get("content"));
@@ -79,7 +79,7 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		client.commit(true, true);
 		client.optimize(true, true);
 
-		final String pathHash = spewer.generateId(path.toString());
+		final String pathHash = spewer.generateId(path);
 		final SolrDocument response = client.getById(pathHash);
 		Assert.assertEquals(path.toString(), response.getFieldValue("path"));
 		Assert.assertEquals(length, response.getFieldValue("metadata_content_length"));
@@ -109,7 +109,7 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		client.commit(true, true);
 		client.optimize(true, true);
 
-		final String pathHash = spewer.generateId(path.toString());
+		final String pathHash = spewer.generateId(path);
 		final SolrDocument response = client.getById(pathHash);
 		Assert.assertEquals(path.toString(), response.getFieldValue("path"));
 		Assert.assertEquals("1", response.getFieldValue("batch"));

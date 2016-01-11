@@ -11,12 +11,12 @@ import java.util.logging.Logger;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
+import org.icij.extract.core.ReportType;
 
 /**
- * Extract
+ * CLI class for wiping a report from the backend.
  *
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @version 1.0.0-beta
  * @since 1.0.0-beta
  */
 public class WipeReportCli extends Cli {
@@ -28,7 +28,7 @@ public class WipeReportCli extends Cli {
 	public CommandLine parse(final String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cmd = super.parse(args);
 
-		final Report report = ReportFactory.createReport(cmd);
+		final Report report = ReportFactory.createReport(cmd, ReportType.REDIS);
 
 		logger.info("Wiping report.");
 		report.clear();

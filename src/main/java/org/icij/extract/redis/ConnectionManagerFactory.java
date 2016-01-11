@@ -13,6 +13,12 @@ import org.redisson.connection.SingleConnectionManager;
  */
 public class ConnectionManagerFactory {
 
+	/**
+	 * Create a new connection manager using the supplied configuration.
+	 *
+	 * @param config configuration for generating the connection manager
+	 * @return a new connection manager
+	 */
 	public static ConnectionManager createConnectionManager(final Object config) {
 		final ConnectionManager connectionManager;
 

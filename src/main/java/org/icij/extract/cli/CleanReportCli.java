@@ -18,6 +18,7 @@ import org.apache.commons.cli.ParseException;
 
 import hu.ssh.progressbar.ProgressBar;
 import hu.ssh.progressbar.console.ConsoleProgressBar;
+import org.icij.extract.core.ReportType;
 
 /**
  * Extract
@@ -35,7 +36,7 @@ public class CleanReportCli extends Cli {
 	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cmd = super.parse(args);
 
-		final Report report = ReportFactory.createReport(cmd);
+		final Report report = ReportFactory.createReport(cmd, ReportType.REDIS);
 		final Iterator<Path> iterator = report.keySet().iterator();
 
 		final ProgressBar progressBar = ConsoleProgressBar.on(System.out)
