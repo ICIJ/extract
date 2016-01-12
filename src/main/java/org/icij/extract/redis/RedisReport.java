@@ -1,7 +1,7 @@
 package org.icij.extract.redis;
 
 import org.icij.extract.core.Report;
-import org.icij.extract.core.ReportResult;
+import org.icij.extract.core.ExtractionResult;
 
 import java.io.IOException;
 
@@ -18,7 +18,7 @@ import org.redisson.connection.ConnectionManager;
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
  */
-public class RedisReport extends RedissonMap<Path, ReportResult> implements Report {
+public class RedisReport extends RedissonMap<Path, ExtractionResult> implements Report {
 
 	/**
 	 * The default name for a report in Redis.

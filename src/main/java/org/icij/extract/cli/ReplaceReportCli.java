@@ -1,7 +1,7 @@
 package org.icij.extract.cli;
 
 import org.icij.extract.core.Report;
-import org.icij.extract.core.ReportResult;
+import org.icij.extract.core.ExtractionResult;
 import org.icij.extract.cli.options.ReporterOptionSet;
 import org.icij.extract.cli.options.RedisOptionSet;
 import org.icij.extract.cli.factory.ReportFactory;
@@ -39,7 +39,7 @@ public class ReplaceReportCli extends Cli {
 		final CommandLine cmd = super.parse(args);
 
 		final Report report = ReportFactory.createReport(cmd, ReportType.REDIS);
-		ReportResult match = null;
+		ExtractionResult match = null;
 
 		final String[] literals = cmd.getArgs();
 		final String search;
@@ -60,10 +60,10 @@ public class ReplaceReportCli extends Cli {
 		final ProgressBar progressBar = ConsoleProgressBar.on(System.err)
 				.withFormat("[:bar] :percent% :elapsed/:total ETA: :eta")
 				.withTotalSteps(report.size());
-		final Iterator<Map.Entry<Path, ReportResult>> iterator = report.entrySet().iterator();
+		final Iterator<Map.Entry<Path, ExtractionResult>> iterator = report.entrySet().iterator();
 
 		while (iterator.hasNext()) {
-			Map.Entry<Path, ReportResult> entry = iterator.next();
+			Map.Entry<Path, ExtractionResult> entry = iterator.next();
 			Matcher matcher = pattern.matcher(entry.getKey().toString());
 
 			if (matcher.matches()) {

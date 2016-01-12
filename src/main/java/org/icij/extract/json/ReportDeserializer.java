@@ -1,7 +1,7 @@
 package org.icij.extract.json;
 
 import org.icij.extract.core.Report;
-import org.icij.extract.core.ReportResult;
+import org.icij.extract.core.ExtractionResult;
 
 import java.io.IOException;
 
@@ -32,7 +32,7 @@ public class ReportDeserializer extends JsonDeserializer<Report> {
 
 		jsonParser.nextToken(); // Skip over the start of the object.
 		while (jsonParser.nextToken() != JsonToken.END_OBJECT && jsonParser.nextValue() != null) {
-			report.put(Paths.get(jsonParser.getCurrentName()), ReportResult.get(jsonParser.getValueAsInt()));
+			report.put(Paths.get(jsonParser.getCurrentName()), ExtractionResult.get(jsonParser.getValueAsInt()));
 		}
 
 		return report;

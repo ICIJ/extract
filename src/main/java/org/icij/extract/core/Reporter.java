@@ -18,16 +18,16 @@ public class Reporter implements Closeable {
 		this.report = report;
 	}
 
-	public ReportResult result(final Path file) {
+	public ExtractionResult result(final Path file) {
 		return report.get(file);
 	}
 
-	public void save(final Path file, final ReportResult result) {
+	public void save(final Path file, final ExtractionResult result) {
 		report.put(file, result);
 	}
 
-	public boolean check(final Path file, final ReportResult result) {
-		final ReportResult status = result(file);
+	public boolean check(final Path file, final ExtractionResult result) {
+		final ExtractionResult status = result(file);
 
 		return null != status && status.equals(result);
 	}

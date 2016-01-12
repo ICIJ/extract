@@ -11,6 +11,6 @@ import java.util.concurrent.ConcurrentMap;
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
  */
-public interface Report extends ConcurrentMap<Path, ReportResult>, Closeable {
+public interface Report extends ConcurrentMap<Path, ExtractionResult>, Closeable {
 
 }

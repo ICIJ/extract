@@ -1,7 +1,7 @@
 package org.icij.extract.json;
 
 import org.icij.extract.core.Report;
-import org.icij.extract.core.ReportResult;
+import org.icij.extract.core.ExtractionResult;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -25,9 +25,9 @@ import hu.ssh.progressbar.ProgressBar;
 public class ReportSerializer extends JsonSerializer<Report> {
 
 	private final ProgressBar progressBar;
-	private final ReportResult match;
+	private final ExtractionResult match;
 
-	public ReportSerializer(final ProgressBar progressBar, final ReportResult match) {
+	public ReportSerializer(final ProgressBar progressBar, final ExtractionResult match) {
 		this.progressBar = progressBar;
 		this.match = match;
 	}
@@ -35,12 +35,12 @@ public class ReportSerializer extends JsonSerializer<Report> {
 	@Override
 	public void serialize(final Report report, final JsonGenerator jsonGenerator, final SerializerProvider provider) 
 		throws IOException {
-		final Iterator<Map.Entry<Path, ReportResult>> iterator = report.entrySet().iterator();
+		final Iterator<Map.Entry<Path, ExtractionResult>> iterator = report.entrySet().iterator();
 
 		jsonGenerator.writeStartObject();
 		while (iterator.hasNext()) {
-			Map.Entry<Path, ReportResult> entry = iterator.next();
-			ReportResult result = entry.getValue();
+			Map.Entry<Path, ExtractionResult> entry = iterator.next();
+			ExtractionResult result = entry.getValue();
 
 			if (null == match || result.equals(match)) {
 				jsonGenerator.writeObjectField(entry.getKey().toString(), result.getValue());

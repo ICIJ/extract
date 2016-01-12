@@ -1,7 +1,7 @@
 package org.icij.extract.cli;
 
 import org.icij.extract.core.Report;
-import org.icij.extract.core.ReportResult;
+import org.icij.extract.core.ExtractionResult;
 import org.icij.extract.core.ReportType;
 import org.icij.extract.json.ReportSerializer;
 import org.icij.extract.cli.options.ReporterOptionSet;
@@ -48,10 +48,10 @@ public class DumpReportCli extends Cli {
 		final CommandLine cmd = super.parse(args);
 
 		final Report report = ReportFactory.createReport(cmd, ReportType.REDIS);
-		ReportResult match = null;
+		ExtractionResult match = null;
 
 		if (cmd.hasOption("reporter-status")) {
-			match = ReportResult.get(((Number) cmd.getParsedOptionValue("reporter-status")));
+			match = ExtractionResult.get(((Number) cmd.getParsedOptionValue("reporter-status")));
 
 			if (null == match) {
 				throw new IllegalArgumentException(String.format("%s is not a valid report status.",

@@ -23,11 +23,11 @@ public class ReporterTest extends TestBase {
 			final Report report = RedisReport.create("extract:report:test");
 			final Reporter reporter = new Reporter(report);
 
-			reporter.save(a, ReportResult.SUCCEEDED);
-			Assert.assertTrue(reporter.check(a, ReportResult.SUCCEEDED));
-			reporter.save(b, ReportResult.NOT_FOUND);
-			Assert.assertTrue(reporter.check(b, ReportResult.NOT_FOUND));
-			Assert.assertFalse(reporter.check(b, ReportResult.SUCCEEDED));
+			reporter.save(a, ExtractionResult.SUCCEEDED);
+			Assert.assertTrue(reporter.check(a, ExtractionResult.SUCCEEDED));
+			reporter.save(b, ExtractionResult.NOT_FOUND);
+			Assert.assertTrue(reporter.check(b, ExtractionResult.NOT_FOUND));
+			Assert.assertFalse(reporter.check(b, ExtractionResult.SUCCEEDED));
 		} catch (RedisConnectionException|IllegalStateException e) {
 			Assume.assumeNoException(e);
 		}

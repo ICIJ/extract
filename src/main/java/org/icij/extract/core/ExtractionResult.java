@@ -8,7 +8,7 @@ import java.util.HashMap;
  *
  * @since 1.0.0-beta
  */
-public enum ReportResult {
+public enum ExtractionResult {
 	SUCCEEDED(0),
 	NOT_FOUND(1),
 	NOT_READ(2),
@@ -19,23 +19,23 @@ public enum ReportResult {
 
 	private final int value;
 
-	private static final Map<Integer, ReportResult> lookup = new HashMap<>();
+	private static final Map<Integer, ExtractionResult> lookup = new HashMap<>();
 
 	static {
-		for (ReportResult result: ReportResult.values()) {
+		for (ExtractionResult result: ExtractionResult.values()) {
 			lookup.put(result.getValue(), result);
 		}
 	}
 
-	public static ReportResult get(final Number value) {
+	public static ExtractionResult get(final Number value) {
 		return get(value.intValue());
 	}
 
-	public static ReportResult get(final Integer value) {
+	public static ExtractionResult get(final Integer value) {
 		return lookup.get(value);
 	}
 
-	ReportResult(final int value) {
+	ExtractionResult(final int value) {
 		this.value = value;
 	}
 
