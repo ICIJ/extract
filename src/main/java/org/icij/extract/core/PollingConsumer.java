@@ -15,7 +15,6 @@ import java.nio.file.Path;
 
 /**
  * An implementation of {@link Consumer} which polls a given queue for paths to consume.
- * The queue should contain paths serialized to {@link String} objects.
  *
  * @since 1.0.0-beta
  */
@@ -128,8 +127,8 @@ public class PollingConsumer extends Consumer {
 	}
 
 	/**
-	 * Drain the queue in a non-blocking way, without ever timing out,
-	 * until the draining thread is interrupted or the task is cancelled.
+	 * Drain the queue in a non-blocking way, without ever timing out, until the draining thread is interrupted or the
+	 * task is cancelled.
 	 *
 	 * @return a {@link Future} represent the draining task
 	 */
@@ -164,8 +163,7 @@ public class PollingConsumer extends Consumer {
 	/**
 	 * Poll the queue for a new file.
 	 *
-	 * Will wait for the duration set by {@link #setPollTimeout} or
-	 * until a file becomes available if no timeout is set.
+	 * Will wait for the duration set by {@link #setPollTimeout} or until a file becomes available if no timeout is set.
 	 *
 	 * @throws InterruptedException if interrupted while polling
 	 */
