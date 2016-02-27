@@ -78,14 +78,6 @@ public abstract class Spewer {
 		this.tags = tags;
 	}
 
-	public Path filterOutputPath(final Path file) {
-		if (null != outputBase && file.startsWith(outputBase)) {
-			return file.subpath(outputBase.getNameCount(), file.getNameCount());
-		} else {
-			return file;
-		}
-	}
-
 	public void finish() throws IOException {
 		logger.info("Spewer finishing pending jobs.");
 	}

@@ -9,7 +9,7 @@ import java.nio.file.PathMatcher;
  *
  * @since 1.0.0-beta
  */
-public class OSFileMatcher implements PathMatcher {
+public class SystemFileMatcher implements PathMatcher {
 
 	public boolean matches(final Path path) {
 		final Path fileName = path.getFileName();

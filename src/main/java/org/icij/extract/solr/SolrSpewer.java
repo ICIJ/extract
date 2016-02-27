@@ -163,21 +163,20 @@ public class SolrSpewer extends Spewer {
 		}
 	}
 
-	public String generateId(final Path outputPath) throws NoSuchAlgorithmException {
+	public String generateId(final Path path) throws NoSuchAlgorithmException {
 		return DatatypeConverter.printHexBinary(MessageDigest.getInstance(idAlgorithm)
-			.digest(outputPath.toString().getBytes(outputEncoding)));
+			.digest(path.toString().getBytes(outputEncoding)));
 	}
 
-	public void write(final Path file, final Metadata metadata, final Reader reader, final Charset outputEncoding)
+	public void write(final Path path, final Metadata metadata, final Reader reader, final Charset outputEncoding)
 		throws IOException {
 
-		final Path outputPath = filterOutputPath(file);
 		final SolrInputDocument document = new SolrInputDocument();
 		final UpdateResponse response;
 
 		// Set the metadata.
 		if (outputMetadata) {
-			filterMetadata(outputPath, metadata);
+			filterMetadata(path, metadata);
 			setMetadataFields(document, metadata);
 		}
 
@@ -188,13 +187,13 @@ public class SolrSpewer extends Spewer {
 		}
 
 		// Set the path on the path field.
-		setField(document, pathField, outputPath.toString());
+		setField(document, pathField, path.toString());
 		setField(document, textField, IOUtils.toString(reader));
 
 		// Set the ID. Must never be written atomically.
 		if (null != idField && null != idAlgorithm) {
 			try {
-				document.setField(idField, generateId(outputPath));
+				document.setField(idField, generateId(path));
 			} catch (NoSuchAlgorithmException e) {
 				throw new IllegalStateException(e);
 			}
@@ -208,16 +207,16 @@ public class SolrSpewer extends Spewer {
 			}
 		} catch (SolrServerException e) {
 			throw new SpewerException(String.format("Unable to add file to Solr: %s. " +
-				"There was server-side error.", file), e);
+				"There was server-side error.", path), e);
 		} catch (SolrException e) {
 			throw new SpewerException(String.format("Unable to add file to Solr: %s. " +
-				"HTTP error %d was returned.", file, e.code()), e);
+				"HTTP error %d was returned.", path, e.code()), e);
 		} catch (IOException e) {
 			throw new SpewerException(String.format("Unable to add file to Solr: %s. " +
-				"There was an error communicating with the server.", file), e);
+				"There was an error communicating with the server.", path), e);
 		}
 
-		logger.info(String.format("Document added to Solr in %dms: %s.", response.getElapsedTime(), file));
+		logger.info(String.format("Document added to Solr in %dms: %s.", response.getElapsedTime(), path));
 		pending.incrementAndGet();
 
 		// Autocommit if the interval is hit and enabled.

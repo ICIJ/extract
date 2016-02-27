@@ -49,38 +49,38 @@ public class FileSpewer extends Spewer {
 		}
 	}
 
-	public void write(final Path file, final Metadata metadata, final Reader reader,
+	public void write(final Path path, final Metadata metadata, final Reader reader,
 		final Charset outputEncoding) throws IOException {
+		Path outputPath;
 
 		// Join the file path to the output directory path to get the output path.
 		// If the file path is absolute, the leading slash must be removed.
-		Path baseOutputFile = filterOutputPath(file);
-		if (baseOutputFile.isAbsolute()) {
-			baseOutputFile = outputDirectory.resolve(baseOutputFile.toString().substring(1));
+		if (path.isAbsolute()) {
+			outputPath = outputDirectory.resolve(path.toString().substring(1));
 		} else {
-			baseOutputFile = outputDirectory.resolve(baseOutputFile);
+			outputPath = outputDirectory.resolve(path);
 		}
 
 		// Add the output extension.
-		Path contentsOutputFile;
+		Path contentsOutputPath;
 		if (null != outputExtension) {
-			contentsOutputFile = baseOutputFile.getFileSystem().getPath(baseOutputFile
+			contentsOutputPath = outputPath.getFileSystem().getPath(outputPath
 				.toString() + "." + outputExtension);
 		} else {
-			contentsOutputFile = baseOutputFile;
+			contentsOutputPath = outputPath;
 		}
 
-		logger.info(String.format("Outputting to file: %s.", contentsOutputFile));
+		logger.info(String.format("Outputting to file: %s.", contentsOutputPath));
 
 		// Make the required directories.
-		final Path outputParent = contentsOutputFile.getParent();
+		final Path outputParent = contentsOutputPath.getParent();
 		if (null != outputParent) {
 			final File outputFileParent = outputParent.toFile();
 			final boolean madeDirs = outputFileParent.mkdirs();
 
 			// The {@link File#mkdirs} method will return false if the path already exists.
 			if (!madeDirs && !outputFileParent.isDirectory()) {
-				throw new SpewerException(String.format("Unable to make directories for file: %s.", contentsOutputFile));
+				throw new SpewerException(String.format("Unable to make directories for file: %s.", contentsOutputPath));
 			}
 		}
 
@@ -89,21 +89,21 @@ public class FileSpewer extends Spewer {
 		try (
 
 			// IOUtils#copy buffers the input so there's no need to use an output buffer.
-			final OutputStream output = new FileOutputStream(contentsOutputFile.toFile())
+			final OutputStream output = new FileOutputStream(contentsOutputPath.toFile())
 		) {
 			tagged = new TaggedOutputStream(output);
 			IOUtils.copy(reader, tagged, outputEncoding);
 		} catch (IOException e) {
 			if (null != tagged && tagged.isCauseOf(e)) {
-				throw new SpewerException(String.format("Error writing output to file: %s.", contentsOutputFile), e);
+				throw new SpewerException(String.format("Error writing output to file: %s.", contentsOutputPath), e);
 			} else {
 				throw e;
 			}
 		}
 
 		if (outputMetadata) {
-			filterMetadata(baseOutputFile, metadata);
-			writeMetadata(baseOutputFile.getFileSystem().getPath(baseOutputFile
+			filterMetadata(outputPath, metadata);
+			writeMetadata(outputPath.getFileSystem().getPath(outputPath
 				.toString() + ".json"), metadata);
 		}
 	}

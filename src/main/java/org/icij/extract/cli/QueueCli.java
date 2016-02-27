@@ -44,13 +44,13 @@ public class QueueCli extends Cli {
 
 		ScannerOptionSet.configureScanner(cmd, scanner);
 		for (String directory : directories) {
-			scanner.scan(Paths.get(directory));
+			scanner.scan(Paths.get(cmd.getOptionValue("path-base", directory)), Paths.get(directory));
 		}
 
 		try {
 
 			// Block until the scanning of each directory has completed in serial.
-			scanner.finish();
+			scanner.awaitTermination();
 		} catch (InterruptedException e) {
 			logger.warning("Interrupted.");
 			Thread.currentThread().interrupt();

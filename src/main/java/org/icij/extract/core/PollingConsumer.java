@@ -146,15 +146,20 @@ public class PollingConsumer extends Consumer {
 	}
 
 	@Override
-	public void finish() throws InterruptedException {
-		draining.acquireUninterruptibly();
+	public void shutdown() {
 		drainer.shutdown();
+		super.shutdown();
+	}
+
+	@Override
+	public void awaitTermination() throws InterruptedException {
+		draining.acquireUninterruptibly();
 
 		// Wait for the continuous drainer to send all pending tasks
 		// the main executor service.
 		try {
 			while (!drainer.awaitTermination(60, TimeUnit.SECONDS));
-			super.finish();
+			super.awaitTermination();
 		} finally {
 			draining.release();
 		}

@@ -131,7 +131,7 @@ public class SpewCli extends Cli {
 			consumer.setReporter(new Reporter(report));
 		}
 
-		// Allow parallel and consuming and scanning.
+		// Allow parallel consuming and scanning.
 		final Scanner scanner;
 		final String[] directories = cmd.getArgs();
 
@@ -140,7 +140,7 @@ public class SpewCli extends Cli {
 
 			ScannerOptionSet.configureScanner(cmd, scanner);
 			for (String directory : directories) {
-				scanner.scan(Paths.get(directory));
+				scanner.scan(Paths.get(cmd.getOptionValue("path-base", directory)), Paths.get(directory));
 			}
 		} else {
 			scanner = null;
@@ -161,12 +161,13 @@ public class SpewCli extends Cli {
 
 				try {
 					if (null != scanner) {
-						scanner.stop();
-						scanner.finish();
+						scanner.shutdownNow();
+						scanner.awaitTermination();
 					}
 
 					consumer.stop();
-					consumer.finish();
+					consumer.shutdown();
+					consumer.awaitTermination();
 				} catch (InterruptedException e) {
 					Thread.currentThread().interrupt();
 					logger.warning("Exiting forcefully.");
@@ -188,7 +189,8 @@ public class SpewCli extends Cli {
 
 			// Block until every single path has been scanned and queued.
 			if (null != scanner) {
-				scanner.finish();
+				scanner.shutdown();
+				scanner.awaitTermination();
 			}
 
 			// Stop the continuous drain.
@@ -199,7 +201,8 @@ public class SpewCli extends Cli {
 
 			// Block until every path in the queue has been consumed.
 			consumer.drain(); // Blocking.
-			consumer.finish();
+			consumer.shutdown();
+			consumer.awaitTermination();
 		} catch (InterruptedException e) {
 
 			// Exit early and let the shutdown hook make a clean exit.
