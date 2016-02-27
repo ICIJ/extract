@@ -1,5 +1,6 @@
 package org.icij.extract.redis;
 
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.redisson.client.handler.State;
@@ -18,6 +19,8 @@ public class PathDecoder implements Decoder<Object> {
 
 	@Override
 	public Object decode(final ByteBuf buffer, final State state) {
-		return Paths.get(buffer.toString(CharsetUtil.UTF_8));
+		final Path path = Paths.get(buffer.toString(CharsetUtil.UTF_8));
+		buffer.readerIndex(buffer.readableBytes());
+		return path;
 	}
 }
