@@ -25,7 +25,7 @@ public class RedisConfigFactory {
 		// TODO: support all the other types supported by the ConnectionManagerFactory.
 		serverConfig = config.useSingleServer()
 				.setAddress(cmd.getOptionValue("redis-address", "127.0.0.1:6379"))
-				.setTimeout(5000);
+				.setTimeout(60000);
 
 		return serverConfig;
 	}
