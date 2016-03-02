@@ -68,6 +68,7 @@ public class Extractor {
 	private final Logger logger;
 
 	private boolean ocrDisabled = false;
+	private Path workingDirectory = null;
 
 	private final TikaConfig config = TikaConfig.getDefaultConfig();
 	private final TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
@@ -181,6 +182,25 @@ public class Extractor {
 	}
 
 	/**
+	 * Set the working directory for the extractor when the paths passed to it are relative. All paths passed to
+	 * the extraction methods will be resolved from the working directory.
+	 *
+	 * @param workingDirectory the working directory
+	 */
+	public void setWorkingDirectory(final Path workingDirectory) {
+		this.workingDirectory = workingDirectory;
+	}
+
+	/**
+	 * Get the the working directory.
+	 *
+	 * @return the working directory
+	 */
+	public Path getWorkingDirectory() {
+		return workingDirectory;
+	}
+
+	/**
 	 * A convenience method for when access to metadata is not required.
 	 *
 	 * @param file the file to extract from
@@ -199,7 +219,11 @@ public class Extractor {
 	 * @param file the file to extract from
 	 * @param metadata will be populated with metadata extracted from the file
 	 */
-	public Reader extract(final Path file, final Metadata metadata) throws IOException, TikaException {
+	public Reader extract(Path file, final Metadata metadata) throws IOException, TikaException {
+		if (null != workingDirectory) {
+			file = workingDirectory.resolve(file);
+		}
+
 		return extract(TikaInputStream.get(file, metadata), metadata);
 	}
 

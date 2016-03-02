@@ -222,6 +222,33 @@ public class ExtractorTest extends TestBase {
 		Assert.assertEquals(getExpected("/expected/text/embedded-data-uri-pdf.html"), text);
 	}
 
+	@Test
+	public void testFailsWithoutWorkingDirectory() throws Throwable {
+		final Extractor extractor = new Extractor(logger);
+		final Path file = Paths.get("text/plain.txt");
+
+		Assert.assertNull(extractor.getWorkingDirectory());
+		thrown.expect(NoSuchFileException.class);
+		thrown.expectMessage("text/plain.txt");
+
+		extractor.extract(file);
+	}
+
+	@Test
+	public void testSucceedsWithWorkingDirectory() throws Throwable {
+		final Extractor extractor = new Extractor(logger);
+		final Path workingDirectory = Paths.get(getClass().getResource("/documents").toURI());
+		extractor.setWorkingDirectory(workingDirectory);
+		Assert.assertEquals(workingDirectory.toString(), extractor.getWorkingDirectory().toString());
+
+		String text;
+		try (Reader reader = extractor.extract(Paths.get("text/plain.txt"))) {
+			text = IOUtils.toString(reader);
+		}
+
+		Assert.assertEquals("This is a test.\n\n", text);
+	}
+
 	private String getExpected(final String file) throws IOException {
 		return getExpected(file, StandardCharsets.UTF_8);
 	}

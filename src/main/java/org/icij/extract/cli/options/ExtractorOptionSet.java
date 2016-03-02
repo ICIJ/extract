@@ -3,6 +3,8 @@ package org.icij.extract.cli.options;
 import org.icij.extract.core.*;
 import org.icij.extract.interval.TimeDuration;
 
+import java.nio.file.Paths;
+
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.cli.Option;
@@ -51,6 +53,13 @@ public class ExtractorOptionSet extends OptionSet {
 			Option.builder()
 				.desc("Disable automatic OCR. On by default.")
 				.longOpt("ocr-disabled")
+				.build(),
+
+			Option.builder()
+				.desc("Set the working directory from which to resolve paths for files passed to the extractor.")
+				.longOpt("working-directory")
+				.hasArg()
+				.argName("directory")
 				.build());
 	}
 
@@ -77,6 +86,10 @@ public class ExtractorOptionSet extends OptionSet {
 
 		if (cmd.hasOption("ocr-disabled")) {
 			extractor.disableOcr();
+		}
+
+		if (cmd.hasOption("working-directory")) {
+			extractor.setWorkingDirectory(Paths.get(cmd.getOptionValue("working-directory")));
 		}
 	}
 }
