@@ -47,6 +47,7 @@ public class QueueCli extends Cli {
 			scanner.scan(Paths.get(cmd.getOptionValue("path-base", directory)), Paths.get(directory));
 		}
 
+		scanner.shutdown();
 		try {
 
 			// Block until the scanning of each directory has completed in serial.
