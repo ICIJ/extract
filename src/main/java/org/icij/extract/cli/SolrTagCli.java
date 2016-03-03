@@ -1,5 +1,7 @@
 package org.icij.extract.cli;
 
+import hu.ssh.progressbar.ProgressBar;
+import hu.ssh.progressbar.console.ConsoleProgressBar;
 import org.icij.extract.cli.options.*;
 import org.icij.extract.solr.*;
 import org.icij.extract.http.PinnedHttpClientBuilder;
@@ -73,6 +75,11 @@ public class SolrTagCli extends Cli {
 				.hasArg()
 				.argName("size")
 				.type(Number.class)
+				.build())
+
+			.addOption(Option.builder()
+				.desc("Don't show a progress bar.")
+				.longOpt("no-progress")
 				.build())
 
 			.addOption(Option.builder("c")
@@ -163,6 +170,14 @@ public class SolrTagCli extends Cli {
 
 					final SolrMachine machine = new SolrMachine(logger, consumer, producer, parallelism);
 
+					if (!cmd.hasOption("no-progress")) {
+						final ProgressBar progressBar = ConsoleProgressBar.on(System.out)
+								.withFormat("[:bar] :percent% :elapsed/:total ETA: :eta");
+
+						consumer.setProgressBar(progressBar);
+						producer.setProgressBar(progressBar);
+					}
+
 					processed = machine.call();
 					machine.terminate();
 				}
@@ -180,6 +195,14 @@ public class SolrTagCli extends Cli {
 				}
 
 				final SolrMachine machine = new SolrMachine(logger, consumer, producer, parallelism);
+
+				if (!cmd.hasOption("no-progress")) {
+					final ProgressBar progressBar = ConsoleProgressBar.on(System.out)
+							.withFormat("[:bar] :percent% :elapsed/:total ETA: :eta");
+
+					consumer.setProgressBar(progressBar);
+					producer.setProgressBar(progressBar);
+				}
 
 				processed = machine.call();
 				machine.terminate();
