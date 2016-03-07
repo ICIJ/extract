@@ -133,14 +133,19 @@ public class SpewCli extends Cli {
 
 		// Allow parallel consuming and scanning.
 		final Scanner scanner;
-		final String[] directories = cmd.getArgs();
+		final String[] paths = cmd.getArgs();
 
-		if (directories.length > 0) {
+		if (paths.length > 0) {
+			final String base = cmd.getOptionValue("path-base");
 			scanner = new Scanner(logger, queue);
 
 			ScannerOptionSet.configureScanner(cmd, scanner);
-			for (String directory : directories) {
-				scanner.scan(Paths.get(cmd.getOptionValue("path-base", directory)), Paths.get(directory));
+			for (String path : paths) {
+				if (null != base) {
+					scanner.scan(Paths.get(base), Paths.get(path));
+				} else {
+					scanner.scan(Paths.get(path));
+				}
 			}
 		} else {
 			scanner = null;
