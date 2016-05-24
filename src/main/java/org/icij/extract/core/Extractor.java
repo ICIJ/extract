@@ -95,7 +95,6 @@ public class Extractor {
 		// By default, only the object IDs are used for determining uniqueness.
 		// In scanned documents under test from the Panama registry, different embedded images had the same ID, leading to incomplete OCRing when uniqueness detection was turned on.
 		pdfConfig.setExtractUniqueInlineImagesOnly(false);
-		pdfConfig.setUseNonSequentialParser(true);
 	}
 
 	/**
