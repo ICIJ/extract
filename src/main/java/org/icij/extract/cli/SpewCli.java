@@ -141,11 +141,7 @@ public class SpewCli extends Cli {
 
 			ScannerOptionSet.configureScanner(cmd, scanner);
 			for (String path : paths) {
-				if (null != base) {
-					scanner.scan(Paths.get(base), Paths.get(path));
-				} else {
-					scanner.scan(Paths.get(path));
-				}
+				scanner.scan(base, path);
 			}
 		} else {
 			scanner = null;

@@ -13,8 +13,6 @@ import java.util.logging.Logger;
 
 import java.io.IOException;
 
-import java.nio.file.Paths;
-
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.CommandLine;
 
@@ -33,18 +31,19 @@ public class QueueCli extends Cli {
 
 	public CommandLine parse(String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cmd = super.parse(args);
-		final Queue queue = QueueFactory.createQueue(cmd);
-		final List<String> directories = cmd.getArgList();
+		final String[] paths = cmd.getArgs();
 
-		if (directories.size() == 0) {
-			throw new IllegalArgumentException("You must pass the directory paths to scan on the command line.");
+		if (paths.length == 0) {
+			throw new IllegalArgumentException("You must pass the paths to scan on the command line.");
 		}
 
+		final Queue queue = QueueFactory.createQueue(cmd);
 		final Scanner scanner = new Scanner(logger, queue);
+		final String base = cmd.getOptionValue("path-base");
 
 		ScannerOptionSet.configureScanner(cmd, scanner);
-		for (String directory : directories) {
-			scanner.scan(Paths.get(cmd.getOptionValue("path-base", directory)), Paths.get(directory));
+		for (String path : paths) {
+			scanner.scan(base, path);
 		}
 
 		scanner.shutdown();

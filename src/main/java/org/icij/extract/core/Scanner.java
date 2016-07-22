@@ -19,6 +19,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.Files;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.FileVisitOption;
@@ -202,8 +203,26 @@ public class Scanner {
 	/**
 	 * @see Scanner#scan(Path, Path)
 	 */
+	public Future<Path> scan(final String base, final String path) {
+		if (null != base) {
+			return scan(Paths.get(base), Paths.get(path));
+		} else {
+			return scan(path);
+		}
+	}
+
+	/**
+	 * @see Scanner#scan(Path, Path)
+	 */
 	public Future<Path> scan(final Path path) {
 		return scan(null, path);
+	}
+
+	/**
+	 * @see Scanner#scan(Path, Path)
+	 */
+	public Future<Path> scan(final String path) {
+		return scan(null, Paths.get(path));
 	}
 
 	/**
