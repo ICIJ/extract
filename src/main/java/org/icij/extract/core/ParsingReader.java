@@ -200,8 +200,7 @@ public abstract class ParsingReader extends Reader {
 		if (throwable instanceof IOException) {
 			throw (IOException) throwable;
 		} else if (throwable != null) {
-			IOException exception = new IOException("");
-			exception.initCause(throwable);
+			IOException exception = new IOException("", throwable);
 			throw exception;
 		}
 

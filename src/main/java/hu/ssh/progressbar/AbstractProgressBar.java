@@ -69,11 +69,8 @@ public abstract class AbstractProgressBar<T extends AbstractProgressBar<?>> impl
 			return true;
 		}
 
-		if (lastUpdatePercent != (int) (actualSteps * 100 / totalSteps)) {
-			return true;
-		}
+		return lastUpdatePercent != (int) (actualSteps * 100 / totalSteps);
 
-		return false;
 	}
 
 	protected abstract void updateProgressBar(final Progress progress);
