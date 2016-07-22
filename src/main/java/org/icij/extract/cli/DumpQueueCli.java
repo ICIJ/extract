@@ -37,7 +37,7 @@ public class DumpQueueCli extends Cli {
 	public CommandLine parse(final String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cmd = super.parse(args);
 
-		final Queue queue = QueueFactory.createQueue(cmd);
+		final Queue queue = QueueFactory.createSharedQueue(cmd);
 
 		final ProgressBar progressBar = ConsoleProgressBar.on(System.out)
 			.withFormat("[:bar] :percent% :elapsed/:total ETA: :eta")

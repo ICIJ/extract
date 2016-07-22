@@ -16,9 +16,15 @@ import org.apache.commons.cli.ParseException;
  */
 public class QueueFactory {
 
+	/**
+	 * Creates {@code Queue} based on the given commandline arguments, preferring an in-local-memory queue by default.
+	 *
+	 * @param cmd the commandline argument object
+	 * @return a {@code Queue} or {@code null}
+	 * @throws ParseException if the commandline arguments could not be parsed
+	 */
 	public static Queue createQueue(final CommandLine cmd) throws ParseException {
 		final QueueType queueType = QueueType.parse(cmd.getOptionValue('q', "array"));
-		final String name = cmd.getOptionValue("queue-name");
 		final Queue queue;
 		final int buffer;
 
@@ -28,10 +34,29 @@ public class QueueFactory {
 			buffer = 1024;
 		}
 
+		if (QueueType.ARRAY == queueType) {
+			queue = ArrayQueue.create(buffer);
+		} else {
+			queue = createSharedQueue(cmd);
+		}
+
+		return queue;
+	}
+
+	/**
+	 * Creates a share {@code Queue} based on the given commandline arguments, preferring Redis by default.
+	 *
+	 * @param cmd the commandline argument object
+	 * @return a {@code Queue} or {@code null}
+	 * @throws ParseException if the commandline arguments could not be parsed
+	 */
+	public static Queue createSharedQueue(final CommandLine cmd) throws ParseException {
+		final QueueType queueType = QueueType.parse(cmd.getOptionValue('q', "redis"));
+		final String name = cmd.getOptionValue("queue-name");
+		final Queue queue;
+
 		if (QueueType.REDIS == queueType) {
 			queue = RedisQueue.create(RedisConfigFactory.createConfig(cmd), name);
-		} else if (QueueType.ARRAY == queueType) {
-			queue = ArrayQueue.create(buffer);
 		} else {
 			queue = null;
 		}

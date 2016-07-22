@@ -46,7 +46,7 @@ public class LoadQueueCli extends Cli {
 		}
 
 		final File file = new File(files[0]);
-		final Queue queue = QueueFactory.createQueue(cmd);
+		final Queue queue = QueueFactory.createSharedQueue(cmd);
 
 		final ObjectMapper mapper = new ObjectMapper();
 		final SimpleModule module = new SimpleModule();

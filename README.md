@@ -20,7 +20,7 @@ This is the workflow we use at ICIJ for processing millions of files. The `-n` p
  and avoid conflicts with unrelated jobs using the same Redis server.
 
  - First, queue the files from your directory.  
-`nfs-1$ extract queue -n job-1 -q redis -v info --redis-address redis-1:6379 /media/my_files 2> queue.log`
+`nfs-1$ extract queue -n job-1 -v info --redis-address redis-1:6379 /media/my_files 2> queue.log`
 
  - Export your directory as an NFS share.
 

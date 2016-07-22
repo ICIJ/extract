@@ -67,7 +67,7 @@ public class SolrSpewer extends Spewer {
 	private int commitInterval = 0;
 	private int commitWithin = 0;
 	private boolean atomicWrites = false;
-	private boolean utcDates = false;
+	private boolean fixDates = true;
 
 	/**
 	 * Normalize metadata field names.
@@ -140,12 +140,12 @@ public class SolrSpewer extends Spewer {
 		return atomicWrites;
 	}
 
-	public void utcDates(final boolean utcDates) {
-		this.utcDates = utcDates;
+	public void fixDates(final boolean fixDates) {
+		this.fixDates = fixDates;
 	}
 
-	public boolean utcDates() {
-		return utcDates;
+	public boolean fixDates() {
+		return fixDates;
 	}
 
 	public void finish() throws IOException {
@@ -278,7 +278,7 @@ public class SolrSpewer extends Spewer {
 	private void setMetadataField(final SolrInputDocument document, final String name,
 		final String[] values) {
 		for (String value : values) {
-			if (utcDates && dateFieldNames.contains(name) && !value.endsWith("Z")) {
+			if (fixDates && dateFieldNames.contains(name) && !value.endsWith("Z")) {
 				value = value + "Z";
 			}
 

@@ -12,5 +12,6 @@ public class SolrDefaults {
 	public static final String DEFAULT_TEXT_FIELD = "content";
 	public static final String DEFAULT_PATH_FIELD = "path";
 	public static final String DEFAULT_METADATA_FIELD_PREFIX = "metadata_";
+	public static final String DEFAULT_ID_ALGORITHM = "SHA-256";
 
 }

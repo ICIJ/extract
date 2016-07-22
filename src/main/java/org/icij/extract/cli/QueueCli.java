@@ -36,7 +36,7 @@ public class QueueCli extends Cli {
 			throw new IllegalArgumentException("You must pass the paths to scan on the command line.");
 		}
 
-		final Queue queue = QueueFactory.createQueue(cmd);
+		final Queue queue = QueueFactory.createSharedQueue(cmd);
 		final Scanner scanner = new Scanner(logger, queue);
 		final String base = cmd.getOptionValue("path-base");
 
