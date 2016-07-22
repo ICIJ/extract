@@ -23,7 +23,6 @@ import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.util.ClientUtils;
 
 /**
  * A consumer that recalculates ID hashes of documents after a simple
@@ -104,7 +103,11 @@ public class SolrRehashConsumer extends SolrMachineConsumer {
 			logger.info(String.format("Replacing path \"%s\" with \"%s\".", inputPath, outputPath));
 			client.add(output);
 		} else {
-			final SolrInputDocument output = ClientUtils.toSolrInputDocument(input);
+			final SolrInputDocument output = new SolrInputDocument();
+
+			for (String name: input.getFieldNames()) {
+				output.addField(name, input.getFieldValue(name));
+			}
 
 			output.setField("_version_", "-1"); // The document must not exist.
 			output.setField(idField, outputId);
