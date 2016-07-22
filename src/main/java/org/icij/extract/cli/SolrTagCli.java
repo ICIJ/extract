@@ -140,7 +140,8 @@ public class SolrTagCli extends Cli {
 				.setVerifyHostname(cmd.getOptionValue("verify-host"))
 				.pinCertificate(cmd.getOptionValue("pin-certificate"))
 				.build();
-			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient)
+			final SolrClient client = new HttpSolrClient.Builder(cmd.getOptionValue('s')).withHttpClient(httpClient)
+					.build()
 		) {
 			final SolrMachineConsumer consumer;
 			final SolrMachineProducer producer;
@@ -148,8 +149,8 @@ public class SolrTagCli extends Cli {
 
 			if (null != subsetMode) {
 				try (
-					final SolrClient clientA = new HttpSolrClient(addressA, httpClient);
-					final SolrClient clientB = new HttpSolrClient(addressB, httpClient)
+					final SolrClient clientA = new HttpSolrClient.Builder(addressA).withHttpClient(httpClient).build();
+					final SolrClient clientB = new HttpSolrClient.Builder(addressB).withHttpClient(httpClient).build()
 				) {
 					producer = new SolrMachineProducer(logger, clientA, null, parallelism);
 

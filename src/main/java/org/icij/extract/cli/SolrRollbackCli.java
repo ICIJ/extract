@@ -36,7 +36,8 @@ public class SolrRollbackCli extends Cli {
 				.setVerifyHostname(cmd.getOptionValue("verify-host"))
 				.pinCertificate(cmd.getOptionValue("pin-certificate"))
 				.build();
-			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient)
+			final SolrClient client = new HttpSolrClient.Builder(cmd.getOptionValue('s')).withHttpClient(httpClient)
+					.build()
 		) {
 			client.rollback();
 		} catch (SolrServerException e) {

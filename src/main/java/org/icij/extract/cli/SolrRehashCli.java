@@ -119,7 +119,8 @@ public class SolrRehashCli extends Cli {
 				.setVerifyHostname(cmd.getOptionValue("verify-host"))
 				.pinCertificate(cmd.getOptionValue("pin-certificate"))
 				.build();
-			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient)
+			final SolrClient client = new HttpSolrClient.Builder(cmd.getOptionValue('s')).withHttpClient(httpClient)
+					.build()
 		) {
 			final SolrRehashConsumer consumer = new SolrRehashConsumer(logger, client,
 				cmd.getOptionValue('a').toUpperCase(Locale.ROOT));

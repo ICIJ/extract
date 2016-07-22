@@ -102,7 +102,8 @@ public class SpewCli extends Cli {
 				.pinCertificate(cmd.getOptionValue("solr-pin-certificate"))
 				.build();
 
-			spewer = new SolrSpewer(logger, new HttpSolrClient(cmd.getOptionValue('s'), httpClient));
+			spewer = new SolrSpewer(logger, new HttpSolrClient.Builder(cmd.getOptionValue('s')).withHttpClient(httpClient)
+					.build());
 			SolrSpewerOptionSet.configureSpewer(cmd, (SolrSpewer) spewer);
 
 		} else if (OutputType.FILE == outputType) {

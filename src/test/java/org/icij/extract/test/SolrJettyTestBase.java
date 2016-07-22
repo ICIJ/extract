@@ -82,7 +82,7 @@ public abstract class SolrJettyTestBase extends TestBase {
 			// - enable Map Remote and map 127.0.0.1:8888 to 127.0.0.1:8080
 			url = new URL(url.getProtocol(), url.getHost(), url.getPort(), url.getFile() + "/" + core);
 
-			final HttpSolrClient client = new HttpSolrClient(url.toString());
+			final HttpSolrClient client = new HttpSolrClient.Builder(url.toString()).build();
 
 			client.setConnectionTimeout(DEFAULT_CONNECTION_TIMEOUT);
 			client.setDefaultMaxConnectionsPerHost(100);

@@ -62,7 +62,8 @@ public class SolrDeleteCli extends Cli {
 				.setVerifyHostname(cmd.getOptionValue("verify-host"))
 				.pinCertificate(cmd.getOptionValue("pin-certificate"))
 				.build();
-			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient)
+			final SolrClient client = new HttpSolrClient.Builder(cmd.getOptionValue('s')).withHttpClient(httpClient)
+					.build()
 		) {
 			for (String query : queries) {
 				if (query.contains(":")) {

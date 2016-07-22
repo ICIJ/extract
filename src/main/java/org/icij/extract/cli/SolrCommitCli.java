@@ -42,7 +42,8 @@ public class SolrCommitCli extends Cli {
 				.setVerifyHostname(cmd.getOptionValue("verify-host"))
 				.pinCertificate(cmd.getOptionValue("pin-certificate"))
 				.build();
-			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient)
+			final SolrClient client = new HttpSolrClient.Builder(cmd.getOptionValue('s')).withHttpClient(httpClient)
+					.build()
 		) {
 			if (cmd.hasOption("soft")) {
 				client.commit(true, true, true);

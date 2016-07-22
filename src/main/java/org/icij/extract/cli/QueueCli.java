@@ -8,7 +8,6 @@ import org.icij.extract.cli.options.RedisOptionSet;
 import org.icij.extract.cli.options.ScannerOptionSet;
 import org.icij.extract.cli.factory.QueueFactory;
 
-import java.util.List;
 import java.util.logging.Logger;
 
 import java.io.IOException;

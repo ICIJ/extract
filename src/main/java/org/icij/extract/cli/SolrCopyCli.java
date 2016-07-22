@@ -105,7 +105,8 @@ public class SolrCopyCli extends Cli {
 				.setVerifyHostname(cmd.getOptionValue("verify-host"))
 				.pinCertificate(cmd.getOptionValue("pin-certificate"))
 				.build();
-			final SolrClient client = new HttpSolrClient(cmd.getOptionValue('s'), httpClient)
+			final SolrClient client = new HttpSolrClient.Builder(cmd.getOptionValue('s')).withHttpClient(httpClient)
+					.build()
 		) {
 			final SolrMachineConsumer consumer = new SolrCopyConsumer(logger, client, map);
 			final SolrMachineProducer producer = new SolrMachineProducer(logger, client, map.keySet(), parallelism);
