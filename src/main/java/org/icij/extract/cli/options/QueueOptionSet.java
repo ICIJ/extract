@@ -12,7 +12,7 @@ import org.apache.commons.cli.Option;
 public class QueueOptionSet extends OptionSet {
 
 	public QueueOptionSet() {
-		super(Option.builder()
+		super(Option.builder("n")
 				.desc("The name of the queue. Defaults to \"extract\".")
 				.longOpt("queue-name")
 				.hasArg()

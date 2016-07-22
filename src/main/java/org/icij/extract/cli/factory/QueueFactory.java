@@ -24,7 +24,7 @@ public class QueueFactory {
 
 		if (cmd.hasOption("queue-buffer")) {
 			buffer = ((Number) cmd.getParsedOptionValue("buffer-size")).intValue();
-		} else{
+		} else {
 			buffer = 1024;
 		}
 
