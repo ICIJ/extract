@@ -432,7 +432,7 @@ public class Scanner {
 			// the exception.
 			// Don't re-throw the error. Scanning must be robust. Just log it.
 			if (!shouldExclude(file)) {
-				logger.log(Level.SEVERE, "Unable to read attributes of file: \"%s\".", e);
+				logger.log(Level.SEVERE, String.format("Unable to read attributes of file: \"%s\".", file), e);
 			}
 
 			return FileVisitResult.CONTINUE;
