@@ -52,7 +52,7 @@ public class QueueFactory {
 	 */
 	public static Queue createSharedQueue(final CommandLine cmd) throws ParseException {
 		final QueueType queueType = QueueType.parse(cmd.getOptionValue('q', "redis"));
-		final String name = cmd.getOptionValue("queue-name");
+		final String name = cmd.getOptionValue('n');
 		final Queue queue;
 
 		if (QueueType.REDIS == queueType) {
