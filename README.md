@@ -74,7 +74,7 @@ This will cause the copy command to run only on those fields which have a non-nu
 
 ## Compiling
 
-Requires [JDK 8](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html) and Maven:
+Requires [JDK 8](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html), Tesseract (in order to pass tests) and Maven:
 
 ```bash
 cd extract/
