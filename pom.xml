@@ -22,6 +22,7 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<java.version>1.8</java.version>
+		<capsule.version>1.0.2</capsule.version>
 	</properties>
 
 	<repositories>
@@ -33,14 +34,6 @@
 	</repositories>
 
 	<dependencies>
-
-		<!-- FOR THE CUSTOM CAPSULE CLASS (Don't need this if using the default Capsule.class) -->
-		<dependency>
-			<groupId>co.paralleluniverse</groupId>
-			<artifactId>capsule</artifactId>
-			<version>1.0.2</version>
-			<scope>provided</scope>
-		</dependency>
 
 		<dependency>
 			<groupId>commons-cli</groupId>
@@ -176,6 +169,10 @@
 					</properties>
 
 					<manifest>
+						<entry>
+							<key>Premain-Class</key>
+							<value>Capsule</value>
+						</entry>
 						<entry>
 							<key>JVM-Args</key>
 							<value>$JAVA_OPTS</value>

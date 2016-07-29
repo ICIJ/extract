@@ -20,7 +20,7 @@ This is the workflow we use at ICIJ for processing millions of files. The `-n` p
  and avoid conflicts with unrelated jobs using the same Redis server.
 
  - First, queue the files from your directory.  
-`nfs-1$ extract queue -n job-1 -v info --redis-address redis-1:6379 /media/my_files 2> queue.log`
+`nfs-1$ extract queue -n job-1 -v info --redis-address redis-1:6379 /mnt/my_files 2> queue.log`
 
  - Export your directory as an NFS share.
 
@@ -28,12 +28,12 @@ This is the workflow we use at ICIJ for processing millions of files. The `-n` p
  `nfs-1$ extract dump-queue -n job-1 --redis-address redis-1:6379 > queue.json`
 
  - Mount the NFS share to the same path on each of your extraction cluster machines.  
- `extract-1$ sudo mkdir /media/my_files`  
- `extract-1$ sudo mount -t nfs4 -o ro,proto=tcp,port=2049 nfs-1:/my_files /media/my_files`  
+ `extract-1$ sudo mkdir /mnt/my_files`  
+ `extract-1$ sudo mount -t nfs4 -o ro,proto=tcp,port=2049 nfs-1:/my_files /mnt/my_files`  
  `extract-2$ ...`
 
  - Start processing the queue on each of your machines.  
-`extract-1$ extract spew -n job-1 -q redis -o solr -s https://solr-1:8983/solr/core1 -r redis -v info --redis-address redis-1:6379 2> extract.log`  
+`extract-1$ extract spew -n job-1 -q redis -o solr -s http://solr-1:8983/solr/core1 -r redis -v info --redis-address redis-1:6379 2> extract.log`  
 `extract-2$ ...`
 
 In the last step, we instruct Extract to use the queue from Redis, to output extracted text to Solr (`-o solr`) at the given address and to report results to Redis (`-r redis`).
