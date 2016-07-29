@@ -43,7 +43,7 @@ public class SolrCopyConsumer extends SolrMachineConsumer {
 			copyField(field, input, output);
 		}
 
-		logger.info(String.format("Adding document with ID %s.",
+		logger.info(String.format("Adding document with ID \"%s\".",
 			input.getFieldValue(idField)));
 		client.add(output);
 	}

@@ -70,7 +70,7 @@ public class FileSpewer extends Spewer {
 			contentsOutputPath = outputPath;
 		}
 
-		logger.info(String.format("Outputting to file: %s.", contentsOutputPath));
+		logger.info(String.format("Outputting to file: \"%s\".", contentsOutputPath));
 
 		// Make the required directories.
 		final Path outputParent = contentsOutputPath.getParent();
@@ -80,7 +80,8 @@ public class FileSpewer extends Spewer {
 
 			// The {@link File#mkdirs} method will return false if the path already exists.
 			if (!madeDirs && !outputFileParent.isDirectory()) {
-				throw new SpewerException(String.format("Unable to make directories for file: %s.", contentsOutputPath));
+				throw new SpewerException(String.format("Unable to make directories for file: \"%s\".",
+						contentsOutputPath));
 			}
 		}
 
@@ -95,7 +96,8 @@ public class FileSpewer extends Spewer {
 			IOUtils.copy(reader, tagged, outputEncoding);
 		} catch (IOException e) {
 			if (null != tagged && tagged.isCauseOf(e)) {
-				throw new SpewerException(String.format("Error writing output to file: %s.", contentsOutputPath), e);
+				throw new SpewerException(String.format("Error writing output to file: \"%s\".", contentsOutputPath),
+						e);
 			} else {
 				throw e;
 			}
@@ -110,7 +112,7 @@ public class FileSpewer extends Spewer {
 
 	private void writeMetadata(final Path metaOutputFile, final Metadata metadata)
 		throws IOException {
-		logger.info(String.format("Outputting metadata to file: %s.", metaOutputFile));
+		logger.info(String.format("Outputting metadata to file: \"%s\".", metaOutputFile));
 
 		try (
 			final JsonGenerator jsonGenerator = new JsonFactory().createGenerator(metaOutputFile.toFile(),

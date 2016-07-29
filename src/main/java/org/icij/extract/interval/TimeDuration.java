@@ -44,7 +44,7 @@ public class TimeDuration {
 		final Matcher matcher = pattern.matcher(duration);
 
 		if (!matcher.find()) {
-			throw new IllegalArgumentException(String.format("Invalid time duration string: %s.", duration));
+			throw new IllegalArgumentException(String.format("Invalid time duration string: \"%s\".", duration));
 		} else {
 			return matcher;
 		}

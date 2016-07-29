@@ -53,7 +53,7 @@ public class SpewerOptionSet extends OptionSet {
 				if (2 == pair.length) {
 					pairs.put(pair[0], pair[1]);
 				} else {
-					throw new IllegalArgumentException(String.format("Invalid tag pair: %s.", literal));
+					throw new IllegalArgumentException(String.format("Invalid tag pair: \"%s\".", literal));
 				}
 			}
 

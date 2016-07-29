@@ -115,7 +115,7 @@ public class SolrRehashConsumer extends SolrMachineConsumer {
 			output.setField(SolrSpewer.normalizeName(SolrSpewer.META_PARENT_PATH, metadataFieldPrefix),
 				outputPathParent);
 
-			logger.info(String.format("Replacing path \"%s\" with \"%s\" and rehashing ID from %s to %s.",
+			logger.info(String.format("Replacing path \"%s\" with \"%s\" and rehashing ID from \"%s\" to \"%s\".",
 			inputPath, outputPath, inputId, outputId));
 			client.add(output);
 			client.deleteById(inputId);

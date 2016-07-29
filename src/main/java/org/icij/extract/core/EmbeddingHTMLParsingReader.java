@@ -238,7 +238,8 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 				) {
 					destination.createDocument(entry.getName(), contents);
 				} catch (IOException e) {
-					logger.log(Level.SEVERE, String.format("Unable to save embedded document \"%s\" in document: %s.",
+					logger.log(Level.SEVERE, String.format("Unable to save embedded document \"%s\" in document: " +
+									"\"%s\".",
 						entry.getName(), parent), e);
 				}
 			}
@@ -248,7 +249,7 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 			try {
 				return tmp.createTemporaryFile().toPath();
 			} catch (IOException e) {
-				logger.log(Level.SEVERE, String.format("Unable to create temporary file for embed in document: %s.",
+				logger.log(Level.SEVERE, String.format("Unable to create temporary file for embed in document: \"%s\".",
 					parent), e);
 				throw e;
 			}
@@ -270,7 +271,8 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 				) {
 					fs.writeFilesystem(output);
 				} catch (IOException e) {
-					logger.log(Level.SEVERE, String.format("Unable to save embedded document \"%s\" in document: %s.",
+					logger.log(Level.SEVERE, String.format("Unable to save embedded document \"%s\" in document: " +
+									"\"%s\".",
 						name, parent), e);
 					throw e;
 				}
@@ -288,7 +290,7 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 			try {
 				copied = Files.copy(input, embed, StandardCopyOption.REPLACE_EXISTING);
 			} catch (IOException e) {
-				logger.log(Level.SEVERE, String.format("Unable to save embedded document \"%s\" in document: %s.",
+				logger.log(Level.SEVERE, String.format("Unable to save embedded document \"%s\" in document: \"%s\".",
 					name, parent), e);
 				throw e;
 			} finally {

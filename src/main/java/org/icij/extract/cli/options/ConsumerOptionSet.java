@@ -16,7 +16,7 @@ public class ConsumerOptionSet extends OptionSet {
 
 	public ConsumerOptionSet() {
 		super(Option.builder()
-				.desc(String.format("Time to wait when polling the queue e.g. \"5s\" or \"1m\". Defaults to %s.",
+				.desc(String.format("Time to wait when polling the queue e.g. \"5s\" or \"1m\". Defaults to \"%s\".",
 					PollingConsumer.DEFAULT_TIMEOUT))
 				.longOpt("queue-poll")
 				.hasArg()

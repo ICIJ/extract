@@ -57,7 +57,7 @@ public class SolrSpewerOptionSet extends OptionSet {
 				// The standard names are defined in the Oracle Standard Algorithm Name Documentation:
 				// http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#MessageDigest
 				.desc(String.format("The hashing algorithm used for generating Solr document identifiers from paths e" +
-						".g. \"SHA-224\". Defaults to %s.", SolrDefaults.DEFAULT_ID_ALGORITHM))
+						".g. \"SHA-224\". Defaults to \"%s\".", SolrDefaults.DEFAULT_ID_ALGORITHM))
 				.longOpt("solr-id-algorithm")
 				.hasArg()
 				.argName("name")

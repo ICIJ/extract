@@ -112,7 +112,7 @@ public class SolrSpewer extends Spewer {
 			null != Security.getProviders("MessageDigest." + idAlgorithm)) {
 			this.idAlgorithm = idAlgorithm;
 		} else {
-			throw new NoSuchAlgorithmException(String.format("No such algorithm: %s.", idAlgorithm));
+			throw new NoSuchAlgorithmException(String.format("No such algorithm: \"%s\".", idAlgorithm));
 		}
 	}
 
@@ -206,17 +206,17 @@ public class SolrSpewer extends Spewer {
 				response = client.add(document, commitWithin);
 			}
 		} catch (SolrServerException e) {
-			throw new SpewerException(String.format("Unable to add file to Solr: %s. " +
+			throw new SpewerException(String.format("Unable to add file to Solr: \"%s\". " +
 				"There was server-side error.", path), e);
 		} catch (SolrException e) {
-			throw new SpewerException(String.format("Unable to add file to Solr: %s. " +
+			throw new SpewerException(String.format("Unable to add file to Solr: \"%s\". " +
 				"HTTP error %d was returned.", path, e.code()), e);
 		} catch (IOException e) {
-			throw new SpewerException(String.format("Unable to add file to Solr: %s. " +
+			throw new SpewerException(String.format("Unable to add file to Solr: \"%s\". " +
 				"There was an error communicating with the server.", path), e);
 		}
 
-		logger.info(String.format("Document added to Solr in %dms: %s.", response.getElapsedTime(), path));
+		logger.info(String.format("Document added to Solr in %dms: \"%s\".", response.getElapsedTime(), path));
 		pending.incrementAndGet();
 
 		// Autocommit if the interval is hit and enabled.

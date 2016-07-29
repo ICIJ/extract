@@ -93,7 +93,7 @@ public class Consumer {
 	 * @throws InterruptedException if interrupted while waiting for a slot
 	 */
 	public void accept(final Path file) throws InterruptedException {
-		logger.info(String.format("Sending to thread pool; will queue if full: %s.", file));
+		logger.info(String.format("Sending to thread pool; will queue if full: \"%s\".", file));
 		permits.acquire();
 		executor.execute(new ConsumerTask(file));
 	}
@@ -131,7 +131,7 @@ public class Consumer {
 	 * @return The result code.
 	 */
 	protected ExtractionResult extract(final Path file) {
-		logger.info(String.format("Beginning extraction: %s.", file));
+		logger.info(String.format("Beginning extraction: \"%s\".", file));
 
 		final Metadata metadata = new Metadata();
 
@@ -140,16 +140,16 @@ public class Consumer {
 
 		try {
 			reader = extractor.extract(file, metadata);
-			logger.info(String.format("Outputting: %s.", file));
+			logger.info(String.format("Outputting: \"%s\".", file));
 			spewer.write(file, metadata, reader);
 
 		// SpewerException is thrown exclusively due to an output endpoint error.
 		// It means that extraction succeeded, but the result could not be saved.
 		} catch (SpewerException e) {
-			logger.log(Level.SEVERE, String.format("The extraction result could not be outputted: %s.", file), e);
+			logger.log(Level.SEVERE, String.format("The extraction result could not be outputted: \"%s\".", file), e);
 			status = ExtractionResult.NOT_SAVED;
 		} catch (FileNotFoundException e) {
-			logger.log(Level.SEVERE, String.format("File not found: %s. Skipping.", file), e);
+			logger.log(Level.SEVERE, String.format("File not found: \"%s\". Skipping.", file), e);
 			status = ExtractionResult.NOT_FOUND;
 		} catch (IOException e) {
 
@@ -158,24 +158,24 @@ public class Consumer {
 
 			if (c instanceof ExcludedMediaTypeException) {
 				logger.log(Level.INFO, String.format("The document was not parsed because all of the " +
-					"parsers that handle it were excluded: %s.", file), e);
+					"parsers that handle it were excluded: \"%s\".", file), e);
 				status = ExtractionResult.NOT_PARSED;
 			} else if (c instanceof EncryptedDocumentException) {
-				logger.log(Level.SEVERE, String.format("Skipping encrypted file: %s.", file), e);
+				logger.log(Level.SEVERE, String.format("Skipping encrypted file: \"%s\".", file), e);
 				status = ExtractionResult.NOT_DECRYPTED;
 
 			// TIKA-198: IOExceptions thrown by parsers will be wrapped in a TikaException.
 			// This helps us differentiate input stream exceptions from output stream exceptions.
 			// https://issues.apache.org/jira/browse/TIKA-198
 			} else if (c instanceof TikaException) {
-				logger.log(Level.SEVERE, String.format("The document could not be parsed: %s.", file), e);
+				logger.log(Level.SEVERE, String.format("The document could not be parsed: \"%s\".", file), e);
 				status = ExtractionResult.NOT_PARSED;
 			} else {
-				logger.log(Level.SEVERE, String.format("The document stream could not be read: %s.", file), e);
+				logger.log(Level.SEVERE, String.format("The document stream could not be read: \"%s\".", file), e);
 				status = ExtractionResult.NOT_READ;
 			}
 		} catch (Throwable e) {
-			logger.log(Level.SEVERE, String.format("Unknown exception during extraction or output: %s.", file), e);
+			logger.log(Level.SEVERE, String.format("Unknown exception during extraction or output: \"%s\".", file), e);
 			status = ExtractionResult.NOT_CLEAR;
 		}
 
@@ -184,11 +184,11 @@ public class Consumer {
 				reader.close();
 			}
 		} catch (IOException e) {
-			logger.log(Level.SEVERE, String.format("Error while closing extraction reader: %s.", file), e);
+			logger.log(Level.SEVERE, String.format("Error while closing extraction reader: \"%s\".", file), e);
 		}
 
 		if (ExtractionResult.SUCCEEDED == status) {
-			logger.info(String.format("Finished outputting file: %s.", file));
+			logger.info(String.format("Finished outputting file: \"%s\".", file));
 		}
 
 		return status;
@@ -207,7 +207,7 @@ public class Consumer {
 			try {
 				call();
 			} catch (Exception e) {
-				logger.log(Level.SEVERE, String.format("Exception while consuming file: %s.",
+				logger.log(Level.SEVERE, String.format("Exception while consuming file: \"%s\".",
 					file), e);
 			} finally {
 				permits.release();
@@ -219,7 +219,7 @@ public class Consumer {
 
 			// Check status in reporter. Skip if good.
 			if (null != reporter && reporter.check(file, ExtractionResult.SUCCEEDED)) {
-				logger.info(String.format("File already extracted; skipping: %s.", file));
+				logger.info(String.format("File already extracted; skipping: \"%s\".", file));
 
 			// Save status to registry and start a new job.
 			} else if (null != reporter) {

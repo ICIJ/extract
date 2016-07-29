@@ -49,7 +49,8 @@ public class SolrTagCli extends Cli {
 				.build())
 
 			.addOption(Option.builder("i")
-				.desc(String.format("The name of the unique ID field in the target Solr schema. Defaults to %s.", SolrDefaults.DEFAULT_ID_FIELD))
+				.desc(String.format("The name of the unique ID field in the target Solr schema. Defaults to \"%s\".",
+						SolrDefaults.DEFAULT_ID_FIELD))
 				.longOpt("id-field")
 				.hasArg()
 				.argName("name")
@@ -109,7 +110,7 @@ public class SolrTagCli extends Cli {
 			if (2 == pair.length) {
 				pairs.put(pair[0], pair[1]);
 			} else {
-				throw new IllegalArgumentException(String.format("Invalid literal pair: %s.", literal));
+				throw new IllegalArgumentException(String.format("Invalid literal pair: \"%s\".", literal));
 			}
 		}
 
@@ -124,7 +125,7 @@ public class SolrTagCli extends Cli {
 		final String subsetMode = cmd.getOptionValue('m');
 
 		if (null != subsetMode && !(subsetMode.equals("intersection") || subsetMode.equals("complement"))) {
-			throw new IllegalArgumentException(String.format("Invalid mode: %s.", subsetMode));
+			throw new IllegalArgumentException(String.format("Invalid mode: \"%s\".", subsetMode));
 		}
 
 		final String addressA = cmd.getOptionValue('a');

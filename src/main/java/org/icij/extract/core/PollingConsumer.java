@@ -182,7 +182,7 @@ public class PollingConsumer extends Consumer {
 			logger.info("Polling the queue without waiting.");
 			file = queue.poll();
 		} else {
-			logger.info(String.format("Polling the queue, waiting up to %s.", pollTimeout));
+			logger.info(String.format("Polling the queue, waiting up to \"%s\".", pollTimeout));
 			file = queue.poll(pollTimeout.getDuration(), pollTimeout.getUnit());
 		}
 

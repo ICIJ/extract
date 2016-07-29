@@ -37,7 +37,7 @@ public class SolrTaggingConsumer extends SolrMachineConsumer {
 			output.setField(entry.getKey(), atomic);
 		}
 
-		logger.info(String.format("Tagging document with ID %s.", id));
+		logger.info(String.format("Tagging document with ID \"%s\".", id));
 		destination.add(output);
 	}
 }

@@ -37,7 +37,8 @@ public class SolrRehashCli extends Cli {
 		super(logger, new SolrOptionSet());
 
 		options.addOption(Option.builder("i")
-				.desc(String.format("The name of the unique ID field in the target Solr schema. Defaults to %s.", SolrDefaults.DEFAULT_ID_FIELD))
+				.desc(String.format("The name of the unique ID field in the target Solr schema. Defaults to \"%s\".",
+						SolrDefaults.DEFAULT_ID_FIELD))
 				.longOpt("id-field")
 				.hasArg()
 				.argName("name")

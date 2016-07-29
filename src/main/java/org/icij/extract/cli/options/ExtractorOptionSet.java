@@ -44,7 +44,8 @@ public class ExtractorOptionSet extends OptionSet {
 				.build(),
 
 			Option.builder()
-				.desc(String.format("Set the timeout for the Tesseract process to finish e.g. \"5s\" or \"1m\". Defaults to %s.", DEFAULT_OCR_TIMEOUT))
+				.desc(String.format("Set the timeout for the Tesseract process to finish e.g. \"5s\" or \"1m\". " +
+						"Defaults to \"%s\".", DEFAULT_OCR_TIMEOUT))
 				.longOpt("ocr-timeout")
 				.hasArg()
 				.argName("duration")

@@ -95,7 +95,7 @@ public abstract class Spewer {
 		for (String type : metadata.getValues(Metadata.CONTENT_TYPE)) {
 			MediaType mediaType = MediaType.parse(type);
 			if (null == mediaType) {
-				logger.warning(String.format("Content type could not be parsed: %s. Was: %s.",
+				logger.warning(String.format("Content type could not be parsed: \"%s\". Was: \"%s\".",
 					file, type));
 				continue;
 			}
