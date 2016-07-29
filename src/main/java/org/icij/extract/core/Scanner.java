@@ -391,7 +391,7 @@ public class Scanner {
 		}
 
 		@Override
-		public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+		public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) throws IOException {
 			if (Thread.currentThread().isInterrupted()) {
 				logger.warning("Scanner interrupted. Terminating job.");
 				return FileVisitResult.TERMINATE;
@@ -400,6 +400,19 @@ public class Scanner {
 			visited++;
 			if (visited % 10000 == 0) {
 				logger.info(String.format("Scanner visited %d files.", visited));
+			}
+
+			if (attributes.isSymbolicLink()) {
+
+				// From the documentation:
+				// "When following links, and the attributes of the target cannot be read, then this method attempts to
+				// get the BasicFileAttributes of the link."
+				if (followLinks) {
+					logger.warning(String.format("Unable to read attributes of symbolic link target: \"%s\". Skipping" +
+							".", file));
+				}
+
+				return FileVisitResult.CONTINUE;
 			}
 
 			// Only skip the file if all of the include matchers return false.
@@ -418,7 +431,7 @@ public class Scanner {
 				logger.warning("Interrupted. Terminating scanner.");
 				return FileVisitResult.TERMINATE;
 			} catch (Exception e) {
-				logger.log(Level.SEVERE, String.format("Exception while queuing file: \"%s\"", file), e);
+				logger.log(Level.SEVERE, String.format("Exception while queuing file: \"%s\".", file), e);
 				throw e;
 			}
 
@@ -428,8 +441,7 @@ public class Scanner {
 		@Override
 		public FileVisitResult visitFileFailed(Path file, IOException e) throws IOException {
 
-			// If the file or directory was going to be excluded anyway, suppress
-			// the exception.
+			// If the file or directory was going to be excluded anyway, suppress the exception.
 			// Don't re-throw the error. Scanning must be robust. Just log it.
 			if (!shouldExclude(file)) {
 				logger.log(Level.SEVERE, String.format("Unable to read attributes of file: \"%s\".", file), e);

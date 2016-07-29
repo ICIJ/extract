@@ -185,7 +185,6 @@
 							<value>local central</value>
 						</entry>
 					</manifest>
-
 				</configuration>
 
 				<!-- BUILD CAPSULES AUTOMATICALLY AT PACKAGE PHASE -->
