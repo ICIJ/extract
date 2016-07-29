@@ -88,8 +88,7 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 			return null;
 		}
 
-		// For convenience on the consumer end, the poison pill instance
-		// is converted to null.
+		// For convenience on the consumer end, the poison pill instance is converted to null.
 		if (document instanceof PoisonDocument) {
 			return null;
 		}
@@ -166,8 +165,7 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 			}
 		}
 
-		logger.info(String.format("Fetching up to %d documents, skipping %d.",
-			rows, start));
+		logger.info(String.format("Fetching up to %d documents, skipping %d.", rows, start));
 		client.queryAndStreamResponse(query, this);
 
 		final long fetched = this.fetched;
