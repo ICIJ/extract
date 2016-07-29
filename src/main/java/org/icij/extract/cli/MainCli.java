@@ -87,7 +87,7 @@ public class MainCli extends Cli {
 		final String header = String.format("%nA cross-platform tool for distributed content-analysis " +
 			"by the data team at the International Consortium of Investigative Journalists.%n%n" +
 			"\033[1mCommands\033[0m%n%n %s%n%n" +
-			"\033[1mOptions\033[0m%n%n", String.join("%n ", commands));
+			"\033[1mOptions\033[0m%n%n", String.join("\n ", commands));
 		final String footer = String.format("%nExtract will use up to %s of memory on this machine.%n%n" +
 			"Please report issues at: https://github.com/ICIJ/extract/issues.", FileUtils.byteCountToDisplaySize(maxMemory));
 
