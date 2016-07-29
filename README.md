@@ -10,7 +10,7 @@ It supports Redis-backed queueing for distributed extraction and will write to S
 
 If you're only processing a few thousand files, then running a single instance of Extract without a queue is sufficient:
 
-`workstation-1$ extract spew -d /path/to/files -r redis -o file --file-output-directory /path/to/text`
+`workstation-1$ extract spew -r redis -o file --file-output-directory /path/to/text /path/to/files`
 
 The `-r` parameter is used to tell Extract to save the result of each file processed to Redis. In this way, if you have to stop the process, then you can resume where you left off as successfully processed files will be skipped.
 
