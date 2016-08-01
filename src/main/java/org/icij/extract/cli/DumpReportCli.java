@@ -8,6 +8,9 @@ import org.icij.extract.cli.options.ReporterOptionSet;
 import org.icij.extract.cli.options.RedisOptionSet;
 import org.icij.extract.cli.factory.ReportFactory;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.util.logging.Logger;
 
 import java.io.IOException;
@@ -47,7 +50,27 @@ public class DumpReportCli extends Cli {
 	public CommandLine parse(final String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cmd = super.parse(args);
 
+		final String[] files = cmd.getArgs();
+
+		if (files.length > 1) {
+			throw new IllegalArgumentException("Only one dump file path may be passed at a time.");
+		}
+
 		final Report report = ReportFactory.createReport(cmd, ReportType.REDIS);
+		final OutputStream output;
+
+		// Write to stdout if no path is specified.
+		if (0 == files.length) {
+			logger.info("No path given. Writing to standard output.");
+			output = System.out;
+		} else {
+			try {
+				output = new FileOutputStream(files[0]);
+			} catch (FileNotFoundException e) {
+				throw new RuntimeException("Unable to open dump file for writing.", e);
+			}
+		}
+
 		ExtractionResult match = null;
 
 		if (cmd.hasOption("reporter-status")) {
@@ -72,7 +95,7 @@ public class DumpReportCli extends Cli {
 		try (
 			final JsonGenerator jsonGenerator = new JsonFactory()
 				.setCodec(mapper)
-				.createGenerator(System.out, JsonEncoding.UTF8)
+				.createGenerator(output, JsonEncoding.UTF8)
 		) {
 			jsonGenerator.useDefaultPrettyPrinter();
 			jsonGenerator.writeObject(report);
@@ -91,6 +114,7 @@ public class DumpReportCli extends Cli {
 	}
 
 	public void printHelp() {
-		super.printHelp(Command.DUMP_REPORT, "Dump the report for debugging. The name option is respected.");
+		super.printHelp(Command.DUMP_REPORT, "Dump the report for debugging. The name option is respected. If no " +
+						"destination path is given then the dump is written to standard output.", "[destination]");
 	}
 }

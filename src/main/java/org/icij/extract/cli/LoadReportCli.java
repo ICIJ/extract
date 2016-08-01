@@ -7,10 +7,8 @@ import org.icij.extract.cli.options.ReporterOptionSet;
 import org.icij.extract.cli.options.RedisOptionSet;
 import org.icij.extract.cli.factory.ReportFactory;
 
+import java.io.*;
 import java.util.logging.Logger;
-
-import java.io.File;
-import java.io.IOException;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
@@ -37,15 +35,24 @@ public class LoadReportCli extends Cli {
 
 		final String[] files = cmd.getArgs();
 
-		if (files.length == 0) {
-			throw new IllegalArgumentException("Dump file path must be passed on the command line.");
-		}
-
 		if (files.length > 1) {
 			throw new IllegalArgumentException("Only one dump file path may be passed at a time.");
 		}
 
-		final File file = new File(files[0]);
+		final InputStream input;
+
+		// Write to stdout if no path is specified.
+		if (0 == files.length) {
+			logger.info("No path given. Reading from standard input.");
+			input = System.in;
+		} else {
+			try {
+				input = new FileInputStream(files[0]);
+			} catch (FileNotFoundException e) {
+				throw new RuntimeException("Unable to open dump file for reading.", e);
+			}
+		}
+
 		final Report report = ReportFactory.createReport(cmd, ReportType.REDIS);
 
 		final ObjectMapper mapper = new ObjectMapper();
@@ -57,7 +64,7 @@ public class LoadReportCli extends Cli {
 		try (
 			final JsonParser jsonParser = new JsonFactory()
 				.setCodec(mapper)
-				.createParser(file)
+				.createParser(input)
 		) {
 			jsonParser.readValueAs(Report.class);
 		} catch (IOException e) {
@@ -75,7 +82,7 @@ public class LoadReportCli extends Cli {
 
 	public void printHelp() {
 		super.printHelp(Command.LOAD_REPORT,
-			"Load a report from a JSON dump file. The name option is respected.",
-			"source");
+			"Load a report from a JSON dump file. The name option is respected. If no source path is given then the " +
+					"input is read from standard input.", "[source]");
 	}
 }

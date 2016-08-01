@@ -6,6 +6,9 @@ import org.icij.extract.cli.options.QueueOptionSet;
 import org.icij.extract.cli.options.RedisOptionSet;
 import org.icij.extract.cli.factory.QueueFactory;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.util.logging.Logger;
 
 import java.io.IOException;
@@ -37,7 +40,26 @@ public class DumpQueueCli extends Cli {
 	public CommandLine parse(final String[] args) throws ParseException, IllegalArgumentException {
 		final CommandLine cmd = super.parse(args);
 
+		final String[] files = cmd.getArgs();
+
+		if (files.length > 1) {
+			throw new IllegalArgumentException("Only one dump file path may be passed at a time.");
+		}
+
 		final Queue queue = QueueFactory.createSharedQueue(cmd);
+		final OutputStream output;
+
+		// Write to stdout if no path is specified.
+		if (0 == files.length) {
+			logger.info("No path given. Writing to standard output.");
+			output = System.out;
+		} else {
+			try {
+				output = new FileOutputStream(files[0]);
+			} catch (FileNotFoundException e) {
+				throw new RuntimeException("Unable to open dump file for writing.", e);
+			}
+		}
 
 		final ProgressBar progressBar = ConsoleProgressBar.on(System.out)
 			.withFormat("[:bar] :percent% :elapsed/:total ETA: :eta")
@@ -52,7 +74,7 @@ public class DumpQueueCli extends Cli {
 		try (
 			final JsonGenerator jsonGenerator = new JsonFactory()
 				.setCodec(mapper)
-				.createGenerator(System.out, JsonEncoding.UTF8)
+				.createGenerator(output, JsonEncoding.UTF8)
 		) {
 			jsonGenerator.useDefaultPrettyPrinter();
 			jsonGenerator.writeObject(queue);
@@ -71,6 +93,8 @@ public class DumpQueueCli extends Cli {
 	}
 
 	public void printHelp() {
-		super.printHelp(Command.DUMP_QUEUE, "Dump the queue for debugging. The name option is respected.");
+		super.printHelp(Command.DUMP_QUEUE, "Dump the queue for debugging. The name option is respected. If no " +
+						"destination path is given then the dump is written to standard output.",
+				"[destination]");
 	}
 }
