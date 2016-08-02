@@ -19,7 +19,7 @@ import org.apache.commons.io.FileUtils;
  * @since 1.0.0-beta
  */
 public class MainCli extends Cli {
-	public static final String VERSION = "v1.0.0-beta";
+	public static final String VERSION = "v1.0.0";
 
 	public MainCli(Logger logger) {
 		super(logger);
@@ -32,10 +32,10 @@ public class MainCli extends Cli {
 				.argName("command")
 				.build())
 
-			.addOption(Option.builder()
-				.desc("Display the version number.")
-				.longOpt("version")
-				.build());
+				.addOption(Option.builder()
+						.desc("Display the version number.")
+						.longOpt("version")
+						.build());
 	}
 
 	public CommandLine parse(String[] args) throws ParseException {
@@ -84,7 +84,7 @@ public class MainCli extends Cli {
 			commands[i++] = command.toString();
 		}
 
-		final String header = String.format("%nA cross-platform tool for distributed content-analysis " +
+		final String header = String.format("%nA cross-platform tool for distributed content-extraction " +
 			"by the data team at the International Consortium of Investigative Journalists.%n%n" +
 			"\033[1mCommands\033[0m%n%n %s%n%n" +
 			"\033[1mOptions\033[0m%n%n", String.join("\n ", commands));

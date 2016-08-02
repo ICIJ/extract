@@ -54,7 +54,7 @@ public abstract class Cli {
 
 		final String footer = "\nPlease report issues at: https://github.com/ICIJ/extract/issues.";
 		final String header = "\n" + description + "\n\n" +
-			"Part of Extract, a cross-platform tool for distributed content-analysis.\n\n" +
+			"Part of Extract, a cross-platform tool for distributed content-extraction.\n\n" +
 			"\033[1mOptions\033[0m\n\n";
 
 		String syntax = "\033[1mextract\033[0m " + command + " [options]";
