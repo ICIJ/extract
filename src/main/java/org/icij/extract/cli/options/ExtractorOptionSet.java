@@ -1,11 +1,8 @@
 package org.icij.extract.cli.options;
 
 import org.icij.extract.core.*;
-import org.icij.extract.interval.TimeDuration;
 
 import java.nio.file.Paths;
-
-import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.CommandLine;
@@ -18,8 +15,6 @@ import org.apache.commons.cli.CommandLine;
  * @since 1.0.0-beta
  */
 public class ExtractorOptionSet extends OptionSet {
-
-	public static final TimeDuration DEFAULT_OCR_TIMEOUT = new TimeDuration(12, TimeUnit.HOURS);
 
 	public ExtractorOptionSet() {
 		super(Option.builder()
@@ -45,7 +40,7 @@ public class ExtractorOptionSet extends OptionSet {
 
 			Option.builder()
 				.desc(String.format("Set the timeout for the Tesseract process to finish e.g. \"5s\" or \"1m\". " +
-						"Defaults to \"%s\".", DEFAULT_OCR_TIMEOUT))
+						"Defaults to \"%s\".", Extractor.DEFAULT_OCR_TIMEOUT))
 				.longOpt("ocr-timeout")
 				.hasArg()
 				.argName("duration")
@@ -81,8 +76,6 @@ public class ExtractorOptionSet extends OptionSet {
 
 		if (cmd.hasOption("ocr-timeout")) {
 			extractor.setOcrTimeout(cmd.getOptionValue("ocr-timeout"));
-		} else {
-			extractor.setOcrTimeout(DEFAULT_OCR_TIMEOUT);
 		}
 
 		if (cmd.hasOption("ocr-disabled")) {

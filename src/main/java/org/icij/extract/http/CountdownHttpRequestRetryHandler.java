@@ -18,7 +18,13 @@ import java.io.IOException;
  */
 public class CountdownHttpRequestRetryHandler implements HttpRequestRetryHandler {
 
+	public static final int DEFAULT_RETRIES = 3;
+
 	private int countdown;
+
+	public CountdownHttpRequestRetryHandler() {
+		this(DEFAULT_RETRIES);
+	}
 
 	public CountdownHttpRequestRetryHandler(final int retries) {
 		countdown = retries;

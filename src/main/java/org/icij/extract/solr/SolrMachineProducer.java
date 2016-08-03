@@ -150,7 +150,7 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 		}
 	}
 
-	private long fetch() throws IOException, SolrServerException, InterruptedException {
+	private long fetch() throws IOException, SolrServerException {
 		final SolrQuery query = new SolrQuery(filter);
 
 		query.setRows(rows);
@@ -160,9 +160,7 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 		query.setFields(idField);
 
 		if (null != fields) {
-			for (String field : fields) {
-				query.addField(field);
-			}
+			fields.forEach(query::addField);
 		}
 
 		logger.info(String.format("Fetching up to %d documents, skipping %d.", rows, start));
@@ -183,5 +181,6 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 
 	private static class PoisonDocument extends SolrDocument {
 
+		private static final long serialVersionUID = -5298876028754839466L;
 	}
 }

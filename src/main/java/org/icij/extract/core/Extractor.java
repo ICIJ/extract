@@ -65,6 +65,8 @@ public class Extractor {
 		}
 	}
 
+	public static final TimeDuration DEFAULT_OCR_TIMEOUT = new TimeDuration(12, TimeUnit.HOURS);
+
 	private final Logger logger;
 
 	private boolean ocrDisabled = false;
@@ -84,7 +86,7 @@ public class Extractor {
 	 * available locally, extract inline images from PDF files and OCR them
 	 * and use PDFBox's non-sequential PDF parser.
 	 *
-	 * @param logger
+	 * @param logger the logger to send messages to
 	 */
 	public Extractor(final Logger logger) {
 		this.logger = logger;
@@ -95,6 +97,9 @@ public class Extractor {
 		// By default, only the object IDs are used for determining uniqueness.
 		// In scanned documents under test from the Panama registry, different embedded images had the same ID, leading to incomplete OCRing when uniqueness detection was turned on.
 		pdfConfig.setExtractUniqueInlineImagesOnly(false);
+
+		// Set a long OCR timeout by default, because Tika's is too short.
+		ocrConfig.setTimeout(Math.toIntExact(DEFAULT_OCR_TIMEOUT.to(TimeUnit.SECONDS)));
 	}
 
 	/**
@@ -118,7 +123,7 @@ public class Extractor {
 	/**
 	 * Set the output format.
 	 *
-	 * @param outputFormat
+	 * @param outputFormat the output format
 	 */
 	public void setOutputFormat(final OutputFormat outputFormat) {
 		this.outputFormat = outputFormat;
@@ -233,7 +238,7 @@ public class Extractor {
 	 * @param input the stream to extract from
 	 * @param metadata the metadata object to populate
 	 */
-	public Reader extract(final TikaInputStream input, final Metadata metadata) throws IOException, TikaException {
+	public Reader extract(final TikaInputStream input, final Metadata metadata) throws IOException {
 		final ParseContext context = new ParseContext();
 		final AutoDetectParser parser = new AutoDetectParser(config);
 

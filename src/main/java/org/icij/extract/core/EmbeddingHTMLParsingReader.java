@@ -183,7 +183,7 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 		}
 
 		private void outputEmbedded(final Path embed, final String name, final ContentHandler handler,
-			final Metadata metadata, final boolean outputHtml) throws SAXException, IOException {
+			final Metadata metadata, final boolean outputHtml) throws SAXException {
 
 			final String uuid = UUID.randomUUID().toString();
 

@@ -11,6 +11,8 @@ import java.io.IOException;
  */
 public class SpewerException extends IOException {
 
+	private static final long serialVersionUID = 3981185100146162422L;
+
 	public SpewerException(String message) {
 		super(message);
 	}

@@ -24,6 +24,7 @@ import org.xml.sax.ContentHandler;
  */
 public class ErrorParser implements Parser {
 
+	private static final long serialVersionUID = -4224235288173500115L;
 	private final Parser parser;
 	private final Set<MediaType> excludedTypes;
 

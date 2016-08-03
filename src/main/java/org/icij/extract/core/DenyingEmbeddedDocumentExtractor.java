@@ -21,7 +21,6 @@ public class DenyingEmbeddedDocumentExtractor implements EmbeddedDocumentExtract
 	}
 
 	public void parseEmbedded(InputStream stream, ContentHandler handler, Metadata metadata, boolean outputHtml) throws SAXException, IOException {
-		final IOException e = new IOException("", new IllegalStateException("A parser illegally attempted to parse an embedded document."));
-		throw e;
+		throw new IllegalStateException("A parser illegally attempted to parse an embedded document.");
 	}
 }

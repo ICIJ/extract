@@ -49,6 +49,15 @@ public class RedisQueue extends RedissonBlockingQueue<Path> implements Queue {
 	}
 
 	/**
+	 * Create a Redis-backed queue using the default configuration and name.
+	 *
+	 * @return a new queue instance
+	 */
+	public static RedisQueue create() {
+		return create(null);
+	}
+
+	/**
 	 * Instantiate a new Redis-backed queue using the provided connection manager and name.
 	 *
 	 * @param connectionManager instantiated using {@link ConnectionManagerFactory}
@@ -56,7 +65,7 @@ public class RedisQueue extends RedissonBlockingQueue<Path> implements Queue {
 	 */
 	public RedisQueue(final ConnectionManager connectionManager, final String name) {
 		super(new RedisQueueCodec(), new CommandSyncService(connectionManager),
-			null == name ? DEFAULT_NAME : name);
+			null == name || name.trim().isEmpty() ? DEFAULT_NAME : name);
 		this.connectionManager = connectionManager;
 	}
 

@@ -10,6 +10,8 @@ import org.apache.tika.exception.TikaException;
  */
 public class ExcludedMediaTypeException extends TikaException {
 
+	private static final long serialVersionUID = 7867649548995177839L;
+
 	public ExcludedMediaTypeException(String message) {
 		super(message);
 	}

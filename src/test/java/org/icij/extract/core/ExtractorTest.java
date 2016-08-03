@@ -9,7 +9,6 @@ import java.nio.file.NoSuchFileException;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
 import org.apache.tika.metadata.Metadata;
@@ -250,13 +249,8 @@ public class ExtractorTest extends TestBase {
 	}
 
 	private String getExpected(final String file) throws IOException {
-		return getExpected(file, StandardCharsets.UTF_8);
-	}
-
-	private String getExpected(final String file, final Charset encoding) throws IOException {
-
 		try (InputStream input = getClass().getResourceAsStream(file)) {
-			return IOUtils.toString(input, encoding);
+			return IOUtils.toString(input, StandardCharsets.UTF_8);
 		}
 	}
 }

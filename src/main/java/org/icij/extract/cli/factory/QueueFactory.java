@@ -50,7 +50,7 @@ public class QueueFactory {
 	 * @return a {@code Queue} or {@code null}
 	 * @throws ParseException if the commandline arguments could not be parsed
 	 */
-	public static Queue createSharedQueue(final CommandLine cmd) throws ParseException {
+	public static Queue createSharedQueue(final CommandLine cmd) {
 		final QueueType queueType = QueueType.parse(cmd.getOptionValue('q', "redis"));
 		final String name = cmd.getOptionValue('n');
 		final Queue queue;

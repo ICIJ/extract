@@ -2,11 +2,10 @@ package org.icij.extract.core;
 
 import org.icij.extract.test.*;
 
-import java.io.File;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.List;
 
 import org.junit.Test;
 import org.junit.Assert;
@@ -25,10 +24,11 @@ public class ScannerTest extends TestBase {
 		scanner.shutdown();
 		scanner.awaitTermination();
 
-		final List<File> files = Arrays.asList(root.toFile().listFiles());
-		for (File file : files) {
-			Assert.assertTrue(String.format("Failed asserting that queue contains \"%s\".", file),
-					queue.contains(file.toPath()));
+		try (DirectoryStream<Path> directoryStream = Files.newDirectoryStream(root)) {
+			for (Path file : directoryStream) {
+				Assert.assertTrue(String.format("Failed asserting that queue contains \"%s\".", file),
+						queue.contains(file));
+			}
 		}
 	}
 
@@ -44,10 +44,12 @@ public class ScannerTest extends TestBase {
 		scanner.shutdown();
 		scanner.awaitTermination();
 
-		final List<File> files = Arrays.asList(root.toFile().listFiles());
-		for (File file : files) {
-			Assert.assertTrue(String.format("Failed asserting that queue contains \"%s\".", file),
-					queue.contains(file.toPath().getFileName()));
+		try (DirectoryStream<Path> directoryStream = Files.newDirectoryStream(root)) {
+			for (Path file : directoryStream) {
+				Path fileName = file.getFileName();
+				Assert.assertTrue(String.format("Failed asserting that queue contains \"%s\".", fileName),
+						queue.contains(fileName));
+			}
 		}
 	}
 }

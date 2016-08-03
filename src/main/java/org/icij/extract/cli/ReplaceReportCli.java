@@ -39,7 +39,6 @@ public class ReplaceReportCli extends Cli {
 		final CommandLine cmd = super.parse(args);
 
 		final Report report = ReportFactory.createReport(cmd, ReportType.REDIS);
-		ExtractionResult match = null;
 
 		final String[] literals = cmd.getArgs();
 		final String search;

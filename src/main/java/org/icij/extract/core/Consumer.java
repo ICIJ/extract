@@ -74,16 +74,6 @@ public class Consumer {
 	}
 
 	/**
-	 * Consume a file. Like {@link #accept} but accepts a {@link String} path.
-	 *
-	 * @param file file path
-	 * @throws InterruptedException if interrupted while waiting for a slot
-	 */
-	public void accept(final String file) throws InterruptedException {
-		accept(Paths.get(file));
-	}
-
-	/**
 	 * Consume a file.
 	 *
 	 * Jobs are put in an bounded queue and executed in serial, in a separate thread.

@@ -48,7 +48,7 @@ public class PinnedHttpClientBuilder extends HttpClientBuilder {
 			.setMaxConnPerRoute(32)
 			.setMaxConnTotal(128)
 			.disableRedirectHandling()
-			.setRetryHandler(new CountdownHttpRequestRetryHandler(3));
+			.setRetryHandler(new CountdownHttpRequestRetryHandler());
 
 		return builder;
 	}

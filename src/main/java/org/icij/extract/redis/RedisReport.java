@@ -50,6 +50,15 @@ public class RedisReport extends RedissonMap<Path, ExtractionResult> implements 
 	}
 
 	/**
+	 * Create a Redis-backed report using the default configuration and name.
+	 *
+	 * @return a new report instance
+	 */
+	public static RedisReport create() {
+		return create(null);
+	}
+
+	/**
 	 * Instantiate a new Redis-backed report using the provided connection manager and name.
 	 *
 	 * @param connectionManager instantiated using {@link ConnectionManagerFactory}
@@ -57,7 +66,7 @@ public class RedisReport extends RedissonMap<Path, ExtractionResult> implements 
 	 */
 	public RedisReport(final ConnectionManager connectionManager, final String name) {
 		super(new RedisReportCodec(), new CommandSyncService(connectionManager),
-			null == name ? DEFAULT_NAME : name);
+			null == name || name.trim().isEmpty() ? DEFAULT_NAME : name);
 		this.connectionManager = connectionManager;
 	}
 

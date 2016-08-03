@@ -12,6 +12,8 @@ import java.util.concurrent.ArrayBlockingQueue;
  */
 public class ArrayQueue extends ArrayBlockingQueue<Path> implements Queue {
 
+	private static final long serialVersionUID = -7491630465350342533L;
+
 	public static ArrayQueue create(final int capacity) {
 		return new ArrayQueue(capacity);
 	}

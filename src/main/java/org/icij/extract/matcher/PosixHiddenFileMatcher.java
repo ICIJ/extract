@@ -14,10 +14,7 @@ public class PosixHiddenFileMatcher implements PathMatcher {
 	public boolean matches(final Path path) {
 		final Path fileName = path.getFileName();
 
-		if (null != fileName) {
-			return fileName.toString().startsWith(".");
-		}
+		return null != fileName && fileName.toString().startsWith(".");
 
-		return false;
 	}
 }

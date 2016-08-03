@@ -45,10 +45,6 @@ public abstract class Cli {
 
 	protected abstract void printHelp();
 
-	protected void printHelp(final Command command, final String description) {
-		printHelp(command, description, null);
-	}
-
 	protected void printHelp(final Command command, final String description, final String... arguments) {
 		final HelpFormatter formatter = new HelpFormatter();
 
