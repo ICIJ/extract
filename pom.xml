@@ -3,7 +3,7 @@
 
 	<groupId>org.icij.extract</groupId>
 	<artifactId>extract</artifactId>
-	<version>1.0.0-beta</version>
+	<version>1.0.0</version>
 	<packaging>jar</packaging>
 
 	<developers>
@@ -149,6 +149,18 @@
 				</executions>
 			</plugin>
 
+			<!-- COMPILER -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.5.1</version>
+				<configuration>
+					<source>${java.version}</source>
+					<target>${java.version}</target>
+					<compilerArgument>-Xlint:all</compilerArgument>
+				</configuration>
+			</plugin>
+
 			<plugin>
 				<groupId>sg.enixsoft</groupId>
 				<artifactId>capsule-maven-plugin</artifactId>
@@ -190,18 +202,6 @@
 						</goals>
 					</execution>
 				</executions>
-			</plugin>
-
-			<!-- COMPILER -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.5.1</version>
-				<configuration>
-					<source>${java.version}</source>
-					<target>${java.version}</target>
-					<compilerArgument>-Xlint:all</compilerArgument>
-				</configuration>
 			</plugin>
 
 			<plugin>
