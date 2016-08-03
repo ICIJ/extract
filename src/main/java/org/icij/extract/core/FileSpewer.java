@@ -32,7 +32,7 @@ public class FileSpewer extends Spewer {
 	private final Path outputDirectory;
 	private String outputExtension = DEFAULT_EXTENSION;
 
-	public FileSpewer(Logger logger, Path outputDirectory) {
+	public FileSpewer(final Logger logger, final Path outputDirectory) {
 		super(logger);
 		this.outputDirectory = outputDirectory;
 	}
@@ -41,7 +41,7 @@ public class FileSpewer extends Spewer {
 		return outputExtension;
 	}
 
-	public void setOutputExtension(String outputExtension) {
+	public void setOutputExtension(final String outputExtension) {
 		if (null == outputExtension || outputExtension.trim().isEmpty()) {
 			this.outputExtension = null;
 		} else {
