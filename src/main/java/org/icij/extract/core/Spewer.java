@@ -8,7 +8,7 @@ import java.io.Reader;
 import java.io.IOException;
 
 import java.nio.file.Path;
-import java.nio.file.FileSystems;
+import java.nio.file.Paths;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
@@ -59,7 +59,7 @@ public abstract class Spewer {
 	}
 
 	public void setOutputBase(final String outputBase) {
-		setOutputBase(FileSystems.getDefault().getPath(outputBase));
+		setOutputBase(Paths.get(outputBase));
 	}
 
 	public Path getOutputBase() {
