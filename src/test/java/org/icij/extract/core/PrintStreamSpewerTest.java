@@ -8,7 +8,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.PrintStream;
 
-import java.nio.file.FileSystems;
+import java.nio.file.Paths;
 import java.nio.charset.StandardCharsets;
 
 import org.apache.tika.metadata.Metadata;
@@ -30,7 +30,7 @@ public class PrintStreamSpewerTest extends TestBase {
 		final InputStream inputStream = new ByteArrayInputStream(buffer.getBytes(StandardCharsets.UTF_8));
 		final ParsingReader reader = new TextParsingReader(logger, inputStream, name);
 
-		spewer.write(FileSystems.getDefault().getPath(name), new Metadata(),
+		spewer.write(Paths.get(name), new Metadata(),
 			reader, StandardCharsets.UTF_8);
 
 		Assert.assertEquals("$\n", outputStream.toString(StandardCharsets.UTF_8.name()));
@@ -48,7 +48,7 @@ public class PrintStreamSpewerTest extends TestBase {
 		final InputStream inputStream = new ByteArrayInputStream(buffer);
 		final ParsingReader reader = new TextParsingReader(logger, inputStream, name);
 
-		spewer.write(FileSystems.getDefault().getPath(name), new Metadata(),
+		spewer.write(Paths.get(name), new Metadata(),
 			reader, StandardCharsets.UTF_8);
 
 		Assert.assertEquals("$\n", outputStream.toString(StandardCharsets.UTF_8.name()));
@@ -66,7 +66,7 @@ public class PrintStreamSpewerTest extends TestBase {
 		final InputStream inputStream = new ByteArrayInputStream(buffer);
 		final ParsingReader reader = new TextParsingReader(logger, inputStream, name);
 
-		spewer.write(FileSystems.getDefault().getPath(name), new Metadata(),
+		spewer.write(Paths.get(name), new Metadata(),
 			reader, StandardCharsets.UTF_8);
 
 		Assert.assertEquals("$\n", outputStream.toString(StandardCharsets.UTF_8.name()));
@@ -87,7 +87,7 @@ public class PrintStreamSpewerTest extends TestBase {
 		final InputStream inputStream = new ByteArrayInputStream(buffer.getBytes(StandardCharsets.UTF_8));
 		final ParsingReader reader = new TextParsingReader(logger, inputStream, name);
 
-		spewer.write(FileSystems.getDefault().getPath("test-file"), new Metadata(),
+		spewer.write(Paths.get("test-file"), new Metadata(),
 			reader, StandardCharsets.UTF_16LE);
 
 		Assert.assertArrayEquals(new byte[] {0x24, 0x00, 0x0A, 0x00}, outputStream.toByteArray());
@@ -107,7 +107,7 @@ public class PrintStreamSpewerTest extends TestBase {
 		final InputStream inputStream = new ByteArrayInputStream(buffer.getBytes(StandardCharsets.UTF_8));
 		final ParsingReader reader = new TextParsingReader(logger, inputStream, name);
 
-		spewer.write(FileSystems.getDefault().getPath("test-file"), new Metadata(),
+		spewer.write(Paths.get("test-file"), new Metadata(),
 			reader, StandardCharsets.UTF_16BE);
 
 		Assert.assertArrayEquals(new byte[] {0x00, 0x24, 0x00, 0x0A}, outputStream.toByteArray());

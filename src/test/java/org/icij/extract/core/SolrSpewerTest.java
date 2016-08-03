@@ -10,7 +10,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
 import java.nio.file.Path;
-import java.nio.file.FileSystems;
+import java.nio.file.Paths;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
@@ -41,7 +41,7 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 
 		final Charset charset = StandardCharsets.UTF_8;
 		final String buffer = "test";
-		final Path path = FileSystems.getDefault().getPath("test-file.txt");
+		final Path path = Paths.get("test-file.txt");
 		final ParsingReader reader = new TextParsingReader(logger, new ByteArrayInputStream(buffer.getBytes(charset)));
 
 		spewer.setIdAlgorithm("SHA-256");
@@ -64,7 +64,7 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 
 		final Charset charset = StandardCharsets.UTF_8;
 		final String buffer = "test";
-		final Path path = FileSystems.getDefault().getPath("test/file.txt");
+		final Path path = Paths.get("test/file.txt");
 		final ParsingReader reader = new TextParsingReader(logger, new ByteArrayInputStream(buffer.getBytes(charset)));
 		final Metadata metadata = new Metadata();
 
@@ -94,7 +94,7 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 
 		final Charset charset = StandardCharsets.UTF_8;
 		final String buffer = "test";
-		final Path path = FileSystems.getDefault().getPath("test/file.txt");
+		final Path path = Paths.get("test/file.txt");
 		final ParsingReader reader = new TextParsingReader(logger, new ByteArrayInputStream(buffer.getBytes(charset)));
 		final Metadata metadata = new Metadata();
 		final Map<String, String> tags = new HashMap<>();
