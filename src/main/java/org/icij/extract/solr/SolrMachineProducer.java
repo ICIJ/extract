@@ -20,6 +20,7 @@ import org.apache.solr.client.solrj.SolrServerException;
 
 import hu.ssh.progressbar.ProgressBar;
 
+// TODO: Refactor into a Queue.
 public class SolrMachineProducer extends StreamingResponseCallback implements Callable<Integer>,
 	Supplier<SolrDocument> {
 
