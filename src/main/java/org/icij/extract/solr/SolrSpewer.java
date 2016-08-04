@@ -5,12 +5,6 @@ import org.icij.extract.core.SpewerException;
 
 import org.icij.extract.interval.TimeDuration;
 
-import java.util.Map;
-import java.util.List;
-import java.util.HashMap;
-import java.util.Arrays;
-import java.util.Locale;
-
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -19,6 +13,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.TimeUnit;
 
 import java.util.regex.Pattern;
+
+import java.util.Locale;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.List;
+import java.util.Arrays;
 
 import java.io.Reader;
 import java.io.Closeable;
@@ -33,6 +35,7 @@ import java.security.NoSuchAlgorithmException;
 import javax.xml.bind.DatatypeConverter;
 
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.mime.MediaType;
 
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.SolrException;
@@ -67,25 +70,6 @@ public class SolrSpewer extends Spewer implements Closeable {
 	private int commitWithin = 0;
 	private boolean atomicWrites = false;
 	private boolean fixDates = true;
-
-	/**
-	 * Normalize metadata field names.
-	 *
-	 * Field names must consist of alphanumeric or underscore characters only.
-	 *
-	 * @param name metadata field name
-	 * @param prefix metadata field name prefix
-	 * @return The result code.
-	 */
-	public static String normalizeName(final String name, final String prefix) {
-		String normalized = fieldName.matcher(name).replaceAll("_").toLowerCase(Locale.ROOT);
-
-		if (null != prefix) {
-			normalized = prefix + normalized;
-		}
-
-		return normalized;
-	}
 
 	public SolrSpewer(final Logger logger, final SolrClient client) {
 		super(logger);
@@ -160,40 +144,43 @@ public class SolrSpewer extends Spewer implements Closeable {
 		}
 	}
 
-	public String generateId(final Path path) throws NoSuchAlgorithmException {
+	public String generateId(final Path file) throws NoSuchAlgorithmException {
 		return DatatypeConverter.printHexBinary(MessageDigest.getInstance(idAlgorithm)
-			.digest(path.toString().getBytes(outputEncoding)));
+			.digest(file.toString().getBytes(outputEncoding)));
 	}
 
-	public void write(final Path path, final Metadata metadata, final Reader reader) throws IOException {
-
+	public void write(final Path file, final Metadata metadata, final Reader reader) throws IOException {
 		final SolrInputDocument document = new SolrInputDocument();
 		final UpdateResponse response;
 
-		// Set the metadata.
+		// Set extracted metadata fields supplied by Tika.
 		if (outputMetadata) {
-			filterMetadata(path, metadata);
-			setMetadataFields(document, metadata);
+			setMetadataFieldValues(metadata, document);
 		}
 
+		// Set tags supplied by the caller.
 		if (null != tags) {
-			for (Map.Entry<String, String> tag : tags.entrySet()) {
-				setField(document, tag.getKey(), tag.getValue());
-			}
+			setTagFieldValues(document);
 		}
-
-		// Set the path on the path field.
-		setField(document, pathField, path.toString());
-		setField(document, textField, IOUtils.toString(reader));
 
 		// Set the ID. Must never be written atomically.
 		if (null != idField && null != idAlgorithm) {
-			try {
-				document.setField(idField, generateId(path));
-			} catch (NoSuchAlgorithmException e) {
-				throw new IllegalStateException(e);
-			}
+			setIdFieldValue(file, document);
 		}
+
+		// Set the path field.
+		setFieldValue(document, pathField, file.toString());
+
+		// Set the parent path.
+		if (file.getNameCount() > 1) {
+			setFieldValue(document, SolrDefaults.DEFAULT_PARENT_PATH_FIELD, file.getParent().toString());
+		}
+
+		// Add the base type. De-duplicated. Eases faceting on type.
+		setBaseTypeField(file, metadata, document);
+
+		// Finally, set the text field containing the actual extracted text.
+		setFieldValue(document, textField, IOUtils.toString(reader));
 
 		try {
 			if (commitWithin > 0) {
@@ -203,16 +190,16 @@ public class SolrSpewer extends Spewer implements Closeable {
 			}
 		} catch (SolrServerException e) {
 			throw new SpewerException(String.format("Unable to add file to Solr: \"%s\". " +
-				"There was server-side error.", path), e);
+				"There was server-side error.", file), e);
 		} catch (SolrException e) {
 			throw new SpewerException(String.format("Unable to add file to Solr: \"%s\". " +
-				"HTTP error %d was returned.", path, e.code()), e);
+				"HTTP error %d was returned.", file, e.code()), e);
 		} catch (IOException e) {
 			throw new SpewerException(String.format("Unable to add file to Solr: \"%s\". " +
-				"There was an error communicating with the server.", path), e);
+				"There was an error communicating with the server.", file), e);
 		}
 
-		logger.info(String.format("Document added to Solr in %dms: \"%s\".", response.getElapsedTime(), path));
+		logger.info(String.format("Document added to Solr in %dms: \"%s\".", response.getElapsedTime(), file));
 		pending.incrementAndGet();
 
 		// Autocommit if the interval is hit and enabled.
@@ -264,59 +251,95 @@ public class SolrSpewer extends Spewer implements Closeable {
 		Metadata.LAST_SAVED.getName(),
 		Metadata.CREATION_DATE.getName());
 
-	private void setMetadataFields(final SolrInputDocument document, final Metadata metadata) {
+	private void setMetadataFieldValues(final Metadata metadata, final SolrInputDocument document) {
 		for (String name : metadata.names()) {
-			String[] values = metadata.getValues(name);
+			String normalizedName = normalizeFieldName(name);
 
-			// Remove duplicate content types.
-			// Tika seems to add these sometimes, especially for RTF files.
-			if (name.equals("Content-Type") && values.length > 1) {
-				values = Arrays.asList(values).stream().distinct().toArray(String[]::new);
+			if (null != metadataFieldPrefix) {
+				normalizedName = metadataFieldPrefix + normalizedName;
 			}
 
-			setMetadataField(document, name, values);
-		}
-	}
+			if (metadata.isMultiValued(name)) {
+				String[] values = metadata.getValues(name);
 
-	private void setMetadataField(final SolrInputDocument document, final String name,
-		final String[] values) {
-		for (String value : values) {
-			if (fixDates && dateFieldNames.contains(name) && !value.endsWith("Z")) {
-				value = value + "Z";
-			}
+				// Remove duplicate content types.
+				// Tika seems to add these sometimes, especially for RTF files.
+				if (name.equals("Content-Type") && values.length > 1) {
+					values = Arrays.asList(values).stream().distinct().toArray(String[]::new);
+				}
 
-			if (values.length > 1) {
-				addField(document, normalizeName(name), value);
+				setFieldValues(document, normalizedName, values);
 			} else {
-				setField(document, normalizeName(name), value);
+				setFieldValue(document, normalizedName, metadata.get(name));
 			}
 		}
 	}
 
-	private String normalizeName(final String name) {
-		return normalizeName(name, metadataFieldPrefix);
+	private void setBaseTypeField(final Path file, final Metadata metadata, final SolrInputDocument document) {
+		final Set<Object> baseTypes = new HashSet<>();
+
+		for (String type : metadata.getValues(Metadata.CONTENT_TYPE)) {
+			MediaType mediaType = MediaType.parse(type);
+
+			if (null == mediaType) {
+				logger.warning(String.format("Content type could not be parsed: \"%s\". Was: \"%s\".", file, type));
+			} else {
+				baseTypes.add(mediaType.getBaseType().toString());
+			}
+		}
+
+		setFieldValues(document, SolrDefaults.DEFAULT_BASE_TYPE_FIELD, baseTypes.toArray());
 	}
 
-	private Map<String, String> createAtomic(final String value) {
-		final Map<String, String> atomic = new HashMap<>();
-
-		atomic.put("set", value);
-		return atomic;
-	}
-
-	private void addField(final SolrInputDocument document, final String name, final String value) {
-		if (atomicWrites) {
-			document.addField(name, createAtomic(value));
-		} else {
-			document.addField(name, value);
+	private void setTagFieldValues(final SolrInputDocument document) {
+		for (Map.Entry<String, String> tag : tags.entrySet()) {
+			setFieldValue(document, normalizeFieldName(tag.getKey()), tag.getValue());
 		}
 	}
 
-	private void setField(final SolrInputDocument document, final String name, final String value) {
+	private void setIdFieldValue(final Path file, final SolrInputDocument document) {
+		try {
+			document.setField(idField, generateId(file));
+		} catch (NoSuchAlgorithmException e) {
+			throw new IllegalStateException(e);
+		}
+	}
+
+	private String normalizeFieldName(final String name) {
+		return fieldName.matcher(name).replaceAll("_").toLowerCase(Locale.ROOT);
+	}
+
+	/**
+	 * Set a value to a field on a Solr document.
+	 *
+	 * @param document the document to add the value to
+	 * @param name the name of the field
+	 * @param value the value
+	 */
+	private void setFieldValue(final SolrInputDocument document, final String name, final Object value) {
 		if (atomicWrites) {
-			document.setField(name, createAtomic(value));
+			final Map<String, Object> atomic = new HashMap<>();
+			atomic.put("set", value);
+			document.setField(name, atomic);
 		} else {
 			document.setField(name, value);
+		}
+	}
+
+	/**
+	 * Set a list of values to a multivalued field on a Solr document.
+	 *
+	 * @param document the document to add the values to
+	 * @param name the name of the field
+	 * @param values the values
+	 */
+	private void setFieldValues(final SolrInputDocument document, final String name, final Object[] values) {
+		if (atomicWrites) {
+			final Map<String, Object[]> atomic = new HashMap<>();
+			atomic.put("set", values);
+			document.setField(name, atomic);
+		} else {
+			document.setField(name, values);
 		}
 	}
 }

@@ -90,36 +90,27 @@ public class SolrRehashConsumer extends SolrMachineConsumer {
 			.digest(outputPath.getBytes(outputEncoding)));
 		final String outputPathParent = Objects.toString(Paths.get(outputPath).getParent(), "");
 
-		// If the hash hasn't changed, just set the paths atomically.
-		// This is a legacy use-case for recovering from missing parent paths.
+		// If the hash hasn't changed, skip.
+		// Skip by comparing the hash values and not the paths because the algorithm might have been changed.
 		if (inputId.equals(outputId)) {
-			final SolrInputDocument output = new SolrInputDocument();
-
-			output.setField("_version_", input.getFieldValue("_version_").toString());
-			output.setField(idField, inputId);
-			output.setField(pathField, createAtomic(outputPath));
-			output.setField(SolrSpewer.normalizeName(SolrSpewer.META_PARENT_PATH, metadataFieldPrefix),
-				createAtomic(outputPathParent));
-			logger.info(String.format("Replacing path \"%s\" with \"%s\".", inputPath, outputPath));
-			client.add(output);
-		} else {
-			final SolrInputDocument output = new SolrInputDocument();
-
-			for (String name: input.getFieldNames()) {
-				output.addField(name, input.getFieldValue(name));
-			}
-
-			output.setField("_version_", "-1"); // The document must not exist.
-			output.setField(idField, outputId);
-			output.setField(pathField, outputPath);
-			output.setField(SolrSpewer.normalizeName(SolrSpewer.META_PARENT_PATH, metadataFieldPrefix),
-				outputPathParent);
-
-			logger.info(String.format("Replacing path \"%s\" with \"%s\" and rehashing ID from \"%s\" to \"%s\".",
-			inputPath, outputPath, inputId, outputId));
-			client.add(output);
-			client.deleteById(inputId);
+			return;
 		}
+
+		final SolrInputDocument output = new SolrInputDocument();
+
+		for (String name: input.getFieldNames()) {
+			output.addField(name, input.getFieldValue(name));
+		}
+
+		output.setField("_version_", "-1"); // The document must not exist.
+		output.setField(idField, outputId);
+		output.setField(pathField, outputPath);
+		output.setField(SolrDefaults.DEFAULT_PARENT_PATH_FIELD, outputPathParent);
+
+		logger.info(String.format("Replacing path \"%s\" with \"%s\" and rehashing ID from \"%s\" to \"%s\".",
+				inputPath, outputPath, inputId, outputId));
+		client.add(output);
+		client.deleteById(inputId);
 	}
 
 	private Map<String, String> createAtomic(final String value) {

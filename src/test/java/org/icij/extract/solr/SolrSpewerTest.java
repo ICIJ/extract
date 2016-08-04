@@ -1,5 +1,7 @@
-package org.icij.extract.core;
+package org.icij.extract.solr;
 
+import org.icij.extract.core.ParsingReader;
+import org.icij.extract.core.TextParsingReader;
 import org.icij.extract.test.*;
 import org.icij.extract.solr.SolrSpewer;
 
@@ -45,7 +47,7 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		final ParsingReader reader = new TextParsingReader(logger, new ByteArrayInputStream(buffer.getBytes(charset)));
 
 		spewer.setIdAlgorithm("SHA-256");
-		spewer.write(path, new Metadata(), reader, charset);
+		spewer.write(path, new Metadata(), reader);
 		client.commit(true, true);
 
 		SolrDocument response = client.getById("0");
@@ -75,7 +77,7 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		metadata.set("Content-Length", length);
 		metadata.set("Content-Type", "text/plain; charset=UTF-8");
 
-		spewer.write(path, metadata, reader, charset);
+		spewer.write(path, metadata, reader);
 		client.commit(true, true);
 		client.optimize(true, true);
 
@@ -83,8 +85,9 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		final SolrDocument response = client.getById(pathHash);
 		Assert.assertEquals(path.toString(), response.getFieldValue("path"));
 		Assert.assertEquals(length, response.getFieldValue("metadata_content_length"));
-		Assert.assertEquals("text/plain", response.getFieldValue("metadata_content_base_type"));
-		Assert.assertEquals("test", response.getFieldValue("metadata_parent_path"));
+		Assert.assertEquals("text/plain", response.getFieldValue("base_type"));
+		Assert.assertEquals("text/plain; charset=UTF-8", response.getFieldValue("metadata_content_type"));
+		Assert.assertEquals("test", response.getFieldValue("parent_path"));
 	}
 
 	@Test
@@ -105,7 +108,7 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		spewer.outputMetadata(true);
 		spewer.setTags(tags);
 
-		spewer.write(path, metadata, reader, charset);
+		spewer.write(path, metadata, reader);
 		client.commit(true, true);
 		client.optimize(true, true);
 

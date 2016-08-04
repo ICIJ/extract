@@ -1,8 +1,6 @@
 package org.icij.extract.core;
 
 import java.util.Map;
-import java.util.Set;
-import java.util.HashSet;
 
 import java.io.Reader;
 import java.io.IOException;
@@ -15,7 +13,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.logging.Logger;
 
 import org.apache.tika.metadata.Metadata;
-import org.apache.tika.mime.MediaType;
 
 /**
  * Base class for Spewer superclasses that write text output from a {@link ParsingReader} to specific endpoints.
@@ -23,9 +20,6 @@ import org.apache.tika.mime.MediaType;
  * @since 1.0.0-beta
  */
 public abstract class Spewer {
-
-	public static final String META_PARENT_PATH = "Parent-Path";
-	public static final String META_CONTENT_BASE_TYPE = "Content-Base-Type";
 
 	protected final Logger logger;
 
@@ -70,30 +64,5 @@ public abstract class Spewer {
 
 	public void setTags(final Map<String, String> tags) {
 		this.tags = tags;
-	}
-
-	protected void filterMetadata(final Path file, final Metadata metadata) {
-		final Set<String> baseTypes = new HashSet<>();
-		final Path parent = file.getParent();
-
-		// Add the parent path.
-		if (null != parent) {
-			metadata.set(META_PARENT_PATH, parent.toString());
-		}
-
-		// Add the base type. De-duplicated.
-		for (String type : metadata.getValues(Metadata.CONTENT_TYPE)) {
-			MediaType mediaType = MediaType.parse(type);
-			if (null == mediaType) {
-				logger.warning(String.format("Content type could not be parsed: \"%s\". Was: \"%s\".",
-					file, type));
-				continue;
-			}
-
-			String baseType = mediaType.getBaseType().toString();
-			if (baseTypes.add(baseType)) {
-				metadata.add(META_CONTENT_BASE_TYPE, baseType);
-			}
-		}
 	}
 }

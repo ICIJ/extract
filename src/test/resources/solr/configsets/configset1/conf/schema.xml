@@ -14,7 +14,7 @@
 			</analyzer>
 		</fieldType>
 
-		<fieldType name="descendent_path" class="solr.TextField">
+		<fieldType name="descendant_path" class="solr.TextField">
 			<analyzer type="index">
 				<tokenizer class="solr.PathHierarchyTokenizerFactory" delimiter="/" />
 			</analyzer>
@@ -28,7 +28,9 @@
 		<field name="_version_" type="long" indexed="true" stored="true" />
 		<field name="id" type="string" indexed="true" stored="true" multiValued="false" required="true" />
 		<field name="batch" type="string" indexed="true" stored="true" />
-		<field name="path" type="descendent_path" indexed="true" stored="true" />
+		<field name="base_type" type="string" indexed="true" stored="true" />
+		<field name="path" type="descendant_path" indexed="true" stored="true" />
+		<field name="parent_path" type="descendant_path" indexed="true" stored="true" />
 		<field name="text" type="text" indexed="true" stored="false" />
 
 		<!-- Main body of document. NOTE: This field is not indexed by default, since it is also copied to "text" using copyField below. This is to save space. Use this field for returning and highlighting document content. Use the "text" field to search the content. -->
@@ -43,7 +45,6 @@
 	<!-- Field to use to determine and enforce document uniqueness. -->
 	<uniqueKey>id</uniqueKey>
 
-	<!-- Text fields from SolrCell to search by default in our catch-all field. -->
+	<!-- Text field to search by default. -->
 	<copyField source="content" dest="text" />
-
 </schema>
