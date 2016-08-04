@@ -49,6 +49,8 @@ public class FileSpewer extends Spewer {
 		}
 	}
 
+	public void close() throws IOException {}
+
 	public void write(final Path path, final Metadata metadata, final Reader reader) throws IOException {
 		Path outputPath;
 

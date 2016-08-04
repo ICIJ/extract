@@ -4,7 +4,6 @@ import org.icij.extract.core.Spewer;
 import org.icij.extract.core.SpewerException;
 
 import org.icij.extract.interval.TimeDuration;
-import org.icij.extract.solr.SolrDefaults;
 
 import java.util.Map;
 import java.util.List;
@@ -22,10 +21,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import java.io.Reader;
+import java.io.Closeable;
 import java.io.IOException;
 
 import java.nio.file.Path;
-import java.nio.charset.Charset;
 
 import java.security.Security;
 import java.security.MessageDigest;
@@ -51,7 +50,7 @@ import org.apache.commons.io.IOUtils;
  *
  * @since 1.0.0-beta
  */
-public class SolrSpewer extends Spewer {
+public class SolrSpewer extends Spewer implements Closeable {
 	private static final Pattern fieldName = Pattern.compile("[^A-Za-z0-9]");
 
 	private final SolrClient client;
@@ -148,8 +147,7 @@ public class SolrSpewer extends Spewer {
 		return fixDates;
 	}
 
-	public void finish() throws IOException {
-		super.finish();
+	public void close() throws IOException {
 
 		// Commit any remaining files if auto-committing is enabled.
 		if (commitInterval > 0) {
@@ -157,7 +155,6 @@ public class SolrSpewer extends Spewer {
 		}
 
 		client.close();
-
 		if (client instanceof HttpSolrClient) {
 			((CloseableHttpClient) ((HttpSolrClient) client).getHttpClient()).close();
 		}
@@ -225,7 +222,14 @@ public class SolrSpewer extends Spewer {
 	}
 
 	private void commitPending(final int threshold) {
-		commitSemaphore.acquireUninterruptibly();
+		try {
+			commitSemaphore.acquire();
+		} catch (InterruptedException e) {
+			logger.log(Level.WARNING, "Interrupted while waiting to commit.", e);
+			Thread.currentThread().interrupt();
+			return;
+		}
+
 		if (pending.get() <= threshold) {
 			commitSemaphore.release();
 			return;

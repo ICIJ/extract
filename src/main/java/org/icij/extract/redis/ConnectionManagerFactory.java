@@ -22,6 +22,8 @@ public class ConnectionManagerFactory {
 	public static ConnectionManager createConnectionManager(final Object config) {
 		final ConnectionManager connectionManager;
 
+		// TODO: Create a hash of config options so that only one manager is used per unique server. This should
+		// improve contention.
 		if (config instanceof SingleServerConfig) {
 			connectionManager = new SingleConnectionManager((SingleServerConfig) config, new Config());
 		} else {

@@ -2,6 +2,7 @@ package org.icij.extract.core;
 
 import org.icij.extract.interval.TimeDuration;
 
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import java.util.concurrent.Future;
@@ -153,10 +154,9 @@ public class PollingConsumer extends Consumer {
 
 	@Override
 	public void awaitTermination() throws InterruptedException {
-		draining.acquireUninterruptibly();
+		draining.acquire();
 
-		// Wait for the continuous drainer to send all pending tasks
-		// the main executor service.
+		// Wait for the continuous drainer to send all pending tasks to the main executor service.
 		try {
 			while (!drainer.awaitTermination(60, TimeUnit.SECONDS));
 			super.awaitTermination();
@@ -190,8 +190,7 @@ public class PollingConsumer extends Consumer {
 	}
 
 	/**
-	 * A {@link Runnable} class that drains the queue until
-	 * stopped or interrupted.
+	 * A {@link Runnable} class that drains the queue until stopped or interrupted.
 	 *
 	 * Poison pills are difficult to use safely with a shared queue,
 	 * so this consumer instead polls continuously at 1-second intervals,
@@ -214,7 +213,7 @@ public class PollingConsumer extends Consumer {
 					}
 				}
 			} catch (InterruptedException e) {
-				logger.info("Continuous draining interrupted.");
+				logger.log(Level.WARNING, "Continuous draining interrupted.", e);
 				Thread.currentThread().interrupt();
 			} finally {
 				draining.release();

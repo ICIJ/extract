@@ -7,6 +7,7 @@ import org.icij.extract.cli.factory.ReportFactory;
 import org.icij.extract.solr.SolrSpewer;
 import org.icij.extract.http.PinnedHttpClientBuilder;
 
+import java.io.Closeable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -176,10 +177,12 @@ public class SpewCli extends Cli {
 					return;
 				}
 
-				try {
-					spewer.finish();
-				} catch (IOException e) {
-					logger.log(Level.SEVERE, "Spewer failed to finish.", e);
+				if (spewer instanceof Closeable) {
+					try {
+						((Closeable) spewer).close();
+					} catch (IOException e) {
+						logger.log(Level.SEVERE, "Spewer failed to close.", e);
+					}
 				}
 
 				logger.info("Shutdown complete.");
@@ -213,10 +216,12 @@ public class SpewCli extends Cli {
 			return cmd;
 		}
 
-		try {
-			spewer.finish();
-		} catch (IOException e) {
-			logger.log(Level.SEVERE, "Spewer failed to finish.", e);
+		if (spewer instanceof Closeable) {
+			try {
+				((Closeable) spewer).close();
+			} catch (IOException e) {
+				logger.log(Level.SEVERE, "Spewer failed to close.", e);
+			}
 		}
 
 		try {

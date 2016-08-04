@@ -72,10 +72,6 @@ public abstract class Spewer {
 		this.tags = tags;
 	}
 
-	public void finish() throws IOException {
-		logger.info("Spewer finishing pending jobs.");
-	}
-
 	protected void filterMetadata(final Path file, final Metadata metadata) {
 		final Set<String> baseTypes = new HashSet<>();
 		final Path parent = file.getParent();
