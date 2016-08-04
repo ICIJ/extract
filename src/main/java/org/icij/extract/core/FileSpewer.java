@@ -49,8 +49,7 @@ public class FileSpewer extends Spewer {
 		}
 	}
 
-	public void write(final Path path, final Metadata metadata, final Reader reader,
-		final Charset outputEncoding) throws IOException {
+	public void write(final Path path, final Metadata metadata, final Reader reader) throws IOException {
 		Path outputPath;
 
 		// Join the file path to the output directory path to get the output path.

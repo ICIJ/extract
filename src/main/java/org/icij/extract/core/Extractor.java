@@ -14,7 +14,6 @@ import java.util.concurrent.TimeUnit;
 
 import java.nio.file.Path;
 
-import java.io.Reader;
 import java.io.IOException;
 
 import org.apache.tika.config.TikaConfig;
@@ -209,42 +208,41 @@ public class Extractor {
 	 *
 	 * @param file the file to extract from
 	 */
-	public Reader extract(final Path file) throws IOException, TikaException {
+	public ParsingReader extract(final Path file) throws IOException, TikaException {
 		return extract(file, new Metadata());
 	}
 
 	/**
-	 * This method will wrap the given {@link Path} in a {@link TikaInputStream} and
-	 * return a {@link ParsingReader} which can be used to initiate extraction on demand.
+	 * This method will wrap the given {@link Path} in a {@link TikaInputStream} and return a {@link ParsingReader}
+	 * which can be used to initiate extraction on demand.
 	 *
-	 * Internally, this method uses {@link TikaInputStream#get} which ensures that the
-	 * resource name and content length metadata properties are set automatically.
+	 * Internally, this method uses {@link TikaInputStream#get} which ensures that the resource name and content
+	 * length metadata properties are set automatically.
 	 *
 	 * @param file the file to extract from
 	 * @param metadata will be populated with metadata extracted from the file
 	 */
-	public Reader extract(Path file, final Metadata metadata) throws IOException, TikaException {
+	public ParsingReader extract(Path file, final Metadata metadata) throws IOException, TikaException {
 		if (null != workingDirectory) {
 			file = workingDirectory.resolve(file);
 		}
 
-		return extract(TikaInputStream.get(file, metadata), metadata);
+		// Use the the TikaInputStream.get method that accepts a file, because this sets metadata properties like the
+		// resource name and size.
+		return extract(file, metadata, TikaInputStream.get(file, metadata));
 	}
 
 	/**
-	 * Extract from the given {@link TikaInputStream}, populating the given metadata
-	 * object.
+	 * Extract from the given {@link TikaInputStream}, populating the given metadata object.
 	 *
 	 * @param input the stream to extract from
+	 * @param input the path to the file that is being extracted from
 	 * @param metadata the metadata object to populate
 	 */
-	public Reader extract(final TikaInputStream input, final Metadata metadata) throws IOException {
+	protected ParsingReader extract(final Path file, final Metadata metadata, final TikaInputStream input) throws
+			IOException {
 		final ParseContext context = new ParseContext();
 		final AutoDetectParser parser = new AutoDetectParser(config);
-
-		// Attempt to use the more modern Path interface throughout, except
-		// where Tika requires File and doesn't support Path.
-		final Path file = input.getFile().toPath();
 
 		if (!ocrDisabled) {
 			context.set(TesseractOCRConfig.class, ocrConfig);

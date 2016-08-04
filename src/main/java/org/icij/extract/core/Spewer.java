@@ -38,13 +38,7 @@ public abstract class Spewer {
 		this.logger = logger;
 	}
 
-	public abstract void write(final Path file, final Metadata metadata, final Reader reader,
-		final Charset outputEncoding) throws IOException;
-
-	public void write(final Path file, final Metadata metadata, final Reader reader)
-		throws IOException {
-		write(file, metadata, reader, outputEncoding);
-	}
+	public abstract void write(final Path file, final Metadata metadata, final Reader reader) throws IOException;
 
 	public void setOutputEncoding(final Charset outputEncoding) {
 		this.outputEncoding = outputEncoding;

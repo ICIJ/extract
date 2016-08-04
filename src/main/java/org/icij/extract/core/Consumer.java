@@ -12,9 +12,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
-import java.io.Reader;
 import java.io.IOException;
 import java.io.FileNotFoundException;
 
@@ -125,7 +123,7 @@ public class Consumer {
 
 		final Metadata metadata = new Metadata();
 
-		Reader reader = null;
+		ParsingReader reader = null;
 		ExtractionResult status = ExtractionResult.SUCCEEDED;
 
 		try {

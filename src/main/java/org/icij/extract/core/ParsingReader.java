@@ -36,14 +36,11 @@ import org.apache.tika.metadata.Metadata;
 import org.xml.sax.ContentHandler;
 
 /**
- * Reader for the content from a given binary stream. This class
- * uses a background parsing task with a {@link Parser} to parse the
- * content from a given input stream. A {@link ContentHandler} class
- * and a pipe is used to convert the push-based SAX event stream to the
- * pull-based character stream defined by the {@link Reader} interface.
+ * Reader for the content from a given binary stream. This class uses a background parsing task with a {@link Parser}
+ * to parse the content from a given input stream. A {@link ContentHandler} class and a pipe is used to convert the
+ * push-based SAX event stream to the pull-based character stream defined by the {@link Reader} interface.
  *
- * Based on an implementation from the Tika source. This version adds
- * functionality for markup output.
+ * Based on an implementation from the Tika source. This version adds functionality for markup output.
  *
  * @since 1.0.0-beta
  */
@@ -100,13 +97,12 @@ public abstract class ParsingReader extends Reader {
 	protected transient Throwable throwable;
 
 	/**
-	 * Utility method that returns a {@link Metadata} instance
-	 * for a document with the given name.
+	 * Utility method that returns a {@link Metadata} instance for a document with the given name.
 	 *
 	 * @param name resource name (or <code>null</code>)
 	 * @return metadata instance
 	 */
-	protected static Metadata getMetadata(String name) {
+	protected static Metadata getMetadata(final String name) {
 		Metadata metadata = new Metadata();
 
 		if (name != null && name.length() > 0) {
@@ -123,7 +119,7 @@ public abstract class ParsingReader extends Reader {
 	 * @param input binary stream
 	 * @throws IOException if the document can not be parsed
 	 */
-	public ParsingReader(Logger logger, InputStream input) throws IOException {
+	public ParsingReader(final Logger logger, final InputStream input) throws IOException {
 		this(logger, new AutoDetectParser(), input, new Metadata(), new ParseContext());
 		context.set(Parser.class, parser);
 	}
@@ -137,7 +133,7 @@ public abstract class ParsingReader extends Reader {
 	 * @param name document name
 	 * @throws IOException if the document can not be parsed
 	 */
-	public ParsingReader(Logger logger, InputStream input, String name) throws IOException {
+	public ParsingReader(final Logger logger, final InputStream input, final String name) throws IOException {
 		this(logger, new AutoDetectParser(), input, getMetadata(name), new ParseContext());
 		context.set(Parser.class, parser);
 	}
@@ -158,7 +154,8 @@ public abstract class ParsingReader extends Reader {
 	 * @param context parsing context
 	 * @throws IOException if the document can not be parsed
 	 */
-	public ParsingReader(Logger logger, Parser parser, InputStream input, Metadata metadata, ParseContext context)
+	public ParsingReader(final Logger logger, final Parser parser, final InputStream input, final Metadata metadata,
+	                     ParseContext context)
 		throws IOException {
 		final PipedReader pipedReader = new PipedReader();
 
@@ -189,21 +186,21 @@ public abstract class ParsingReader extends Reader {
 	 * Reads parsed text from the pipe connected to the parsing thread.
 	 * Fails if the parsing thread has thrown an exception.
 	 *
-	 * @param cbuf character buffer
+	 * @param buffer character buffer
 	 * @param off start offset within the buffer
 	 * @param len maximum number of characters to read
 	 * @throws IOException if the parsing thread has failed or
 	 *                     if for some reason the pipe does not work properly
 	 */
 	@Override
-	public int read(char[] cbuf, int off, int len) throws IOException {
+	public int read(final char[] buffer, final int off, final int len) throws IOException {
 		if (throwable instanceof IOException) {
 			throw (IOException) throwable;
 		} else if (throwable != null) {
 			throw new IOException("", throwable);
 		}
 
-		return reader.read(cbuf, off, len);
+		return reader.read(buffer, off, len);
 	}
 
 	/**
@@ -211,7 +208,7 @@ public abstract class ParsingReader extends Reader {
 	 * running, next write to the pipe will fail and cause the thread
 	 * to stop. Thus there is no need to explicitly terminate the thread.
 	 *
-	 * @throws IOException if the pipe can not be closed
+	 * @throws IOException if the pipe cannot be closed
 	 */
 	@Override
 	public void close() throws IOException {
@@ -235,16 +232,16 @@ public abstract class ParsingReader extends Reader {
 		 *
 		 * @param task background parsing task
 		 */
-        public void execute(Runnable task) {
+		public void execute(final Runnable task) {
 			String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
 			
 			if (name != null) {
-				name = "Apache Tika: " + name;
+				name = "ICIJ Extract: " + name;
 			} else {
-				name = "Apache Tika";
+				name = "ICIJ Extract";
 			}
 			
-			Thread thread = new Thread(task, name);
+			final Thread thread = new Thread(task, name);
 			thread.setDaemon(true);
 			thread.start();
         }
@@ -256,10 +253,9 @@ public abstract class ParsingReader extends Reader {
 	protected class ParsingTask implements Runnable {
 
 	    /**
-	     * Parses the given binary stream and writes the text content
-	     * to the write end of the pipe. Potential exceptions (including
-	     * the one caused if the read end is closed unexpectedly) are
-	     * stored before the input stream is closed and processing is stopped.
+	     * Parses the given binary stream and writes the text content to the write end of the pipe. Potential
+	     * exceptions (including the one caused if the read end is closed unexpectedly) are stored before the input
+	     * stream is closed and processing is stopped.
 	     */
 		public void run() {
 			try {
@@ -267,7 +263,7 @@ public abstract class ParsingReader extends Reader {
 			} catch (Throwable t) {
 				throwable = t;
 			}
-			
+
 			try {
 				input.close();
 			} catch (Throwable t) {

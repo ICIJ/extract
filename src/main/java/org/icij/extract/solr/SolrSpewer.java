@@ -168,8 +168,7 @@ public class SolrSpewer extends Spewer {
 			.digest(path.toString().getBytes(outputEncoding)));
 	}
 
-	public void write(final Path path, final Metadata metadata, final Reader reader, final Charset outputEncoding)
-		throws IOException {
+	public void write(final Path path, final Metadata metadata, final Reader reader) throws IOException {
 
 		final SolrInputDocument document = new SolrInputDocument();
 		final UpdateResponse response;
