@@ -4,6 +4,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public interface Option<T, U, V> {
 
@@ -27,7 +28,9 @@ public interface Option<T, U, V> {
 
 	Option<T, U, V> update(final V[] values);
 
-	Option<T, U, V> update(V value);
+	Option<T, U, V> update(final V value);
+
+	Option<T, U, V> update(final Supplier<List<V>> supplier);
 
 	<R> Collection<R> values(final Function<U, R> parser);
 

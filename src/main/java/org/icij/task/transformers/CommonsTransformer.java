@@ -10,19 +10,28 @@ import org.icij.task.DefaultOption;
 public class CommonsTransformer implements Function<DefaultOption.Set, Options> {
 
 	@Override
-	public Options apply(final DefaultOption.Set set) {
-		final Options options = new Options();
+	public Options apply(final DefaultOption.Set options) {
+		final Options commonsOptions = new Options();
 
-		for (DefaultOption option : set) {
-			options.addOption(Option.builder()
-					.longOpt(option.name())
-					.argName(option.parameter())
-					.desc(option.description())
-					.hasArg(true)
-					.optionalArg(true)
-					.build());
+		for (DefaultOption option : options) {
+			String code = option.code() == null ? null : option.code().toString();
+
+			// The DefaultParser in commons-cli clones option objects before updating the value.
+			// Work around this by overriding the clone method.
+			Option commonsOption = new Option(code, option.name(), true, option.description()) {
+
+				@Override
+				public Option clone() {
+					return this;
+				}
+			};
+
+			commonsOption.setArgName(option.parameter());
+			commonsOption.setOptionalArg(true);
+			option.update(commonsOption::getValuesList);
+			commonsOptions.addOption(commonsOption);
 		}
 
-		return options;
+		return commonsOptions;
 	}
 }

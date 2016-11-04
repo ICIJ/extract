@@ -22,7 +22,6 @@ public class HelpTask extends DefaultTask<Void> {
 		final Options options = new CommonsTransformer().apply(task.options());
 		final HelpFormatter formatter = new HelpFormatter();
 
-
 		formatter.printHelp(String.format("extract %s", command), "\n" + task.description() + "\n\n", options, footer);
 		return null;
 	}

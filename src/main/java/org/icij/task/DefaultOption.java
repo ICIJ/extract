@@ -5,17 +5,33 @@ import org.icij.time.HumanDuration;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.*;
+import java.util.List;
+import java.util.LinkedList;
+import java.util.Collection;
+import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class DefaultOption implements Option<DefaultOption, String, String> {
+
+	private static class DefaultSupplier implements Supplier<List<String>> {
+
+		private final List<String> values = new LinkedList<>();
+
+		@Override
+		public List<String> get() {
+			return values;
+		}
+	}
 
 	private final String name;
 	private Character code = null;
 	private String description = null;
 	private String parameter = null;
 
-	protected final LinkedList<String> values = new LinkedList<>();
+	protected Supplier<List<String>> values = new DefaultSupplier();
 
 	private DefaultOption(final String name) {
 		this.name = name;
@@ -99,24 +115,27 @@ public class DefaultOption implements Option<DefaultOption, String, String> {
 	}
 
 	@Override
-	public Optional<String> value() {
-		return Optional.ofNullable(values.peek());
+	public synchronized Optional<String> value() {
+		final List<String> values = this.values.get();
+
+		if (!values.isEmpty()) {
+			return Optional.of(values.get(0));
+		}
+
+		return Optional.empty();
 	}
 
 	@Override
-	public String[] values() {
-		final String[] values = new String[this.values.size()];
-		int i = 0;
+	public synchronized String[] values() {
+		final List<String> values = this.values.get();
 
-		for (String value : this.values) {
-			values[i++] = value;
-		}
-
-		return values;
+		return values.toArray(new String[values.size()]);
 	}
 
 	@Override
 	public synchronized DefaultOption update(final String value) {
+		final List<String> values = this.values.get();
+
 		values.clear();
 		values.add(value);
 
@@ -124,26 +143,34 @@ public class DefaultOption implements Option<DefaultOption, String, String> {
 	}
 
 	@Override
-	public synchronized DefaultOption update(String[] values) {
-		this.values.clear();
-		this.values.addAll(Arrays.asList(values));
+	public synchronized DefaultOption update(final String[] values) {
+		this.values.get().clear();
+		this.values.get().addAll(Arrays.asList(values));
 
 		return this;
 	}
 
 	@Override
-	public <R> Optional<R> value(final Function<String, R> parser) {
-		final String value = values.peek();
+	public synchronized DefaultOption update(final Supplier<List<String>> supplier) {
+		values = supplier;
 
-		if (null != value) {
-			return Optional.ofNullable(parser.apply(value));
+		return this;
+	}
+
+	@Override
+	public synchronized <R> Optional<R> value(final Function<String, R> parser) {
+		final List<String> values = this.values.get();
+
+		if (values.isEmpty()) {
+			return Optional.empty();
 		}
 
-		return Optional.empty();
+		return Optional.of(parser.apply(values.get(0)));
 	}
 
 	@Override
 	public synchronized <R> Collection<R> values(final Function<String, R> parser) {
+		final List<String> values = this.values.get();
 		final Collection<R> results = new ArrayList<>(values.size());
 
 		for (String value : values) {
