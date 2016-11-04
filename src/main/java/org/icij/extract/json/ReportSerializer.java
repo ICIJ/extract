@@ -14,7 +14,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.JsonSerializer;
 
-import hu.ssh.progressbar.ProgressBar;
+import org.icij.events.Notifiable;
 
 /**
  * Serializes a {@link Report} to JSON.
@@ -24,11 +24,11 @@ import hu.ssh.progressbar.ProgressBar;
  */
 public class ReportSerializer extends JsonSerializer<Report> {
 
-	private final ProgressBar progressBar;
+	private final Notifiable monitor;
 	private final ExtractionResult match;
 
-	public ReportSerializer(final ProgressBar progressBar, final ExtractionResult match) {
-		this.progressBar = progressBar;
+	public ReportSerializer(final Notifiable monitor, final ExtractionResult match) {
+		this.monitor = monitor;
 		this.match = match;
 	}
 
@@ -46,8 +46,8 @@ public class ReportSerializer extends JsonSerializer<Report> {
 				jsonGenerator.writeObjectField(entry.getKey().toString(), result.getValue());
 			}
 
-			if (null != progressBar) {
-				progressBar.tickOne();
+			if (null != monitor) {
+				monitor.notifyListeners();
 			}
 		}
 

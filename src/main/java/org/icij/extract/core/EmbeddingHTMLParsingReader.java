@@ -5,8 +5,6 @@ import org.icij.extract.encoder.DataURIEncodingInputStream;
 import java.util.UUID;
 import java.util.Map;
 import java.util.HashMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import java.io.Reader;
 import java.io.OutputStream;
@@ -32,6 +30,9 @@ import org.apache.poi.poifs.filesystem.DocumentEntry;
 import org.apache.poi.poifs.filesystem.DocumentInputStream;
 import org.apache.poi.poifs.filesystem.POIFSFileSystem;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.xml.sax.Attributes;
 import org.xml.sax.helpers.AttributesImpl;
 import org.xml.sax.ContentHandler;
@@ -47,16 +48,20 @@ import static org.apache.tika.sax.XHTMLContentHandler.XHTML;
  */
 public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 
+	/**
+	 * Logger for logging exceptions.
+	 */
+	private static final Logger logger = LoggerFactory.getLogger(EmbeddingHTMLParsingReader.class);
+
 	private final TokenReplacingReader replacer;
 	private final TemporaryResources tmp = new TemporaryResources();
 	private final Map<String, String> cidMap = new HashMap<>();
 	private final Map<String, Path> pathMap = new HashMap<>();
 	private final Map<String, Metadata> metaMap = new HashMap<>();
 
-	public EmbeddingHTMLParsingReader(Logger logger, Parser parser, TikaInputStream input,
-		Metadata metadata, ParseContext context) throws IOException {
-
-		super(logger, parser, input, metadata, context);
+	public EmbeddingHTMLParsingReader(final Parser parser, final TikaInputStream input, final Metadata metadata,
+	                                  final ParseContext context) throws IOException {
+		super(parser, input, metadata, context);
 		replacer = new TokenReplacingReader(new UUIDTokenResolver(), reader, "uuid:{", "}");
 	}
 
@@ -96,7 +101,7 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 	/**
 	 * The background parsing task.
 	 */
-	protected class ParsingTask extends HTMLParsingReader.ParsingTask {
+	private class ParsingTask extends HTMLParsingReader.ParsingTask {
 
 		@Override
 		protected ContentHandler createHandler() {
@@ -131,12 +136,12 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 	 *
 	 * @since 1.0.0-beta
 	 */
-	public class SavingEmbeddedDocumentExtractor implements EmbeddedDocumentExtractor {
+	private class SavingEmbeddedDocumentExtractor implements EmbeddedDocumentExtractor {
 
 		private final Path parent;
 		private int untitled = 0;
 
-		public SavingEmbeddedDocumentExtractor(final Path parent) {
+		SavingEmbeddedDocumentExtractor(final Path parent) {
 			this.parent = parent;
 		}
 
@@ -238,8 +243,7 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 				) {
 					destination.createDocument(entry.getName(), contents);
 				} catch (IOException e) {
-					logger.log(Level.SEVERE, String.format("Unable to save embedded document \"%s\" in document: " +
-									"\"%s\".",
+					logger.error(String.format("Unable to save embedded document \"%s\" in document: \"%s\".",
 						entry.getName(), parent), e);
 				}
 			}
@@ -249,7 +253,7 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 			try {
 				return tmp.createTemporaryFile().toPath();
 			} catch (IOException e) {
-				logger.log(Level.SEVERE, String.format("Unable to create temporary file for embed in document: \"%s\".",
+				logger.error(String.format("Unable to create temporary file for embed in document: \"%s\".",
 					parent), e);
 				throw e;
 			}
@@ -270,11 +274,6 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 					final OutputStream output = Files.newOutputStream(embed)
 				) {
 					fs.writeFilesystem(output);
-				} catch (IOException e) {
-					logger.log(Level.SEVERE, String.format("Unable to save embedded document \"%s\" in document: " +
-									"\"%s\".",
-						name, parent), e);
-					throw e;
 				}
 
 				return embed;
@@ -289,10 +288,6 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 
 			try {
 				copied = Files.copy(input, embed, StandardCopyOption.REPLACE_EXISTING);
-			} catch (IOException e) {
-				logger.log(Level.SEVERE, String.format("Unable to save embedded document \"%s\" in document: \"%s\".",
-					name, parent), e);
-				throw e;
 			} finally {
 				input.close();
 			}
@@ -301,7 +296,7 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 				logger.info(String.format("Copied %d bytes from embedded document \"%s\" in \"%s\" to file.",
 					copied, name, parent));
 			} else {
-				logger.warning(String.format("No bytes copied for embedded document \"%s\" in \"%s\". "
+				logger.warn(String.format("No bytes copied for embedded document \"%s\" in \"%s\". "
 					+ "This could indicate a downstream error.", name, parent));
 			}
 
@@ -309,7 +304,7 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 		}
 	}
 
-	protected class UUIDSubstitutingContentHandler extends ContentHandlerDecorator {
+	private class UUIDSubstitutingContentHandler extends ContentHandlerDecorator {
 
 		private boolean isEmbeddedImgTagOpen = false;
 		private boolean isEmbeddedAnchorTagOpen = false;
@@ -319,7 +314,7 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 		private static final String IMG_TAG = "img";
 		private static final String ANCHOR_TAG = "a";
 
-		public UUIDSubstitutingContentHandler(ContentHandler handler) {
+		UUIDSubstitutingContentHandler(ContentHandler handler) {
 			super(handler);
 		}
 
@@ -421,7 +416,7 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 		}
 	}
 
-	protected class UUIDTokenResolver implements TokenResolver {
+	private class UUIDTokenResolver implements TokenResolver {
 
 		public Reader resolveToken(String token) throws IOException {
 			final Path path = pathMap.get(token);

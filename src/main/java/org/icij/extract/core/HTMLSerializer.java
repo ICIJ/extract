@@ -74,7 +74,7 @@ public class HTMLSerializer implements ContentHandler {
 	/**
 	 * The writer used for output
 	 */
-	protected final Writer writer;
+	private final Writer writer;
 
 	/**
 	 * Creates a new instance of HtmlSerializer in the HTML 4.01 doctype mode

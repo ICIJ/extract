@@ -1,16 +1,11 @@
 package org.icij.extract.core;
 
-import org.icij.extract.interval.TimeDuration;
-
+import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Locale;
-
-import java.util.logging.Logger;
-
-import java.util.concurrent.TimeUnit;
 
 import java.nio.file.Path;
 
@@ -31,7 +26,9 @@ import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.io.TikaInputStream;
-import org.apache.tika.exception.TikaException;
+
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 /**
  * A reusable class that sets up Tika parsers based on runtime options.
@@ -64,9 +61,12 @@ public class Extractor {
 		}
 	}
 
-	public static final TimeDuration DEFAULT_OCR_TIMEOUT = new TimeDuration(12, TimeUnit.HOURS);
+	public static final Duration DEFAULT_OCR_TIMEOUT = Duration.ofHours(12);
 
-	private final Logger logger;
+	/**
+	 * Logger for logging exceptions.
+	 */
+	private static final Logger logger = LoggerFactory.getLogger(ParsingReader.class);
 
 	private boolean ocrDisabled = false;
 	private Path workingDirectory = null;
@@ -81,14 +81,10 @@ public class Extractor {
 	private OutputFormat outputFormat = OutputFormat.TEXT;
 
 	/**
-	 * Create a new extractor, which will OCR images by default if Tesseract is
-	 * available locally, extract inline images from PDF files and OCR them
-	 * and use PDFBox's non-sequential PDF parser.
-	 *
-	 * @param logger the logger to send messages to
+	 * Create a new extractor, which will OCR images by default if Tesseract is available locally, extract inline
+	 * images from PDF files and OCR them and use PDFBox's non-sequential PDF parser.
 	 */
-	public Extractor(final Logger logger) {
-		this.logger = logger;
+	public Extractor() {
 
 		// Run OCR on images contained within PDFs.
 		pdfConfig.setExtractInlineImages(true);
@@ -98,7 +94,7 @@ public class Extractor {
 		pdfConfig.setExtractUniqueInlineImagesOnly(false);
 
 		// Set a long OCR timeout by default, because Tika's is too short.
-		ocrConfig.setTimeout(Math.toIntExact(DEFAULT_OCR_TIMEOUT.to(TimeUnit.SECONDS)));
+		ocrConfig.setTimeout(Math.toIntExact(DEFAULT_OCR_TIMEOUT.getSeconds()));
 	}
 
 	/**
@@ -147,21 +143,12 @@ public class Extractor {
 	}
 
 	/**
-	 * @see #setOcrTimeout(TimeDuration)
+	 * Instructs Tesseract to attempt OCR for no longer than the given duration in seconds.
 	 *
 	 * @param ocrTimeout the duration in seconds
 	 */
-	public void setOcrTimeout(final int ocrTimeout) {
+	private void setOcrTimeout(final int ocrTimeout) {
 		ocrConfig.setTimeout(ocrTimeout);
-	}
-
-	/**
-	 * @see #setOcrTimeout(TimeDuration)
-	 *
-	 * @param duration a duration, for example "1m" or "30s"
-	 */
-	public void setOcrTimeout(final String duration) {
-		setOcrTimeout((int) TimeDuration.parseTo(duration, TimeUnit.SECONDS));
 	}
 
 	/**
@@ -169,8 +156,8 @@ public class Extractor {
 	 *
 	 * @param duration the duration before timeout
 	 */
-	public void setOcrTimeout(final TimeDuration duration) {
-		setOcrTimeout((int) duration.to(TimeUnit.SECONDS));
+	public void setOcrTimeout(final Duration duration) {
+		setOcrTimeout(Math.toIntExact(duration.getSeconds()));
 	}
 
 	/**
@@ -208,7 +195,7 @@ public class Extractor {
 	 *
 	 * @param file the file to extract from
 	 */
-	public ParsingReader extract(final Path file) throws IOException, TikaException {
+	public ParsingReader extract(final Path file) throws IOException {
 		return extract(file, new Metadata());
 	}
 
@@ -222,7 +209,7 @@ public class Extractor {
 	 * @param file the file to extract from
 	 * @param metadata will be populated with metadata extracted from the file
 	 */
-	public ParsingReader extract(Path file, final Metadata metadata) throws IOException, TikaException {
+	public ParsingReader extract(Path file, final Metadata metadata) throws IOException {
 		if (null != workingDirectory) {
 			file = workingDirectory.resolve(file);
 		}
@@ -236,7 +223,7 @@ public class Extractor {
 	 * Extract from the given {@link TikaInputStream}, populating the given metadata object.
 	 *
 	 * @param input the stream to extract from
-	 * @param input the path to the file that is being extracted from
+	 * @param file the path to the file that is being extracted from
 	 * @param metadata the metadata object to populate
 	 */
 	protected ParsingReader extract(final Path file, final Metadata metadata, final TikaInputStream input) throws
@@ -261,22 +248,22 @@ public class Extractor {
 
 		// Return a parsing reader that embeds embedded objects as data URIs.
 		if (OutputFormat.HTML == outputFormat && EmbedHandling.EMBED == embedHandling) {
-			return new EmbeddingHTMLParsingReader(logger, parser, input, metadata, context);
+			return new EmbeddingHTMLParsingReader(parser, input, metadata, context);
 		}
 
 		// For all output types, allow text to be optionally inline-extracted into the main stream.
 		if (EmbedHandling.EXTRACT == embedHandling) {
 			context.set(Parser.class, parser);
-			context.set(EmbeddedDocumentExtractor.class, new ParsingEmbeddedDocumentExtractor(logger, file, context));
+			context.set(EmbeddedDocumentExtractor.class, new ParsingEmbeddedDocumentExtractor(file, context));
 		} else {
 			context.set(Parser.class, EmptyParser.INSTANCE);
 			context.set(EmbeddedDocumentExtractor.class, new DenyingEmbeddedDocumentExtractor());
 		}
 
 		if (OutputFormat.TEXT == outputFormat) {
-			reader = new TextParsingReader(logger, parser, input, metadata, context);
+			reader = new TextParsingReader(parser, input, metadata, context);
 		} else {
-			reader = new HTMLParsingReader(logger, parser, input, metadata, context);
+			reader = new HTMLParsingReader(parser, input, metadata, context);
 		}
 
 		return reader;

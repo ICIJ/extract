@@ -2,8 +2,6 @@ package org.icij.extract.solr;
 
 import java.util.Map;
 
-import java.util.logging.Logger;
-
 import java.io.IOException;
 
 import org.apache.solr.common.SolrDocument;
@@ -21,9 +19,9 @@ public class SolrIntersectionConsumer extends SolrTaggingConsumer {
 
 	private final SolrClient other;
 
-	public SolrIntersectionConsumer(final Logger logger, final SolrClient other,
+	public SolrIntersectionConsumer(final SolrClient other,
 		final SolrClient destination, final Map<String, String> literals) {
-		super(logger, destination, literals);
+		super(destination, literals);
 		this.other = other;
 	}
 

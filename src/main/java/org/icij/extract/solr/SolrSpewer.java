@@ -1,13 +1,10 @@
 package org.icij.extract.solr;
 
+import org.icij.extract.core.IndexDefaults;
 import org.icij.extract.core.Spewer;
 import org.icij.extract.core.SpewerException;
 
-import org.icij.extract.interval.TimeDuration;
-
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
+import java.time.Duration;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.TimeUnit;
@@ -23,7 +20,6 @@ import java.util.List;
 import java.util.Arrays;
 
 import java.io.Reader;
-import java.io.Closeable;
 import java.io.IOException;
 
 import java.nio.file.Path;
@@ -47,32 +43,35 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.http.impl.client.CloseableHttpClient;
 
 import org.apache.commons.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Writes the text output from a {@link org.icij.extract.core.ParsingReader} to a Solr core.
  *
  * @since 1.0.0-beta
  */
-public class SolrSpewer extends Spewer implements Closeable {
+public class SolrSpewer extends Spewer {
 	private static final Pattern fieldName = Pattern.compile("[^A-Za-z0-9]");
+	private static final Logger logger = LoggerFactory.getLogger(SolrSpewer.class);
 
 	private final SolrClient client;
 	private final Semaphore commitSemaphore = new Semaphore(1);
 
-	private String textField = SolrDefaults.DEFAULT_TEXT_FIELD;
-	private String pathField = SolrDefaults.DEFAULT_PATH_FIELD;
-	private String idField = SolrDefaults.DEFAULT_ID_FIELD;
-	private String metadataFieldPrefix = SolrDefaults.DEFAULT_METADATA_FIELD_PREFIX;
+	private String textField = IndexDefaults.DEFAULT_TEXT_FIELD;
+	private String pathField = IndexDefaults.DEFAULT_PATH_FIELD;
+	private String idField = IndexDefaults.DEFAULT_ID_FIELD;
+	private String metadataFieldPrefix = IndexDefaults.DEFAULT_METADATA_FIELD_PREFIX;
 	private String idAlgorithm = null;
 
 	private final AtomicInteger pending = new AtomicInteger(0);
-	private int commitInterval = 0;
-	private int commitWithin = 0;
+	private int commitThreshold = 0;
+	private Duration commitWithin = null;
 	private boolean atomicWrites = false;
 	private boolean fixDates = true;
 
-	public SolrSpewer(final Logger logger, final SolrClient client) {
-		super(logger);
+	public SolrSpewer(final SolrClient client) {
+		super();
 		this.client = client;
 	}
 
@@ -103,16 +102,22 @@ public class SolrSpewer extends Spewer implements Closeable {
 		this.metadataFieldPrefix = metadataFieldPrefix;
 	}
 
-	public void setCommitInterval(final int commitInterval) {
-		this.commitInterval = commitInterval;
+	public void setCommitThreshold(final int commitThreshold) {
+		this.commitThreshold = commitThreshold;
 	}
 
-	public void setCommitWithin(final int commitWithin) {
+	/**
+	 * Set how long Solr should wait before committing the added document, if at all.
+	 *
+	 * Note that a duration of zero will cause the document to be committed immediately. To disable this behaviour,
+	 * pass {@literal null} as an argument.
+	 *
+	 * Automatic committing is disabled by default.
+	 *
+	 * @param commitWithin
+	 */
+	public void setCommitWithin(final Duration commitWithin) {
 		this.commitWithin = commitWithin;
-	}
-
-	public void setCommitWithin(final String duration) {
-		setCommitWithin((int) TimeDuration.parseTo(duration, TimeUnit.SECONDS));
 	}
 
 	public void atomicWrites(final boolean atomicWrites) {
@@ -131,10 +136,11 @@ public class SolrSpewer extends Spewer implements Closeable {
 		return fixDates;
 	}
 
+	@Override
 	public void close() throws IOException {
 
 		// Commit any remaining files if auto-committing is enabled.
-		if (commitInterval > 0) {
+		if (commitThreshold > 0) {
 			commitPending(0);
 		}
 
@@ -149,6 +155,7 @@ public class SolrSpewer extends Spewer implements Closeable {
 			.digest(file.toString().getBytes(outputEncoding)));
 	}
 
+	@Override
 	public void write(final Path file, final Metadata metadata, final Reader reader) throws IOException {
 		final SolrInputDocument document = new SolrInputDocument();
 		final UpdateResponse response;
@@ -173,7 +180,7 @@ public class SolrSpewer extends Spewer implements Closeable {
 
 		// Set the parent path.
 		if (file.getNameCount() > 1) {
-			setFieldValue(document, SolrDefaults.DEFAULT_PARENT_PATH_FIELD, file.getParent().toString());
+			setFieldValue(document, IndexDefaults.DEFAULT_PARENT_PATH_FIELD, file.getParent().toString());
 		}
 
 		// Add the base type. De-duplicated. Eases faceting on type.
@@ -183,10 +190,10 @@ public class SolrSpewer extends Spewer implements Closeable {
 		setFieldValue(document, textField, IOUtils.toString(reader));
 
 		try {
-			if (commitWithin > 0) {
+			if (null == commitWithin) {
 				response = client.add(document);
 			} else {
-				response = client.add(document, commitWithin);
+				response = client.add(document, Math.toIntExact(commitWithin.toMillis()));
 			}
 		} catch (SolrServerException e) {
 			throw new SpewerException(String.format("Unable to add file to Solr: \"%s\". " +
@@ -203,8 +210,8 @@ public class SolrSpewer extends Spewer implements Closeable {
 		pending.incrementAndGet();
 
 		// Autocommit if the interval is hit and enabled.
-		if (commitInterval > 0) {
-			commitPending(commitInterval);
+		if (commitThreshold > 0) {
+			commitPending(commitThreshold);
 		}
 	}
 
@@ -212,7 +219,7 @@ public class SolrSpewer extends Spewer implements Closeable {
 		try {
 			commitSemaphore.acquire();
 		} catch (InterruptedException e) {
-			logger.log(Level.WARNING, "Interrupted while waiting to commit.", e);
+			logger.warn("Interrupted while waiting to commit.", e);
 			Thread.currentThread().interrupt();
 			return;
 		}
@@ -223,18 +230,18 @@ public class SolrSpewer extends Spewer implements Closeable {
 		}
 
 		try {
-			logger.info("Committing to Solr.");
+			logger.warn("Committing to Solr.");
 			final UpdateResponse response = client.commit();
 			pending.set(0);
-			logger.info("Committed to Solr in " + response.getElapsedTime() + "ms.");
+			logger.warn(String.format("Committed to Solr in %sms.", response.getElapsedTime()));
 
 		// Don't rethrow. Commit errors are recoverable and the file was actually output successfully.
 		} catch (SolrServerException e) {
-			logger.log(Level.SEVERE, "Failed to commit to Solr. A server-side error to occurred.", e);
+			logger.error("Failed to commit to Solr. A server-side error to occurred.", e);
 		} catch (SolrException e) {
-			logger.log(Level.SEVERE, String.format("Failed to commit to Solr. HTTP error %d was returned.", e.code()), e);
+			logger.error(String.format("Failed to commit to Solr. HTTP error %d was returned.", e.code()), e);
 		} catch (IOException e) {
-			logger.log(Level.SEVERE, "Failed to commit to Solr. There was an error communicating with the server.", e);
+			logger.error("Failed to commit to Solr. There was an error communicating with the server.", e);
 		} finally {
 			commitSemaphore.release();
 		}
@@ -265,7 +272,7 @@ public class SolrSpewer extends Spewer implements Closeable {
 				// Remove duplicate content types.
 				// Tika seems to add these sometimes, especially for RTF files.
 				if (name.equals("Content-Type") && values.length > 1) {
-					values = Arrays.asList(values).stream().distinct().toArray(String[]::new);
+					values = Arrays.stream(values).distinct().toArray(String[]::new);
 				}
 
 				setFieldValues(document, normalizedName, values);
@@ -282,13 +289,13 @@ public class SolrSpewer extends Spewer implements Closeable {
 			MediaType mediaType = MediaType.parse(type);
 
 			if (null == mediaType) {
-				logger.warning(String.format("Content type could not be parsed: \"%s\". Was: \"%s\".", file, type));
+				logger.warn(String.format("Content type could not be parsed: \"%s\". Was: \"%s\".", file, type));
 			} else {
 				baseTypes.add(mediaType.getBaseType().toString());
 			}
 		}
 
-		setFieldValues(document, SolrDefaults.DEFAULT_BASE_TYPE_FIELD, baseTypes.toArray());
+		setFieldValues(document, IndexDefaults.DEFAULT_BASE_TYPE_FIELD, baseTypes.toArray());
 	}
 
 	private void setTagFieldValues(final SolrInputDocument document) {

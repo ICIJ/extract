@@ -3,14 +3,14 @@ package org.icij.extract.solr;
 import java.util.Map;
 import java.util.HashMap;
 
-import java.util.logging.Logger;
-
 import java.io.IOException;
 
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A consumer that forces reindexing by copying a field onto itself
@@ -21,13 +21,14 @@ import org.apache.solr.client.solrj.SolrServerException;
  */
 public class SolrCopyConsumer extends SolrMachineConsumer {
 
+	private static final Logger logger = LoggerFactory.getLogger(SolrCopyConsumer.class);
 	private static final String BAD_VALUE = "ERROR:SCHEMA-INDEX-MISMATCH,stringValue=";
 
 	private final SolrClient client;
 	private final Map<String, String> map;
 
-	public SolrCopyConsumer(final Logger logger, final SolrClient client, final Map<String, String> map) {
-		super(logger);
+	public SolrCopyConsumer(final SolrClient client, final Map<String, String> map) {
+		super();
 		this.client = client;
 		this.map = map;
 	}
@@ -37,14 +38,12 @@ public class SolrCopyConsumer extends SolrMachineConsumer {
 		final SolrInputDocument output = new SolrInputDocument();
 
 		// Copy the source fields to the target fields.
-		// Copy all the fields from the returned document. This ensures that
-		// wildcard matches work.
+		// Copy all the fields from the returned document. This ensures that wildcard matches work.
 		for (String field : input.keySet()) {
 			copyField(field, input, output);
 		}
 
-		logger.info(String.format("Adding document with ID \"%s\".",
-			input.getFieldValue(idField)));
+		logger.info(String.format("Adding document with ID \"%s\".", input.getFieldValue(idField)));
 		client.add(output);
 	}
 

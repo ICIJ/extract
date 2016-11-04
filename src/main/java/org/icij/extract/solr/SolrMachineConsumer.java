@@ -1,26 +1,20 @@
 package org.icij.extract.solr;
 
-import java.util.logging.Logger;
-
 import java.util.function.Consumer;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.solr.common.SolrDocument;
 
-import hu.ssh.progressbar.ProgressBar;
+import org.icij.events.Notifiable;
+import org.icij.extract.core.IndexDefaults;
 
 public abstract class SolrMachineConsumer implements Consumer<SolrDocument> {
 
-	protected final AtomicInteger consumed = new AtomicInteger();
-	protected final Logger logger;
+	private final AtomicInteger consumed = new AtomicInteger();
 
-	protected String idField = SolrDefaults.DEFAULT_ID_FIELD;
-	protected ProgressBar progressBar = null;
-
-	public SolrMachineConsumer(final Logger logger) {
-		this.logger = logger;
-	}
+	String idField = IndexDefaults.DEFAULT_ID_FIELD;
+	private Notifiable notifiable = null;
 
 	@Override
 	public void accept(final SolrDocument input) {
@@ -29,8 +23,8 @@ public abstract class SolrMachineConsumer implements Consumer<SolrDocument> {
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		} finally {
-			if (null != progressBar) {
-				progressBar.tickOne();
+			if (null != notifiable) {
+				notifiable.notifyListeners(input);
 			}
 		}
 
@@ -51,11 +45,11 @@ public abstract class SolrMachineConsumer implements Consumer<SolrDocument> {
 		return consumed.get();
 	}
 
-	public void setProgressBar(final ProgressBar progressBar) {
-		this.progressBar = progressBar;
+	public void setNotifiable(final Notifiable notifiable) {
+		this.notifiable = notifiable;
 	}
 
-	public ProgressBar getProgressBar() {
-		return progressBar;
+	public Notifiable getNotifiable() {
+		return notifiable;
 	}
 }

@@ -42,10 +42,10 @@ public class SolrCopyMachineTest extends SolrJettyTestBase {
 	public void testCopy() throws IOException, SolrServerException, InterruptedException {
 		final Map<String, String> map = new HashMap<>();
 
-		final SolrMachineConsumer consumer = new SolrCopyConsumer(logger, client, map);
-		final SolrMachineProducer producer = new SolrMachineProducer(logger, client, map.keySet());
+		final SolrMachineConsumer consumer = new SolrCopyConsumer(client, map);
+		final SolrMachineProducer producer = new SolrMachineProducer(client, map.keySet());
 		final SolrMachine machine =
-			new SolrMachine(logger, consumer, producer);
+			new SolrMachine(consumer, producer);
 
 		final int documents = 10;
 		final int fields = 10;

@@ -23,12 +23,10 @@ import java.io.StringReader;
 import java.util.Arrays;
 
 /**
- * Reader for in-place token replacements. It does not use as much memory as
- * the String.replace() method.
+ * Reader for in-place token replacements. It does not use as much memory as the {@link String#replace} method.
  *
- * Based on original code by Oleg Varaksin (ovaraksin@googlemail.com), the
- * license of which is copied above. This version resolves tokens to
- * {@link java.io.InputStream} instances.
+ * Based on original code by Oleg Varaksin (ovaraksin@googlemail.com), the license of which is copied above. This
+ * version resolves tokens to {@link java.io.InputStream} instances.
  */
 public class TokenReplacingReader extends Reader {
 

@@ -4,8 +4,6 @@ import java.util.Set;
 
 import java.util.function.Supplier;
 
-import java.util.logging.Logger;
-
 import java.util.concurrent.Callable;
 import java.util.concurrent.TransferQueue;
 import java.util.concurrent.LinkedTransferQueue;
@@ -18,22 +16,27 @@ import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.StreamingResponseCallback;
 import org.apache.solr.client.solrj.SolrServerException;
 
-import hu.ssh.progressbar.ProgressBar;
+import org.icij.events.Notifiable;
+import org.icij.extract.core.IndexDefaults;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 // TODO: Refactor into a Queue.
-public class SolrMachineProducer extends StreamingResponseCallback implements Callable<Integer>,
+public class SolrMachineProducer extends StreamingResponseCallback implements Callable<Long>,
 	Supplier<SolrDocument> {
 
+	private static final Logger logger = LoggerFactory.getLogger(SolrMachineProducer.class);
+
 	protected final TransferQueue<SolrDocument> queue = new LinkedTransferQueue<>();
-	protected final Logger logger;
 	protected final SolrClient client;
-	protected final Set<String> fields;
-	protected ProgressBar progressBar = null;
+	private final Set<String> fields;
+	private Notifiable notifiable = null;
 
 	private final int rows;
 	private final int parallelism;
 
-	private String idField = SolrDefaults.DEFAULT_ID_FIELD;
+	private String idField = IndexDefaults.DEFAULT_ID_FIELD;
 	private String filter = "*:*";
 
 	private volatile boolean stopped = false;
@@ -41,24 +44,22 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 	private long found = 0;
 	private long fetched = 0;
 
-	public SolrMachineProducer(final Logger logger, final SolrClient client,
-		final Set<String> fields, final int parallelism) {
-		this.logger = logger;
+	public SolrMachineProducer(final SolrClient client, final Set<String> fields, final int parallelism) {
 		this.client = client;
 		this.parallelism = parallelism;
 		this.rows = parallelism * 10;
 		this.fields = fields;
 	}
 
-	public SolrMachineProducer(final Logger logger, final SolrClient client, final Set<String> fields) {
-		this(logger, client, fields, Runtime.getRuntime().availableProcessors());
+	SolrMachineProducer(final SolrClient client, final Set<String> fields) {
+		this(client, fields, Runtime.getRuntime().availableProcessors());
 	}
 
 	public void setIdField(final String idField) {
 		this.idField = idField;
 	}
 
-	public String getIdField() {
+	String getIdField() {
 		return idField;
 	}
 
@@ -70,12 +71,12 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 		return filter;
 	}
 
-	public void setProgressBar(final ProgressBar progressBar) {
-		this.progressBar = progressBar;
+	public void setNotifiable(final Notifiable notifiable) {
+		this.notifiable = notifiable;
 	}
 
-	public ProgressBar getProgressBar() {
-		return progressBar;
+	public Notifiable getNotifiable() {
+		return notifiable;
 	}
 
 	@Override
@@ -98,15 +99,15 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 	}
 
 	@Override
-	public Integer call() throws IOException, SolrServerException, InterruptedException {
-		int total = 0;
+	public Long call() throws IOException, SolrServerException, InterruptedException {
+		long total = 0;
 
 		try {
 			while (!stopped && !Thread.currentThread().isInterrupted()) {
 				total += fetch();
 			}
 
-		// Always poison: whether the thread exits in error or not, the consumers
+		// Always poison: whether the thread exits in error or not, the transformers
 		// still need to stop.
 		} finally {
 			poison();
@@ -121,8 +122,8 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 		this.start = rows + this.start;
 
 		// Update the progress bar if the number of items increases.
-		if (null != progressBar && found > this.found) {
-			progressBar.withTotalSteps((int) found);
+		if (null != notifiable && found > this.found) {
+			notifiable.hintRemaining((int) found);
 		}
 
 		this.found = found;
@@ -170,7 +171,7 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 		final long fetched = this.fetched;
 
 		// Stop if there are no more results.
-		// Instruct consumers to stop by sending a poison pill.
+		// Instruct transformers to stop by sending a poison pill.
 		if (fetched < rows) {
 			stopped = true;
 		}

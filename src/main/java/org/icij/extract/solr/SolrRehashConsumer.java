@@ -1,10 +1,6 @@
 package org.icij.extract.solr;
 
-import java.util.Map;
-import java.util.HashMap;
-
 import java.util.Objects;
-import java.util.logging.Logger;
 
 import java.io.IOException;
 
@@ -23,6 +19,9 @@ import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.icij.extract.core.IndexDefaults;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A consumer that recalculates ID hashes of documents after a simple
@@ -36,16 +35,17 @@ import org.apache.solr.client.solrj.SolrServerException;
  */
 public class SolrRehashConsumer extends SolrMachineConsumer {
 
+	private static final Logger logger = LoggerFactory.getLogger(SolrRehashConsumer.class);
+
 	private final SolrClient client;
 	private final String idAlgorithm;
 	private Pattern pattern = null;
 	private String replacement = "";
 	private Charset outputEncoding = StandardCharsets.UTF_8;
-	private String pathField = SolrDefaults.DEFAULT_PATH_FIELD;
-	private String metadataFieldPrefix = SolrDefaults.DEFAULT_METADATA_FIELD_PREFIX;
+	private String pathField = IndexDefaults.DEFAULT_PATH_FIELD;
 
-	public SolrRehashConsumer(final Logger logger, final SolrClient client, final String idAlgorithm) {
-		super(logger);
+	public SolrRehashConsumer(final SolrClient client, final String idAlgorithm) {
+		super();
 		this.client = client;
 		this.idAlgorithm = idAlgorithm;
 	}
@@ -68,10 +68,6 @@ public class SolrRehashConsumer extends SolrMachineConsumer {
 
 	public void setReplacement(final String replacement) {
 		this.replacement = replacement;
-	}
-
-	public void setMetadataFieldPrefix(final String metadataFieldPrefix) {
-		this.metadataFieldPrefix = metadataFieldPrefix;
 	}
 
 	@Override
@@ -105,18 +101,11 @@ public class SolrRehashConsumer extends SolrMachineConsumer {
 		output.setField("_version_", "-1"); // The document must not exist.
 		output.setField(idField, outputId);
 		output.setField(pathField, outputPath);
-		output.setField(SolrDefaults.DEFAULT_PARENT_PATH_FIELD, outputPathParent);
+		output.setField(IndexDefaults.DEFAULT_PARENT_PATH_FIELD, outputPathParent);
 
 		logger.info(String.format("Replacing path \"%s\" with \"%s\" and rehashing ID from \"%s\" to \"%s\".",
 				inputPath, outputPath, inputId, outputId));
 		client.add(output);
 		client.deleteById(inputId);
-	}
-
-	private Map<String, String> createAtomic(final String value) {
-		final Map<String, String> atomic = new HashMap<>();
-
-		atomic.put("set", value);
-		return atomic;
 	}
 }

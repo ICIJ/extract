@@ -7,7 +7,8 @@ import java.io.IOException;
 
 import java.nio.file.Path;
 
-import org.redisson.Config;
+import org.icij.task.DefaultOption;
+
 import org.redisson.RedissonMap;
 import org.redisson.command.CommandSyncService;
 import org.redisson.connection.ConnectionManager;
@@ -30,12 +31,11 @@ public class RedisReport extends RedissonMap<Path, ExtractionResult> implements 
 	/**
 	 * Create a Redis-backed report using the provided configuration.
 	 *
-	 * @param config configuration for connecting to Redis
+	 * @param options options for connecting to Redis
 	 * @param name the name of the report
-	 * @return a new report instance
 	 */
-	public static RedisReport create(final Object config, final String name) {
-		return new RedisReport(ConnectionManagerFactory.createConnectionManager(config), name);
+	public RedisReport(final DefaultOption.Set options, final String name) {
+		this(ConnectionManagerFactory.createConnectionManager(options), name);
 	}
 
 	/**
@@ -43,19 +43,9 @@ public class RedisReport extends RedissonMap<Path, ExtractionResult> implements 
 	 * default port.
 	 *
 	 * @param name the name of the report
-	 * @return a new report instance
 	 */
-	public static RedisReport create(final String name) {
-		return create(new Config().useSingleServer().setAddress("127.0.0.1:6379"), name);
-	}
-
-	/**
-	 * Create a Redis-backed report using the default configuration and name.
-	 *
-	 * @return a new report instance
-	 */
-	public static RedisReport create() {
-		return create(null);
+	public RedisReport(final String name) {
+		this(ConnectionManagerFactory.createConnectionManager(), name);
 	}
 
 	/**
@@ -64,7 +54,7 @@ public class RedisReport extends RedissonMap<Path, ExtractionResult> implements 
 	 * @param connectionManager instantiated using {@link ConnectionManagerFactory}
 	 * @param name the name of the report
 	 */
-	public RedisReport(final ConnectionManager connectionManager, final String name) {
+	private RedisReport(final ConnectionManager connectionManager, final String name) {
 		super(new RedisReportCodec(), new CommandSyncService(connectionManager),
 			null == name || name.trim().isEmpty() ? DEFAULT_NAME : name);
 		this.connectionManager = connectionManager;

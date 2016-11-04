@@ -17,12 +17,13 @@ import org.junit.BeforeClass;
 import org.junit.AfterClass;
 import org.junit.rules.TemporaryFolder;
 
-public abstract class SolrJettyTestBase extends TestBase {
+public abstract class SolrJettyTestBase {
 
-	public static final int DEFAULT_CONNECTION_TIMEOUT = 60000;
+	private static final int DEFAULT_CONNECTION_TIMEOUT = 60000;
 
-	public static JettySolrRunner jetty;
-	public static HttpSolrClient client;
+	private static JettySolrRunner jetty;
+
+	protected static HttpSolrClient client;
 
 	@ClassRule
 	public static final TemporaryFolder tempSolrFolder = new TemporaryFolder();
@@ -68,7 +69,7 @@ public abstract class SolrJettyTestBase extends TestBase {
 		}
 	}
 
-	protected static HttpSolrClient createNewSolrClient() {
+	private static HttpSolrClient createNewSolrClient() {
 		return createNewSolrClient("collection1");
 	}
 

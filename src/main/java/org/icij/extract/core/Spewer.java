@@ -1,5 +1,6 @@
 package org.icij.extract.core;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import java.io.Reader;
@@ -10,8 +11,6 @@ import java.nio.file.Paths;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
-import java.util.logging.Logger;
-
 import org.apache.tika.metadata.Metadata;
 
 /**
@@ -19,18 +18,13 @@ import org.apache.tika.metadata.Metadata;
  *
  * @since 1.0.0-beta
  */
-public abstract class Spewer {
+public abstract class Spewer implements AutoCloseable {
 
-	protected final Logger logger;
+	private Path outputBase = null;
 
-	protected Path outputBase = null;
 	protected boolean outputMetadata = false;
 	protected Charset outputEncoding = StandardCharsets.UTF_8;
 	protected Map<String, String> tags = null;
-
-	public Spewer(final Logger logger) {
-		this.logger = logger;
-	}
 
 	public abstract void write(final Path file, final Metadata metadata, final Reader reader) throws IOException;
 
@@ -64,5 +58,13 @@ public abstract class Spewer {
 
 	public void setTags(final Map<String, String> tags) {
 		this.tags = tags;
+	}
+
+	public void setTag(final String name, final String value) {
+		if (null == tags) {
+			tags = new HashMap<>();
+		}
+
+		tags.put(name, value);
 	}
 }

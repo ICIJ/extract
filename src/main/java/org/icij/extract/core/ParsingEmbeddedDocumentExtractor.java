@@ -1,8 +1,5 @@
 package org.icij.extract.core;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.InputStream;
@@ -24,6 +21,9 @@ import org.apache.tika.sax.EmbeddedContentHandler;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.exception.EncryptedDocumentException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.xml.sax.ContentHandler;
 import org.xml.sax.helpers.AttributesImpl;
 import org.xml.sax.SAXException;
@@ -31,28 +31,28 @@ import org.xml.sax.SAXException;
 import static org.apache.tika.sax.XHTMLContentHandler.XHTML;
 
 /**
- * A custom extractor that is an almost exact copy of Tika's default
- * extractor for embedded documents.
+ * A custom extractor that is an almost exact copy of Tika's default extractor for embedded documents.
  *
- * Logs errors that Tika's default extractor otherwise swallows.
+ * Logs errors that Tika's default extractor otherwise swallows, but doesn't throw them, allowing parsing to continue.
  *
  * @since 1.0.0-beta
  */
-public class ParsingEmbeddedDocumentExtractor implements EmbeddedDocumentExtractor {
+class ParsingEmbeddedDocumentExtractor implements EmbeddedDocumentExtractor {
+
+	private static final Logger logger = LoggerFactory.getLogger(ParsingEmbeddedDocumentExtractor.class);
 
     private static final File ABSTRACT_PATH = new File("");
     private static final Parser DELEGATING_PARSER = new DelegatingParser();
 
-	private final Logger logger;
 	private final Path parent;
 	private final ParseContext context;
 
-	public ParsingEmbeddedDocumentExtractor(Logger logger, Path parent, ParseContext context) {
-		this.logger = logger;
+	ParsingEmbeddedDocumentExtractor(final Path parent, final ParseContext context) {
 		this.parent = parent;
 		this.context = context;
 	}
 
+	@Override
 	public boolean shouldParseEmbedded(Metadata metadata) {
 		final DocumentSelector selector = context.get(DocumentSelector.class);
 		if (selector != null) {
@@ -70,6 +70,7 @@ public class ParsingEmbeddedDocumentExtractor implements EmbeddedDocumentExtract
 		return true;
 	}
 
+	@Override
 	public void parseEmbedded(InputStream input, ContentHandler handler, Metadata metadata, boolean outputHtml)
 		throws SAXException, IOException {
 		if (outputHtml) {
@@ -100,9 +101,9 @@ public class ParsingEmbeddedDocumentExtractor implements EmbeddedDocumentExtract
 
 			DELEGATING_PARSER.parse(newStream, new EmbeddedContentHandler(new BodyContentHandler(handler)), metadata, context);
 		} catch (EncryptedDocumentException e) {
-			logger.log(Level.SEVERE, "Encrypted document embedded in document: " + parent + ".", e);
+			logger.error(String.format("Encrypted document embedded in document: \"%s\".", parent), e);
 		} catch (TikaException e) {
-			logger.log(Level.SEVERE, "Unable to parse embedded document in document: " + parent + ".", e);
+			logger.error(String.format("Unable to parse embedded document in document: \"%s\".", parent), e);
 		}
 
 		if (outputHtml) {

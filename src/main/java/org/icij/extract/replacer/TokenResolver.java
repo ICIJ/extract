@@ -21,11 +21,10 @@ import java.io.IOException;
 /**
  * Interface for resolving of tokens found via {@link TokenReplacingReader}.
  *
- * Based on original code by Oleg Varaksin (ovaraksin@googlemail.com), the
- * license of which is copied above. This version resolves tokens to
- * {@link Reader} instances.
+ * Based on original code by Oleg Varaksin (ovaraksin@googlemail.com), the license of which is copied above. This
+ * version resolves tokens to {@link Reader} instances so that .
  */
 public interface TokenResolver {
 
-	Reader resolveToken(String token) throws IOException;
+	Reader resolveToken(final String token) throws IOException;
 }

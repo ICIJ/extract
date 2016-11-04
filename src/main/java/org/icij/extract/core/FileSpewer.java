@@ -1,7 +1,5 @@
 package org.icij.extract.core;
 
-import java.util.logging.Logger;
-
 import java.io.File;
 import java.io.Reader;
 import java.io.OutputStream;
@@ -9,7 +7,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 
 import java.nio.file.Path;
-import java.nio.charset.Charset;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.TaggedOutputStream;
@@ -20,6 +17,9 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonEncoding;
 
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+
 /**
  * Writes the text or HTML output from a {@link Reader} to the filesystem.
  * Metadata is written to a JSON file.
@@ -27,13 +27,16 @@ import com.fasterxml.jackson.core.JsonEncoding;
  * @since 1.0.0-beta
  */
 public class FileSpewer extends Spewer {
-	public static final String DEFAULT_EXTENSION = "txt";
+
+	private static final Logger logger = LoggerFactory.getLogger(FileSpewer.class);
+
+	private static final String DEFAULT_EXTENSION = "txt";
 
 	private final Path outputDirectory;
 	private String outputExtension = DEFAULT_EXTENSION;
 
-	public FileSpewer(final Logger logger, final Path outputDirectory) {
-		super(logger);
+	public FileSpewer(final Path outputDirectory) {
+		super();
 		this.outputDirectory = outputDirectory;
 	}
 
@@ -49,8 +52,10 @@ public class FileSpewer extends Spewer {
 		}
 	}
 
+	@Override
 	public void close() throws IOException {}
 
+	@Override
 	public void write(final Path path, final Metadata metadata, final Reader reader) throws IOException {
 		Path outputPath;
 

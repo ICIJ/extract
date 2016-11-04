@@ -3,8 +3,6 @@ package org.icij.extract.solr;
 import java.util.Map;
 import java.util.HashMap;
 
-import java.util.logging.Logger;
-
 import java.io.IOException;
 
 import org.apache.solr.common.SolrDocument;
@@ -12,14 +10,18 @@ import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrServerException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class SolrTaggingConsumer extends SolrMachineConsumer {
+
+	private static final Logger logger = LoggerFactory.getLogger(SolrRehashConsumer.class);
 
 	private final Map<String, String> literals;
 	private final SolrClient destination;
 
-	public SolrTaggingConsumer(final Logger logger, final SolrClient destination,
-		final Map<String, String> literals) {
-		super(logger);
+	public SolrTaggingConsumer(final SolrClient destination, final Map<String, String> literals) {
+		super();
 		this.destination = destination;
 		this.literals = literals;
 	}

@@ -16,8 +16,6 @@
  */
 package org.icij.extract.core;
 
-import java.util.logging.Logger;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -47,11 +45,6 @@ import org.xml.sax.ContentHandler;
 public abstract class ParsingReader extends Reader {
 
 	/**
-	 * Logger for logging exceptions.
-	 */
-	protected final Logger logger;
-
-	/**
 	 * Executor for background parsing tasks.
 	 */
 	protected final Executor executor = new ParsingExecutor();
@@ -69,7 +62,7 @@ public abstract class ParsingReader extends Reader {
 	/**
 	 * Write end of the pipe.
 	 */
-	protected Writer writer;
+	Writer writer;
 	
 	/**
 	 * The binary stream being parsed.
@@ -102,7 +95,7 @@ public abstract class ParsingReader extends Reader {
 	 * @param name resource name (or <code>null</code>)
 	 * @return metadata instance
 	 */
-	protected static Metadata getMetadata(final String name) {
+	private static Metadata getMetadata(final String name) {
 		Metadata metadata = new Metadata();
 
 		if (name != null && name.length() > 0) {
@@ -115,26 +108,23 @@ public abstract class ParsingReader extends Reader {
 	/**
 	 * Creates a reader for the content of the given binary stream.
 	 *
-	 * @param logger logger instance
 	 * @param input binary stream
 	 * @throws IOException if the document can not be parsed
 	 */
-	public ParsingReader(final Logger logger, final InputStream input) throws IOException {
-		this(logger, new AutoDetectParser(), input, new Metadata(), new ParseContext());
+	public ParsingReader(final InputStream input) throws IOException {
+		this(new AutoDetectParser(), input, new Metadata(), new ParseContext());
 		context.set(Parser.class, parser);
 	}
 	
 	/**
-	 * Creates a reader for the content of the given binary stream
-	 * with the given name.
+	 * Creates a reader for the content of the given binary stream with the given name.
 	 *
-	 * @param logger logger instance
 	 * @param input binary stream
 	 * @param name document name
 	 * @throws IOException if the document can not be parsed
 	 */
-	public ParsingReader(final Logger logger, final InputStream input, final String name) throws IOException {
-		this(logger, new AutoDetectParser(), input, getMetadata(name), new ParseContext());
+	public ParsingReader(final InputStream input, final String name) throws IOException {
+		this(new AutoDetectParser(), input, getMetadata(name), new ParseContext());
 		context.set(Parser.class, parser);
 	}
 
@@ -147,15 +137,13 @@ public abstract class ParsingReader extends Reader {
 	 * The stream and any associated resources will be closed at or before
 	 * the time when the {@link #close()} method is called on this reader.
 	 *
-	 * @param logger logger instance
 	 * @param parser parser instance
 	 * @param input binary stream
 	 * @param metadata document metadata
 	 * @param context parsing context
 	 * @throws IOException if the document can not be parsed
 	 */
-	public ParsingReader(final Logger logger, final Parser parser, final InputStream input, final Metadata metadata,
-	                     ParseContext context)
+	public ParsingReader(final Parser parser, final InputStream input, final Metadata metadata, ParseContext context)
 		throws IOException {
 		final PipedReader pipedReader = new PipedReader();
 
@@ -172,12 +160,12 @@ public abstract class ParsingReader extends Reader {
 		this.metadata = metadata;
 		this.context = context;
 
-		this.logger = logger;
-
 		execute();
 		
 		// TIKA-203: Buffer first character to force metadata extraction.
 		reader.mark(1);
+
+		//noinspection ResultOfMethodCallIgnored
 		reader.read();
 		reader.reset();
 	}
@@ -225,13 +213,14 @@ public abstract class ParsingReader extends Reader {
 	/**
 	 * The executor for background parsing tasks.
 	 */
-	protected class ParsingExecutor implements Executor {
+	private class ParsingExecutor implements Executor {
 
 		/**
 		 * Executes the given task in a daemon thread.
 		 *
 		 * @param task background parsing task
 		 */
+		@Override
 		public void execute(final Runnable task) {
 			String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
 			
@@ -250,13 +239,14 @@ public abstract class ParsingReader extends Reader {
 	/**
 	 * The background parsing task.
 	 */
-	protected class ParsingTask implements Runnable {
+	class ParsingTask implements Runnable {
 
 	    /**
 	     * Parses the given binary stream and writes the text content to the write end of the pipe. Potential
 	     * exceptions (including the one caused if the read end is closed unexpectedly) are stored before the input
 	     * stream is closed and processing is stopped.
 	     */
+	    @Override
 		public void run() {
 			try {
 				parser.parse(input, handler, metadata, context);

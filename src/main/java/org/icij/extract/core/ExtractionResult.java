@@ -35,6 +35,10 @@ public enum ExtractionResult {
 		return lookup.get(value);
 	}
 
+	public static ExtractionResult get(final String value) {
+		return get(Integer.valueOf(value));
+	}
+
 	ExtractionResult(final int value) {
 		this.value = value;
 	}

@@ -47,10 +47,10 @@ public class SolrTagMachineTest extends SolrJettyTestBase {
 
 		literals.put("metadata_in_a", "yes");
 
-		final SolrMachineConsumer consumer = new SolrIntersectionConsumer(logger, other, destination, literals);
-		final SolrMachineProducer producer = new SolrMachineProducer(logger, client, null);
+		final SolrMachineConsumer consumer = new SolrIntersectionConsumer(other, destination, literals);
+		final SolrMachineProducer producer = new SolrMachineProducer(client, null);
 		final SolrMachine machine =
-			new SolrMachine(logger, consumer, producer);
+			new SolrMachine(consumer, producer);
 
 		// Commit four documents to core A.
 		for (int i = 0; i < 4; i++) {
@@ -111,10 +111,10 @@ public class SolrTagMachineTest extends SolrJettyTestBase {
 		final SolrClient other = createNewSolrClient("collection2");
 		final SolrClient destination = createNewSolrClient("collection3");
 
-		final SolrMachineConsumer consumer = new SolrComplementConsumer(logger, other, destination, literals);
-		final SolrMachineProducer producer = new SolrMachineProducer(logger, client, null);
+		final SolrMachineConsumer consumer = new SolrComplementConsumer(other, destination, literals);
+		final SolrMachineProducer producer = new SolrMachineProducer(client, null);
 		final SolrMachine machine =
-			new SolrMachine(logger, consumer, producer);
+			new SolrMachine(consumer, producer);
 
 		// Commit ten documents to core A.
 		for (int i = 0; i < 10; i++) {

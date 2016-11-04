@@ -39,12 +39,12 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 
 	@Test
 	public void testWrite() throws IOException, TikaException, NoSuchAlgorithmException, SolrServerException {
-		final SolrSpewer spewer = new SolrSpewer(logger, client);
+		final SolrSpewer spewer = new SolrSpewer(client);
 
 		final Charset charset = StandardCharsets.UTF_8;
 		final String buffer = "test";
 		final Path path = Paths.get("test-file.txt");
-		final ParsingReader reader = new TextParsingReader(logger, new ByteArrayInputStream(buffer.getBytes(charset)));
+		final ParsingReader reader = new TextParsingReader(new ByteArrayInputStream(buffer.getBytes(charset)));
 
 		spewer.setIdAlgorithm("SHA-256");
 		spewer.write(path, new Metadata(), reader);
@@ -62,12 +62,12 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 	@Test
 	public void testWriteMetadata()
 		throws IOException, TikaException, NoSuchAlgorithmException, SolrServerException, InterruptedException {
-		final SolrSpewer spewer = new SolrSpewer(logger, client);
+		final SolrSpewer spewer = new SolrSpewer(client);
 
 		final Charset charset = StandardCharsets.UTF_8;
 		final String buffer = "test";
 		final Path path = Paths.get("test/file.txt");
-		final ParsingReader reader = new TextParsingReader(logger, new ByteArrayInputStream(buffer.getBytes(charset)));
+		final ParsingReader reader = new TextParsingReader(new ByteArrayInputStream(buffer.getBytes(charset)));
 		final Metadata metadata = new Metadata();
 
 		spewer.setIdAlgorithm("SHA-256");
@@ -93,12 +93,12 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 	@Test
 	public void testWriteTags()
 		throws IOException, TikaException, NoSuchAlgorithmException, SolrServerException, InterruptedException {
-		final SolrSpewer spewer = new SolrSpewer(logger, client);
+		final SolrSpewer spewer = new SolrSpewer(client);
 
 		final Charset charset = StandardCharsets.UTF_8;
 		final String buffer = "test";
 		final Path path = Paths.get("test/file.txt");
-		final ParsingReader reader = new TextParsingReader(logger, new ByteArrayInputStream(buffer.getBytes(charset)));
+		final ParsingReader reader = new TextParsingReader(new ByteArrayInputStream(buffer.getBytes(charset)));
 		final Metadata metadata = new Metadata();
 		final Map<String, String> tags = new HashMap<>();
 

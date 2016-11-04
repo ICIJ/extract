@@ -6,9 +6,6 @@ import java.util.List;
 
 import java.util.function.Supplier;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Callable;
@@ -21,37 +18,39 @@ import java.io.IOException;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.client.solrj.SolrServerException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * A multi-threaded document-cycling robot for Solr.
  *
- * Multiple threads are used to consume from a streaming producer which runs
- * from the current thread.
+ * Multiple threads are used to consume from a streaming producer which runs from the current thread.
  *
  * Memory use is kept under control by throttling the streaming producer.
  *
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
  */
-public class SolrMachine implements Callable<Integer> {
+public class SolrMachine implements Callable<Long> {
 
-	protected final Logger logger;
+	private static final Logger logger = LoggerFactory.getLogger(SolrMachine.class);
+
 	protected final SolrMachineConsumer consumer;
-	protected final SolrMachineProducer producer;
-	protected final int parallelism;
 	protected final ExecutorService executor;
 
-	public SolrMachine(final Logger logger, final SolrMachineConsumer consumer,
+	private final SolrMachineProducer producer;
+	private final int parallelism;
+
+	public SolrMachine(final SolrMachineConsumer consumer,
 		final SolrMachineProducer producer, final int parallelism) {
-		this.logger = logger;
 		this.consumer = consumer;
 		this.producer = producer;
 		this.parallelism = parallelism;
 		this.executor = Executors.newFixedThreadPool(parallelism + 1);
 	}
 
-	public SolrMachine(final Logger logger, final SolrMachineConsumer consumer,
-		final SolrMachineProducer producer) {
-		this(logger, consumer, producer, Runtime.getRuntime().availableProcessors());
+	public SolrMachine(final SolrMachineConsumer consumer, final SolrMachineProducer producer) {
+		this(consumer, producer, Runtime.getRuntime().availableProcessors());
 	}
 
 	public void terminate() throws InterruptedException {
@@ -65,24 +64,24 @@ public class SolrMachine implements Callable<Integer> {
 	}
 
 	@Override
-	public Integer call() throws IOException, SolrServerException, InterruptedException {
-		final Collection<Callable<Integer>> tasks = new ArrayList<>();
+	public Long call() throws IOException, SolrServerException, InterruptedException {
+		final Collection<Callable<Long>> tasks = new ArrayList<>();
 
 		// Add the producer to its own thread.
 		tasks.add(producer);
 
-		// Add the consumers - one per thread.
+		// Add the transformers - one per thread.
 		for (int i = 0; i < parallelism; i++) {
 			tasks.add(new Worker(producer));
 		}
 
-		final List<Future<Integer>> futures = executor.invokeAll(tasks);
-		int accepted = 0;
+		final List<Future<Long>> futures = executor.invokeAll(tasks);
+		long accepted = 0;
 
 		try {
 			futures.remove(0).get();
 
-			for (Future<Integer> task : futures) {
+			for (Future<Long> task : futures) {
 				accepted += task.get();
 			}
 		} catch (ExecutionException e) {
@@ -102,17 +101,17 @@ public class SolrMachine implements Callable<Integer> {
 		return accepted;
 	}
 
-	protected class Worker implements Callable<Integer> {
+	private class Worker implements Callable<Long> {
 
 		private final Supplier<SolrDocument> supplier;
 
-		public Worker(final Supplier<SolrDocument> supplier) {
+		Worker(final Supplier<SolrDocument> supplier) {
 			this.supplier = supplier;
 		}
 
 		@Override
-		public Integer call() throws Exception {
-			int accepted = 0;
+		public Long call() throws Exception {
+			long accepted = 0;
 
 			while (!Thread.currentThread().isInterrupted()) {
 				SolrDocument document = supplier.get();
@@ -128,8 +127,8 @@ public class SolrMachine implements Callable<Integer> {
 
 				// Log run-time exceptions and continue.
 				} catch (RuntimeException e) {
-					logger.log(Level.SEVERE, String.format("Could not consume document: \"%s\".",
-						document.getFieldValue(producer.getIdField())), e);
+					logger.error(String.format("Could not consume document: \"%s\".", document.getFieldValue(producer
+							.getIdField())), e);
 				}
 			}
 

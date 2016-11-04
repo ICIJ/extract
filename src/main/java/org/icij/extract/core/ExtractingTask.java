@@ -1,0 +1,144 @@
+package org.icij.extract.core;
+
+import java.util.concurrent.Callable;
+
+import java.nio.file.Path;
+
+import java.io.IOException;
+import java.io.FileNotFoundException;
+
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.exception.TikaException;
+import org.apache.tika.exception.EncryptedDocumentException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * A task is defined as both the extraction from a file and the output of extracted data.
+ * Completion is only considered successful if both parts of the task complete with no exceptions.
+ *
+ * The final status of each task is saved to the reporter, if any is set.
+ *
+ * @since 1.0.0
+ */
+class ExtractingTask implements Runnable, Callable<Path> {
+
+	private static final Logger logger = LoggerFactory.getLogger(ExtractingTask.class);
+
+	protected final Path file;
+	protected final Extractor extractor;
+	protected final Spewer spewer;
+
+	private final Reporter reporter;
+
+	ExtractingTask(final Path file, final Extractor extractor, final Spewer spewer, final Reporter reporter) {
+		this.file = file;
+		this.extractor = extractor;
+		this.spewer = spewer;
+		this.reporter = reporter;
+	}
+
+	@Override
+	public void run() {
+		try {
+			call();
+		} catch (Exception e) {
+			logger.error(String.format("Exception while consuming file: \"%s\".", file), e);
+		}
+	}
+
+	@Override
+	public Path call() throws Exception {
+
+		// Check status in reporter. Skip if good.
+		if (null != reporter && reporter.check(file, ExtractionResult.SUCCEEDED)) {
+			logger.info(String.format("File already extracted; skipping: \"%s\".", file));
+
+		// Save status to registry and start a new job.
+		} else if (null != reporter) {
+			reporter.save(file, extractResult(file));
+		} else {
+			extract(file);
+		}
+
+		return file;
+	}
+
+	/**
+	 * Send a file to the {@link Extractor}.
+	 *
+	 * @param file path of file to extract from
+	 * @throws Exception if the extraction or output could not be completed
+	 */
+	private void extract(final Path file) throws Exception {
+		final Metadata metadata = new Metadata();
+		ParsingReader reader = null;
+
+		logger.info(String.format("Beginning extraction: \"%s\".", file));
+
+		try {
+			reader = extractor.extract(file, metadata);
+			spewer.write(file, metadata, reader);
+		} finally {
+			if (null != reader) {
+				reader.close();
+			}
+		}
+	}
+
+	/**
+	 * Send a file to the {@link Extractor} and return the result.
+	 *
+	 * @param file path of file to extract from
+	 * @return The extraction result code.
+	 */
+	private ExtractionResult extractResult(final Path file) {
+		ExtractionResult status = ExtractionResult.SUCCEEDED;
+
+		try {
+			extract(file);
+
+		// SpewerException is thrown exclusively due to an output endpoint error.
+		// It means that extraction succeeded, but the result could not be saved.
+		} catch (SpewerException e) {
+			logger.error(String.format("The extraction result could not be outputted: \"%s\".", file), e);
+			status = ExtractionResult.NOT_SAVED;
+		} catch (FileNotFoundException e) {
+			logger.error(String.format("File not found: \"%s\". Skipping.", file), e);
+			status = ExtractionResult.NOT_FOUND;
+		} catch (IOException e) {
+
+			// ParsingReader#read catches exceptions and wraps them in an IOException.
+			final Throwable c = e.getCause();
+
+			if (c instanceof ExcludedMediaTypeException) {
+				logger.error(String.format("The document was not parsed because all of the parsers that handle it " +
+						"were excluded: \"%s\".", file), e);
+				status = ExtractionResult.NOT_PARSED;
+			} else if (c instanceof EncryptedDocumentException) {
+				logger.error(String.format("Skipping encrypted file: \"%s\".", file), e);
+				status = ExtractionResult.NOT_DECRYPTED;
+
+			// TIKA-198: IOExceptions thrown by parsers will be wrapped in a TikaException.
+			// This helps us differentiate input stream exceptions from output stream exceptions.
+			// https://issues.apache.org/jira/browse/TIKA-198
+			} else if (c instanceof TikaException) {
+				logger.error(String.format("The document could not be parsed: \"%s\".", file), e);
+				status = ExtractionResult.NOT_PARSED;
+			} else {
+				logger.error(String.format("The document stream could not be read: \"%s\".", file), e);
+				status = ExtractionResult.NOT_READ;
+			}
+		} catch (Exception e) {
+			logger.error(String.format("Unknown exception during extraction or output: \"%s\".", file), e);
+			status = ExtractionResult.NOT_CLEAR;
+		}
+
+		if (ExtractionResult.SUCCEEDED == status) {
+			logger.info(String.format("Finished outputting file: \"%s\".", file));
+		}
+
+		return status;
+	}
+}

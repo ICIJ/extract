@@ -14,12 +14,14 @@ import org.xml.sax.SAXException;
  *
  * @since 1.0.0-beta
  */
-public class DenyingEmbeddedDocumentExtractor implements EmbeddedDocumentExtractor {
+class DenyingEmbeddedDocumentExtractor implements EmbeddedDocumentExtractor {
 
+	@Override
 	public boolean shouldParseEmbedded(Metadata metadata) {
 		return false;
 	}
 
+	@Override
 	public void parseEmbedded(InputStream stream, ContentHandler handler, Metadata metadata, boolean outputHtml) throws SAXException, IOException {
 		throw new IllegalStateException("A parser illegally attempted to parse an embedded document.");
 	}

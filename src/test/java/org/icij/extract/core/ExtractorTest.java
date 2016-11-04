@@ -22,14 +22,14 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.rules.ExpectedException;
 
-public class ExtractorTest extends TestBase {
+public class ExtractorTest {
 
 	@Rule
 	public final ExpectedException thrown = ExpectedException.none();
 
 	@Test
 	public void testOcr() throws Throwable {
-		final Extractor extractor = new Extractor(logger);
+		final Extractor extractor = new Extractor();
 		final Path file = Paths.get(getClass().getResource("/documents/ocr/simple.tiff").toURI());
 		final Metadata metadata = new Metadata();
 
@@ -45,7 +45,7 @@ public class ExtractorTest extends TestBase {
 
 	@Test
 	public void testDisableOcr() throws Throwable {
-		final Extractor extractor = new Extractor(logger);
+		final Extractor extractor = new Extractor();
 		extractor.disableOcr();
 
 		final Path file = Paths.get(getClass().getResource("/documents/ocr/simple.tiff").toURI());
@@ -65,7 +65,7 @@ public class ExtractorTest extends TestBase {
 
 	@Test
 	public void testFileNotFound() throws Throwable {
-		final Extractor extractor = new Extractor(logger);
+		final Extractor extractor = new Extractor();
 
 		final Path file = Paths.get("nothing");
 
@@ -77,7 +77,7 @@ public class ExtractorTest extends TestBase {
 
 	@Test
 	public void testEncryptedPdf() throws Throwable {
-		final Extractor extractor = new Extractor(logger);
+		final Extractor extractor = new Extractor();
 
 		final Path file = Paths.get(getClass().getResource("/documents/pdf/encrypted.pdf").toURI());
 		final Metadata metadata = new Metadata();
@@ -96,7 +96,7 @@ public class ExtractorTest extends TestBase {
 
 	@Test
 	public void testGarbage() throws Throwable {
-		final Extractor extractor = new Extractor(logger);
+		final Extractor extractor = new Extractor();
 
 		final Path file = Paths.get(getClass().getResource("/documents/garbage.bin").toURI());
 		final Metadata metadata = new Metadata();
@@ -115,7 +115,7 @@ public class ExtractorTest extends TestBase {
 
 	@Test
 	public void testEmbeds() throws Throwable {
-		final Extractor extractor = new Extractor(logger);
+		final Extractor extractor = new Extractor();
 
 		final Path file = Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").toURI());
 		final Metadata metadata = new Metadata();
@@ -132,8 +132,10 @@ public class ExtractorTest extends TestBase {
 
 	@Test
 	public void testIgnoreEmbeds() throws Throwable {
-		final Extractor extractor = new Extractor(logger);
+		final Extractor extractor = new Extractor();
+
 		extractor.setEmbedHandling(Extractor.EmbedHandling.IGNORE);
+		Assert.assertEquals(extractor.getEmbedHandling(), Extractor.EmbedHandling.IGNORE);
 
 		final Path file = Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").toURI());
 		final Metadata metadata = new Metadata();
@@ -150,7 +152,7 @@ public class ExtractorTest extends TestBase {
 
 	@Test
 	public void testDisableOcrOnEmbed() throws Throwable {
-		final Extractor extractor = new Extractor(logger);
+		final Extractor extractor = new Extractor();
 		extractor.disableOcr();
 
 		final Path file = Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").toURI());
@@ -168,7 +170,7 @@ public class ExtractorTest extends TestBase {
 
 	@Test
 	public void testHtmlOutput() throws Throwable {
-		final Extractor extractor = new Extractor(logger);
+		final Extractor extractor = new Extractor();
 		extractor.setOutputFormat(Extractor.OutputFormat.HTML);
 
 		final Path file = Paths.get(getClass().getResource("/documents/text/utf16.txt").toURI());
@@ -186,7 +188,7 @@ public class ExtractorTest extends TestBase {
 
 	@Test
 	public void testHtmlOutputWithEmbeds() throws Throwable {
-		final Extractor extractor = new Extractor(logger);
+		final Extractor extractor = new Extractor();
 		extractor.setOutputFormat(Extractor.OutputFormat.HTML);
 
 		final Path file = Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").toURI());
@@ -204,9 +206,13 @@ public class ExtractorTest extends TestBase {
 
 	@Test
 	public void testHtmlOutputWithEmbeddedEmbeds() throws Throwable {
-		final Extractor extractor = new Extractor(logger);
+		final Extractor extractor = new Extractor();
+
 		extractor.setOutputFormat(Extractor.OutputFormat.HTML);
+		Assert.assertEquals(extractor.getOutputFormat(), Extractor.OutputFormat.HTML);
+
 		extractor.setEmbedHandling(Extractor.EmbedHandling.EMBED);
+		Assert.assertEquals(extractor.getEmbedHandling(), Extractor.EmbedHandling.EMBED);
 
 		final Path file = Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").toURI());
 		final Metadata metadata = new Metadata();
@@ -223,7 +229,7 @@ public class ExtractorTest extends TestBase {
 
 	@Test
 	public void testFailsWithoutWorkingDirectory() throws Throwable {
-		final Extractor extractor = new Extractor(logger);
+		final Extractor extractor = new Extractor();
 		final Path file = Paths.get("text/plain.txt");
 
 		Assert.assertNull(extractor.getWorkingDirectory());
@@ -235,7 +241,7 @@ public class ExtractorTest extends TestBase {
 
 	@Test
 	public void testSucceedsWithWorkingDirectory() throws Throwable {
-		final Extractor extractor = new Extractor(logger);
+		final Extractor extractor = new Extractor();
 		final Path workingDirectory = Paths.get(getClass().getResource("/documents").toURI());
 		extractor.setWorkingDirectory(workingDirectory);
 		Assert.assertEquals(workingDirectory.toString(), extractor.getWorkingDirectory().toString());

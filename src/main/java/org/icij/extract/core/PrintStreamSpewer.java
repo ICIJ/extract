@@ -1,10 +1,7 @@
 package org.icij.extract.core;
 
-import java.util.logging.Logger;
-
 import java.io.Reader;
 import java.io.IOException;
-import java.io.Closeable;
 import java.io.PrintStream;
 
 import java.nio.file.Path;
@@ -18,15 +15,15 @@ import org.apache.commons.io.IOUtils;
  *
  * @since 1.0.0-beta
  */
-public class PrintStreamSpewer extends Spewer implements Closeable {
+public class PrintStreamSpewer extends Spewer {
 
 	private final PrintStream stream;
 
-	public PrintStreamSpewer(final Logger logger, final PrintStream stream) {
-		super(logger);
+	public PrintStreamSpewer(final PrintStream stream) {
 		this.stream = stream;
 	}
 
+	@Override
 	public void write(final Path file, final Metadata metadata, final Reader reader) throws IOException {
 
 		// A PrintStream should never throw an IOException: the exception would always come from the input stream.

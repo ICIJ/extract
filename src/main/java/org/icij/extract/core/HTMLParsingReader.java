@@ -16,8 +16,6 @@
  */
 package org.icij.extract.core;
 
-import java.util.logging.Logger;
-
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -36,24 +34,23 @@ import org.xml.sax.ContentHandler;
 public class HTMLParsingReader extends ParsingReader {
 
 	/**
-	 * Creates a reader for the HTML content of the given binary stream
-	 * with the given document metadata. The given parser is used for the
-	 * parsing task that is run with the given executor.
+	 * Creates a reader for the HTML content of the given binary stream with the given document metadata. The given
+	 * parser is used for the parsing task that is run with the given executor.
 	 *
 	 * The created reader will be responsible for closing the given stream.
-	 * The stream and any associated resources will be closed at or before
-	 * the time when the {@link #close()} method is called on this reader.
 	 *
-	 * @param logger logger instance
+	 * The stream and any associated resources will be closed at or before the time when the {@link #close()} method
+	 * is called on this reader.
+	 *
 	 * @param parser parser instance
 	 * @param input binary stream
 	 * @param metadata document metadata
 	 * @param context parsing context
 	 * @throws IOException if the document can not be parsed
 	 */
-	public HTMLParsingReader(Logger logger, Parser parser, InputStream input, Metadata metadata, ParseContext context)
+	public HTMLParsingReader(Parser parser, InputStream input, Metadata metadata, ParseContext context)
 		throws IOException {
-		super(logger, parser, input, metadata, context);
+		super(parser, input, metadata, context);
 	}
 
 	@Override

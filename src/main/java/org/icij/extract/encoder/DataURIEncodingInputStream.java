@@ -21,10 +21,10 @@ import org.apache.tika.detect.AutoDetectReader;
 import org.apache.tika.exception.TikaException;
 
 import org.apache.commons.codec.binary.Base64InputStream;
+import org.icij.io.URLEncodingInputStream;
 
 /**
- * An {@link InputStream} that encodes arbitrary binary data from an
- * input stream in data URI format.
+ * An {@link InputStream} that encodes arbitrary binary data from an input stream in data URI format.
  *
  * This object is thread-safe.
  *
@@ -32,7 +32,7 @@ import org.apache.commons.codec.binary.Base64InputStream;
  */
 public class DataURIEncodingInputStream extends InputStream {
 
-	protected static MediaType detectType(final Path path, final Metadata metadata) throws IOException {
+	private static MediaType detectType(final Path path, final Metadata metadata) throws IOException {
 		MediaType type = null;
 
 		// There seems to be some confusion in Tika about which key to use.
@@ -73,7 +73,7 @@ public class DataURIEncodingInputStream extends InputStream {
 		return type;
 	}
 
-	protected static Charset detectCharset(final Path path, final Metadata metadata) throws IOException {
+	private static Charset detectCharset(final Path path, final Metadata metadata) throws IOException {
 		final Charset charset;
 
 		// Try to get the character set from the content-encoding.
@@ -110,9 +110,8 @@ public class DataURIEncodingInputStream extends InputStream {
 
 	public DataURIEncodingInputStream(final InputStream in, final MediaType type) {
 
-		// Only text documents should be URL-encoded. It doesn't matter if the encoding
-		// is supported or not because the URL-encoder works on raw bytes.
-		// Everything else must be base-64-encoded.
+		// Only text documents should be URL-encoded. It doesn't matter if the encoding is supported or not because
+		// the URL-encoder works on raw bytes. Everything else must be base-64-encoded.
 		if (type.getType().equals("text")) {
 			this.prepend = ("data:" + type + ",").getBytes(StandardCharsets.US_ASCII);
 			this.encoder = new URLEncodingInputStream(in);

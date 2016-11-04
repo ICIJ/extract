@@ -10,7 +10,7 @@ import org.redisson.client.codec.StringCodec;
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
  */
-public class RedisReportCodec extends StringCodec {
+class RedisReportCodec extends StringCodec {
 
 	private final Decoder<Object> resultDecoder = new ResultDecoder();
 	private final Decoder<Object> pathDecoder = new PathDecoder();

@@ -1,7 +1,5 @@
 package org.icij.extract.core;
 
-import java.util.logging.Logger;
-
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -24,25 +22,22 @@ public class TextParsingReader extends ParsingReader {
 	/**
 	 * Creates a reader for the content of the given binary stream.
 	 *
-	 * @param logger logger instance
 	 * @param input binary stream
 	 * @throws IOException if the document can not be parsed
 	 */
-	public TextParsingReader(Logger logger, InputStream input) throws IOException {
-		super(logger, input);
+	public TextParsingReader(final InputStream input) throws IOException {
+		super(input);
 	}
 	
 	/**
-	 * Creates a reader for the content of the given binary stream
-	 * with the given name.
+	 * Creates a reader for the content of the given binary stream with the given name.
 	 *
-	 * @param logger logger instance
 	 * @param input binary stream
 	 * @param name document name
 	 * @throws IOException if the document can not be parsed
 	 */
-	public TextParsingReader(Logger logger, InputStream input, String name) throws IOException {
-		super(logger, input, name);
+	public TextParsingReader(final InputStream input, final String name) throws IOException {
+		super(input, name);
 	}
 
 	/**
@@ -54,15 +49,16 @@ public class TextParsingReader extends ParsingReader {
 	 * The stream and any associated resources will be closed at or before
 	 * the time when the {@link #close()} method is called on this reader.
 	 *
-	 * @param logger logger instance
 	 * @param parser parser instance
 	 * @param input binary stream
 	 * @param metadata document metadata
 	 * @param context parsing context
 	 * @throws IOException if the document can not be parsed
 	 */
-	public TextParsingReader(Logger logger, Parser parser, InputStream input, Metadata metadata, ParseContext context) throws IOException {
-		super(logger, parser, input, metadata, context);
+	TextParsingReader(final Parser parser, final InputStream input, final Metadata metadata, final ParseContext
+			context) throws
+			IOException {
+		super(parser, input, metadata, context);
 	}
 
 	@Override
@@ -73,7 +69,7 @@ public class TextParsingReader extends ParsingReader {
 	/**
 	 * The background parsing task.
 	 */
-	protected class ParsingTask extends ParsingReader.ParsingTask {
+	private class ParsingTask extends ParsingReader.ParsingTask {
 
 	    /**
 	     * Parses the given binary stream and writes the text content

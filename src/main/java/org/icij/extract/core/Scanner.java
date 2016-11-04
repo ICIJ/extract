@@ -1,14 +1,17 @@
 package org.icij.extract.core;
 
-import org.icij.extract.matcher.*;
+import org.icij.executor.ExecutorProxy;
+import org.icij.concurrent.*;
+import org.icij.io.file.matcher.*;
 
-import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Set;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.ArrayDeque;
-
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import java.io.IOException;
 
@@ -16,7 +19,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ExecutorService;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -49,13 +51,16 @@ import java.nio.file.attribute.BasicFileAttributes;
  *
  * @since 1.0.0-beta
  */
-public class Scanner {
-	protected final Logger logger;
-	protected final Queue queue;
-	protected final ExecutorService executor = Executors.newSingleThreadExecutor();
+public class Scanner extends ExecutorProxy {
 
-	protected final ArrayDeque<String> includeGlobs = new ArrayDeque<>();
-	protected final ArrayDeque<String> excludeGlobs = new ArrayDeque<>();
+	private static final Logger logger = LoggerFactory.getLogger(Scanner.class);
+
+	protected final PathQueue queue;
+
+	private final ArrayDeque<String> includeGlobs = new ArrayDeque<>();
+	private final ArrayDeque<String> excludeGlobs = new ArrayDeque<>();
+	private final SealableLatch latch = new BooleanSealableLatch();
+	private long queued = 0;
 
 	private int maxDepth = Integer.MAX_VALUE;
 	private boolean followLinks = false;
@@ -63,24 +68,21 @@ public class Scanner {
 	private boolean ignoreSystemFiles = true;
 
 	/**
-	 * Creates a {@code Scanner} that sends all results straight to
-	 * the underlying {@link Queue}.
+	 * Creates a {@code Scanner} that sends all results straight to the underlying {@link PathQueue} on a single thread.
 	 *
-	 * @param logger logger
 	 * @param queue results from the scanner will be put on this queue
 	 */
-	public Scanner(final Logger logger, final Queue queue) {
-		this.logger = logger;
+	public Scanner(final PathQueue queue) {
+		super(Executors.newSingleThreadExecutor());
 		this.queue = queue;
 	}
 
 	/**
-	 * Add a glob pattern for including files and directories. Files and directories not matching the pattern will be
-	 * ignored.
+	 * Add a glob pattern for including files. Files not matching the pattern will be ignored.
 	 *
 	 * @param pattern the glob pattern
 	 */
-	public void addIncludeGlob(final String pattern) {
+	public void include(final String pattern) {
 		includeGlobs.add("glob:" + pattern);
 	}
 
@@ -89,7 +91,7 @@ public class Scanner {
 	 *
 	 * @param pattern the glob pattern
 	 */
-	public void addExcludeGlob(final String pattern) {
+	public void exclude(final String pattern) {
 		excludeGlobs.add("glob:" + pattern);
 	}
 
@@ -113,6 +115,9 @@ public class Scanner {
 
 	/**
 	 * Set whether hidden files should be ignored.
+	 *
+	 * File names starting with a dot will always be ignored if set to {@literal true}, but DOS hidden files will
+	 * only be ignored if the filesystem supports the DOS hidden fileattribute.
 	 *
 	 * @param ignoreHiddenFiles whether to ignore hidden files
 	 */
@@ -166,12 +171,28 @@ public class Scanner {
 	}
 
 	/**
+	 * Get the queue put condition.
+	 *
+	 * @return The poll condition.
+	 */
+	public SealableLatch getLatch() {
+		return latch;
+	}
+
+	/**
+	 * @return The total number of queued paths over the lifetime of this scanner.
+	 */
+	public long queued() {
+		return queued;
+	}
+
+	/**
 	 * Queue a scanning job.
 	 *
 	 * Jobs are put in an unbounded queue and executed in serial, in a separate thread.
-	 * This method doesn't block. Call {@link #awaitTermination()} to block.
+	 * This method doesn't block. Call {@link #awaitTermination(long, TimeUnit)} to block.
 	 *
-	 * @param base the base path, stripped from paths before queuing
+	 * @param base the base path, stripped from file paths encountered by the scanner before queuing
 	 * @param path the path to scan
 	 * @return A {@link Future} that can be used to wait on the result or cancel.
 	 */
@@ -179,9 +200,13 @@ public class Scanner {
 		final FileSystem fileSystem = path.getFileSystem();
 		final ScannerVisitor visitor = new ScannerVisitor(base, path);
 
+		// In order to make hidden-file-ignoring logic more predictable, always ignore file names starting with a
+		// dot, but only ignore DOS hidden files if the file system supports that attribute.
 		if (ignoreHiddenFiles) {
-			visitor.exclude(HiddenFileMatcherFactory
-					.createMatcher(fileSystem));
+			visitor.exclude(new PosixHiddenFileMatcher());
+			if (fileSystem.supportedFileAttributeViews().contains("dos")) {
+				visitor.exclude(new DosHiddenFileMatcher());
+			}
 		}
 
 		if (ignoreSystemFiles) {
@@ -212,6 +237,35 @@ public class Scanner {
 	}
 
 	/**
+	 * Submit all of the given paths to the scanner for execution, returning a list of {@link Future} objects
+	 * representing those tasks.
+	 *
+	 * @see #scan(Path, Path)
+	 * @return a {@link Future} for each path scanned
+	 */
+	public List<Future<Path>> scan(final Path base, final Path[] paths) {
+		final List<Future<Path>> futures = new ArrayList<>();
+
+		for (Path path : paths) futures.add(scan(base, path));
+		return futures;
+	}
+
+	/**
+	 * @see #scan(Path, Path[])
+	 */
+	public List<Future<Path>> scan(final String base, final String[] paths) {
+		final Path[] _paths = new Path[paths.length];
+
+		for (int i = 0; i < paths.length; i++) _paths[i] = Paths.get(paths[i]);
+
+		if (null != base) {
+			return scan(Paths.get(base), _paths);
+		}
+
+		return scan(_paths);
+	}
+
+	/**
 	 * @see Scanner#scan(Path, Path)
 	 */
 	public Future<Path> scan(final Path path) {
@@ -226,48 +280,22 @@ public class Scanner {
 	}
 
 	/**
-	 * Await termination of all running and waiting jobs.
-	 *
-	 * This method blocks until all paths have been scanned.
-	 *
-	 * @throws InterruptedException if the thread is interrupted while waiting.
+	 * @see #scan(String, String[])
 	 */
-	public void awaitTermination() throws InterruptedException {
-		do {
-			logger.info("Awaiting completion of scanner.");
-		} while (!executor.awaitTermination(60, TimeUnit.SECONDS));
-		logger.info("Scanner finished.");
-	}
+	public List<Future<Path>> scan(final Path[] paths) { return scan(null, paths); }
 
 	/**
-	 * Shut down the scanner, waiting for all previously queued tasks to complete.
-	 *
-	 * This method should be called to free up resources when the scanner is no longer needed.
+	 * @see #scan(Path, Path[])
 	 */
-	public void shutdown() {
-		logger.info("Shutting down scanner.");
-		executor.shutdown();
-	}
+	public List<Future<Path>> scan(final String[] paths) { return scan(null, paths); }
 
-	/**
-	 * Shut down the scanner, interrupting running tasks and cancelling waiting ones.
-	 *
-	 * @return list of tasks that never commenced execution
-	 */
-	public List<Runnable> shutdownNow() {
-		logger.info("Shutting down scanner immediately.");
-		return executor.shutdownNow();
-	}
-
-	protected class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<Path> {
+	private class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<Path> {
 
 		private final ArrayDeque<PathMatcher> includeMatchers = new ArrayDeque<>();
 		private final ArrayDeque<PathMatcher> excludeMatchers = new ArrayDeque<>();
 
-		private int visited = 0;
-
-		protected final Path base;
-		protected final Path path;
+		private final Path base;
+		private final Path path;
 
 		/**
 		 * Instantiate a new task for scanning the given path.
@@ -275,13 +303,14 @@ public class Scanner {
 		 * @param base the base path, to be stripped from scanned paths before queuing
 		 * @param path the path to scan
 		 */
-		public ScannerVisitor(final Path base, final Path path) {
+		ScannerVisitor(final Path base, final Path path) {
 			this.base = base;
 			this.path = path;
 		}
 
 		/**
-		 * Recursively walks the file tree of a directory.
+		 * Recursively walks the file tree of a directory. When walking is finished or stopped by an exception, the
+		 * latch is sealed and signalled.
 		 *
 		 * @return the path at which scanning started
 		 */
@@ -299,9 +328,11 @@ public class Scanner {
 			try {
 				Files.walkFileTree(path, options, maxDepth, this);
 			} catch (IOException e) {
-				logger.log(Level.SEVERE, String.format("Error while scanning path: \"%s\".",
-						path), e);
+				logger.error(String.format("Error while scanning path: \"%s\".", path), e);
 				throw e;
+			} finally {
+				latch.seal();
+				latch.signal();
 			}
 
 			logger.info(String.format("Completed scan of: \"%s\".", path));
@@ -313,12 +344,15 @@ public class Scanner {
 		 *
 		 * @throws InterruptedException if interrupted while waiting for a queue slot
 		 */
-		protected void queue(final Path file) throws InterruptedException {
+		void queue(final Path file) throws InterruptedException {
 			if (null != base && file.startsWith(base)) {
 				queue.put(file.subpath(base.getNameCount(), file.getNameCount()));
 			} else {
 				queue.put(file);
 			}
+
+			queued++;
+			latch.signal();
 		}
 
 		/**
@@ -326,7 +360,7 @@ public class Scanner {
 		 *
 		 * @param matcher the matcher
 		 */
-		public void exclude(final PathMatcher matcher) {
+		void exclude(final PathMatcher matcher) {
 			excludeMatchers.add(matcher);
 		}
 
@@ -335,7 +369,7 @@ public class Scanner {
 		 *
 		 * @param matcher the matcher
 		 */
-		public void include(final PathMatcher matcher) {
+		void include(final PathMatcher matcher) {
 			includeMatchers.add(matcher);
 		}
 
@@ -345,7 +379,7 @@ public class Scanner {
 		 * @param path path to check
 		 * @return whether the path should be excluded
 		 */
-		public boolean shouldExclude(final Path path) {
+		boolean shouldExclude(final Path path) {
 			return matches(path, excludeMatchers);
 		}
 
@@ -355,7 +389,7 @@ public class Scanner {
 		 * @param path path to check
 		 * @return whether the path should be included
 		 */
-		public boolean shouldInclude(final Path path) {
+		boolean shouldInclude(final Path path) {
 			return includeMatchers.size() == 0 || matches(path, includeMatchers);
 		}
 
@@ -376,9 +410,10 @@ public class Scanner {
 		}
 
 		@Override
-		public FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attrs) throws IOException {
+		public FileVisitResult preVisitDirectory(final Path directory, final BasicFileAttributes attributes) throws
+				IOException {
 			if (Thread.currentThread().isInterrupted()) {
-				logger.warning("Scanner interrupted. Terminating job.");
+				logger.warn("Scanner interrupted. Terminating job.");
 				return FileVisitResult.TERMINATE;
 			}
 
@@ -391,25 +426,18 @@ public class Scanner {
 		}
 
 		@Override
-		public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) throws IOException {
+		public FileVisitResult visitFile(final Path file, final BasicFileAttributes attributes) throws IOException {
 			if (Thread.currentThread().isInterrupted()) {
-				logger.warning("Scanner interrupted. Terminating job.");
+				logger.warn("Scanner interrupted. Terminating job.");
 				return FileVisitResult.TERMINATE;
 			}
 
-			visited++;
-			if (visited % 10000 == 0) {
-				logger.info(String.format("Scanner visited %d files.", visited));
-			}
-
+			// From the documentation:
+			// "When following links, and the attributes of the target cannot be read, then this method attempts to
+			// get the BasicFileAttributes of the link."
 			if (attributes.isSymbolicLink()) {
-
-				// From the documentation:
-				// "When following links, and the attributes of the target cannot be read, then this method attempts to
-				// get the BasicFileAttributes of the link."
 				if (followLinks) {
-					logger.warning(String.format("Unable to read attributes of symbolic link target: \"%s\". Skipping" +
-							".", file));
+					logger.warn(String.format("Unable to read attributes of symlink target: \"%s\". Skipping.", file));
 				}
 
 				return FileVisitResult.CONTINUE;
@@ -428,10 +456,10 @@ public class Scanner {
 				queue(file);
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
-				logger.warning("Interrupted. Terminating scanner.");
+				logger.warn("Interrupted. Terminating scanner.");
 				return FileVisitResult.TERMINATE;
 			} catch (Exception e) {
-				logger.log(Level.SEVERE, String.format("Exception while queuing file: \"%s\".", file), e);
+				logger.error(String.format("Exception while queuing file: \"%s\".", file), e);
 				throw e;
 			}
 
@@ -444,7 +472,7 @@ public class Scanner {
 			// If the file or directory was going to be excluded anyway, suppress the exception.
 			// Don't re-throw the error. Scanning must be robust. Just log it.
 			if (!shouldExclude(file)) {
-				logger.log(Level.SEVERE, String.format("Unable to read attributes of file: \"%s\".", file), e);
+				logger.error(String.format("Unable to read attributes of file: \"%s\".", file), e);
 			}
 
 			return FileVisitResult.CONTINUE;
