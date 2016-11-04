@@ -25,6 +25,19 @@
 		<capsule.version>1.0.3</capsule.version>
 	</properties>
 
+	<repositories>
+
+		<!-- Tika repository for release candidates, until official 1.14 release. -->
+		<repository>
+			<id>tika-mvn-repo</id>
+			<url>https://repository.apache.org/content/repositories/orgapachetika-1020/</url>
+			<snapshots>
+				<enabled>true</enabled>
+				<updatePolicy>always</updatePolicy>
+			</snapshots>
+		</repository>
+	</repositories>
+
 	<dependencies>
 
 		<dependency>
@@ -48,7 +61,7 @@
 		<dependency>
 			<groupId>org.apache.tika</groupId>
 			<artifactId>tika-parsers</artifactId>
-			<version>1.13</version>
+			<version>1.14</version>
 		</dependency>
 
 		<!-- Optional PDFBox dependency for parsing JBIG2 format images in PDF files. -->

@@ -27,34 +27,35 @@
     <orderEntry type="library" name="Maven: commons-cli:commons-cli:1.3.1" level="project" />
     <orderEntry type="library" name="Maven: commons-io:commons-io:2.5" level="project" />
     <orderEntry type="library" name="Maven: commons-codec:commons-codec:1.10" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.tika:tika-parsers:1.13" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.tika:tika-core:1.13" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.tika:tika-parsers:1.14" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.tika:tika-core:1.14" level="project" />
     <orderEntry type="library" name="Maven: org.gagravarr:vorbis-java-tika:0.8" level="project" />
-    <orderEntry type="library" name="Maven: com.healthmarketscience.jackcess:jackcess:2.1.3" level="project" />
+    <orderEntry type="library" name="Maven: com.healthmarketscience.jackcess:jackcess:2.1.4" level="project" />
     <orderEntry type="library" name="Maven: com.healthmarketscience.jackcess:jackcess-encrypt:2.1.1" level="project" />
-    <orderEntry type="library" name="Maven: net.sourceforge.jmatio:jmatio:1.0" level="project" />
+    <orderEntry type="library" name="Maven: org.tallison:jmatio:1.2" level="project" />
     <orderEntry type="library" name="Maven: org.apache.james:apache-mime4j-core:0.7.2" level="project" />
     <orderEntry type="library" name="Maven: org.apache.james:apache-mime4j-dom:0.7.2" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.commons:commons-compress:1.11" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.commons:commons-compress:1.12" level="project" />
     <orderEntry type="library" name="Maven: org.tukaani:xz:1.5" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.pdfbox:pdfbox:2.0.1" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.pdfbox:fontbox:2.0.1" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.pdfbox:pdfbox-tools:2.0.1" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.pdfbox:pdfbox-debugger:2.0.1" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.pdfbox:pdfbox:2.0.3" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.pdfbox:fontbox:2.0.3" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.pdfbox:pdfbox-tools:2.0.3" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.pdfbox:pdfbox-debugger:2.0.3" level="project" />
     <orderEntry type="library" name="Maven: org.apache.pdfbox:jempbox:1.8.12" level="project" />
     <orderEntry type="library" name="Maven: org.bouncycastle:bcmail-jdk15on:1.54" level="project" />
     <orderEntry type="library" name="Maven: org.bouncycastle:bcpkix-jdk15on:1.54" level="project" />
     <orderEntry type="library" name="Maven: org.bouncycastle:bcprov-jdk15on:1.54" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.poi:poi:3.15-beta1" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.poi:poi-scratchpad:3.15-beta1" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.poi:poi-ooxml:3.15-beta1" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.poi:poi-ooxml-schemas:3.15-beta1" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.poi:poi:3.15" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.commons:commons-collections4:4.1" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.poi:poi-scratchpad:3.15" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.poi:poi-ooxml:3.15" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.poi:poi-ooxml-schemas:3.15" level="project" />
     <orderEntry type="library" name="Maven: org.apache.xmlbeans:xmlbeans:2.6.0" level="project" />
-    <orderEntry type="library" name="Maven: com.github.virtuald:curvesapi:1.03" level="project" />
+    <orderEntry type="library" name="Maven: com.github.virtuald:curvesapi:1.04" level="project" />
     <orderEntry type="library" name="Maven: org.ccil.cowan.tagsoup:tagsoup:1.2.1" level="project" />
     <orderEntry type="library" name="Maven: org.ow2.asm:asm:5.0.4" level="project" />
     <orderEntry type="library" name="Maven: com.googlecode.mp4parser:isoparser:1.1.18" level="project" />
-    <orderEntry type="library" name="Maven: com.drewnoakes:metadata-extractor:2.8.1" level="project" />
+    <orderEntry type="library" name="Maven: com.drewnoakes:metadata-extractor:2.9.1" level="project" />
     <orderEntry type="library" name="Maven: com.adobe.xmp:xmpcore:5.1.2" level="project" />
     <orderEntry type="library" name="Maven: de.l3s.boilerpipe:boilerpipe:1.1.0" level="project" />
     <orderEntry type="library" name="Maven: com.rometools:rome:1.5.1" level="project" />
@@ -78,10 +79,10 @@
     <orderEntry type="library" name="Maven: org.apache.cxf:cxf-rt-frontend-jaxrs:3.0.3" level="project" />
     <orderEntry type="library" name="Maven: javax.ws.rs:javax.ws.rs-api:2.0.1" level="project" />
     <orderEntry type="library" name="Maven: javax.annotation:javax.annotation-api:1.2" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.commons:commons-exec:1.3" level="project" />
     <orderEntry type="library" name="Maven: org.apache.opennlp:opennlp-tools:1.5.3" level="project" />
     <orderEntry type="library" name="Maven: org.apache.opennlp:opennlp-maxent:3.0.3" level="project" />
     <orderEntry type="library" name="Maven: net.sf.jwordnet:jwnl:1.3.3" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.commons:commons-exec:1.3" level="project" />
     <orderEntry type="library" name="Maven: com.googlecode.json-simple:json-simple:1.1.1" level="project" />
     <orderEntry type="library" name="Maven: org.json:json:20140107" level="project" />
     <orderEntry type="library" name="Maven: com.google.code.gson:gson:2.2.4" level="project" />
