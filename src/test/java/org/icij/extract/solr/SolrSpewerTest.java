@@ -85,9 +85,9 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		final SolrDocument response = client.getById(pathHash);
 		Assert.assertEquals(path.toString(), response.getFieldValue("path"));
 		Assert.assertEquals(length, response.getFieldValue("metadata_content_length"));
-		Assert.assertEquals("text/plain", response.getFieldValue("base_type"));
+		Assert.assertEquals("text/plain", response.getFieldValue("metadata_base_type"));
 		Assert.assertEquals("text/plain; charset=UTF-8", response.getFieldValue("metadata_content_type"));
-		Assert.assertEquals("test", response.getFieldValue("parent_path"));
+		Assert.assertEquals("test", response.getFieldValue("metadata_parent_path"));
 	}
 
 	@Test

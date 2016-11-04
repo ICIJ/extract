@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
  */
 @Task("Extract from files.")
 @Option(name = "queue-type", description = "Set the queue backend type. For now, the only valid value is " +
-		"\"redis\".", parameter = "type", code = "r")
+		"\"redis\".", parameter = "type", code = "q")
 @Option(name = "queue-name", description = "The name of the queue, the default of which is type-dependent" +
 		".", parameter = "name")
 @Option(name = "queue-buffer", description = "The size of the internal file path buffer used by the queue" +

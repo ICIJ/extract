@@ -28,9 +28,9 @@
 		<field name="_version_" type="long" indexed="true" stored="true" />
 		<field name="id" type="string" indexed="true" stored="true" multiValued="false" required="true" />
 		<field name="batch" type="string" indexed="true" stored="true" />
-		<field name="base_type" type="string" indexed="true" stored="true" />
+		<field name="metadata_base_type" type="string" indexed="true" stored="true" />
 		<field name="path" type="descendant_path" indexed="true" stored="true" />
-		<field name="parent_path" type="descendant_path" indexed="true" stored="true" />
+		<field name="metadata_parent_path" type="descendant_path" indexed="true" stored="true" />
 		<field name="text" type="text" indexed="true" stored="false" />
 
 		<!-- Main body of document. NOTE: This field is not indexed by default, since it is also copied to "text" using copyField below. This is to save space. Use this field for returning and highlighting document content. Use the "text" field to search the content. -->

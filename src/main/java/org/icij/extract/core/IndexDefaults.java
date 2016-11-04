@@ -11,8 +11,8 @@ public class IndexDefaults {
 	public static final String DEFAULT_ID_FIELD = "id";
 	public static final String DEFAULT_TEXT_FIELD = "content";
 	public static final String DEFAULT_PATH_FIELD = "path";
-	public static final String DEFAULT_BASE_TYPE_FIELD = "base_type";
-	public static final String DEFAULT_PARENT_PATH_FIELD = "parent_path";
+	public static final String DEFAULT_BASE_TYPE_FIELD = "metadata_base_type";
+	public static final String DEFAULT_PARENT_PATH_FIELD = "metadata_parent_path";
 	public static final String DEFAULT_METADATA_FIELD_PREFIX = "metadata_";
 
 	/**
