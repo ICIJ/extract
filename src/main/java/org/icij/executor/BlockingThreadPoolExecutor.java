@@ -182,6 +182,7 @@ public class BlockingThreadPoolExecutor extends ThreadPoolExecutor {
 		// one signal if two or more threads decrement almost together and come to the if with 0 tasks together.
 		synchronized (this) {
 			tasksInProcess.decrementAndGet();
+			permits.release();
 			if (tasksInProcess.intValue() == 0) {
 				synchronizer.signalAll();
 			}
