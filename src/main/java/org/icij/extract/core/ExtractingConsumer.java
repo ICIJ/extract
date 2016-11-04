@@ -56,8 +56,7 @@ public class ExtractingConsumer extends ExecutorProxy implements Consumer<Path> 
 	 * @param extractor the {@code Extractor} used to extract from files
 	 * @param executor the executor used to run consuming tasks
 	 */
-	public ExtractingConsumer(final Spewer spewer, final Extractor extractor, final ExecutorService
-			executor) {
+	public ExtractingConsumer(final Spewer spewer, final Extractor extractor, final ExecutorService executor) {
 		super(executor);
 		this.spewer = spewer;
 		this.extractor = extractor;

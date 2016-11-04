@@ -27,9 +27,6 @@ import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.io.TikaInputStream;
 
-import org.slf4j.LoggerFactory;
-import org.slf4j.Logger;
-
 /**
  * A reusable class that sets up Tika parsers based on runtime options.
  *
@@ -62,11 +59,6 @@ public class Extractor {
 	}
 
 	public static final Duration DEFAULT_OCR_TIMEOUT = Duration.ofHours(12);
-
-	/**
-	 * Logger for logging exceptions.
-	 */
-	private static final Logger logger = LoggerFactory.getLogger(ParsingReader.class);
 
 	private boolean ocrDisabled = false;
 	private Path workingDirectory = null;
