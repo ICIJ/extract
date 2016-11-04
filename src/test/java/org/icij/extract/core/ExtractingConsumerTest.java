@@ -25,7 +25,7 @@ public class ExtractingConsumerTest {
 		final PrintStream print = new PrintStream(output);
 		final Spewer spewer = new PrintStreamSpewer(print);
 
-		final ExtractingConsumer consumer = new ExtractingConsumer(spewer, extractor);
+		final ExtractingConsumer consumer = new ExtractingConsumer(spewer, extractor, 1);
 
 		final Path file = getFile();
 
@@ -39,7 +39,7 @@ public class ExtractingConsumerTest {
 	@Test
 	public void testSetReporter() throws Throwable {
 		final Spewer spewer = new PrintStreamSpewer(new PrintStream(new ByteArrayOutputStream()));
-		final ExtractingConsumer consumer = new ExtractingConsumer(spewer, new Extractor());
+		final ExtractingConsumer consumer = new ExtractingConsumer(spewer, new Extractor(), 1);
 		final Reporter reporter = new Reporter(new HashMapReport());
 		final Path file = getFile();
 
