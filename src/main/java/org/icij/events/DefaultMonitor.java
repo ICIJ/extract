@@ -36,7 +36,7 @@ public class DefaultMonitor implements Monitor {
 		}
 
 		for (int i = listeners.length - 1; i >= 0; i--) {
-			((Listener) listeners[i]).step(this, arg);
+			((Listener) listeners[i]).notify(this, arg);
 		}
 	}
 
@@ -49,7 +49,7 @@ public class DefaultMonitor implements Monitor {
 		}
 
 		for (int i = listeners.length - 1; i >= 0; i--) {
-			((Listener) listeners[i]).steps(remaining);
+			((Listener) listeners[i]).hintRemaining(remaining);
 		}
 	}
 

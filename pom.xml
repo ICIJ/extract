@@ -129,7 +129,7 @@
 		<dependency>
 			<groupId>me.tongfei</groupId>
 			<artifactId>progressbar</artifactId>
-			<version>0.4.2</version>
+			<version>0.5.1</version>
 		</dependency>
 
 		<!-- EXCLUDED DEPENDENCY (excluded from capsule because it is test scope) -->

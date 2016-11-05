@@ -35,7 +35,6 @@ public abstract class SpewerFactory {
 	 */
 	public static Spewer createSpewer(final DefaultOption.Set options) throws ParseException {
 		final OutputType outputType = options.get("output-type").set(OutputType::parse).orElse(OutputType.STDOUT);
-		final Optional<String> outputEncoding = options.get("output-encoding").value();
  		final String[] tags = options.get("tag").values();
 		final Spewer spewer;
 
@@ -47,16 +46,11 @@ public abstract class SpewerFactory {
 			spewer = new PrintStreamSpewer(System.out);
 		}
 
-		if (options.get("output-metadata").off()) {
-			spewer.outputMetadata(false);
-		}
+		options.get("output-metadata").toggle().ifPresent(spewer::outputMetadata);
+		options.get("output-encoding").value().ifPresent(spewer::setOutputEncoding);
 
 		if (null != tags) {
 			setTags(spewer, tags);
-		}
-
-		if (outputEncoding.isPresent()) {
-			spewer.setOutputEncoding(outputEncoding.get());
 		}
 
 		return spewer;

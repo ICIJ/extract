@@ -11,7 +11,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import org.icij.task.DefaultTask;
+import org.icij.task.MonitorableTask;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.Task;
 
@@ -44,7 +44,7 @@ import org.icij.task.annotation.Task;
 		"to another, or if you simply want to hide the base of a path. For example, if you're working with a path " +
 		"that looks like \"/home/user/data\", specify \"/home/user/\" as the value for this option so that all queued" +
 		" paths start with \"data/\".")
-public class QueueTask extends DefaultTask<Long> {
+public class QueueTask extends MonitorableTask<Long> {
 
 	@Override
 	public Long run(final String[] paths) throws Exception {
@@ -53,7 +53,7 @@ public class QueueTask extends DefaultTask<Long> {
 		}
 
 		try (final PathQueue queue = PathQueueFactory.createSharedQueue(options)) {
-			return queue(ScannerFactory.createScanner(options, queue), paths);
+			return queue(ScannerFactory.createScanner(options, queue, monitor), paths);
 		}
 	}
 

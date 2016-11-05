@@ -1,14 +1,18 @@
 package org.icij.extract.cli;
 
+import me.tongfei.progressbar.ProgressBar;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 
+import org.icij.events.Monitorable;
+import org.icij.events.listeners.ConsoleProgressListener;
 import org.icij.extract.cli.tasks.HelpTask;
 import org.icij.extract.cli.tasks.VersionTask;
 import org.icij.extract.tasks.*;
 import org.icij.task.DefaultTask;
 import org.icij.task.DefaultTaskFactory;
+import org.icij.task.MonitorableTask;
 import org.icij.task.transformers.CommonsTransformer;
 
 import java.util.Arrays;
@@ -79,11 +83,25 @@ public class Main {
 
 		final Options options = new CommonsTransformer().apply(task.options());
 		final CommandLine line = new DefaultParser().parse(options, Arrays.copyOfRange(args, 1, args.length));
+		final ProgressBar progressBar;
+
+		if (task instanceof Monitorable) {
+			progressBar = new ProgressBar(command, 0);
+
+			((Monitorable) task).addListener(new ConsoleProgressListener(progressBar));
+			progressBar.start();
+		} else {
+			progressBar = null;
+		}
 
 		if (line.getArgs().length > 0) {
 			task.run(line.getArgs());
 		} else {
 			task.run();
+		}
+
+		if (null != progressBar) {
+			progressBar.stop();
 		}
 	}
 }

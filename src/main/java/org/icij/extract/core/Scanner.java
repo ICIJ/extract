@@ -1,5 +1,6 @@
 package org.icij.extract.core;
 
+import org.icij.events.Notifiable;
 import org.icij.executor.ExecutorProxy;
 import org.icij.concurrent.*;
 import org.icij.io.file.matcher.*;
@@ -60,6 +61,7 @@ public class Scanner extends ExecutorProxy {
 	private final ArrayDeque<String> includeGlobs = new ArrayDeque<>();
 	private final ArrayDeque<String> excludeGlobs = new ArrayDeque<>();
 	private final SealableLatch latch = new BooleanSealableLatch();
+	private final Notifiable notifiable;
 	private long queued = 0;
 
 	private int maxDepth = Integer.MAX_VALUE;
@@ -73,8 +75,19 @@ public class Scanner extends ExecutorProxy {
 	 * @param queue results from the scanner will be put on this queue
 	 */
 	public Scanner(final PathQueue queue) {
+		this(queue, null);
+	}
+
+	/**
+	 * Creates a {@code Scanner} that sends all results straight to the underlying {@link PathQueue} on a single thread.
+	 *
+	 * @param queue results from the scanner will be put on this queue
+	 * @param notifiable receives notifications when new file paths are queued
+	 */
+	public Scanner(final PathQueue queue, final Notifiable notifiable) {
 		super(Executors.newSingleThreadExecutor());
 		this.queue = queue;
+		this.notifiable = notifiable;
 	}
 
 	/**
@@ -353,6 +366,9 @@ public class Scanner extends ExecutorProxy {
 
 			queued++;
 			latch.signal();
+			if (null != notifiable) {
+				notifiable.notifyListeners(file);
+			}
 		}
 
 		/**

@@ -2,9 +2,9 @@ package org.icij.events;
 
 public interface Listener {
 
-	void step(final Monitorable monitorable, final Object arg);
+	void notify(final Monitorable monitorable, final Object arg);
 
-	void step(final Object arg);
+	void notify(final Object arg);
 
-	void steps(final int total);
+	void hintRemaining(final int total);
 }

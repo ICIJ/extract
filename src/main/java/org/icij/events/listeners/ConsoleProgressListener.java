@@ -1,6 +1,7 @@
 package org.icij.events.listeners;
 
 import me.tongfei.progressbar.ProgressBar;
+
 import org.icij.events.Listener;
 import org.icij.events.Monitorable;
 
@@ -13,12 +14,12 @@ public class ConsoleProgressListener implements Listener {
 	}
 
 	@Override
-	public void step(final Monitorable monitorable, final Object arg) {
-		step(arg);
+	public void notify(final Monitorable monitorable, final Object arg) {
+		notify(arg);
 	}
 
 	@Override
-	public void step(final Object arg) {
+	public void notify(final Object arg) {
 		if (null != arg) {
 			progress.setExtraMessage(arg.toString());
 		}
@@ -27,7 +28,7 @@ public class ConsoleProgressListener implements Listener {
 	}
 
 	@Override
-	public void steps(final int total) {
+	public void hintRemaining(final int total) {
 		progress.maxHint(total);
 	}
 }
