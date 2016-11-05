@@ -22,7 +22,7 @@ public abstract class Spewer implements AutoCloseable {
 
 	private Path outputBase = null;
 
-	protected boolean outputMetadata = false;
+	protected boolean outputMetadata = true;
 	protected Charset outputEncoding = StandardCharsets.UTF_8;
 	protected Map<String, String> tags = null;
 

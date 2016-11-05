@@ -47,8 +47,8 @@ public abstract class SpewerFactory {
 			spewer = new PrintStreamSpewer(System.out);
 		}
 
-		if (options.get("output-metadata").on()) {
-			spewer.outputMetadata(true);
+		if (options.get("output-metadata").off()) {
+			spewer.outputMetadata(false);
 		}
 
 		if (null != tags) {

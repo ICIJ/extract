@@ -86,7 +86,7 @@ import org.slf4j.LoggerFactory;
 		"for files passed to the extractor.", parameter = "path")
 @Option(name = "output-metadata", description = "Output metadata along with extracted text. For the " +
 		"\"file\" output type, a corresponding JSON file is created for every input file. With indexes, metadata " +
-		"fields are set using an optional prefix.")
+		"fields are set using an optional prefix. On by default.")
 @Option(name = "tag", description = "Set the given field to a corresponding value on each document output" +
 		".", parameter = "name-value-pair")
 @Option(name = "output-encoding", description = "Set the text output encoding. Defaults to UTF-8.",
