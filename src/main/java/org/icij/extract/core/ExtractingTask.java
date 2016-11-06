@@ -52,14 +52,30 @@ class ExtractingTask implements Runnable, Callable<Path> {
 	public Path call() throws Exception {
 
 		// Check status in reporter. Skip if good.
-		if (null != reporter && reporter.check(file, ExtractionResult.SUCCEEDED)) {
-			logger.info(String.format("File already extracted; skipping: \"%s\".", file));
+		// Otherwise save status to registry and start a new job.
+		if (null != reporter) {
+			if (reporter.check(file, ExtractionResult.SUCCEEDED)) {
+				logger.info(String.format("File already extracted; skipping: \"%s\".", file));
+			} else {
+				reporter.save(file, extractResult(file));
+			}
 
-		// Save status to registry and start a new job.
-		} else if (null != reporter) {
-			reporter.save(file, extractResult(file));
-		} else {
+			return file;
+		}
+
+		try {
 			extract(file);
+
+		// Catch exceptions that should be converted into warnings.
+		} catch (IOException e) {
+			final Throwable cause = e.getCause();
+
+			if (null != cause && cause instanceof ExcludedMediaTypeException) {
+				logger.warn(String.format("The document was not parsed because all of the parsers that handle it " +
+						"were excluded: \"%s\".", file));
+			} else {
+				throw e;
+			}
 		}
 
 		return file;
@@ -73,17 +89,11 @@ class ExtractingTask implements Runnable, Callable<Path> {
 	 */
 	private void extract(final Path file) throws Exception {
 		final Metadata metadata = new Metadata();
-		ParsingReader reader = null;
 
 		logger.info(String.format("Beginning extraction: \"%s\".", file));
 
-		try {
-			reader = extractor.extract(file, metadata);
+		try (final ParsingReader reader = extractor.extract(file, metadata)) {
 			spewer.write(file, metadata, reader);
-		} finally {
-			if (null != reader) {
-				reader.close();
-			}
 		}
 	}
 
@@ -113,11 +123,9 @@ class ExtractingTask implements Runnable, Callable<Path> {
 			final Throwable c = e.getCause();
 
 			if (c instanceof ExcludedMediaTypeException) {
-				logger.error(String.format("The document was not parsed because all of the parsers that handle it " +
-						"were excluded: \"%s\".", file), e);
 				status = ExtractionResult.NOT_PARSED;
 			} else if (c instanceof EncryptedDocumentException) {
-				logger.error(String.format("Skipping encrypted file: \"%s\".", file), e);
+				logger.warn(String.format("Skipping encrypted file: \"%s\".", file), e);
 				status = ExtractionResult.NOT_DECRYPTED;
 
 			// TIKA-198: IOExceptions thrown by parsers will be wrapped in a TikaException.
