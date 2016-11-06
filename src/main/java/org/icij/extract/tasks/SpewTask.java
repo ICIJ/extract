@@ -206,7 +206,7 @@ public class SpewTask extends DefaultTask<Long> {
 
 		// Use a long timeout because some files might still be processing.
 		consumer.shutdown();
-		consumer.awaitTermination(10, TimeUnit.MINUTES);
+		consumer.awaitTermination(1, TimeUnit.HOURS);
 
 		return drained;
 	}
