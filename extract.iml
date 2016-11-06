@@ -27,6 +27,7 @@
     <orderEntry type="library" name="Maven: commons-cli:commons-cli:1.3.1" level="project" />
     <orderEntry type="library" name="Maven: commons-io:commons-io:2.5" level="project" />
     <orderEntry type="library" name="Maven: commons-codec:commons-codec:1.10" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.commons:commons-csv:1.4" level="project" />
     <orderEntry type="library" name="Maven: org.apache.tika:tika-parsers:1.14" level="project" />
     <orderEntry type="library" name="Maven: org.apache.tika:tika-core:1.14" level="project" />
     <orderEntry type="library" name="Maven: org.gagravarr:vorbis-java-tika:0.8" level="project" />
@@ -101,7 +102,6 @@
     <orderEntry type="library" name="Maven: net.sf.ehcache:ehcache-core:2.6.2" level="project" />
     <orderEntry type="library" name="Maven: com.beust:jcommander:1.35" level="project" />
     <orderEntry type="library" name="Maven: edu.ucar:httpservices:4.5.5" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.commons:commons-csv:1.0" level="project" />
     <orderEntry type="library" name="Maven: org.apache.sis.core:sis-utility:0.6" level="project" />
     <orderEntry type="library" name="Maven: org.apache.sis.storage:sis-netcdf:0.6" level="project" />
     <orderEntry type="library" name="Maven: org.apache.sis.storage:sis-storage:0.6" level="project" />

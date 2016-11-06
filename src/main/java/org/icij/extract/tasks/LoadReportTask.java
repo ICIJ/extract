@@ -5,10 +5,7 @@ import org.icij.extract.core.Report;
 import org.icij.extract.json.ReportDeserializer;
 import org.icij.extract.tasks.factories.ReportFactory;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.InputStream;
-import java.io.IOException;
+import java.io.*;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
@@ -32,29 +29,29 @@ import org.icij.task.annotation.Task;
 		"type-dependent.", parameter = "name")
 @Option(name = "redis-address", description = "Set the Redis backend address. Defaults to " +
 		"127.0.0.1:6379.", parameter = "address")
-public class LoadReportTask extends DefaultTask<Integer> {
+public class LoadReportTask extends DefaultTask<Void> {
 
 	@Override
-	public Integer run() throws Exception {
+	public Void run() throws Exception {
 		try (final InputStream input = new CloseShieldInputStream(System.in);
 		     final Report report = ReportFactory.createSharedReport(options)) {
-			return load(report, input);
+			load(report, input);
 		}
+
+		return null;
 	}
 
 	@Override
-	public Integer run(final String[] arguments) throws Exception {
-		int i = 0;
-
+	public Void run(final String[] arguments) throws Exception {
 		try (final Report report = ReportFactory.createSharedReport(options)) {
 			for (String argument : arguments) {
-				i = load(report, argument);
+				load(report, argument);
 			}
 		} catch (FileNotFoundException e) {
 			throw new RuntimeException("Unable to open dump file for reading.", e);
 		}
 
-		return i;
+		return null;
 	}
 
 	/**
@@ -62,12 +59,11 @@ public class LoadReportTask extends DefaultTask<Integer> {
 	 *
 	 * @param report the queue to load the dump into
 	 * @param path the path to load the dump from
-	 * @return the new size of the queue
 	 * @throws IOException if the dump could not be loaded
 	 */
-	private Integer load(final Report report, final String path) throws IOException {
-		try (final InputStream input = new FileInputStream(path)) {
-			return load(report, input);
+	private void load(final Report report, final String path) throws IOException {
+		try (final InputStream input = new BufferedInputStream(new FileInputStream(path))) {
+			load(report, input);
 		}
 	}
 
@@ -77,7 +73,7 @@ public class LoadReportTask extends DefaultTask<Integer> {
 	 * @param report the report to load into
 	 * @param input the input stream to load from
 	 */
-	private Integer load(final Report report, final InputStream input) throws IOException {
+	private void load(final Report report, final InputStream input) throws IOException {
 		final ObjectMapper mapper = new ObjectMapper();
 		final SimpleModule module = new SimpleModule();
 
@@ -85,7 +81,7 @@ public class LoadReportTask extends DefaultTask<Integer> {
 		mapper.registerModule(module);
 
 		try (final JsonParser jsonParser = new JsonFactory().setCodec(mapper).createParser(input)) {
-			return jsonParser.readValueAs(Report.class).size();
+			jsonParser.readValueAs(Report.class);
 		}
 	}
 }

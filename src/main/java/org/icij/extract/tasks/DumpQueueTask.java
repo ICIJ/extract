@@ -5,11 +5,7 @@ import org.icij.extract.core.PathQueue;
 import org.icij.extract.json.PathQueueSerializer;
 import org.icij.extract.tasks.factories.PathQueueFactory;
 
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
-
-import java.io.IOException;
+import java.io.*;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -34,28 +30,30 @@ import org.icij.task.annotation.Task;
 		".", parameter = "name")
 @Option(name = "redis-address", description = "Set the Redis backend address. Defaults to " +
 		"127.0.0.1:6379.", parameter = "address")
-public class DumpQueueTask extends MonitorableTask<Integer> {
+public class DumpQueueTask extends MonitorableTask<Void> {
 
 	@Override
-	public Integer run(final String[] arguments) throws Exception {
-		try (final OutputStream output = new FileOutputStream(arguments[0]);
+	public Void run(final String[] arguments) throws Exception {
+		try (final OutputStream output = new BufferedOutputStream(new FileOutputStream(arguments[0]));
 		     final PathQueue queue = PathQueueFactory.createSharedQueue(options)) {
 			monitor.hintRemaining(queue.size());
 			dump(queue, output);
-			return queue.size();
 		} catch (FileNotFoundException e) {
 			throw new RuntimeException(String.format("Unable to open \"%s\" for writing.", arguments[0]), e);
 		}
+
+		return null;
 	}
 
 	@Override
-	public Integer run() throws Exception {
-		try (final OutputStream output = new CloseShieldOutputStream(System.out);
+	public Void run() throws Exception {
+		try (final OutputStream output = new BufferedOutputStream(new CloseShieldOutputStream(System.out));
 		final PathQueue queue = PathQueueFactory.createSharedQueue(options)) {
 			monitor.hintRemaining(queue.size());
 			dump(queue, output);
-			return queue.size();
 		}
+
+		return null;
 	}
 
 	/**

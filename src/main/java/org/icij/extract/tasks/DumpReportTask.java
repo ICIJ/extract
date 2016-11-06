@@ -6,11 +6,8 @@ import org.icij.extract.core.ExtractionResult;
 import org.icij.extract.json.ReportSerializer;
 import org.icij.extract.tasks.factories.ReportFactory;
 
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
+import java.io.*;
 
-import java.io.IOException;
 import java.util.Optional;
 
 import com.fasterxml.jackson.core.JsonFactory;
@@ -38,32 +35,34 @@ import org.icij.task.annotation.Task;
 		"127.0.0.1:6379.", parameter = "address")
 @Option(name = "report-status", description = "Only match reports with the given status.", parameter =
 		"status")
-public class DumpReportTask extends MonitorableTask<Integer> {
+public class DumpReportTask extends MonitorableTask<Void> {
 
 	@Override
-	public Integer run(final String[] arguments) throws Exception {
+	public Void run(final String[] arguments) throws Exception {
 		final Optional<ExtractionResult> result = options.get("report-status").value(ExtractionResult::get);
 
-		try (final OutputStream output = new FileOutputStream(arguments[0]);
+		try (final OutputStream output = new BufferedOutputStream(new FileOutputStream(arguments[0]));
 		     final Report report = ReportFactory.createSharedReport(options)) {
 			monitor.hintRemaining(report.size());
 			dump(report, output, result.orElse(null));
-			return report.size();
 		} catch (FileNotFoundException e) {
 			throw new RuntimeException(String.format("Unable to open \"%s\" for writing.", arguments[0]), e);
 		}
+
+		return null;
 	}
 
 	@Override
-	public Integer run() throws Exception {
+	public Void run() throws Exception {
 		final Optional<ExtractionResult> result = options.get("report-status").value(ExtractionResult::get);
 
-		try (final OutputStream output = new CloseShieldOutputStream(System.out);
+		try (final OutputStream output = new BufferedOutputStream(new CloseShieldOutputStream(System.out));
 		     final Report report = ReportFactory.createSharedReport(options)) {
 			monitor.hintRemaining(report.size());
 			dump(report, output, result.orElse(null));
-			return report.size();
 		}
+
+		return null;
 	}
 
 	/**
