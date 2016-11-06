@@ -87,6 +87,7 @@ public class Extractor {
 
 		// Set a long OCR timeout by default, because Tika's is too short.
 		ocrConfig.setTimeout(Math.toIntExact(DEFAULT_OCR_TIMEOUT.getSeconds()));
+		ocrConfig.setEnableImageProcessing(0); // See TIKA-2167. Image processing causes OCR to fail.
 	}
 
 	/**
