@@ -29,8 +29,8 @@ public class PathQueueDeserializer extends JsonDeserializer<PathQueue> {
 	public PathQueue deserialize(final JsonParser jsonParser, final DeserializationContext context)
 		throws IOException {
 
-		jsonParser.nextToken(); // Skip over the start of the object.
-		while (jsonParser.nextToken() != JsonToken.END_OBJECT && jsonParser.nextValue() != null) {
+		jsonParser.nextToken(); // Skip over the start of the array.
+		while (jsonParser.nextToken() != JsonToken.END_ARRAY && jsonParser.nextValue() != null) {
 			queue.add(Paths.get(jsonParser.getValueAsString()));
 		}
 
