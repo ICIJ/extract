@@ -28,6 +28,7 @@ public class CountdownHttpRequestRetryHandler implements HttpRequestRetryHandler
 		countdown = retries;
 	}
 
+	@Override
 	public boolean retryRequest(IOException exception, int executionCount, final HttpContext context) {
 		return (exception instanceof NoHttpResponseException) && countdown-- > 0;
 	}
