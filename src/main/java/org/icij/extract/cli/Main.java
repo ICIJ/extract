@@ -1,9 +1,7 @@
 package org.icij.extract.cli;
 
 import me.tongfei.progressbar.ProgressBar;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.*;
 
 import org.icij.events.Monitorable;
 import org.icij.events.listeners.ConsoleProgressListener;
@@ -82,8 +80,17 @@ public class Main {
 		}
 
 		final Options options = new CommonsTransformer().apply(task.options());
-		final CommandLine line = new DefaultParser().parse(options, Arrays.copyOfRange(args, 1, args.length));
+		final CommandLineParser parser = new DefaultParser();
+		final CommandLine line;
 		final ProgressBar progressBar;
+
+		try {
+			line = parser.parse(options, Arrays.copyOfRange(args, 1, args.length));
+		} catch (UnrecognizedOptionException e) {
+			System.err.println(e.getMessage());
+			System.exit(1);
+			return;
+		}
 
 		if (task instanceof Monitorable) {
 			progressBar = new ProgressBar(command, 0);
