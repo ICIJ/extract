@@ -62,7 +62,7 @@ public class SolrSpewer extends Spewer {
 	private String pathField = IndexDefaults.DEFAULT_PATH_FIELD;
 	private String idField = IndexDefaults.DEFAULT_ID_FIELD;
 	private String metadataFieldPrefix = IndexDefaults.DEFAULT_METADATA_FIELD_PREFIX;
-	private String idAlgorithm = null;
+	private String idAlgorithm = IndexDefaults.DEFAULT_ID_ALGORITHM;
 
 	private final AtomicInteger pending = new AtomicInteger(0);
 	private int commitThreshold = 0;

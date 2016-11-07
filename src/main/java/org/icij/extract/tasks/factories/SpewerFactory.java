@@ -99,46 +99,24 @@ public abstract class SpewerFactory {
 				.withHttpClient(httpClient)
 				.build());
 
-		spewer.atomicWrites(options.get("atomic-writes").on());
-		spewer.fixDates(options.get("raw-dates").on());
+		options.get("atomic-writes").asBoolean().ifPresent(spewer::atomicWrites);
+		options.get("fix-dates").asBoolean().ifPresent(spewer::fixDates);
+		options.get("text-field").value().ifPresent(spewer::setTextField);
+		options.get("path-field").value().ifPresent(spewer::setPathField);
+		options.get("id-field").value().ifPresent(spewer::setIdField);
+		options.get("metadata-prefix").value().ifPresent(spewer::setMetadataFieldPrefix);
+		options.get("commit-interval").asInteger().ifPresent(spewer::setCommitThreshold);
+		options.get("commit-within").asDuration().ifPresent(spewer::setCommitWithin);
 
-		final Optional<String> textField = options.get("text-field").value();
-		final Optional<String> pathField = options.get("path-field").value();
-		final Optional<String> idField = options.get("id-field").value();
-		final Optional<String> metadataPrefix = options.get("metadata-prefix").value();
-		final Optional<Integer> commitInterval = options.get("commit-interval").asInteger();
-		final Optional<Duration> commitWithin = options.get("commit-within").asDuration();
-		final String idAlgorithm = options.get("id-algorithm").value().orElse(IndexDefaults.DEFAULT_ID_ALGORITHM);
+		final Optional<String> idAlgorithm = options.get("id-algorithm").value();
 
-		if (textField.isPresent()) {
-			spewer.setTextField(textField.get());
-		}
-
-		if (pathField.isPresent()) {
-			spewer.setPathField(pathField.get());
-		}
-
-		if (idField.isPresent()) {
-			spewer.setIdField(idField.get());
-		}
-
-		try {
-			spewer.setIdAlgorithm(idAlgorithm);
-		} catch (NoSuchAlgorithmException e) {
-			throw new IllegalArgumentException(String.format("Hashing algorithm \"%s\" not available on this platform.",
-					idAlgorithm));
-		}
-
-		if (metadataPrefix.isPresent()) {
-			spewer.setMetadataFieldPrefix(metadataPrefix.get());
-		}
-
-		if (commitInterval.isPresent()) {
-			spewer.setCommitThreshold(commitInterval.get());
-		}
-
-		if (commitWithin.isPresent()) {
-			spewer.setCommitWithin(commitWithin.get());
+		if (idAlgorithm.isPresent()) {
+			try {
+				spewer.setIdAlgorithm(idAlgorithm.get());
+			} catch (NoSuchAlgorithmException e) {
+				throw new IllegalArgumentException(String.format("Hashing algorithm \"%s\" not available on this platform.",
+						idAlgorithm.get()));
+			}
 		}
 
 		return spewer;

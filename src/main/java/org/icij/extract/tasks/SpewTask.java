@@ -113,9 +113,10 @@ import org.slf4j.LoggerFactory;
 		"duration")
 @Option(name = "atomic-writes", description = "Make atomic updates to the index. If your schema contains " +
 		"fields that are not included in the payload, this prevents their values, if any, from being erased.")
-@Option(name = "raw-dates", description = "Don't fix invalid dates. Tika's image metadata extractor will " +
-		"generate non-ISO compliant dates if the the timezone is not available in the source metadata. Turning this " +
-		"option on appends \"Z\" to non-compliant dates, making them compatible with the Solr date field type.")
+@Option(name = "fix-dates", description = "Fix invalid dates. Tika's image metadata extractor will " +
+		"generate non-ISO compliant dates if the the timezone is not available in the source metadata. When this " +
+		"option is on \"Z\" is appended to non-compliant dates, making them compatible with the Solr date field type." +
+		" On by default.")
 @Option(name = "output-directory", description = "Directory to output extracted text. Defaults to the " +
 		"current directory.", parameter = "path")
 @Option(name = "output-type", description = "Set the output type. Either \"file\", \"stdout\" or \"solr\"" +
