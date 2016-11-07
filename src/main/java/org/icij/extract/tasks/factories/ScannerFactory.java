@@ -25,9 +25,9 @@ public class ScannerFactory {
 			notifiable) throws IllegalArgumentException {
 		final Scanner scanner = new Scanner(queue, notifiable);
 
-		options.get("include-os-files").toggle().ifPresent(scanner::ignoreSystemFiles);
-		options.get("include-hidden-files").toggle().ifPresent(scanner::ignoreHiddenFiles);
-		options.get("follow-symlinks").toggle().ifPresent(scanner::followSymLinks);
+		options.get("include-os-files").asBoolean().ifPresent(scanner::ignoreSystemFiles);
+		options.get("include-hidden-files").asBoolean().ifPresent(scanner::ignoreHiddenFiles);
+		options.get("follow-symlinks").asBoolean().ifPresent(scanner::followSymLinks);
 
 		final String[] includePatterns = options.get("include-pattern").values();
 		final String[] excludePatterns = options.get("exclude-pattern").values();

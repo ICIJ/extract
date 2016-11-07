@@ -23,7 +23,7 @@ public class ReportFactory {
 	 * @return a new report or {@code null} if no type is specified
 	 */
 	public static Report createReport(final DefaultOption.Set options) {
-		final Optional<ReportType> reportType = options.get("report-type").set(ReportType::parse);
+		final Optional<ReportType> reportType = options.get("report-type").asEnum(ReportType::parse);
 
 		if (!reportType.isPresent()) {
 			return null;
@@ -40,7 +40,7 @@ public class ReportFactory {
 	 * @throws IllegalArgumentException if the given options do not contain a valid shared report type
 	 */
 	public static Report createSharedReport(final DefaultOption.Set options) throws IllegalArgumentException {
-		final ReportType reportType = options.get("report-type").set(ReportType::parse).orElse(ReportType.REDIS);
+		final ReportType reportType = options.get("report-type").asEnum(ReportType::parse).orElse(ReportType.REDIS);
 		final Optional<String> name = options.get("report-name").value();
 
 		if (ReportType.REDIS == reportType) {

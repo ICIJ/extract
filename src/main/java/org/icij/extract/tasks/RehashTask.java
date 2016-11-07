@@ -61,7 +61,7 @@ public class RehashTask extends MonitorableTask<Long> {
 
 	@Override
 	public Long run() throws Exception {
-		final int parallelism = options.get("jobs").integer().orElse(Runtime.getRuntime().availableProcessors());
+		final int parallelism = options.get("jobs").asInteger().orElse(Runtime.getRuntime().availableProcessors());
 
 		try (
 			final CloseableHttpClient httpClient = PinnedHttpClientBuilder.createWithDefaults()

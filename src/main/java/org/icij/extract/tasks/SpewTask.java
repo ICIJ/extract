@@ -154,14 +154,14 @@ public class SpewTask extends DefaultTask<Long> {
 
 	private Long spew(final Report report, final Spewer spewer, final PathQueue queue, final String[] paths) throws
 			Exception {
-		final int parallelism = options.get("jobs").integer().orElse(ExtractingConsumer.defaultPoolSize());
+		final int parallelism = options.get("jobs").asInteger().orElse(ExtractingConsumer.defaultPoolSize());
 		logger.info(String.format("Processing up to %d file(s) in parallel.", parallelism));
 
 		final Extractor extractor = ExtractorFactory.createExtractor(options);
 		final ExtractingConsumer consumer = new ExtractingConsumer(spewer, extractor, parallelism);
 		final PathQueueDrainer drainer = new PathQueueDrainer(queue, consumer);
 
-		final Optional<Duration> queuePoll = options.get("queue-poll").duration();
+		final Optional<Duration> queuePoll = options.get("queue-poll").asDuration();
 
 		if (queuePoll.isPresent()) {
 			drainer.setPollTimeout(queuePoll.get());

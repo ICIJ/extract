@@ -34,7 +34,7 @@ public abstract class SpewerFactory {
 	 * @throws ParseException When the commandline parameters cannot be read.
 	 */
 	public static Spewer createSpewer(final DefaultOption.Set options) throws ParseException {
-		final OutputType outputType = options.get("output-type").set(OutputType::parse).orElse(OutputType.STDOUT);
+		final OutputType outputType = options.get("output-type").asEnum(OutputType::parse).orElse(OutputType.STDOUT);
  		final String[] tags = options.get("tag").values();
 		final Spewer spewer;
 
@@ -46,7 +46,7 @@ public abstract class SpewerFactory {
 			spewer = new PrintStreamSpewer(System.out);
 		}
 
-		options.get("output-metadata").toggle().ifPresent(spewer::outputMetadata);
+		options.get("output-metadata").asBoolean().ifPresent(spewer::outputMetadata);
 		options.get("output-encoding").value().ifPresent(spewer::setOutputEncoding);
 
 		if (null != tags) {
@@ -69,8 +69,8 @@ public abstract class SpewerFactory {
 	}
 
 	private static FileSpewer createFileSpewer(final DefaultOption.Set options) {
-		final Extractor.OutputFormat outputFormat = options.get("output-format").set(Extractor.OutputFormat::parse).orElse(null);
-		final FileSpewer spewer = new FileSpewer(options.get("output-directory").path().orElse(Paths.get(".")));
+		final Extractor.OutputFormat outputFormat = options.get("output-format").asEnum(Extractor.OutputFormat::parse).orElse(null);
+		final FileSpewer spewer = new FileSpewer(options.get("output-directory").asPath().orElse(Paths.get(".")));
 
 		if (null != outputFormat && outputFormat.equals(Extractor.OutputFormat.HTML)) {
 			spewer.setOutputExtension("html");
@@ -106,8 +106,8 @@ public abstract class SpewerFactory {
 		final Optional<String> pathField = options.get("path-field").value();
 		final Optional<String> idField = options.get("id-field").value();
 		final Optional<String> metadataPrefix = options.get("metadata-prefix").value();
-		final Optional<Integer> commitInterval = options.get("commit-interval").integer();
-		final Optional<Duration> commitWithin = options.get("commit-within").duration();
+		final Optional<Integer> commitInterval = options.get("commit-interval").asInteger();
+		final Optional<Duration> commitWithin = options.get("commit-within").asDuration();
 		final String idAlgorithm = options.get("id-algorithm").value().orElse(IndexDefaults.DEFAULT_ID_ALGORITHM);
 
 		if (textField.isPresent()) {

@@ -38,41 +38,41 @@ public class DefaultOption implements Option<DefaultOption, String, String> {
 	}
 
 	@Override
-	public Optional<Duration> duration() {
+	public Optional<Duration> asDuration() {
 		return value(HumanDuration::parse);
 	}
 
 	@Override
-	public Optional<Path> path() {
+	public Optional<Path> asPath() {
 		return value(Paths::get);
 	}
 
 	@Override
-	public Optional<Integer> integer() {
+	public Optional<Integer> asInteger() {
 		return value(Integer::valueOf);
 	}
 
 	@Override
-	public Optional<Boolean> toggle() {
+	public Optional<Boolean> asBoolean() {
 		return value(Boolean::valueOf);
 	}
 
 	@Override
 	public boolean on() {
-		final Optional<Boolean> toggle = toggle();
+		final Optional<Boolean> toggle = asBoolean();
 
 		return toggle.isPresent() && toggle.get();
 	}
 
 	@Override
 	public boolean off() {
-		final Optional<Boolean> toggle = toggle();
+		final Optional<Boolean> toggle = asBoolean();
 
 		return toggle.isPresent() && !toggle.get();
 	}
 
 	@Override
-	public <E extends Enum<E>> Optional<E> set(final Function<String, E> valueOf) {
+	public <E extends Enum<E>> Optional<E> asEnum(final Function<String, E> valueOf) {
 		return value(valueOf);
 	}
 

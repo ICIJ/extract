@@ -25,10 +25,10 @@ public class PathQueueFactory {
 	 * @throws IllegalArgumentException if the the commandline arguments do not contain a valid queue type
 	 */
 	public static PathQueue createQueue(final DefaultOption.Set options) throws IllegalArgumentException {
-		final PathQueueType queueType = options.get("queue-type").set(PathQueueType::parse).orElse(PathQueueType.ARRAY);
+		final PathQueueType queueType = options.get("queue-type").asEnum(PathQueueType::parse).orElse(PathQueueType.ARRAY);
 
 		if (PathQueueType.ARRAY == queueType) {
-			return ArrayPathQueue.create(options.get("queue-buffer").integer().orElse(1024));
+			return ArrayPathQueue.create(options.get("queue-buffer").asInteger().orElse(1024));
 		}
 
 		return createSharedQueue(options);
@@ -42,7 +42,7 @@ public class PathQueueFactory {
 	 * @throws IllegalArgumentException if the given options do not contain a valid shared queue type
 	 */
 	public static PathQueue createSharedQueue(final DefaultOption.Set options) throws IllegalArgumentException {
-		final PathQueueType queueType = options.get("queue-type").set(PathQueueType::parse).orElse(PathQueueType.REDIS);
+		final PathQueueType queueType = options.get("queue-type").asEnum(PathQueueType::parse).orElse(PathQueueType.REDIS);
 		final Optional<String> name = options.get("queue-name").value();
 
 		if (PathQueueType.REDIS == queueType) {

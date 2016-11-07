@@ -17,13 +17,13 @@ public class ExtractorFactory {
 
 	public static Extractor createExtractor(final DefaultOption.Set options) {
 		final Extractor extractor = new Extractor();
-		final Optional<Extractor.OutputFormat> outputFormat = options.get("output-format").set(Extractor
+		final Optional<Extractor.OutputFormat> outputFormat = options.get("output-format").asEnum(Extractor
 				.OutputFormat::parse);
-		final Optional<Extractor.EmbedHandling> embedHandling = options.get("embed-handling").set(Extractor
+		final Optional<Extractor.EmbedHandling> embedHandling = options.get("embed-handling").asEnum(Extractor
 				.EmbedHandling::parse);
 		final Optional<String> ocrLanguage = options.get("ocr-language").value();
-		final Optional<Duration> ocrTimeout = options.get("ocr-timeout").duration();
-		final Optional<Path> workingDirectory = options.get("working-directory").path();
+		final Optional<Duration> ocrTimeout = options.get("ocr-timeout").asDuration();
+		final Optional<Path> workingDirectory = options.get("working-directory").asPath();
 
 		if (outputFormat.isPresent()) {
 			extractor.setOutputFormat(outputFormat.get());

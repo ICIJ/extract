@@ -36,13 +36,13 @@ public interface Option<T, U, V> {
 
 	<R> Optional<R> value(final Function<U, R> parser);
 
-	Optional<Duration> duration();
+	Optional<Duration> asDuration();
 
-	Optional<Path> path();
+	Optional<Path> asPath();
 
-	Optional<Integer> integer();
+	Optional<Integer> asInteger();
 
-	Optional<Boolean> toggle();
+	Optional<Boolean> asBoolean();
 
 	/**
 	 * @return Returns {@literal true} if the toggle is explicitly set to on, otherwise returns {@literal false}.
@@ -54,7 +54,7 @@ public interface Option<T, U, V> {
 	 */
 	boolean off();
 
-	<E extends Enum<E>> Optional<E> set(final Function<U, E> valueOf);
+	<E extends Enum<E>> Optional<E> asEnum(final Function<U, E> valueOf);
 
 	abstract class Set<T extends Option> implements Iterable<T> {
 

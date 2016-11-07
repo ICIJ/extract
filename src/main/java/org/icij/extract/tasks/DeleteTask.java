@@ -44,7 +44,7 @@ public class DeleteTask extends MonitorableTask<Integer> {
 			throw new IllegalArgumentException("You must pass the queries or IDs to delete on the command line.");
 		}
 
-		final IndexType indexType = options.get("index-type").set(IndexType::parse).orElse(IndexType.SOLR);
+		final IndexType indexType = options.get("index-type").asEnum(IndexType::parse).orElse(IndexType.SOLR);
 
 		if (IndexType.SOLR != indexType) {
 			throw new IllegalArgumentException("Not implemented.");

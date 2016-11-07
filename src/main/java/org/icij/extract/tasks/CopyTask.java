@@ -58,8 +58,8 @@ public class CopyTask extends MonitorableTask<Long> {
 		}
 
 		final Map<String, String> map = new HashMap<>();
-		final int jobs = options.get("jobs").integer().orElse(DEFAULT_JOBS);
-		final IndexType indexType = options.get("index-type").set(IndexType::parse).orElse(IndexType.SOLR);
+		final int jobs = options.get("jobs").asInteger().orElse(DEFAULT_JOBS);
+		final IndexType indexType = options.get("index-type").asEnum(IndexType::parse).orElse(IndexType.SOLR);
 
 		for (String mapping : mappings) {
 			String[] fields = mapping.split(":", 2);

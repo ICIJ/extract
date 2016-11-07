@@ -88,7 +88,7 @@ public class TagTask extends MonitorableTask<Long> {
 	}
 
 	private Long tag(final Map<String, String> pairs) throws Exception {
-		final int parallelism = options.get("jobs").integer().orElse(Runtime.getRuntime().availableProcessors());
+		final int parallelism = options.get("jobs").asInteger().orElse(Runtime.getRuntime().availableProcessors());
 		final String subsetMode = options.get("subset-mode").value().orElse(null);
 
 		if (null != subsetMode && !(subsetMode.equals("intersection") || subsetMode.equals("complement"))) {
