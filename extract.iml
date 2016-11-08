@@ -109,9 +109,9 @@
     <orderEntry type="library" name="Maven: org.apache.sis.core:sis-metadata:0.6" level="project" />
     <orderEntry type="library" name="Maven: org.opengis:geoapi:3.0.0" level="project" />
     <orderEntry type="library" name="Maven: javax.measure:jsr-275:0.9.3" level="project" />
-    <orderEntry type="library" name="Maven: com.levigo.jbig2:levigo-jbig2-imageio:1.6.5" level="project" />
-    <orderEntry type="library" name="Maven: com.github.jai-imageio:jai-imageio-core:1.3.1" level="project" />
-    <orderEntry type="library" name="Maven: com.github.jai-imageio:jai-imageio-jpeg2000:1.3.0" level="project" />
+    <orderEntry type="library" scope="RUNTIME" name="Maven: com.github.jai-imageio:jai-imageio-core:1.3.1" level="project" />
+    <orderEntry type="library" scope="RUNTIME" name="Maven: com.github.jai-imageio:jai-imageio-jpeg2000:1.3.0" level="project" />
+    <orderEntry type="library" scope="RUNTIME" name="Maven: com.levigo.jbig2:levigo-jbig2-imageio:1.6.5" level="project" />
     <orderEntry type="library" name="Maven: org.apache.solr:solr-solrj:6.2.1" level="project" />
     <orderEntry type="library" name="Maven: com.fasterxml.jackson.core:jackson-annotations:2.5.4" level="project" />
     <orderEntry type="library" name="Maven: com.fasterxml.jackson.core:jackson-databind:2.5.4" level="project" />
