@@ -49,7 +49,7 @@ public class DefaultOption implements Option<DefaultOption, String, String> {
 
 	@Override
 	public Optional<Boolean> asBoolean() {
-		return value((value)-> {
+		return value(value-> {
 			value = value.toLowerCase(Locale.ROOT);
 			if (value.equals("yes") || value.equals("on") || value.equals("true") || value.equals("1")) {
 				return Boolean.TRUE;
@@ -61,16 +61,12 @@ public class DefaultOption implements Option<DefaultOption, String, String> {
 
 	@Override
 	public boolean on() {
-		final Optional<Boolean> toggle = asBoolean();
-
-		return toggle.isPresent() && toggle.get();
+		return asBoolean().orElse(Boolean.FALSE).equals(Boolean.TRUE);
 	}
 
 	@Override
 	public boolean off() {
-		final Optional<Boolean> toggle = asBoolean();
-
-		return toggle.isPresent() && !toggle.get();
+		return asBoolean().orElse(Boolean.TRUE).equals(Boolean.FALSE);
 	}
 
 	@Override
