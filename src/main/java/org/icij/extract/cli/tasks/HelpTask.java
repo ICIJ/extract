@@ -1,5 +1,7 @@
 package org.icij.extract.cli.tasks;
 
+import javax.imageio.ImageIO;
+
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.io.FileUtils;
@@ -7,6 +9,7 @@ import org.icij.extract.cli.Main;
 import org.icij.task.DefaultTask;
 import org.icij.task.transformers.CommonsTransformer;
 
+import java.util.Arrays;
 import java.util.Set;
 
 public class HelpTask extends DefaultTask<Void> {
@@ -30,10 +33,15 @@ public class HelpTask extends DefaultTask<Void> {
 	public Void run() throws Exception {
 		final HelpFormatter formatter = new HelpFormatter();
 		final Set<String> tasks = Main.taskFactory.listNames();
+		final String[] imageFormats = Arrays.stream(ImageIO.getReaderFormatNames())
+				.map(String::toLowerCase)
+				.distinct()
+				.toArray(String[]::new);
 
-		final String header = String.format("%nA cross-platform tool for distributed content-extraction " +
+		String header = String.format("%nA cross-platform tool for distributed content-extraction " +
 				"by the data team at the International Consortium of Investigative Journalists.%n%n" +
-				"\033[1mCommands\033[0m%n%n %s", String.join("\n ", tasks));
+				"\033[1mCommands\033[0m%n%n %s%n%n\033[1mAdditional Image Formats\033[0m%n%n %s", String.join("\n ",
+				tasks), String.join("\n ", (CharSequence[]) imageFormats));
 
 		formatter.printHelp(String.format("\033[1mextract\033[0m [command] [options]%n" +
 				"%s\033[1mextract\033[0m help%n" +
