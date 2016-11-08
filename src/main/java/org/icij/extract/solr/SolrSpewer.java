@@ -27,6 +27,7 @@ import java.nio.file.Path;
 import java.security.Security;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.stream.Stream;
 
 import javax.xml.bind.DatatypeConverter;
 
@@ -260,24 +261,43 @@ public class SolrSpewer extends Spewer {
 
 	private void setMetadataFieldValues(final Metadata metadata, final SolrInputDocument document) {
 		for (String name : metadata.names()) {
-			String normalizedName = normalizeFieldName(name);
+			name = normalizeFieldName(name);
+			String finalName = name;
 
 			if (null != metadataFieldPrefix) {
-				normalizedName = metadataFieldPrefix + normalizedName;
+				finalName = metadataFieldPrefix + name;
 			}
 
-			if (metadata.isMultiValued(name)) {
-				String[] values = metadata.getValues(name);
+			if (metadata.isMultiValued(name) &&
 
-				// Remove duplicate content types.
-				// Tika seems to add these sometimes, especially for RTF files.
-				if (name.equals("Content-Type") && values.length > 1) {
-					values = Arrays.stream(values).distinct().toArray(String[]::new);
+					// Bad HTML files can have many titles. Ignore all but the first.
+					!name.equals("title")) {
+				String[] values = metadata.getValues(name);
+				Stream<String> stream = Arrays.stream(values);
+
+				// Remove empty values.
+				stream = stream.filter(value -> null != value && !value.isEmpty());
+
+				// Remove duplicate content types (Tika seems to add these sometimes, especially for RTF files) and
+				// titles.
+				if (name.equals("content_type") && values.length > 1) {
+					stream = Arrays.stream(values).distinct();
 				}
 
-				setFieldValues(document, normalizedName, values);
+				values = stream.toArray(String[]::new);
+				if (values.length > 0) {
+					setFieldValues(document, finalName, values);
+				}
 			} else {
-				setFieldValue(document, normalizedName, metadata.get(name));
+				String value = metadata.get(name);
+
+				if (null != value && fixDates && dateFieldNames.contains(name) && !value.endsWith("Z")) {
+					value = value + "Z";
+				}
+
+				if (null != value && !value.isEmpty()) {
+					setFieldValue(document, finalName, value);
+				}
 			}
 		}
 	}
