@@ -5,12 +5,7 @@ import org.icij.time.HumanDuration;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.List;
-import java.util.LinkedList;
-import java.util.Collection;
-import java.util.Arrays;
-import java.util.ArrayList;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -54,7 +49,14 @@ public class DefaultOption implements Option<DefaultOption, String, String> {
 
 	@Override
 	public Optional<Boolean> asBoolean() {
-		return value(Boolean::valueOf);
+		return value((value)-> {
+			value = value.toLowerCase(Locale.ROOT);
+			if (value.equals("yes") || value.equals("on") || value.equals("true") || value.equals("1")) {
+				return Boolean.TRUE;
+			}
+
+			return Boolean.FALSE;
+		});
 	}
 
 	@Override
