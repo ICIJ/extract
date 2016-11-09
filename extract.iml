@@ -7,7 +7,7 @@
       <sourceFolder url="file://$MODULE_DIR$/src/main/java" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/main/resources" type="java-resource" />
       <sourceFolder url="file://$MODULE_DIR$/src/test/java" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/src/test/resources" type="java-resource" />
+      <sourceFolder url="file://$MODULE_DIR$/src/test/resources" type="java-test-resource" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
@@ -93,7 +93,7 @@
     <orderEntry type="library" name="Maven: edu.ucar:grib:4.5.5" level="project" />
     <orderEntry type="library" name="Maven: org.jdom:jdom2:2.0.4" level="project" />
     <orderEntry type="library" name="Maven: org.jsoup:jsoup:1.7.2" level="project" />
-    <orderEntry type="library" name="Maven: edu.ucar:jj2000:5.2" level="project" />
+    <orderEntry type="library" name="Maven: edu.ucar:jj2000:5.3" level="project" />
     <orderEntry type="library" name="Maven: org.itadaki:bzip2:0.9.1" level="project" />
     <orderEntry type="library" name="Maven: edu.ucar:cdm:4.5.5" level="project" />
     <orderEntry type="library" name="Maven: edu.ucar:udunits:4.5.5" level="project" />
@@ -109,9 +109,9 @@
     <orderEntry type="library" name="Maven: org.apache.sis.core:sis-metadata:0.6" level="project" />
     <orderEntry type="library" name="Maven: org.opengis:geoapi:3.0.0" level="project" />
     <orderEntry type="library" name="Maven: javax.measure:jsr-275:0.9.3" level="project" />
-    <orderEntry type="library" scope="RUNTIME" name="Maven: com.github.jai-imageio:jai-imageio-core:1.3.1" level="project" />
-    <orderEntry type="library" scope="RUNTIME" name="Maven: com.github.jai-imageio:jai-imageio-jpeg2000:1.3.0" level="project" />
-    <orderEntry type="library" scope="RUNTIME" name="Maven: com.levigo.jbig2:levigo-jbig2-imageio:1.6.5" level="project" />
+    <orderEntry type="library" name="Maven: com.levigo.jbig2:levigo-jbig2-imageio:1.6.5" level="project" />
+    <orderEntry type="library" name="Maven: com.github.jai-imageio:jai-imageio-core:1.3.1" level="project" />
+    <orderEntry type="library" name="Maven: com.github.jai-imageio:jai-imageio-jpeg2000:1.3.0" level="project" />
     <orderEntry type="library" name="Maven: org.apache.solr:solr-solrj:6.2.1" level="project" />
     <orderEntry type="library" name="Maven: com.fasterxml.jackson.core:jackson-annotations:2.5.4" level="project" />
     <orderEntry type="library" name="Maven: com.fasterxml.jackson.core:jackson-databind:2.5.4" level="project" />

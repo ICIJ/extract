@@ -1,12 +1,10 @@
 package org.icij.extract.core;
 
-import java.io.File;
-import java.io.FilenameFilter;
-import java.io.InputStream;
-import java.io.IOException;
+import java.io.*;
 
 import java.nio.file.Path;
 
+import org.apache.tika.io.IOUtils;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.DelegatingParser;

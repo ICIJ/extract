@@ -31,6 +31,8 @@ public class HelpTask extends DefaultTask<Void> {
 
 	@Override
 	public Void run() throws Exception {
+		ImageIO.scanForPlugins();
+
 		final HelpFormatter formatter = new HelpFormatter();
 		final Set<String> tasks = Main.taskFactory.listNames();
 		final String[] imageFormats = Arrays.stream(ImageIO.getReaderFormatNames())
