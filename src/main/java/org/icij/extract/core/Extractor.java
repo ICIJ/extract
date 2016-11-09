@@ -58,7 +58,7 @@ public class Extractor {
 		}
 	}
 
-	public static final Duration DEFAULT_OCR_TIMEOUT = Duration.ofHours(12);
+	public static final Duration DEFAULT_OCR_TIMEOUT = Duration.ofDays(1);
 
 	private boolean ocrDisabled = false;
 	private Path workingDirectory = null;

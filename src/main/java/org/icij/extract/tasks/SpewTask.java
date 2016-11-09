@@ -199,7 +199,7 @@ public class SpewTask extends DefaultTask<Long> {
 		// Block until every path in the queue has been consumed.
 		drained = draining.get();
 
-		logger.info(String.format("Spewed %d files.", drained));
+		logger.info(String.format("Drained %d files.", drained));
 
 		// Shut down the drainer. Use a short timeout because all jobs should have finished.
 		drainer.shutdown();
@@ -207,7 +207,7 @@ public class SpewTask extends DefaultTask<Long> {
 
 		// Use a long timeout because some files might still be processing.
 		consumer.shutdown();
-		consumer.awaitTermination(1, TimeUnit.HOURS);
+		consumer.awaitTermination(1, TimeUnit.DAYS);
 
 		return drained;
 	}
