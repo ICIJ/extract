@@ -281,7 +281,7 @@ public class SolrSpewer extends Spewer {
 				// Remove duplicate content types (Tika seems to add these sometimes, especially for RTF files) and
 				// titles.
 				if (name.equals("content_type") && values.length > 1) {
-					stream = Arrays.stream(values).distinct();
+					stream = stream.distinct();
 				}
 
 				values = stream.toArray(String[]::new);
@@ -303,7 +303,7 @@ public class SolrSpewer extends Spewer {
 	}
 
 	private void setBaseTypeField(final Path file, final Metadata metadata, final SolrInputDocument document) {
-		final Set<Object> baseTypes = new HashSet<>();
+		final Set<String> baseTypes = new HashSet<>();
 
 		for (String type : metadata.getValues(Metadata.CONTENT_TYPE)) {
 			MediaType mediaType = MediaType.parse(type);
@@ -315,7 +315,7 @@ public class SolrSpewer extends Spewer {
 			}
 		}
 
-		setFieldValues(document, IndexDefaults.DEFAULT_BASE_TYPE_FIELD, baseTypes.toArray());
+		setFieldValues(document, IndexDefaults.DEFAULT_BASE_TYPE_FIELD, baseTypes.toArray(new String[baseTypes.size()]));
 	}
 
 	private void setTagFieldValues(final SolrInputDocument document) {
@@ -343,7 +343,7 @@ public class SolrSpewer extends Spewer {
 	 * @param name the name of the field
 	 * @param value the value
 	 */
-	private void setFieldValue(final SolrInputDocument document, final String name, final Object value) {
+	private void setFieldValue(final SolrInputDocument document, final String name, final String value) {
 		if (atomicWrites) {
 			final Map<String, Object> atomic = new HashMap<>();
 			atomic.put("set", value);
@@ -360,9 +360,9 @@ public class SolrSpewer extends Spewer {
 	 * @param name the name of the field
 	 * @param values the values
 	 */
-	private void setFieldValues(final SolrInputDocument document, final String name, final Object[] values) {
+	private void setFieldValues(final SolrInputDocument document, final String name, final String[] values) {
 		if (atomicWrites) {
-			final Map<String, Object[]> atomic = new HashMap<>();
+			final Map<String, String[]> atomic = new HashMap<>();
 			atomic.put("set", values);
 			document.setField(name, atomic);
 		} else {
