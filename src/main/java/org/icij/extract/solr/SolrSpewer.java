@@ -261,17 +261,16 @@ public class SolrSpewer extends Spewer {
 
 	private void setMetadataFieldValues(final Metadata metadata, final SolrInputDocument document) {
 		for (String name : metadata.names()) {
-			name = normalizeFieldName(name);
-			String finalName = name;
+			String normalizedName = normalizeFieldName(name);
 
 			if (null != metadataFieldPrefix) {
-				finalName = metadataFieldPrefix + name;
+				normalizedName = metadataFieldPrefix + normalizedName;
 			}
 
 			if (metadata.isMultiValued(name) &&
 
 					// Bad HTML files can have many titles. Ignore all but the first.
-					!name.equals("title")) {
+					!name.equals(Metadata.TITLE)) {
 				String[] values = metadata.getValues(name);
 				Stream<String> stream = Arrays.stream(values);
 
@@ -280,13 +279,13 @@ public class SolrSpewer extends Spewer {
 
 				// Remove duplicate content types (Tika seems to add these sometimes, especially for RTF files) and
 				// titles.
-				if (name.equals("content_type") && values.length > 1) {
+				if (name.equals(Metadata.CONTENT_TYPE) && values.length > 1) {
 					stream = stream.distinct();
 				}
 
 				values = stream.toArray(String[]::new);
 				if (values.length > 0) {
-					setFieldValues(document, finalName, values);
+					setFieldValues(document, normalizedName, values);
 				}
 			} else {
 				String value = metadata.get(name);
@@ -296,7 +295,7 @@ public class SolrSpewer extends Spewer {
 				}
 
 				if (null != value && !value.isEmpty()) {
-					setFieldValue(document, finalName, value);
+					setFieldValue(document, normalizedName, value);
 				}
 			}
 		}
