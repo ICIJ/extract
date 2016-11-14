@@ -1,5 +1,6 @@
 package org.icij.extract.tasks;
 
+import org.icij.concurrent.BooleanSealableLatch;
 import org.icij.extract.core.*;
 
 import java.nio.file.Path;
@@ -176,7 +177,11 @@ public class SpewTask extends DefaultTask<Long> {
 		final Long drained;
 
 		if (null != paths && paths.length > 0) {
-			final Scanner scanner = ScannerFactory.createScanner(options, queue, null);
+			final Scanner scanner = new ScannerFactory()
+					.withQueue(queue)
+					.withOptions(options)
+					.withLatch(new BooleanSealableLatch())
+					.create();
 			final List<Future<Path>> scanning = scanner.scan(options.get("path-base").value().orElse(null), paths);
 
 			// Set the latch that will be waited on for polling, then start draining in the background.

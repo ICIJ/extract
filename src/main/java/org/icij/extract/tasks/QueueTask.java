@@ -53,7 +53,11 @@ public class QueueTask extends MonitorableTask<Long> {
 		}
 
 		try (final PathQueue queue = PathQueueFactory.createSharedQueue(options)) {
-			return queue(ScannerFactory.createScanner(options, queue, monitor), paths);
+			return queue(new ScannerFactory()
+					.withQueue(queue)
+					.withNotifiable(monitor)
+					.withOptions(options)
+					.create(), paths);
 		}
 	}
 

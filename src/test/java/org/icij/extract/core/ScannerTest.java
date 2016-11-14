@@ -6,6 +6,7 @@ import java.util.TimerTask;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import org.icij.concurrent.BooleanSealableLatch;
 import org.junit.*;
 
 public class ScannerTest {
@@ -229,7 +230,7 @@ public class ScannerTest {
 	public void testLatch() throws Throwable {
 		final Path root = Paths.get(getClass().getResource("/documents/").toURI());
 		final Path garbage = root.resolve("garbage.bin");
-		final Scanner scanner = createScanner();
+		final Scanner scanner = new Scanner(queue, new BooleanSealableLatch());
 
 		new Timer().schedule(new TimerTask() {
 

@@ -60,7 +60,7 @@ public class Scanner extends ExecutorProxy {
 
 	private final ArrayDeque<String> includeGlobs = new ArrayDeque<>();
 	private final ArrayDeque<String> excludeGlobs = new ArrayDeque<>();
-	private final SealableLatch latch = new BooleanSealableLatch();
+	private final SealableLatch latch;
 	private final Notifiable notifiable;
 	private long queued = 0;
 
@@ -70,24 +70,31 @@ public class Scanner extends ExecutorProxy {
 	private boolean ignoreSystemFiles = true;
 
 	/**
-	 * Creates a {@code Scanner} that sends all results straight to the underlying {@link PathQueue} on a single thread.
-	 *
-	 * @param queue results from the scanner will be put on this queue
+	 * @see Scanner(PathQueue, SealableLatch, Notifiable)
 	 */
 	public Scanner(final PathQueue queue) {
-		this(queue, null);
+		this(queue, null, null);
+	}
+
+	/**
+	 * @see Scanner(PathQueue, SealableLatch, Notifiable)
+	 */
+	public Scanner(final PathQueue queue, final SealableLatch latch) {
+		this(queue, latch, null);
 	}
 
 	/**
 	 * Creates a {@code Scanner} that sends all results straight to the underlying {@link PathQueue} on a single thread.
 	 *
 	 * @param queue results from the scanner will be put on this queue
+	 * @param latch signalled when a path is queued
 	 * @param notifiable receives notifications when new file paths are queued
 	 */
-	public Scanner(final PathQueue queue, final Notifiable notifiable) {
+	public Scanner(final PathQueue queue, final SealableLatch latch, final Notifiable notifiable) {
 		super(Executors.newSingleThreadExecutor());
 		this.queue = queue;
 		this.notifiable = notifiable;
+		this.latch = latch;
 	}
 
 	/**
@@ -184,9 +191,9 @@ public class Scanner extends ExecutorProxy {
 	}
 
 	/**
-	 * Get the queue put condition.
+	 * Get the latch.
 	 *
-	 * @return The poll condition.
+	 * @return The latch or null if none is set.
 	 */
 	public SealableLatch getLatch() {
 		return latch;
@@ -344,8 +351,10 @@ public class Scanner extends ExecutorProxy {
 				logger.error(String.format("Error while scanning path: \"%s\".", path), e);
 				throw e;
 			} finally {
-				latch.seal();
-				latch.signal();
+				if (null != latch){
+					latch.seal();
+					latch.signal();
+				}
 			}
 
 			logger.info(String.format("Completed scan of: \"%s\".", path));
@@ -365,7 +374,11 @@ public class Scanner extends ExecutorProxy {
 			}
 
 			queued++;
-			latch.signal();
+
+			if (null != latch) {
+				latch.signal();
+			}
+
 			if (null != notifiable) {
 				notifiable.notifyListeners(file);
 			}
