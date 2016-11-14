@@ -14,4 +14,4 @@ We welcome contributions! Please submit pull requests or contact us directly.
 
 ## License
 
-Copyright (c) 2015 The Center for Public Integrity®. See `LICENSE`.
+Copyright (c) 2015 Matthew Caruana Galizia. See `LICENSE`.
