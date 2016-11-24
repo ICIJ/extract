@@ -2,7 +2,7 @@ package org.icij.task;
 
 public interface Task<T extends Option, U, R> {
 
-	Option.Set<T> options();
+	Options<T> options();
 
 	T option(final String name);
 

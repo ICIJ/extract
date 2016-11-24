@@ -4,7 +4,7 @@ import org.icij.concurrent.SealableLatch;
 import org.icij.events.Notifiable;
 import org.icij.extract.core.PathQueue;
 import org.icij.extract.core.Scanner;
-import org.icij.task.DefaultOption;
+import org.icij.task.StringOptions;
 
 /**
  * Factory for creating {@link Scanner} objects.
@@ -17,7 +17,7 @@ public class ScannerFactory {
 	private PathQueue queue = null;
 	private Notifiable notifiable = null;
 	private SealableLatch latch = null;
-	private DefaultOption.Set options = null;
+	private StringOptions options = null;
 
 	public ScannerFactory withQueue(final PathQueue queue) {
 		this.queue = queue;
@@ -29,7 +29,7 @@ public class ScannerFactory {
 		return this;
 	}
 
-	public ScannerFactory withOptions(final DefaultOption.Set options) {
+	public ScannerFactory withOptions(final StringOptions options) {
 		this.options = options;
 		return this;
 	}

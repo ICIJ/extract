@@ -7,8 +7,7 @@ import java.io.IOException;
 
 import java.nio.file.Path;
 
-import org.icij.task.DefaultOption;
-
+import org.icij.task.StringOptions;
 import org.redisson.RedissonMap;
 import org.redisson.command.CommandSyncService;
 import org.redisson.connection.ConnectionManager;
@@ -34,7 +33,7 @@ public class RedisReport extends RedissonMap<Path, ExtractionResult> implements 
 	 * @param options options for connecting to Redis
 	 * @param name the name of the report
 	 */
-	public RedisReport(final DefaultOption.Set options, final String name) {
+	public RedisReport(final StringOptions options, final String name) {
 		this(ConnectionManagerFactory.createConnectionManager(options), name);
 	}
 

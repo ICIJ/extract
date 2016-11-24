@@ -9,7 +9,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-public class DefaultOption implements Option<DefaultOption, String, String> {
+public class StringOption implements Option<StringOption, String, String> {
 
 	private static class DefaultSupplier implements Supplier<List<String>> {
 
@@ -28,7 +28,7 @@ public class DefaultOption implements Option<DefaultOption, String, String> {
 
 	protected Supplier<List<String>> values = new DefaultSupplier();
 
-	private DefaultOption(final String name) {
+	public StringOption(final String name) {
 		this.name = name;
 	}
 
@@ -75,13 +75,13 @@ public class DefaultOption implements Option<DefaultOption, String, String> {
 	}
 
 	@Override
-	public DefaultOption code(final Character code) {
+	public StringOption code(final Character code) {
 		this.code = code;
 		return this;
 	}
 
 	@Override
-	public DefaultOption describe(final String description) {
+	public StringOption describe(final String description) {
 		this.description = description;
 		return this;
 	}
@@ -107,7 +107,7 @@ public class DefaultOption implements Option<DefaultOption, String, String> {
 	}
 
 	@Override
-	public DefaultOption parameter(final String parameter) {
+	public StringOption parameter(final String parameter) {
 		this.parameter = parameter;
 		return this;
 	}
@@ -131,7 +131,7 @@ public class DefaultOption implements Option<DefaultOption, String, String> {
 	}
 
 	@Override
-	public synchronized DefaultOption update(final String value) {
+	public synchronized StringOption update(final String value) {
 		final List<String> values = this.values.get();
 
 		values.clear();
@@ -141,7 +141,7 @@ public class DefaultOption implements Option<DefaultOption, String, String> {
 	}
 
 	@Override
-	public synchronized DefaultOption update(final String[] values) {
+	public synchronized StringOption update(final String[] values) {
 		this.values.get().clear();
 		this.values.get().addAll(Arrays.asList(values));
 
@@ -149,7 +149,7 @@ public class DefaultOption implements Option<DefaultOption, String, String> {
 	}
 
 	@Override
-	public synchronized DefaultOption update(final Supplier<List<String>> supplier) {
+	public synchronized StringOption update(final Supplier<List<String>> supplier) {
 		values = supplier;
 
 		return this;
@@ -178,25 +178,4 @@ public class DefaultOption implements Option<DefaultOption, String, String> {
 		return results;
 	}
 
-	public static class Set extends Option.Set<DefaultOption> {
-
-		@Override
-		public DefaultOption get(final String name) {
-			return super.get(name);
-		}
-
-		@Override
-		public DefaultOption.Set add(final DefaultOption option) {
-			map.put(option.name(), option);
-			return this;
-		}
-
-		@Override
-		public DefaultOption add(final String name) {
-			final DefaultOption option = new DefaultOption(name);
-
-			add(option);
-			return option;
-		}
-	}
 }

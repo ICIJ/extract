@@ -9,13 +9,11 @@ import org.icij.extract.core.FileSpewer;
 import org.icij.extract.core.PrintStreamSpewer;
 import org.icij.extract.core.Spewer;
 import org.icij.net.http.PinnedHttpClientBuilder;
-import org.icij.extract.core.IndexDefaults;
 import org.icij.extract.solr.SolrSpewer;
-import org.icij.task.DefaultOption;
+import org.icij.task.StringOptions;
 
 import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
 import java.util.Optional;
 
 /**
@@ -33,7 +31,7 @@ public abstract class SpewerFactory {
 	 * @return A new spewer configured according to the given parameters.
 	 * @throws ParseException When the commandline parameters cannot be read.
 	 */
-	public static Spewer createSpewer(final DefaultOption.Set options) throws ParseException {
+	public static Spewer createSpewer(final StringOptions options) throws ParseException {
 		final OutputType outputType = options.get("output-type").asEnum(OutputType::parse).orElse(OutputType.STDOUT);
  		final String[] tags = options.get("tag").values();
 		final Spewer spewer;
@@ -68,7 +66,7 @@ public abstract class SpewerFactory {
 		}
 	}
 
-	private static FileSpewer createFileSpewer(final DefaultOption.Set options) {
+	private static FileSpewer createFileSpewer(final StringOptions options) {
 		final Extractor.OutputFormat outputFormat = options.get("output-format").asEnum(Extractor.OutputFormat::parse).orElse(null);
 		final FileSpewer spewer = new FileSpewer(options.get("output-directory").asPath().orElse(Paths.get(".")));
 
@@ -85,7 +83,7 @@ public abstract class SpewerFactory {
 	 * @param options the options to parse
 	 * @return A new spewer configured according to the given parameters.
 	 */
-	private static SolrSpewer createSolrSpewer(final DefaultOption.Set options) {
+	private static SolrSpewer createSolrSpewer(final StringOptions options) {
 		final SolrSpewer spewer;
 
 		// Calling #close on the SolrSpewer later on automatically closes these clients.

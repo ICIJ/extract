@@ -5,7 +5,7 @@ import org.icij.extract.PathQueueType;
 import org.icij.extract.core.ArrayPathQueue;
 import org.icij.extract.redis.RedisPathQueue;
 
-import org.icij.task.DefaultOption;
+import org.icij.task.StringOptions;
 
 import java.util.Optional;
 
@@ -24,7 +24,7 @@ public class PathQueueFactory {
 	 * @return a {@code Queue} or {@code null}
 	 * @throws IllegalArgumentException if the the commandline arguments do not contain a valid queue type
 	 */
-	public static PathQueue createQueue(final DefaultOption.Set options) throws IllegalArgumentException {
+	public static PathQueue createQueue(final StringOptions options) throws IllegalArgumentException {
 		final PathQueueType queueType = options.get("queue-type").asEnum(PathQueueType::parse).orElse(PathQueueType.ARRAY);
 
 		if (PathQueueType.ARRAY == queueType) {
@@ -41,7 +41,7 @@ public class PathQueueFactory {
 	 * @return a {@code Queue} or {@code null}
 	 * @throws IllegalArgumentException if the given options do not contain a valid shared queue type
 	 */
-	public static PathQueue createSharedQueue(final DefaultOption.Set options) throws IllegalArgumentException {
+	public static PathQueue createSharedQueue(final StringOptions options) throws IllegalArgumentException {
 		final PathQueueType queueType = options.get("queue-type").asEnum(PathQueueType::parse).orElse(PathQueueType.REDIS);
 		final Optional<String> name = options.get("queue-name").value();
 

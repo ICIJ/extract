@@ -4,7 +4,7 @@ import org.icij.extract.core.Report;
 import org.icij.extract.ReportType;
 import org.icij.extract.redis.RedisReport;
 
-import org.icij.task.DefaultOption;
+import org.icij.task.StringOptions;
 
 import java.util.Optional;
 
@@ -22,7 +22,7 @@ public class ReportFactory {
 	 * @param options the options for creating the report
 	 * @return a new report or {@code null} if no type is specified
 	 */
-	public static Report createReport(final DefaultOption.Set options) {
+	public static Report createReport(final StringOptions options) {
 		final Optional<ReportType> reportType = options.get("report-type").asEnum(ReportType::parse);
 
 		if (!reportType.isPresent()) {
@@ -39,7 +39,7 @@ public class ReportFactory {
 	 * @return a new Redis-backed report
 	 * @throws IllegalArgumentException if the given options do not contain a valid shared report type
 	 */
-	public static Report createSharedReport(final DefaultOption.Set options) throws IllegalArgumentException {
+	public static Report createSharedReport(final StringOptions options) throws IllegalArgumentException {
 		final ReportType reportType = options.get("report-type").asEnum(ReportType::parse).orElse(ReportType.REDIS);
 		final Optional<String> name = options.get("report-name").value();
 

@@ -1,7 +1,6 @@
 package org.icij.extract.redis;
 
-import org.icij.task.DefaultOption;
-
+import org.icij.task.StringOptions;
 import org.redisson.config.Config;
 import org.redisson.config.SingleServerConfig;
 import org.redisson.connection.ConnectionManager;
@@ -32,7 +31,7 @@ class ConnectionManagerFactory {
 	 * @param options options containing connection parameters
 	 * @return a new connection manager
 	 */
-	static ConnectionManager createConnectionManager(final DefaultOption.Set options) {
+	static ConnectionManager createConnectionManager(final StringOptions options) {
 		return createConnectionManager(options.get("redis-address").value().orElse(DEFAULT_ADDRESS));
 	}
 
