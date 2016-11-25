@@ -14,6 +14,12 @@ import javax.imageio.stream.ImageInputStream;
 
 import com.github.jaiimageio.impl.common.PackageUtil;
 
+/**
+ * This class shims support for JPX format images until a fix for <a href="https://github
+ * .com/jai-imageio/jai-imageio-jpeg2000/issues/8">jai-imageio-jpeg2000 issue #8</a> is released.
+ *
+ * It does this by wrapping the {@link J2KImageReaderSpi} provided by that package.
+ */
 public class JPXImageReaderSpi extends ImageReaderSpi {
 
 	private static final String [] writerSpiNames = {"org.icij.imageio.jpx.JPXImageWriterSpi"};

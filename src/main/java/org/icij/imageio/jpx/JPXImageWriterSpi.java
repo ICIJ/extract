@@ -14,6 +14,12 @@ import com.github.jaiimageio.impl.common.PackageUtil;
 import com.github.jaiimageio.jpeg2000.impl.J2KImageWriter;
 import com.github.jaiimageio.jpeg2000.impl.J2KImageWriterSpi;
 
+/**
+ * This class shims support for JPX format images until a fix for <a href="https://github
+ * .com/jai-imageio/jai-imageio-jpeg2000/issues/8">jai-imageio-jpeg2000 issue #8</a> is released.
+ *
+ * It does this by wrapping the {@link J2KImageWriterSpi} provided by that package.
+ */
 public class JPXImageWriterSpi extends ImageWriterSpi {
 
 	private static final String[] readerSpiNames = {"org.icij.imageio.jpx.JPXImageReaderSpi"};
