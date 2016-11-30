@@ -25,7 +25,7 @@ public class WipeQueueTask extends DefaultTask<Integer> {
 	public Integer run() throws Exception {
 		final int cleared;
 
-		try (final PathQueue queue = PathQueueFactory.createSharedQueue(options)) {
+		try (final PathQueue queue = new PathQueueFactory(options).createShared()) {
 			cleared = queue.size();
 			queue.clear();
 		} catch (Exception e) {

@@ -4,9 +4,7 @@ import org.icij.concurrent.BooleanSealableLatch;
 import org.icij.extract.core.*;
 
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -141,9 +139,9 @@ public class SpewTask extends DefaultTask<Long> {
 	public Long run(final String[] paths) throws Exception {
 		checkMemory();
 
-		try (final Report report = new ReportFactory().withOptions(options).createShared();
+		try (final Report report = new ReportFactory(options).create();
 		     final Spewer spewer = SpewerFactory.createSpewer(options);
-		     final PathQueue queue = PathQueueFactory.createQueue(options)) {
+		     final PathQueue queue = new PathQueueFactory(options).create()) {
 
 			return spew(report, spewer, queue, paths);
 		}
@@ -156,18 +154,14 @@ public class SpewTask extends DefaultTask<Long> {
 
 	private Long spew(final Report report, final Spewer spewer, final PathQueue queue, final String[] paths) throws
 			Exception {
-		final int parallelism = options.get("jobs").asInteger().orElse(ExtractingConsumer.defaultPoolSize());
+		final int parallelism = options.get("jobs").parse().asInteger().orElse(ExtractingConsumer.defaultPoolSize());
 		logger.info(String.format("Processing up to %d file(s) in parallel.", parallelism));
 
-		final Extractor extractor = ExtractorFactory.createExtractor(options);
+		final Extractor extractor = new Extractor(options);
 		final ExtractingConsumer consumer = new ExtractingConsumer(spewer, extractor, parallelism);
 		final PathQueueDrainer drainer = new PathQueueDrainer(queue, consumer);
 
-		final Optional<Duration> queuePoll = options.get("queue-poll").asDuration();
-
-		if (queuePoll.isPresent()) {
-			drainer.setPollTimeout(queuePoll.get());
-		}
+		options.get("queue-poll").parse().asDuration().ifPresent(drainer::setPollTimeout);
 
 		if (null != report) {
 			consumer.setReporter(new Reporter(report));
@@ -177,11 +171,7 @@ public class SpewTask extends DefaultTask<Long> {
 		final Long drained;
 
 		if (null != paths && paths.length > 0) {
-			final Scanner scanner = new ScannerFactory()
-					.withQueue(queue)
-					.withOptions(options)
-					.withLatch(new BooleanSealableLatch())
-					.create();
+			final Scanner scanner = new Scanner(queue, new BooleanSealableLatch(), null, options);
 			final List<Future<Path>> scanning = scanner.scan(options.get("path-base").value().orElse(null), paths);
 
 			// Set the latch that will be waited on for polling, then start draining in the background.

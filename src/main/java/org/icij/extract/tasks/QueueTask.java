@@ -1,6 +1,5 @@
 package org.icij.extract.tasks;
 
-import org.icij.extract.tasks.factories.ScannerFactory;
 import org.icij.extract.core.PathQueue;
 import org.icij.extract.core.Scanner;
 
@@ -52,12 +51,8 @@ public class QueueTask extends MonitorableTask<Long> {
 			throw new IllegalArgumentException("You must pass the paths to scan on the command line.");
 		}
 
-		try (final PathQueue queue = PathQueueFactory.createSharedQueue(options)) {
-			return queue(new ScannerFactory()
-					.withQueue(queue)
-					.withNotifiable(monitor)
-					.withOptions(options)
-					.create(), paths);
+		try (final PathQueue queue = new PathQueueFactory(options).createShared()) {
+			return queue(new Scanner(queue, null, monitor, options), paths);
 		}
 	}
 

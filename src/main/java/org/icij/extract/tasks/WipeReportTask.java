@@ -25,7 +25,7 @@ public class WipeReportTask extends DefaultTask<Integer> {
 	public Integer run() throws Exception {
 		final int cleared;
 
-		try (final Report report = new ReportFactory().withOptions(options).createShared()) {
+		try (final Report report = new ReportFactory(options).createShared()) {
 			cleared = report.size();
 			report.clear();
 		} catch (Exception e) {

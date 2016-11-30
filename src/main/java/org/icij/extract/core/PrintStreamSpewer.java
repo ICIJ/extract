@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import org.apache.tika.metadata.Metadata;
 
 import org.apache.commons.io.IOUtils;
+import org.icij.task.Options;
 
 /**
  * Writes the text output from a {@link ParsingReader} to the given {@link PrintStream}.
@@ -20,6 +21,11 @@ public class PrintStreamSpewer extends Spewer {
 	private final PrintStream stream;
 
 	public PrintStreamSpewer(final PrintStream stream) {
+		this.stream = stream;
+	}
+
+	public PrintStreamSpewer(final PrintStream stream, final Options<String> options) {
+		super(options);
 		this.stream = stream;
 	}
 

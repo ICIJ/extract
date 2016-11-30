@@ -31,7 +31,7 @@ public class CleanReportTask extends MonitorableTask<Integer> {
 	public Integer run() throws Exception {
 		int i = 0;
 
-		try (final Report report = new ReportFactory().withOptions(options).createShared()) {
+		try (final Report report = new ReportFactory(options).createShared()) {
 			final Iterator<Path> iterator = report.keySet().iterator();
 
 			monitor.hintRemaining(report.size());

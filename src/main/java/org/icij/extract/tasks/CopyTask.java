@@ -58,8 +58,8 @@ public class CopyTask extends MonitorableTask<Long> {
 		}
 
 		final Map<String, String> map = new HashMap<>();
-		final int jobs = options.get("jobs").asInteger().orElse(DEFAULT_JOBS);
-		final IndexType indexType = options.get("index-type").asEnum(IndexType::parse).orElse(IndexType.SOLR);
+		final int jobs = options.get("jobs").parse().asInteger().orElse(DEFAULT_JOBS);
+		final IndexType indexType = options.get("index-type").parse().asEnum(IndexType::parse).orElse(IndexType.SOLR);
 
 		for (String mapping : mappings) {
 			String[] fields = mapping.split(":", 2);
@@ -111,19 +111,15 @@ public class CopyTask extends MonitorableTask<Long> {
 				producer.setIdField(idField.get());
 			}
 
-			final Optional<String> indexFilter = options.get("index-filter").value();
-
-			if (indexFilter.isPresent()) {
-				producer.setFilter(indexFilter.get());
-			}
+			options.get("index-filter").value().ifPresent(producer::setFilter);
 
 			final Long copied = machine.call();
 
 			machine.terminate();
 
-			if (options.get("soft-commit").on()) {
+			if (options.get("soft-commit").parse().isOn()) {
 				client.commit(true, true, true);
-			} else if (options.get("commit").on()) {
+			} else if (options.get("commit").parse().isOn()) {
 				client.commit(true, true, false);
 			}
 

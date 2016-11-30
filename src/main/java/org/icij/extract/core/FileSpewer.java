@@ -7,6 +7,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.TaggedOutputStream;
@@ -17,6 +18,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonEncoding;
 
+import org.icij.task.Options;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 
@@ -38,6 +40,19 @@ public class FileSpewer extends Spewer {
 	public FileSpewer(final Path outputDirectory) {
 		super();
 		this.outputDirectory = outputDirectory;
+	}
+
+	public FileSpewer(final Options<String> options) {
+		super(options);
+
+		final Extractor.OutputFormat outputFormat = options.get("output-format").parse()
+				.asEnum(Extractor.OutputFormat::parse).orElse(null);
+
+		if (null != outputFormat && outputFormat.equals(Extractor.OutputFormat.HTML)) {
+			setOutputExtension("html");
+		}
+
+		this.outputDirectory = options.get("output-directory").parse().asPath().orElse(Paths.get("."));
 	}
 
 	public String getOutputExtension() {

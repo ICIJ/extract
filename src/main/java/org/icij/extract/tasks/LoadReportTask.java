@@ -34,7 +34,7 @@ public class LoadReportTask extends DefaultTask<Void> {
 	@Override
 	public Void run() throws Exception {
 		try (final InputStream input = new CloseShieldInputStream(System.in);
-		     final Report report = new ReportFactory().withOptions(options).createShared()) {
+		     final Report report = new ReportFactory(options).createShared()) {
 			load(report, input);
 		}
 
@@ -43,7 +43,7 @@ public class LoadReportTask extends DefaultTask<Void> {
 
 	@Override
 	public Void run(final String[] arguments) throws Exception {
-		try (final Report report = new ReportFactory().withOptions(options).createShared()) {
+		try (final Report report = new ReportFactory(options).createShared()) {
 			for (String argument : arguments) {
 				load(report, argument);
 			}

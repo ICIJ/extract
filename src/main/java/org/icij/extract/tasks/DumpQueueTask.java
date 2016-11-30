@@ -35,7 +35,7 @@ public class DumpQueueTask extends MonitorableTask<Void> {
 	@Override
 	public Void run(final String[] arguments) throws Exception {
 		try (final OutputStream output = new BufferedOutputStream(new FileOutputStream(arguments[0]));
-		     final PathQueue queue = PathQueueFactory.createSharedQueue(options)) {
+		     final PathQueue queue = new PathQueueFactory(options).createShared()) {
 			monitor.hintRemaining(queue.size());
 			dump(queue, output);
 		} catch (FileNotFoundException e) {
@@ -48,7 +48,7 @@ public class DumpQueueTask extends MonitorableTask<Void> {
 	@Override
 	public Void run() throws Exception {
 		try (final OutputStream output = new BufferedOutputStream(new CloseShieldOutputStream(System.out));
-		final PathQueue queue = PathQueueFactory.createSharedQueue(options)) {
+		final PathQueue queue = new PathQueueFactory(options).createShared()) {
 			monitor.hintRemaining(queue.size());
 			dump(queue, output);
 		}

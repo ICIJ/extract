@@ -1,59 +1,123 @@
 package org.icij.task;
 
-import java.nio.file.Path;
-import java.time.Duration;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-public interface Option<V> {
+public class Option<V> {
 
-	Option<V> describe(final String description);
+	private static class DefaultSupplier<V> implements Supplier<List<V>> {
 
-	String description();
+		private final List<V> values = new LinkedList<>();
 
-	String name();
+		@Override
+		public List<V> get() {
+			return values;
+		}
+	}
 
-	Option<V> code(final Character code);
+	private final String name;
+	private Character code = null;
+	private String description = null;
+	private String parameter = null;
 
-	Character code();
+	protected Supplier<List<V>> values = new DefaultSupplier<>();
+	protected final Function<Option<V>, OptionParser<V>> parser;
 
-	String parameter();
+	public Option(final String name, final Function<Option<V>, OptionParser<V>> parser) {
+		this.name = name;
+		this.parser = parser;
+	}
 
-	Option<V> parameter(final String parameter);
+	public Option<V> code(final Character code) {
+		this.code = code;
+		return this;
+	}
 
-	Optional<V> value();
+	public Option<V> describe(final String description) {
+		this.description = description;
+		return this;
+	}
 
-	V[] values();
+	public String description() {
+		return description;
+	}
 
-	Option<V> update(final V[] values);
+	public String name() {
+		return name;
+	}
 
-	Option<V> update(final V value);
+	public Character code() {
+		return code;
+	}
 
-	Option<V> update(final Supplier<List<V>> supplier);
+	public String parameter() {
+		return parameter;
+	}
 
-	<R> Collection<R> values(final Function<V, R> parser);
+	public Option<V> parameter(final String parameter) {
+		this.parameter = parameter;
+		return this;
+	}
 
-	<R> Optional<R> value(final Function<V, R> parser);
+	public synchronized Optional<V> value() {
+		final List<V> values = this.values.get();
 
-	Optional<Duration> asDuration();
+		if (!values.isEmpty()) {
+			return Optional.of(values.get(0));
+		}
 
-	Optional<Path> asPath();
+		return Optional.empty();
+	}
 
-	Optional<Integer> asInteger();
+	public synchronized List<V> values() {
+		return this.values.get();
+	}
 
-	Optional<Boolean> asBoolean();
+	public synchronized Option<V> update(final V value) {
+		final List<V> values = this.values.get();
 
-	/**
-	 * @return Returns {@literal true} if the toggle is explicitly set to on, otherwise returns {@literal false}.
-	 */
-	boolean on();
+		values.clear();
+		values.add(value);
 
-	/**
-	 * @return Returns {@literal true} if the toggle is explicitly set to off, otherwise returns {@literal false}.
-	 */
-	boolean off();
+		return this;
+	}
 
-	<E extends Enum<E>> Optional<E> asEnum(final Function<V, E> valueOf);
+	public synchronized Option<V> update(final List<V> values) {
+		this.values.get().clear();
+		this.values.get().addAll(values);
 
+		return this;
+	}
+
+	public synchronized Option<V> update(final Supplier<List<V>> supplier) {
+		values = supplier;
+
+		return this;
+	}
+
+	public synchronized <R> Optional<R> value(final Function<V, R> parser) {
+		final List<V> values = this.values.get();
+
+		if (values.isEmpty()) {
+			return Optional.empty();
+		}
+
+		return Optional.of(parser.apply(values.get(0)));
+	}
+
+	public synchronized <R> Collection<R> values(final Function<V, R> parser) {
+		final List<V> values = this.values.get();
+		final Collection<R> results = new ArrayList<>(values.size());
+
+		for (V value : values) {
+			results.add(parser.apply(value));
+		}
+
+		return results;
+	}
+
+	public OptionParser<V> parse() {
+		return parser.apply(this);
+	}
 }

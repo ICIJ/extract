@@ -15,21 +15,11 @@ public class ArrayPathQueue extends ArrayBlockingQueue<Path> implements PathQueu
 	private static final long serialVersionUID = -7491630465350342533L;
 
 	/**
-	 * Create a new {@code ArrayPathQueue} with the given capacity.
-	 *
-	 * @param capacity the capacity of the queue
-	 * @return a new queue
-	 */
-	public static ArrayPathQueue create(final int capacity) {
-		return new ArrayPathQueue(capacity);
-	}
-
-	/**
 	 * Instantiate a new {@code ArrayPathQueue} with the given capacity.
 	 *
 	 * @param capacity the capacity of the queue
 	 */
-	private ArrayPathQueue(final int capacity) {
+	public ArrayPathQueue(final int capacity) {
 		super(capacity);
 	}
 

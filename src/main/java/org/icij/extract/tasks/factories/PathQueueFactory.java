@@ -4,10 +4,7 @@ import org.icij.extract.core.PathQueue;
 import org.icij.extract.PathQueueType;
 import org.icij.extract.core.ArrayPathQueue;
 import org.icij.extract.redis.RedisPathQueue;
-
-import org.icij.task.StringOptions;
-
-import java.util.Optional;
+import org.icij.task.Options;
 
 /**
  * Factory methods for creating queue objects.
@@ -17,38 +14,39 @@ import java.util.Optional;
  */
 public class PathQueueFactory {
 
-	/**
-	 * Creates {@code Queue} based on the given commandline arguments, preferring an in-local-memory queue by default.
-	 *
-	 * @param options the options for creating the queue
-	 * @return a {@code Queue} or {@code null}
-	 * @throws IllegalArgumentException if the the commandline arguments do not contain a valid queue type
-	 */
-	public static PathQueue createQueue(final StringOptions options) throws IllegalArgumentException {
-		final PathQueueType queueType = options.get("queue-type").asEnum(PathQueueType::parse).orElse(PathQueueType.ARRAY);
+	private PathQueueType type = null;
+	private Options<String> options = null;
 
-		if (PathQueueType.ARRAY == queueType) {
-			return ArrayPathQueue.create(options.get("queue-buffer").asInteger().orElse(1024));
+	public PathQueueFactory(final Options<String> options) {
+		type = options.get("queue-type").parse().asEnum(PathQueueType::parse).orElse(PathQueueType.ARRAY);
+		this.options = options;
+	}
+
+	/**
+	 * Creates {@code Queue} based on the given arguments, preferring an in-local-memory queue by default.
+	 *
+	 * @return a {@code Queue} or {@code null}
+	 * @throws IllegalArgumentException if the arguments do not contain a valid queue type
+	 */
+	public PathQueue create() throws IllegalArgumentException {
+		if (PathQueueType.ARRAY == type) {
+			return new ArrayPathQueue(options.get("queue-buffer").parse().asInteger().orElse(1024));
 		}
 
-		return createSharedQueue(options);
+		return createShared();
 	}
 
 	/**
 	 * Creates a share {@code Queue} based on the given commandline arguments, preferring Redis by default.
 	 *
-	 * @param options the options for creating the queue
 	 * @return a {@code Queue} or {@code null}
 	 * @throws IllegalArgumentException if the given options do not contain a valid shared queue type
 	 */
-	public static PathQueue createSharedQueue(final StringOptions options) throws IllegalArgumentException {
-		final PathQueueType queueType = options.get("queue-type").asEnum(PathQueueType::parse).orElse(PathQueueType.REDIS);
-		final Optional<String> name = options.get("queue-name").value();
-
-		if (PathQueueType.REDIS == queueType) {
-			return new RedisPathQueue(options, name.orElse(RedisPathQueue.DEFAULT_NAME));
+	public PathQueue createShared() throws IllegalArgumentException {
+		if (PathQueueType.REDIS == type) {
+			return new RedisPathQueue(options);
 		}
 
-		throw new IllegalArgumentException(String.format("\"%s\" is not a valid shared queue type.", queueType));
+		throw new IllegalArgumentException(String.format("\"%s\" is not a valid shared queue type.", type));
 	}
 }

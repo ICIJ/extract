@@ -44,7 +44,7 @@ public class DeleteTask extends MonitorableTask<Integer> {
 			throw new IllegalArgumentException("You must pass the queries or IDs to delete on the command line.");
 		}
 
-		final IndexType indexType = options.get("index-type").asEnum(IndexType::parse).orElse(IndexType.SOLR);
+		final IndexType indexType = options.get("index-type").parse().asEnum(IndexType::parse).orElse(IndexType.SOLR);
 
 		if (IndexType.SOLR != indexType) {
 			throw new IllegalArgumentException("Not implemented.");
@@ -74,9 +74,9 @@ public class DeleteTask extends MonitorableTask<Integer> {
 				monitor.notifyListeners(query);
 			}
 
-			if (options.get("soft-commit").on()) {
+			if (options.get("soft-commit").parse().isOn()) {
 				client.commit(true, true, true);
-			} else if (options.get("commit").on()) {
+			} else if (options.get("commit").parse().isOn()) {
 				client.commit(true, true, false);
 			}
 

@@ -5,6 +5,7 @@ import org.icij.executor.ExecutorProxy;
 import org.icij.concurrent.*;
 import org.icij.io.file.matcher.*;
 
+import org.icij.task.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,6 +96,25 @@ public class Scanner extends ExecutorProxy {
 		this.queue = queue;
 		this.notifiable = notifiable;
 		this.latch = latch;
+	}
+
+	public Scanner(final PathQueue queue, final SealableLatch latch, final Notifiable notifiable, final
+	Options<String> options) {
+		this(queue, latch, notifiable);
+		options.get("include-os-files").parse().asBoolean().ifPresent(this::ignoreSystemFiles);
+		options.get("include-hidden-files").parse().asBoolean().ifPresent(this::ignoreHiddenFiles);
+		options.get("follow-symlinks").parse().asBoolean().ifPresent(this::followSymLinks);
+
+		final List<String> includePatterns = options.get("include-pattern").values();
+		final List<String> excludePatterns = options.get("exclude-pattern").values();
+
+		for (String includePattern : includePatterns) {
+			include(includePattern);
+		}
+
+		for (String excludePattern : excludePatterns) {
+			exclude(excludePattern);
+		}
 	}
 
 	/**

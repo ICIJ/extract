@@ -37,7 +37,7 @@ public class ReplaceReportTask extends MonitorableTask<Long> {
 			throw new IllegalArgumentException("You must pass the search string as an argument.");
 		}
 
-		try (final Report report = new ReportFactory().withOptions(options).createShared()) {
+		try (final Report report = new ReportFactory(options).createShared()) {
 			return replaceReport(report, literals);
 		}
 	}

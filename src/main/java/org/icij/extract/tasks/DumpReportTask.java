@@ -42,7 +42,7 @@ public class DumpReportTask extends MonitorableTask<Void> {
 		final Optional<ExtractionResult> result = options.get("report-status").value(ExtractionResult::get);
 
 		try (final OutputStream output = new BufferedOutputStream(new FileOutputStream(arguments[0]));
-		     final Report report = new ReportFactory().withOptions(options).createShared()) {
+		     final Report report = new ReportFactory(options).createShared()) {
 			monitor.hintRemaining(report.size());
 			dump(report, output, result.orElse(null));
 		} catch (FileNotFoundException e) {
@@ -57,7 +57,7 @@ public class DumpReportTask extends MonitorableTask<Void> {
 		final Optional<ExtractionResult> result = options.get("report-status").value(ExtractionResult::get);
 
 		try (final OutputStream output = new BufferedOutputStream(new CloseShieldOutputStream(System.out));
-		     final Report report = new ReportFactory().withOptions(options).createShared()) {
+		     final Report report = new ReportFactory(options).createShared()) {
 			monitor.hintRemaining(report.size());
 			dump(report, output, result.orElse(null));
 		}

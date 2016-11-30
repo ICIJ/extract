@@ -26,6 +26,7 @@ import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.io.TikaInputStream;
+import org.icij.task.Options;
 
 /**
  * A reusable class that sets up Tika parsers based on runtime options.
@@ -71,6 +72,21 @@ public class Extractor {
 
 	private EmbedHandling embedHandling = EmbedHandling.EXTRACT;
 	private OutputFormat outputFormat = OutputFormat.TEXT;
+
+	public Extractor(final Options<String> options) {
+		this();
+		options.get("output-format").parse().asEnum(OutputFormat::parse)
+				.ifPresent(this::setOutputFormat);
+		options.get("embed-handling").parse().asEnum(EmbedHandling::parse)
+				.ifPresent(this::setEmbedHandling);
+		options.get("ocr-language").value().ifPresent(this::setOcrLanguage);
+		options.get("ocr-timeout").parse().asDuration().ifPresent(this::setOcrTimeout);
+		options.get("working-directory").parse().asPath().ifPresent(this::setWorkingDirectory);
+
+		if (options.get("ocr").parse().isOff()) {
+			this.disableOcr();
+		}
+	}
 
 	/**
 	 * Create a new extractor, which will OCR images by default if Tesseract is available locally, extract inline

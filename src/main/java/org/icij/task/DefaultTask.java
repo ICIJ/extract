@@ -5,13 +5,13 @@ import java.lang.reflect.AnnotatedElement;
 public abstract class DefaultTask<R> implements Task<String, String[], R> {
 
 	protected static Options<String> options(final Class<? extends DefaultTask> taskClass) {
-		final Options<String> options = new StringOptions();
+		final Options<String> options = new Options<>();
 		final org.icij.task.annotation.Option[] descriptions = taskClass
 				.getAnnotationsByType(org.icij.task.annotation.Option.class);
 
 		for (org.icij.task.annotation.Option description : descriptions) {
 			final String code = description.code();
-			final org.icij.task.Option<String> option = options.add(description.name())
+			final org.icij.task.Option<String> option = options.add(description.name(), StringOptionParser::new)
 					.describe(description.description())
 					.parameter(description.parameter());
 

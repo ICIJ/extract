@@ -40,7 +40,7 @@ public class LoadQueueTask extends DefaultTask<Void> {
 	@Override
 	public Void run() throws Exception {
 		try (final InputStream input = new CloseShieldInputStream(System.in);
-		     final PathQueue queue = PathQueueFactory.createSharedQueue(options)) {
+		     final PathQueue queue = new PathQueueFactory(options).createShared()) {
 			load(queue, input);
 		}
 
@@ -49,7 +49,7 @@ public class LoadQueueTask extends DefaultTask<Void> {
 
 	@Override
 	public Void run(final String[] arguments) throws Exception {
-		try (final PathQueue queue = PathQueueFactory.createSharedQueue(options)) {
+		try (final PathQueue queue = new PathQueueFactory(options).createShared()) {
 			for (String argument : arguments) {
 				load(queue, argument);
 			}

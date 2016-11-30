@@ -88,7 +88,8 @@ public class TagTask extends MonitorableTask<Long> {
 	}
 
 	private Long tag(final Map<String, String> pairs) throws Exception {
-		final int parallelism = options.get("jobs").asInteger().orElse(Runtime.getRuntime().availableProcessors());
+		final int parallelism = options.get("jobs").parse().asInteger()
+				.orElse(Runtime.getRuntime().availableProcessors());
 		final String subsetMode = options.get("subset-mode").value().orElse(null);
 
 		if (null != subsetMode && !(subsetMode.equals("intersection") || subsetMode.equals("complement"))) {
@@ -138,9 +139,7 @@ public class TagTask extends MonitorableTask<Long> {
 						producer.setIdField(idField.get());
 					}
 
-					if (filter.isPresent()) {
-						producer.setFilter(filter.get());
-					}
+					filter.ifPresent(producer::setFilter);
 
 					final SolrMachine machine = new SolrMachine(consumer, producer, parallelism);
 
@@ -159,9 +158,7 @@ public class TagTask extends MonitorableTask<Long> {
 					producer.setIdField(idField.get());
 				}
 
-				if (filter.isPresent()) {
-					producer.setFilter(filter.get());
-				}
+				filter.ifPresent(producer::setFilter);
 
 				final SolrMachine machine = new SolrMachine(consumer, producer, parallelism);
 
@@ -175,9 +172,9 @@ public class TagTask extends MonitorableTask<Long> {
 			logger.info(String.format("Processed a total of %d documents.", processed));
 			logger.info(String.format("Tagged %d documents.", consumer.getConsumeCount()));
 
-			if (options.get("soft-commit").on()) {
+			if (options.get("soft-commit").parse().isOn()) {
 				client.commit(true, true, true);
-			} else if (options.get("commit").on()) {
+			} else if (options.get("commit").parse().isOn()) {
 				client.commit(true, true, false);
 			}
 

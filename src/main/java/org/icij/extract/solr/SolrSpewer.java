@@ -5,19 +5,11 @@ import org.icij.extract.core.Spewer;
 import org.icij.extract.core.SpewerException;
 
 import java.time.Duration;
+import java.util.*;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.TimeUnit;
 
 import java.util.regex.Pattern;
-
-import java.util.Locale;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.List;
-import java.util.Arrays;
 
 import java.io.Reader;
 import java.io.IOException;
@@ -44,6 +36,7 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.http.impl.client.CloseableHttpClient;
 
 import org.apache.commons.io.IOUtils;
+import org.icij.task.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,6 +67,31 @@ public class SolrSpewer extends Spewer {
 	public SolrSpewer(final SolrClient client) {
 		super();
 		this.client = client;
+	}
+
+	public SolrSpewer(final SolrClient client, final Options<String> options) {
+		super(options);
+		this.client = client;
+
+		options.get("atomic-writes").parse().asBoolean().ifPresent(this::atomicWrites);
+		options.get("fix-dates").parse().asBoolean().ifPresent(this::fixDates);
+		options.get("text-field").value().ifPresent(this::setTextField);
+		options.get("path-field").value().ifPresent(this::setPathField);
+		options.get("id-field").value().ifPresent(this::setIdField);
+		options.get("metadata-prefix").value().ifPresent(this::setMetadataFieldPrefix);
+		options.get("commit-interval").parse().asInteger().ifPresent(this::setCommitThreshold);
+		options.get("commit-within").parse().asDuration().ifPresent(this::setCommitWithin);
+
+		final Optional<String> idAlgorithm = options.get("id-algorithm").value();
+
+		if (idAlgorithm.isPresent()) {
+			try {
+				setIdAlgorithm(idAlgorithm.get());
+			} catch (NoSuchAlgorithmException e) {
+				throw new IllegalArgumentException(String.format("Hashing algorithm \"%s\" not available on this platform.",
+						idAlgorithm.get()));
+			}
+		}
 	}
 
 	public void setTextField(final String textField) {

@@ -36,7 +36,7 @@ public class CommitTask extends DefaultTask<Integer> {
 	@Override
 	public Integer run() throws Exception {
 		final IndexType indexType = options.get("index-type").value(IndexType::parse).orElse(IndexType.SOLR);
-		final boolean softCommit = options.get("soft-commit").asBoolean().orElse(false);
+		final boolean softCommit = options.get("soft-commit").parse().asBoolean().orElse(false);
 
 		if (IndexType.SOLR == indexType) {
 			return commitSolr(softCommit).getQTime();

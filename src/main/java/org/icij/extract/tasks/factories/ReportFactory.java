@@ -3,7 +3,6 @@ package org.icij.extract.tasks.factories;
 import org.icij.extract.core.Report;
 import org.icij.extract.ReportType;
 import org.icij.extract.redis.RedisReport;
-import org.icij.extract.redis.ConnectionManagerFactory;
 
 import org.icij.task.Options;
 
@@ -18,10 +17,9 @@ public class ReportFactory {
 	private ReportType type = null;
 	private Options<String> options = null;
 
-	public ReportFactory withOptions(final Options<String> options) {
-		type = options.get("report-type").asEnum(ReportType::parse).orElse(null);
+	public ReportFactory(final Options<String> options) {
+		type = options.get("report-type").parse().asEnum(ReportType::parse).orElse(null);
 		this.options = options;
-		return this;
 	}
 
 	/**

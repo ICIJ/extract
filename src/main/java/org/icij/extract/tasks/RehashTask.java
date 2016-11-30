@@ -61,7 +61,8 @@ public class RehashTask extends MonitorableTask<Long> {
 
 	@Override
 	public Long run() throws Exception {
-		final int parallelism = options.get("jobs").asInteger().orElse(Runtime.getRuntime().availableProcessors());
+		final int parallelism = options.get("jobs").parse().asInteger()
+				.orElse(Runtime.getRuntime().availableProcessors());
 
 		try (
 			final CloseableHttpClient httpClient = PinnedHttpClientBuilder.createWithDefaults()
@@ -83,34 +84,23 @@ public class RehashTask extends MonitorableTask<Long> {
 			producer.setNotifiable(monitor);
 
 			final Optional<String> idField = options.get("id-field").value();
-			final Optional<String> indexFilter = options.get("filter").value();
-			final Optional<String> pattern = options.get("pattern").value();
-			final Optional<String> replacement = options.get("replacement").value();
 
 			if (idField.isPresent()) {
 				consumer.setIdField(idField.get());
 				producer.setIdField(idField.get());
 			}
 
-			if (indexFilter.isPresent()) {
-				producer.setFilter(indexFilter.get());
-			}
-
-			if (pattern.isPresent()) {
-				consumer.setPattern(pattern.get());
-			}
-
-			if (replacement.isPresent()) {
-				consumer.setReplacement(replacement.get());
-			}
+			options.get("filter").value().ifPresent(producer::setFilter);
+			options.get("pattern").value().ifPresent(consumer::setPattern);
+			options.get("replacement").value().ifPresent(consumer::setReplacement);
 
 			final long copied = machine.call();
 
 			machine.terminate();
 
-			if (options.get("soft-commit").on()) {
+			if (options.get("soft-commit").parse().isOn()) {
 				client.commit(true, true, true);
-			} else if (options.get("commit").on()) {
+			} else if (options.get("commit").parse().isOn()) {
 				client.commit(true, true, false);
 			}
 
