@@ -6,7 +6,7 @@ import java.io.IOException;
 
 import java.nio.file.Path;
 
-import org.icij.task.StringOptions;
+import org.icij.task.Options;
 import org.redisson.RedissonBlockingQueue;
 import org.redisson.command.CommandSyncService;
 import org.redisson.connection.ConnectionManager;
@@ -30,27 +30,10 @@ public class RedisPathQueue extends RedissonBlockingQueue<Path> implements PathQ
 	 * Create a Redis-backed queue using the provided configuration.
 	 *
 	 * @param options options for connecting to Redis
-	 * @param name the name of the queue
 	 */
-	public RedisPathQueue(final StringOptions options, final String name) {
-		this(ConnectionManagerFactory.createConnectionManager(options), name);
-	}
-
-	/**
-	 * Instantiate a Redis-backed queue using the default configuration, assuming Redis runs on localhost and uses the
-	 * default port.
-	 *
-	 * @param name the name of the queue
-	 */
-	public RedisPathQueue(final String name) {
-		this(ConnectionManagerFactory.createConnectionManager(), name);
-	}
-
-	/**
-	 * Instantiate a Redis-backed queue using the default configuration and name.
-	 */
-	public RedisPathQueue() {
-		this(ConnectionManagerFactory.createConnectionManager(), DEFAULT_NAME);
+	public RedisPathQueue(final Options<String> options) {
+		this(new ConnectionManagerFactory().withOptions(options).create(),
+				options.get("queue-name").value().orElse(DEFAULT_NAME));
 	}
 
 	/**
@@ -60,8 +43,7 @@ public class RedisPathQueue extends RedissonBlockingQueue<Path> implements PathQ
 	 * @param name the name of the queue
 	 */
 	private RedisPathQueue(final ConnectionManager connectionManager, final String name) {
-		super(new RedisPathQueueCodec(), new CommandSyncService(connectionManager),
-			null == name || name.trim().isEmpty() ? DEFAULT_NAME : name);
+		super(new RedisPathQueueCodec(), new CommandSyncService(connectionManager), null == name ? DEFAULT_NAME : name);
 		this.connectionManager = connectionManager;
 	}
 

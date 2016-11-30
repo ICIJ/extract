@@ -1,7 +1,7 @@
 package org.icij.extract.tasks.factories;
 
 import org.icij.extract.core.Extractor;
-import org.icij.task.StringOptions;
+import org.icij.task.Options;
 
 import java.nio.file.Path;
 import java.time.Duration;
@@ -15,7 +15,7 @@ import java.util.Optional;
  */
 public class ExtractorFactory {
 
-	public static Extractor createExtractor(final StringOptions options) {
+	public static Extractor createExtractor(final Options<String> options) {
 		final Extractor extractor = new Extractor();
 		final Optional<Extractor.OutputFormat> outputFormat = options.get("output-format").asEnum(Extractor
 				.OutputFormat::parse);

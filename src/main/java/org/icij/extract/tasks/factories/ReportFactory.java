@@ -3,10 +3,9 @@ package org.icij.extract.tasks.factories;
 import org.icij.extract.core.Report;
 import org.icij.extract.ReportType;
 import org.icij.extract.redis.RedisReport;
+import org.icij.extract.redis.ConnectionManagerFactory;
 
-import org.icij.task.StringOptions;
-
-import java.util.Optional;
+import org.icij.task.Options;
 
 /**
  * Factory methods for creating {@link Report} objects.
@@ -16,37 +15,39 @@ import java.util.Optional;
  */
 public class ReportFactory {
 
+	private ReportType type = null;
+	private Options<String> options = null;
+
+	public ReportFactory withOptions(final Options<String> options) {
+		type = options.get("report-type").asEnum(ReportType::parse).orElse(null);
+		this.options = options;
+		return this;
+	}
+
 	/**
-	 * Create a new report from commandline parameters.
+	 * Create a new report from the given arguments.
 	 *
-	 * @param options the options for creating the report
 	 * @return a new report or {@code null} if no type is specified
 	 */
-	public static Report createReport(final StringOptions options) {
-		final Optional<ReportType> reportType = options.get("report-type").asEnum(ReportType::parse);
-
-		if (!reportType.isPresent()) {
+	public Report create() {
+		if (null == type) {
 			return null;
 		}
 
-		return createSharedReport(options);
+		return createShared();
 	}
 
 	/**
 	 * Create a new Redis-backed report from commandline parameters.
 	 *
-	 * @param options the options for creating the report
 	 * @return a new Redis-backed report
 	 * @throws IllegalArgumentException if the given options do not contain a valid shared report type
 	 */
-	public static Report createSharedReport(final StringOptions options) throws IllegalArgumentException {
-		final ReportType reportType = options.get("report-type").asEnum(ReportType::parse).orElse(ReportType.REDIS);
-		final Optional<String> name = options.get("report-name").value();
-
-		if (ReportType.REDIS == reportType) {
-			return new RedisReport(options, name.orElse(RedisReport.DEFAULT_NAME));
+	public Report createShared() throws IllegalArgumentException {
+		if (ReportType.REDIS != type) {
+			throw new IllegalArgumentException(String.format("\"%s\" is not a valid shared report type.", type));
 		}
 
-		throw new IllegalArgumentException(String.format("\"%s\" is not a valid shared report type.", reportType));
+		return new RedisReport(options);
 	}
 }

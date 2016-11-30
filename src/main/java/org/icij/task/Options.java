@@ -4,23 +4,23 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-public abstract class Options<T extends Option> implements Iterable<T> {
+public abstract class Options<T> implements Iterable<Option<T>> {
 
-	protected final Map<String, T> map = new HashMap<>();
+	protected final Map<String, Option<T>> map = new HashMap<>();
 
-	public T get(final String name) {
+	public Option<T> get(final String name) {
 		return map.get(name);
 	}
 
-	public Options<T> add(final T option) {
+	public Options<T> add(final Option<T> option) {
 		map.put(option.name(), option);
 		return this;
 	}
 
-	abstract public T add(final String name);
+	abstract public Option<T> add(final String name);
 
 	@Override
-	public Iterator<T> iterator() {
+	public Iterator<Option<T>> iterator() {
 		return new OptionsIterator<>(map);
 	}
 }

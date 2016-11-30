@@ -6,35 +6,35 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-public interface Option<T, U, V> {
+public interface Option<V> {
 
-	Option<T, U, V> describe(final String description);
+	Option<V> describe(final String description);
 
 	String description();
 
 	String name();
 
-	Option<T, U, V> code(final Character code);
+	Option<V> code(final Character code);
 
 	Character code();
 
 	String parameter();
 
-	Option<T, U, V> parameter(final String parameter);
+	Option<V> parameter(final String parameter);
 
 	Optional<V> value();
 
 	V[] values();
 
-	Option<T, U, V> update(final V[] values);
+	Option<V> update(final V[] values);
 
-	Option<T, U, V> update(final V value);
+	Option<V> update(final V value);
 
-	Option<T, U, V> update(final Supplier<List<V>> supplier);
+	Option<V> update(final Supplier<List<V>> supplier);
 
-	<R> Collection<R> values(final Function<U, R> parser);
+	<R> Collection<R> values(final Function<V, R> parser);
 
-	<R> Optional<R> value(final Function<U, R> parser);
+	<R> Optional<R> value(final Function<V, R> parser);
 
 	Optional<Duration> asDuration();
 
@@ -54,6 +54,6 @@ public interface Option<T, U, V> {
 	 */
 	boolean off();
 
-	<E extends Enum<E>> Optional<E> asEnum(final Function<U, E> valueOf);
+	<E extends Enum<E>> Optional<E> asEnum(final Function<V, E> valueOf);
 
 }

@@ -141,7 +141,7 @@ public class SpewTask extends DefaultTask<Long> {
 	public Long run(final String[] paths) throws Exception {
 		checkMemory();
 
-		try (final Report report = ReportFactory.createReport(options);
+		try (final Report report = new ReportFactory().withOptions(options).createShared();
 		     final Spewer spewer = SpewerFactory.createSpewer(options);
 		     final PathQueue queue = PathQueueFactory.createQueue(options)) {
 

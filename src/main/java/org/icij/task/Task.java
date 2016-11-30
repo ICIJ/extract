@@ -1,10 +1,10 @@
 package org.icij.task;
 
-public interface Task<T extends Option, U, R> {
+public interface Task<T, U, R> {
 
 	Options<T> options();
 
-	T option(final String name);
+	Option<T> option(final String name);
 
 	String description();
 

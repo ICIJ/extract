@@ -9,7 +9,7 @@ import java.util.Locale;
  * @since 1.0.0-beta
  */
 public enum ReportType {
-	NONE, REDIS;
+	REDIS;
 
 	/**
 	 * Return the name of the report type.
@@ -27,10 +27,6 @@ public enum ReportType {
 	 * @return The type of report as a {@link ReportType} instance.
 	 */
 	public static ReportType parse(final String reportType) {
-		if (null == reportType) {
-			return NONE;
-		}
-
 		try {
 			return valueOf(reportType.toUpperCase(Locale.ROOT));
 		} catch (IllegalArgumentException e) {

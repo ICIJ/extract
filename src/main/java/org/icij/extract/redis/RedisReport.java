@@ -7,7 +7,7 @@ import java.io.IOException;
 
 import java.nio.file.Path;
 
-import org.icij.task.StringOptions;
+import org.icij.task.Options;
 import org.redisson.RedissonMap;
 import org.redisson.command.CommandSyncService;
 import org.redisson.connection.ConnectionManager;
@@ -31,20 +31,10 @@ public class RedisReport extends RedissonMap<Path, ExtractionResult> implements 
 	 * Create a Redis-backed report using the provided configuration.
 	 *
 	 * @param options options for connecting to Redis
-	 * @param name the name of the report
 	 */
-	public RedisReport(final StringOptions options, final String name) {
-		this(ConnectionManagerFactory.createConnectionManager(options), name);
-	}
-
-	/**
-	 * Create a Redis-backed report using the default configuration, assuming Redis runs on localhost and uses the
-	 * default port.
-	 *
-	 * @param name the name of the report
-	 */
-	public RedisReport(final String name) {
-		this(ConnectionManagerFactory.createConnectionManager(), name);
+	public RedisReport(final Options<String> options) {
+		this(new ConnectionManagerFactory().withOptions(options).create(),
+				options.get("report-name").value().orElse(DEFAULT_NAME));
 	}
 
 	/**
@@ -53,9 +43,8 @@ public class RedisReport extends RedissonMap<Path, ExtractionResult> implements 
 	 * @param connectionManager instantiated using {@link ConnectionManagerFactory}
 	 * @param name the name of the report
 	 */
-	private RedisReport(final ConnectionManager connectionManager, final String name) {
-		super(new RedisReportCodec(), new CommandSyncService(connectionManager),
-			null == name || name.trim().isEmpty() ? DEFAULT_NAME : name);
+	public RedisReport(final ConnectionManager connectionManager, final String name) {
+		super(new RedisReportCodec(), new CommandSyncService(connectionManager), null == name ? DEFAULT_NAME : name);
 		this.connectionManager = connectionManager;
 	}
 

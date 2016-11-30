@@ -3,14 +3,14 @@ package org.icij.task;
 import java.util.Iterator;
 import java.util.Map;
 
-public class OptionsIterator<T extends Option> implements Iterator<T> {
+public class OptionsIterator<T> implements Iterator<Option<T>> {
 
 	private int cursor = 0;
 	private final int length;
-	private final Map<String, T> options;
+	private final Map<String, Option<T>> options;
 	private final String[] keys;
 
-	OptionsIterator(final Map<String, T> options) {
+	OptionsIterator(final Map<String, Option<T>> options) {
 		length = options.size();
 		keys = options.keySet().toArray(new String[length]);
 		this.options = options;
@@ -22,7 +22,7 @@ public class OptionsIterator<T extends Option> implements Iterator<T> {
 	}
 
 	@Override
-	public T next() {
+	public Option<T> next() {
 		return options.get(keys[cursor++]);
 	}
 

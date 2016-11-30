@@ -1,19 +1,17 @@
 package org.icij.task;
 
-import org.icij.task.annotation.Option;
-import org.icij.task.annotation.Task;
-
 import java.lang.reflect.AnnotatedElement;
 
-public abstract class DefaultTask<R> implements org.icij.task.Task<StringOption, String[], R> {
+public abstract class DefaultTask<R> implements Task<String, String[], R> {
 
-	protected static StringOptions options(final Class<? extends DefaultTask> taskClass) {
-		final StringOptions options = new StringOptions();
-		final Option[] descriptions = taskClass.getAnnotationsByType(Option.class);
+	protected static Options<String> options(final Class<? extends DefaultTask> taskClass) {
+		final Options<String> options = new StringOptions();
+		final org.icij.task.annotation.Option[] descriptions = taskClass
+				.getAnnotationsByType(org.icij.task.annotation.Option.class);
 
-		for (Option description : descriptions) {
+		for (org.icij.task.annotation.Option description : descriptions) {
 			final String code = description.code();
-			final StringOption option = options.add(description.name())
+			final org.icij.task.Option<String> option = options.add(description.name())
 					.describe(description.description())
 					.parameter(description.parameter());
 
@@ -25,21 +23,22 @@ public abstract class DefaultTask<R> implements org.icij.task.Task<StringOption,
 		return options;
 	}
 
-	protected final StringOptions options = DefaultTask.options(this.getClass());
+	protected final Options<String> options = DefaultTask.options(this.getClass());
 
-	public StringOptions options() {
+	@Override
+	public Options<String> options() {
 		return options;
 	}
 
 	@Override
-	public StringOption option(final String name) {
+	public Option<String> option(final String name) {
 		return options.get(name);
 	}
 
 	@Override
 	public String description() {
 		final AnnotatedElement element = getClass();
-		final Class<Task> c = Task.class;
+		final Class<org.icij.task.annotation.Task> c = org.icij.task.annotation.Task.class;
 
 		if (!element.isAnnotationPresent(c)) {
 			return null;

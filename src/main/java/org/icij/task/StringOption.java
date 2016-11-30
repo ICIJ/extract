@@ -9,7 +9,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-public class StringOption implements Option<StringOption, String, String> {
+public class StringOption implements Option<String> {
 
 	private static class DefaultSupplier implements Supplier<List<String>> {
 

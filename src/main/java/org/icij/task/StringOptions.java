@@ -1,20 +1,20 @@
 package org.icij.task;
 
-public class StringOptions extends Options<StringOption> {
+public class StringOptions extends Options<String> {
 
 	@Override
-	public StringOption get(final String name) {
+	public Option<String> get(final String name) {
 		return super.get(name);
 	}
 
 	@Override
-	public StringOptions add(final StringOption option) {
+	public Options<String> add(final Option<String> option) {
 		map.put(option.name(), option);
 		return this;
 	}
 
 	@Override
-	public StringOption add(final String name) {
+	public Option<String> add(final String name) {
 		final StringOption option = new StringOption(name);
 
 		add(option);
