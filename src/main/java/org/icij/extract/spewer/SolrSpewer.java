@@ -1,8 +1,6 @@
-package org.icij.extract.solr;
+package org.icij.extract.spewer;
 
-import org.icij.extract.core.IndexDefaults;
-import org.icij.extract.spewer.Spewer;
-import org.icij.extract.spewer.SpewerException;
+import org.icij.extract.IndexDefaults;
 
 import java.time.Duration;
 import java.util.*;

@@ -1,10 +1,9 @@
-package org.icij.extract.core;
+package org.icij.extract.extractor;
 
 import java.io.*;
 
 import java.nio.file.Path;
 
-import org.apache.tika.io.IOUtils;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.DelegatingParser;
@@ -35,7 +34,7 @@ import static org.apache.tika.sax.XHTMLContentHandler.XHTML;
  *
  * @since 1.0.0-beta
  */
-class ParsingEmbeddedDocumentExtractor implements EmbeddedDocumentExtractor {
+public class ParsingEmbeddedDocumentExtractor implements EmbeddedDocumentExtractor {
 
 	private static final Logger logger = LoggerFactory.getLogger(ParsingEmbeddedDocumentExtractor.class);
 

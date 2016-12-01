@@ -1,8 +1,8 @@
 package org.icij.extract.tasks.factories;
 
-import org.icij.extract.core.Report;
+import org.icij.extract.report.Report;
 import org.icij.extract.ReportType;
-import org.icij.extract.redis.RedisReport;
+import org.icij.extract.report.RedisReport;
 
 import org.icij.task.Options;
 

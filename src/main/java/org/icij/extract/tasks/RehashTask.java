@@ -1,6 +1,6 @@
 package org.icij.extract.tasks;
 
-import org.icij.extract.core.IndexDefaults;
+import org.icij.extract.IndexDefaults;
 import org.icij.extract.solr.*;
 import org.icij.net.http.PinnedHttpClientBuilder;
 

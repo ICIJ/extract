@@ -1,6 +1,6 @@
 package org.icij.extract.json;
 
-import org.icij.extract.core.PathQueue;
+import org.icij.extract.queue.PathQueue;
 
 import java.util.Iterator;
 

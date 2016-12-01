@@ -1,6 +1,6 @@
 package org.icij.extract.redis;
 
-import org.icij.extract.core.ExtractionResult;
+import org.icij.extract.extractor.ExtractionResult;
 import org.redisson.client.handler.State;
 import org.redisson.client.protocol.Decoder;
 

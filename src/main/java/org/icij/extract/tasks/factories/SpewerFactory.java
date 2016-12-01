@@ -4,11 +4,11 @@ import org.apache.commons.cli.ParseException;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.icij.extract.OutputType;
-import org.icij.extract.core.FileSpewer;
-import org.icij.extract.core.PrintStreamSpewer;
-import org.icij.extract.core.Spewer;
+import org.icij.extract.spewer.FileSpewer;
+import org.icij.extract.spewer.PrintStreamSpewer;
+import org.icij.extract.spewer.Spewer;
 import org.icij.net.http.PinnedHttpClientBuilder;
-import org.icij.extract.solr.SolrSpewer;
+import org.icij.extract.spewer.SolrSpewer;
 import org.icij.task.Options;
 
 /**

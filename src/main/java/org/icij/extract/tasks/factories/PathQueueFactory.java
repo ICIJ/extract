@@ -1,9 +1,9 @@
 package org.icij.extract.tasks.factories;
 
-import org.icij.extract.core.PathQueue;
+import org.icij.extract.queue.PathQueue;
 import org.icij.extract.PathQueueType;
-import org.icij.extract.core.ArrayPathQueue;
-import org.icij.extract.redis.RedisPathQueue;
+import org.icij.extract.queue.ArrayPathQueue;
+import org.icij.extract.queue.RedisPathQueue;
 import org.icij.task.Options;
 
 /**

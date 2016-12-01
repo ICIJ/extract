@@ -1,4 +1,4 @@
-package org.icij.extract.core;
+package org.icij.extract.spewer;
 
 import java.util.HashMap;
 import java.util.List;
@@ -13,6 +13,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
 import org.apache.tika.metadata.Metadata;
+import org.icij.extract.parser.ParsingReader;
 import org.icij.task.Options;
 
 /**

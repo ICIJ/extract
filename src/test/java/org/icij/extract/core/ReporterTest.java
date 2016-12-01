@@ -3,6 +3,10 @@ package org.icij.extract.core;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import org.icij.extract.extractor.ExtractionResult;
+import org.icij.extract.report.HashMapReport;
+import org.icij.extract.report.Report;
+import org.icij.extract.report.Reporter;
 import org.junit.Test;
 import org.junit.Assert;
 

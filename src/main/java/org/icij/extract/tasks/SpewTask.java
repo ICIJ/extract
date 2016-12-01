@@ -1,7 +1,6 @@
 package org.icij.extract.tasks;
 
 import org.icij.concurrent.BooleanSealableLatch;
-import org.icij.extract.core.*;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -13,6 +12,14 @@ import org.apache.commons.io.FileUtils;
 import java.lang.management.ManagementFactory;
 
 import com.sun.management.OperatingSystemMXBean;
+import org.icij.extract.extractor.ExtractingConsumer;
+import org.icij.extract.extractor.Extractor;
+import org.icij.extract.queue.PathQueue;
+import org.icij.extract.queue.PathQueueDrainer;
+import org.icij.extract.queue.Scanner;
+import org.icij.extract.report.Report;
+import org.icij.extract.report.Reporter;
+import org.icij.extract.spewer.Spewer;
 import org.icij.extract.tasks.factories.*;
 import org.icij.task.DefaultTask;
 import org.icij.task.annotation.Option;

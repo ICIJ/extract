@@ -1,5 +1,7 @@
 package org.icij.extract.core;
 
+import org.icij.extract.extractor.Extractor;
+import org.icij.extract.parser.ExcludedMediaTypeException;
 import org.icij.extract.test.*;
 
 import java.io.Reader;

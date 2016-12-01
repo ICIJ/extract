@@ -1,4 +1,4 @@
-package org.icij.extract.core;
+package org.icij.extract.extractor;
 
 import java.io.InputStream;
 import java.io.IOException;
@@ -14,7 +14,7 @@ import org.xml.sax.SAXException;
  *
  * @since 1.0.0-beta
  */
-class DenyingEmbeddedDocumentExtractor implements EmbeddedDocumentExtractor {
+public class DenyingEmbeddedDocumentExtractor implements EmbeddedDocumentExtractor {
 
 	@Override
 	public boolean shouldParseEmbedded(final Metadata metadata) {

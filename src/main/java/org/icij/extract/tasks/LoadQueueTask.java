@@ -4,7 +4,7 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.io.input.CloseShieldInputStream;
 
-import org.icij.extract.core.PathQueue;
+import org.icij.extract.queue.PathQueue;
 import org.icij.extract.json.PathQueueDeserializer;
 import org.icij.extract.tasks.factories.PathQueueFactory;
 

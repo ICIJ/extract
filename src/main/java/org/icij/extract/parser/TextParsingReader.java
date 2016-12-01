@@ -1,4 +1,4 @@
-package org.icij.extract.core;
+package org.icij.extract.parser;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -55,7 +55,7 @@ public class TextParsingReader extends ParsingReader {
 	 * @param context parsing context
 	 * @throws IOException if the document can not be parsed
 	 */
-	TextParsingReader(final Parser parser, final InputStream input, final Metadata metadata, final ParseContext
+	public TextParsingReader(final Parser parser, final InputStream input, final Metadata metadata, final ParseContext
 			context) throws
 			IOException {
 		super(parser, input, metadata, context);

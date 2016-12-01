@@ -1,4 +1,6 @@
-package org.icij.extract.core;
+package org.icij.extract.report;
+
+import org.icij.extract.extractor.ExtractionResult;
 
 import java.nio.file.Path;
 
@@ -39,7 +41,7 @@ public class Reporter implements AutoCloseable {
 	 * @param file path to the file
 	 * @param result the extraction result
 	 */
-	void save(final Path file, final ExtractionResult result) {
+	public void save(final Path file, final ExtractionResult result) {
 		report.put(file, result);
 	}
 
@@ -50,7 +52,7 @@ public class Reporter implements AutoCloseable {
 	 * @param result matched against the actual result
 	 * @return {@code true} if the results match or {@code false} if there is no match or no recorded result
 	 */
-	boolean check(final Path file, final ExtractionResult result) {
+	public boolean check(final Path file, final ExtractionResult result) {
 		final ExtractionResult status = result(file);
 
 		return null != status && status.equals(result);

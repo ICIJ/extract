@@ -1,7 +1,7 @@
 package org.icij.extract.tasks;
 
 import org.apache.commons.io.output.CloseShieldOutputStream;
-import org.icij.extract.core.PathQueue;
+import org.icij.extract.queue.PathQueue;
 import org.icij.extract.json.PathQueueSerializer;
 import org.icij.extract.tasks.factories.PathQueueFactory;
 

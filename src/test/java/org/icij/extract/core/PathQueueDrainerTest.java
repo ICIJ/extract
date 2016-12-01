@@ -2,6 +2,9 @@ package org.icij.extract.core;
 
 import org.icij.concurrent.BooleanSealableLatch;
 import org.icij.concurrent.SealableLatch;
+import org.icij.extract.queue.ArrayPathQueue;
+import org.icij.extract.queue.PathQueue;
+import org.icij.extract.queue.PathQueueDrainer;
 import org.icij.time.HumanDuration;
 import org.junit.*;
 
@@ -27,7 +30,7 @@ public class PathQueueDrainerTest {
 	}
 
 	private PathQueue createQueue() {
-		final PathQueue queue = ArrayPathQueue.create(26);
+		final PathQueue queue = new ArrayPathQueue(26);
 
 		for (char a = 'a'; a <= 'z'; a++) {
 			queue.add(Paths.get(Character.toString(a)));

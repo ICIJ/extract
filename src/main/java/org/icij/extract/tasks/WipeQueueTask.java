@@ -1,6 +1,6 @@
 package org.icij.extract.tasks;
 
-import org.icij.extract.core.PathQueue;
+import org.icij.extract.queue.PathQueue;
 import org.icij.extract.tasks.factories.PathQueueFactory;
 import org.icij.task.DefaultTask;
 import org.icij.task.annotation.Option;

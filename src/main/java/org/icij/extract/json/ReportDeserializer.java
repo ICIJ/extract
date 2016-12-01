@@ -1,7 +1,7 @@
 package org.icij.extract.json;
 
-import org.icij.extract.core.Report;
-import org.icij.extract.core.ExtractionResult;
+import org.icij.extract.report.Report;
+import org.icij.extract.extractor.ExtractionResult;
 
 import java.io.IOException;
 

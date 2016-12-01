@@ -1,9 +1,9 @@
 package org.icij.extract.solr;
 
-import org.icij.extract.core.ParsingReader;
-import org.icij.extract.core.TextParsingReader;
+import org.icij.extract.parser.ParsingReader;
+import org.icij.extract.parser.TextParsingReader;
+import org.icij.extract.spewer.SolrSpewer;
 import org.icij.extract.test.*;
-import org.icij.extract.solr.SolrSpewer;
 
 import java.util.Map;
 import java.util.HashMap;

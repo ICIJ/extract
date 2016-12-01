@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.solr.common.SolrDocument;
 
 import org.icij.events.Notifiable;
-import org.icij.extract.core.IndexDefaults;
+import org.icij.extract.IndexDefaults;
 
 public abstract class SolrMachineConsumer implements Consumer<SolrDocument> {
 

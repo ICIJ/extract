@@ -1,13 +1,15 @@
-package org.icij.extract.redis;
-
-import org.icij.extract.queue.PathQueue;
+package org.icij.extract.queue;
 
 import java.io.IOException;
 
 import java.nio.file.Path;
 
+import org.icij.extract.redis.ConnectionManagerFactory;
+import org.icij.extract.redis.PathDecoder;
 import org.icij.task.Options;
 import org.redisson.RedissonBlockingQueue;
+import org.redisson.client.codec.StringCodec;
+import org.redisson.client.protocol.Decoder;
 import org.redisson.command.CommandSyncService;
 import org.redisson.connection.ConnectionManager;
 
@@ -50,5 +52,21 @@ public class RedisPathQueue extends RedissonBlockingQueue<Path> implements PathQ
 	@Override
 	public void close() throws IOException {
 		connectionManager.shutdown();
+	}
+
+	/**
+	 * Codec for a map of string keys to integer values.
+	 *
+	 * @author Matthew Caruana Galizia <mcaruana@icij.org>
+	 * @since 1.0.0-beta
+	 */
+	static class RedisPathQueueCodec extends StringCodec {
+
+		private final Decoder<Object> pathDecoder = new PathDecoder();
+
+		@Override
+		public Decoder<Object> getValueDecoder() {
+			return pathDecoder;
+		}
 	}
 }

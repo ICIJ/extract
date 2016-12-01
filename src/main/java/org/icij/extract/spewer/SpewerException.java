@@ -1,4 +1,6 @@
-package org.icij.extract.core;
+package org.icij.extract.spewer;
+
+import org.icij.extract.parser.ParsingReader;
 
 import java.io.IOException;
 

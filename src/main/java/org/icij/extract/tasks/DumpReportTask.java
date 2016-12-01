@@ -1,8 +1,8 @@
 package org.icij.extract.tasks;
 
 import org.apache.commons.io.output.CloseShieldOutputStream;
-import org.icij.extract.core.Report;
-import org.icij.extract.core.ExtractionResult;
+import org.icij.extract.report.Report;
+import org.icij.extract.extractor.ExtractionResult;
 import org.icij.extract.json.ReportSerializer;
 import org.icij.extract.tasks.factories.ReportFactory;
 

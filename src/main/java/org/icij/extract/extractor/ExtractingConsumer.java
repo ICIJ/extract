@@ -1,4 +1,4 @@
-package org.icij.extract.core;
+package org.icij.extract.extractor;
 
 import java.lang.Runtime;
 

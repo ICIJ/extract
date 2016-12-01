@@ -1,4 +1,4 @@
-package org.icij.extract.core;
+package org.icij.extract.spewer;
 
 import java.io.File;
 import java.io.Reader;
@@ -18,6 +18,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonEncoding;
 
+import org.icij.extract.extractor.Extractor;
 import org.icij.task.Options;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;

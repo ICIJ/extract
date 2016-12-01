@@ -1,6 +1,6 @@
 package org.icij.extract.tasks;
 
-import org.icij.extract.core.Report;
+import org.icij.extract.report.Report;
 import org.icij.extract.tasks.factories.ReportFactory;
 
 import java.util.Iterator;

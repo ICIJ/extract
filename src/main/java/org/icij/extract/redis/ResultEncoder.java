@@ -2,7 +2,7 @@ package org.icij.extract.redis;
 
 import java.io.IOException;
 
-import org.icij.extract.core.ExtractionResult;
+import org.icij.extract.extractor.ExtractionResult;
 
 import org.redisson.client.protocol.Encoder;
 import io.netty.util.CharsetUtil;

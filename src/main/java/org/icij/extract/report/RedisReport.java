@@ -1,7 +1,10 @@
-package org.icij.extract.redis;
+package org.icij.extract.report;
 
-import org.icij.extract.report.Report;
-import org.icij.extract.core.ExtractionResult;
+import org.icij.extract.redis.ConnectionManagerFactory;
+import org.icij.extract.redis.PathDecoder;
+import org.icij.extract.redis.ResultDecoder;
+import org.icij.extract.redis.ResultEncoder;
+import org.icij.extract.extractor.ExtractionResult;
 
 import java.io.IOException;
 
@@ -26,7 +29,7 @@ public class RedisReport extends RedissonMap<Path, ExtractionResult> implements 
 	/**
 	 * The default name for a report in Redis.
 	 */
-	public static final String DEFAULT_NAME = "extract:report";
+	private static final String DEFAULT_NAME = "extract:report";
 
 	private final ConnectionManager connectionManager;
 

@@ -17,7 +17,7 @@ import org.apache.solr.client.solrj.StreamingResponseCallback;
 import org.apache.solr.client.solrj.SolrServerException;
 
 import org.icij.events.Notifiable;
-import org.icij.extract.core.IndexDefaults;
+import org.icij.extract.IndexDefaults;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

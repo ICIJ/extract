@@ -8,6 +8,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
 
+import org.icij.extract.extractor.ExtractingConsumer;
+import org.icij.extract.extractor.ExtractionResult;
+import org.icij.extract.extractor.Extractor;
+import org.icij.extract.report.HashMapReport;
+import org.icij.extract.report.Reporter;
+import org.icij.extract.spewer.PrintStreamSpewer;
+import org.icij.extract.spewer.Spewer;
 import org.junit.Test;
 import org.junit.Assert;
 

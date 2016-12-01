@@ -7,11 +7,14 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.icij.concurrent.BooleanSealableLatch;
+import org.icij.extract.queue.ArrayPathQueue;
+import org.icij.extract.queue.PathQueue;
+import org.icij.extract.queue.Scanner;
 import org.junit.*;
 
 public class ScannerTest {
 
-	private final PathQueue queue = ArrayPathQueue.create(100);
+	private final PathQueue queue = new ArrayPathQueue(100);
 
 	private Scanner createScanner() {
 		return new Scanner(queue);

@@ -1,4 +1,4 @@
-package org.icij.extract.core;
+package org.icij.extract;
 
 /**
  * Defaults for use with Solr.

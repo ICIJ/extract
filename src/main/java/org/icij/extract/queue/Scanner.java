@@ -1,9 +1,8 @@
-package org.icij.extract.core;
+package org.icij.extract.queue;
 
 import org.icij.events.Notifiable;
 import org.icij.executor.ExecutorProxy;
 import org.icij.concurrent.*;
-import org.icij.extract.queue.PathQueue;
 import org.icij.io.file.matcher.*;
 
 import org.icij.task.Options;
@@ -18,10 +17,7 @@ import java.util.ArrayDeque;
 
 import java.io.IOException;
 
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Future;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -58,7 +54,7 @@ public class Scanner extends ExecutorProxy {
 
 	private static final Logger logger = LoggerFactory.getLogger(Scanner.class);
 
-	protected final PathQueue queue;
+	protected final BlockingQueue<Path> queue;
 
 	private final ArrayDeque<String> includeGlobs = new ArrayDeque<>();
 	private final ArrayDeque<String> excludeGlobs = new ArrayDeque<>();
@@ -72,34 +68,34 @@ public class Scanner extends ExecutorProxy {
 	private boolean ignoreSystemFiles = true;
 
 	/**
-	 * @see Scanner(PathQueue, SealableLatch, Notifiable)
+	 * @see Scanner(BlockingQueue, SealableLatch, Notifiable)
 	 */
-	public Scanner(final PathQueue queue) {
+	public Scanner(final BlockingQueue<Path> queue) {
 		this(queue, null, null);
 	}
 
 	/**
-	 * @see Scanner(PathQueue, SealableLatch, Notifiable)
+	 * @see Scanner(BlockingQueue, SealableLatch, Notifiable)
 	 */
-	public Scanner(final PathQueue queue, final SealableLatch latch) {
+	public Scanner(final BlockingQueue<Path> queue, final SealableLatch latch) {
 		this(queue, latch, null);
 	}
 
 	/**
-	 * Creates a {@code Scanner} that sends all results straight to the underlying {@link PathQueue} on a single thread.
+	 * Creates a {@code Scanner} that sends all results straight to the underlying {@link BlockingQueue<Path>} on a single thread.
 	 *
 	 * @param queue results from the scanner will be put on this queue
 	 * @param latch signalled when a path is queued
 	 * @param notifiable receives notifications when new file paths are queued
 	 */
-	public Scanner(final PathQueue queue, final SealableLatch latch, final Notifiable notifiable) {
+	public Scanner(final BlockingQueue<Path> queue, final SealableLatch latch, final Notifiable notifiable) {
 		super(Executors.newSingleThreadExecutor());
 		this.queue = queue;
 		this.notifiable = notifiable;
 		this.latch = latch;
 	}
 
-	public Scanner(final PathQueue queue, final SealableLatch latch, final Notifiable notifiable, final
+	public Scanner(final BlockingQueue<Path> queue, final SealableLatch latch, final Notifiable notifiable, final
 	Options<String> options) {
 		this(queue, latch, notifiable);
 		options.get("include-os-files").parse().asBoolean().ifPresent(this::ignoreSystemFiles);

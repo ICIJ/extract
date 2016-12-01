@@ -12,6 +12,10 @@ import java.nio.charset.StandardCharsets;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.exception.TikaException;
 
+import org.icij.extract.parser.ParsingReader;
+import org.icij.extract.parser.TextParsingReader;
+import org.icij.extract.spewer.PrintStreamSpewer;
+import org.icij.extract.spewer.Spewer;
 import org.junit.Test;
 import org.junit.Assert;
 

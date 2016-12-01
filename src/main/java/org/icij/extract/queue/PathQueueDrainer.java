@@ -1,4 +1,4 @@
-package org.icij.extract.core;
+package org.icij.extract.queue;
 
 import org.icij.concurrent.SealableLatch;
 import org.icij.executor.ExecutorProxy;

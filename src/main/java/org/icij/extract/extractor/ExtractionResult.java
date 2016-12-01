@@ -1,4 +1,4 @@
-package org.icij.extract.core;
+package org.icij.extract.extractor;
 
 import java.util.Map;
 import java.util.HashMap;

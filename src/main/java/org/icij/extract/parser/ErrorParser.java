@@ -1,4 +1,4 @@
-package org.icij.extract.core;
+package org.icij.extract.parser;
 
 import java.util.Set;
 
@@ -21,13 +21,13 @@ import org.xml.sax.ContentHandler;
  *
  * @since 1.0.0-beta
  */
-class ErrorParser implements Parser {
+public class ErrorParser implements Parser {
 
 	private static final long serialVersionUID = -4224235288173500115L;
 	private final Parser parser;
 	private final Set<MediaType> excludedTypes;
 
-	ErrorParser(final Parser parser, final Set<MediaType> excludedTypes) {
+	public ErrorParser(final Parser parser, final Set<MediaType> excludedTypes) {
 		this.parser = parser;
 		this.excludedTypes = excludedTypes;
 	}

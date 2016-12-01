@@ -1,4 +1,4 @@
-package org.icij.extract.core;
+package org.icij.extract.spewer;
 
 import java.io.Reader;
 import java.io.IOException;
@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import org.apache.tika.metadata.Metadata;
 
 import org.apache.commons.io.IOUtils;
+import org.icij.extract.parser.ParsingReader;
 import org.icij.task.Options;
 
 /**

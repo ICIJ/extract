@@ -24,7 +24,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package org.icij.extract.core;
+package org.icij.extract.sax;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -49,7 +49,7 @@ import org.xml.sax.SAXException;
  *
  * @since 1.0.0-beta
  */
-public class HTMLSerializer implements ContentHandler {
+public class HTML5Serializer implements ContentHandler {
 
 	/**
 	 * The XHTML namespace URI
@@ -82,7 +82,7 @@ public class HTMLSerializer implements ContentHandler {
 	 * 
 	 * @param writer the writer to which the output is written
 	 */
-	public HTMLSerializer(final Writer writer) {
+	public HTML5Serializer(final Writer writer) {
 		this.writer = writer;
 	}
 
