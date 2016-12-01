@@ -123,7 +123,7 @@ class ExtractingTask implements Runnable, Callable<Path> {
 			final Throwable c = e.getCause();
 
 			if (c instanceof ExcludedMediaTypeException) {
-				status = ExtractionResult.NOT_PARSED;
+				status = ExtractionResult.EXCLUDED;
 			} else if (c instanceof EncryptedDocumentException) {
 				logger.warn(String.format("Skipping encrypted file: \"%s\".", file), e);
 				status = ExtractionResult.NOT_DECRYPTED;

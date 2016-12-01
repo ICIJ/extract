@@ -14,8 +14,9 @@ public enum ExtractionResult {
 	NOT_READ(2),
 	NOT_DECRYPTED(3),
 	NOT_PARSED(4),
+	EXCLUDED(5),
 	NOT_CLEAR(9),
-	NOT_SAVED(10);
+	NOT_SAVED(10),;
 
 	private final int value;
 
