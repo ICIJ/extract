@@ -1,6 +1,6 @@
 package org.icij.extract.redis;
 
-import org.icij.extract.core.Report;
+import org.icij.extract.report.Report;
 import org.icij.extract.core.ExtractionResult;
 
 import java.io.IOException;
@@ -9,6 +9,9 @@ import java.nio.file.Path;
 
 import org.icij.task.Options;
 import org.redisson.RedissonMap;
+import org.redisson.client.codec.StringCodec;
+import org.redisson.client.protocol.Decoder;
+import org.redisson.client.protocol.Encoder;
 import org.redisson.command.CommandSyncService;
 import org.redisson.connection.ConnectionManager;
 
@@ -51,5 +54,33 @@ public class RedisReport extends RedissonMap<Path, ExtractionResult> implements 
 	@Override
 	public void close() throws IOException {
 		connectionManager.shutdown();
+	}
+
+	/**
+	 * Codec for a map of string keys to integer values.
+	 *
+	 * @author Matthew Caruana Galizia <mcaruana@icij.org>
+	 * @since 1.0.0-beta
+	 */
+	static class RedisReportCodec extends StringCodec {
+
+		private final Decoder<Object> resultDecoder = new ResultDecoder();
+		private final Decoder<Object> pathDecoder = new PathDecoder();
+		private final Encoder resultEncoder = new ResultEncoder();
+
+		@Override
+		public Decoder<Object> getMapKeyDecoder() {
+			return pathDecoder;
+		}
+
+	    @Override
+	    public Decoder<Object> getMapValueDecoder() {
+			return resultDecoder;
+	    }
+
+	    @Override
+	    public Encoder getMapValueEncoder() {
+			return resultEncoder;
+	    }
 	}
 }

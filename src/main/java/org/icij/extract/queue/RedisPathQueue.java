@@ -1,6 +1,6 @@
 package org.icij.extract.redis;
 
-import org.icij.extract.core.PathQueue;
+import org.icij.extract.queue.PathQueue;
 
 import java.io.IOException;
 
@@ -22,7 +22,7 @@ public class RedisPathQueue extends RedissonBlockingQueue<Path> implements PathQ
 	/**
 	 * The default name for a queue in Redis.
 	 */
-	public static final String DEFAULT_NAME = "extract:queue";
+	private static final String DEFAULT_NAME = "extract:queue";
 
 	private final ConnectionManager connectionManager;
 

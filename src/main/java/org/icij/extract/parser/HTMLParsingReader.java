@@ -24,6 +24,7 @@ import org.apache.tika.parser.ParseContext;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
 
+import org.icij.extract.sax.HTML5Serializer;
 import org.xml.sax.ContentHandler;
 
 /**
@@ -68,7 +69,7 @@ public class HTMLParsingReader extends ParsingReader {
 		 * the SAX events emitted by the parser to HTML 5.
 		 */
 		protected ContentHandler createHandler() {
-			return new ExpandedTitleContentHandler(new HTMLSerializer(writer));
+			return new ExpandedTitleContentHandler(new HTML5Serializer(writer));
 		}
 
 	    /**

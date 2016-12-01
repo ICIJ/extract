@@ -23,6 +23,9 @@ import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.parser.utils.CommonsDigester;
+import org.icij.extract.extractor.DenyingEmbeddedDocumentExtractor;
+import org.icij.extract.extractor.ParsingEmbeddedDocumentExtractor;
+import org.icij.extract.parser.*;
 import org.icij.task.Options;
 
 /**
@@ -201,12 +204,12 @@ public class Extractor {
 	 *
 	 * @param file the file to extract from
 	 */
-	public ParsingReader extract(final Path file) throws IOException {
+	public org.icij.extract.parser.ParsingReader extract(final Path file) throws IOException {
 		return extract(file, new Metadata());
 	}
 
 	/**
-	 * This method will wrap the given {@link Path} in a {@link TikaInputStream} and return a {@link ParsingReader}
+	 * This method will wrap the given {@link Path} in a {@link TikaInputStream} and return a {@link org.icij.extract.parser.ParsingReader}
 	 * which can be used to initiate extraction on demand.
 	 *
 	 * Internally, this method uses {@link TikaInputStream#get} which ensures that the resource name and content
@@ -215,7 +218,7 @@ public class Extractor {
 	 * @param file the file to extract from
 	 * @param metadata will be populated with metadata extracted from the file
 	 */
-	public ParsingReader extract(final Path file, final Metadata metadata) throws IOException {
+	public org.icij.extract.parser.ParsingReader extract(final Path file, final Metadata metadata) throws IOException {
 		final TikaInputStream input;
 
 		// Use the the TikaInputStream.get method that accepts a file, because this sets metadata properties like the
@@ -236,7 +239,7 @@ public class Extractor {
 	 * @param file the path to the file that is being extracted from
 	 * @param metadata the metadata object to populate
 	 */
-	protected ParsingReader extract(final Path file, final Metadata metadata, final TikaInputStream input) throws
+	protected org.icij.extract.parser.ParsingReader extract(final Path file, final Metadata metadata, final TikaInputStream input) throws
 			IOException {
 		final ParseContext context = new ParseContext();
 		final AutoDetectParser autoDetectParser = new AutoDetectParser(config);
@@ -248,7 +251,7 @@ public class Extractor {
 		}
 
 		context.set(PDFParserConfig.class, pdfConfig);
-		autoDetectParser.setFallback(new ErrorParser(autoDetectParser, excludedTypes));
+		autoDetectParser.setFallback(new org.icij.extract.parser.ErrorParser(autoDetectParser, excludedTypes));
 
 		// Only include "safe" tags in the HTML output from Tika's HTML parser.
 		// This excludes script tags and objects.
@@ -256,7 +259,7 @@ public class Extractor {
 			context.set(HtmlMapper.class, DefaultHtmlMapper.INSTANCE);
 		}
 
-		final ParsingReader reader;
+		final org.icij.extract.parser.ParsingReader reader;
 
 		if (OutputFormat.HTML == outputFormat && EmbedHandling.EMBED == embedHandling) {
 			return new EmbeddingHTMLParsingReader(parser, input, metadata, context);

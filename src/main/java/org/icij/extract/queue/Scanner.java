@@ -3,6 +3,7 @@ package org.icij.extract.core;
 import org.icij.events.Notifiable;
 import org.icij.executor.ExecutorProxy;
 import org.icij.concurrent.*;
+import org.icij.extract.queue.PathQueue;
 import org.icij.io.file.matcher.*;
 
 import org.icij.task.Options;

@@ -12,6 +12,8 @@ import java.nio.file.Path;
 import org.icij.executor.BlockingThreadPoolExecutor;
 import org.icij.executor.ExecutorProxy;
 
+import org.icij.extract.report.Reporter;
+import org.icij.extract.spewer.Spewer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -117,6 +119,6 @@ public class ExtractingConsumer extends ExecutorProxy implements Consumer<Path> 
 	@Override
 	public void accept(final Path file) {
 		logger.info(String.format("Sending to thread pool; will queue if full: \"%s\".", file));
-		executor.execute(new ExtractingTask(file, extractor, spewer, reporter));
+		executor.execute(new ExtractionTask(file, extractor, spewer, reporter));
 	}
 }

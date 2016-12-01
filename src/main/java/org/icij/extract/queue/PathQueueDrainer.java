@@ -18,7 +18,7 @@ import java.nio.file.Path;
  * @since 1.0.0
  */
 public class PathQueueDrainer extends ExecutorProxy {
-	public static final Duration DEFAULT_TIMEOUT = Duration.ZERO;
+	private static final Duration DEFAULT_TIMEOUT = Duration.ZERO;
 
 	private final PathQueue queue;
 	private final Consumer<Path> consumer;

@@ -1,8 +1,8 @@
 package org.icij.extract.solr;
 
 import org.icij.extract.core.IndexDefaults;
-import org.icij.extract.core.Spewer;
-import org.icij.extract.core.SpewerException;
+import org.icij.extract.spewer.Spewer;
+import org.icij.extract.spewer.SpewerException;
 
 import java.time.Duration;
 import java.util.*;
@@ -36,12 +36,13 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.http.impl.client.CloseableHttpClient;
 
 import org.apache.commons.io.IOUtils;
+import org.icij.extract.parser.ParsingReader;
 import org.icij.task.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Writes the text output from a {@link org.icij.extract.core.ParsingReader} to a Solr core.
+ * Writes the text output from a {@link ParsingReader} to a Solr core.
  *
  * @since 1.0.0-beta
  */

@@ -11,6 +11,11 @@ import org.apache.tika.metadata.Metadata;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.exception.EncryptedDocumentException;
 
+import org.icij.extract.parser.ExcludedMediaTypeException;
+import org.icij.extract.parser.ParsingReader;
+import org.icij.extract.report.Reporter;
+import org.icij.extract.spewer.Spewer;
+import org.icij.extract.spewer.SpewerException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,9 +27,9 @@ import org.slf4j.LoggerFactory;
  *
  * @since 1.0.0
  */
-class ExtractingTask implements Runnable, Callable<Path> {
+class ExtractionTask implements Runnable, Callable<Path> {
 
-	private static final Logger logger = LoggerFactory.getLogger(ExtractingTask.class);
+	private static final Logger logger = LoggerFactory.getLogger(ExtractionTask.class);
 
 	protected final Path file;
 	protected final Extractor extractor;
@@ -32,7 +37,7 @@ class ExtractingTask implements Runnable, Callable<Path> {
 
 	private final Reporter reporter;
 
-	ExtractingTask(final Path file, final Extractor extractor, final Spewer spewer, final Reporter reporter) {
+	ExtractionTask(final Path file, final Extractor extractor, final Spewer spewer, final Reporter reporter) {
 		this.file = file;
 		this.extractor = extractor;
 		this.spewer = spewer;

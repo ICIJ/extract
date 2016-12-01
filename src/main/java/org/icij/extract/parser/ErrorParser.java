@@ -27,18 +27,19 @@ class ErrorParser implements Parser {
 	private final Parser parser;
 	private final Set<MediaType> excludedTypes;
 
-	ErrorParser(Parser parser, Set<MediaType> excludedTypes) {
+	ErrorParser(final Parser parser, final Set<MediaType> excludedTypes) {
 		this.parser = parser;
 		this.excludedTypes = excludedTypes;
 	}
 
 	@Override
-	public Set<MediaType> getSupportedTypes(ParseContext context) {
+	public Set<MediaType> getSupportedTypes(final ParseContext context) {
 		return parser.getSupportedTypes(context);
 	}
 
 	@Override
-	public void parse(InputStream inputStream, ContentHandler contentHandler, Metadata metadata, ParseContext context) throws TikaException {
+	public void parse(final InputStream inputStream, final ContentHandler contentHandler, final Metadata metadata,
+	                  final ParseContext context) throws TikaException {
 		final MediaType unsupportedType = MediaType.parse(metadata.get(Metadata.CONTENT_TYPE));
 
 		if (null == unsupportedType) {
@@ -46,10 +47,8 @@ class ErrorParser implements Parser {
 		}
 
 		// If the MIME type is supported by any of the excluded parsers, send a special exception to signal the reason.
-		for (MediaType excludedType : excludedTypes) {
-			if (unsupportedType.equals(excludedType)) {
-				throw new ExcludedMediaTypeException("Excluded media type: " + unsupportedType);
-			}
+		if (excludedTypes.contains(unsupportedType)) {
+			throw new ExcludedMediaTypeException("Excluded media type: " + unsupportedType);
 		}
 
 		throw new TikaException("Unsupported media type: " + unsupportedType + ".");
