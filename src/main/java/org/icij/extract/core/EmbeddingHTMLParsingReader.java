@@ -17,7 +17,6 @@ import java.nio.file.StandardCopyOption;
 
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.ParseContext;
-import org.apache.tika.parser.EmptyParser;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.io.TemporaryResources;
@@ -121,7 +120,6 @@ public class EmbeddingHTMLParsingReader extends HTMLParsingReader {
 
 			final EmbeddedDocumentExtractor extractor = new SavingEmbeddedDocumentExtractor(parent);
 
-			context.set(Parser.class, EmptyParser.INSTANCE);
 			context.set(EmbeddedDocumentExtractor.class, extractor);
 
 			super.run();

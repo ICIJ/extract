@@ -13,11 +13,7 @@ import java.io.IOException;
 
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.metadata.Metadata;
-import org.apache.tika.parser.Parser;
-import org.apache.tika.parser.ParseContext;
-import org.apache.tika.parser.EmptyParser;
-import org.apache.tika.parser.CompositeParser;
-import org.apache.tika.parser.AutoDetectParser;
+import org.apache.tika.parser.*;
 import org.apache.tika.parser.html.HtmlMapper;
 import org.apache.tika.parser.html.DefaultHtmlMapper;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
@@ -26,6 +22,7 @@ import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.io.TikaInputStream;
+import org.apache.tika.parser.utils.CommonsDigester;
 import org.icij.task.Options;
 
 /**
@@ -218,14 +215,18 @@ public class Extractor {
 	 * @param file the file to extract from
 	 * @param metadata will be populated with metadata extracted from the file
 	 */
-	public ParsingReader extract(Path file, final Metadata metadata) throws IOException {
-		if (null != workingDirectory) {
-			file = workingDirectory.resolve(file);
-		}
+	public ParsingReader extract(final Path file, final Metadata metadata) throws IOException {
+		final TikaInputStream input;
 
 		// Use the the TikaInputStream.get method that accepts a file, because this sets metadata properties like the
 		// resource name and size.
-		return extract(file, metadata, TikaInputStream.get(file, metadata));
+		if (null != workingDirectory) {
+			input = TikaInputStream.get(workingDirectory.resolve(file), metadata);
+		} else {
+			input = TikaInputStream.get(file, metadata);
+		}
+
+		return extract(file, metadata, input);
 	}
 
 	/**
@@ -238,14 +239,16 @@ public class Extractor {
 	protected ParsingReader extract(final Path file, final Metadata metadata, final TikaInputStream input) throws
 			IOException {
 		final ParseContext context = new ParseContext();
-		final AutoDetectParser parser = new AutoDetectParser(config);
+		final AutoDetectParser autoDetectParser = new AutoDetectParser(config);
+		final Parser parser = new DigestingParser(autoDetectParser, new CommonsDigester(20 * 1024 * 1024,
+				CommonsDigester.DigestAlgorithm.SHA256));
 
 		if (!ocrDisabled) {
 			context.set(TesseractOCRConfig.class, ocrConfig);
 		}
 
 		context.set(PDFParserConfig.class, pdfConfig);
-		parser.setFallback(new ErrorParser(parser, excludedTypes));
+		autoDetectParser.setFallback(new ErrorParser(autoDetectParser, excludedTypes));
 
 		// Only include "safe" tags in the HTML output from Tika's HTML parser.
 		// This excludes script tags and objects.
@@ -253,14 +256,12 @@ public class Extractor {
 			context.set(HtmlMapper.class, DefaultHtmlMapper.INSTANCE);
 		}
 
-		ParsingReader reader;
+		final ParsingReader reader;
 
-		// Return a parsing reader that embeds embedded objects as data URIs.
 		if (OutputFormat.HTML == outputFormat && EmbedHandling.EMBED == embedHandling) {
 			return new EmbeddingHTMLParsingReader(parser, input, metadata, context);
 		}
 
-		// For all output types, allow text to be optionally inline-extracted into the main stream.
 		if (EmbedHandling.EXTRACT == embedHandling) {
 			context.set(Parser.class, parser);
 			context.set(EmbeddedDocumentExtractor.class, new ParsingEmbeddedDocumentExtractor(file, context));
@@ -269,10 +270,12 @@ public class Extractor {
 			context.set(EmbeddedDocumentExtractor.class, new DenyingEmbeddedDocumentExtractor());
 		}
 
-		if (OutputFormat.TEXT == outputFormat) {
-			reader = new TextParsingReader(parser, input, metadata, context);
-		} else {
+		if (OutputFormat.HTML == outputFormat && EmbedHandling.EMBED == embedHandling) {
+			reader = new EmbeddingHTMLParsingReader(parser, input, metadata, context);
+		} else if (OutputFormat.HTML == outputFormat) {
 			reader = new HTMLParsingReader(parser, input, metadata, context);
+		} else {
+			reader = new TextParsingReader(parser, input, metadata, context);
 		}
 
 		return reader;
