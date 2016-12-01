@@ -26,11 +26,9 @@ public abstract class Spewer implements AutoCloseable {
 
 	protected boolean outputMetadata = true;
 	protected Charset outputEncoding = StandardCharsets.UTF_8;
-	protected Map<String, String> tags = null;
+	protected final Map<String, String> tags = new HashMap<>();;
 
-	public Spewer() {
-
-	}
+	public Spewer() {}
 
 	public Spewer(final Options<String> options) {
 		options.get("output-metadata").parse().asBoolean().ifPresent(this::outputMetadata);
@@ -69,26 +67,24 @@ public abstract class Spewer implements AutoCloseable {
 	}
 
 	public void setTags(final Map<String, String> tags) {
-		this.tags = tags;
+		tags.forEach(this::setTag);
 	}
 
 	public void setTag(final String name, final String value) {
-		if (null == tags) {
-			tags = new HashMap<>();
-		}
-
 		tags.put(name, value);
 	}
 
 	private void setTags(final List<String> tags) {
-		for (String tag : tags) {
-			String[] pair = tag.split(":", 2);
+		tags.forEach(this::setTag);
+	}
 
-			if (2 == pair.length) {
-				setTag(pair[0], pair[1]);
-			} else {
-				throw new IllegalArgumentException(String.format("Invalid tag pair: \"%s\".", tag));
-			}
+	private void setTag(final String tag) {
+		final String[] pair = tag.split(":", 2);
+
+		if (2 == pair.length) {
+			setTag(pair[0], pair[1]);
+		} else {
+			throw new IllegalArgumentException(String.format("Invalid tag pair: \"%s\".", tag));
 		}
 	}
 }
