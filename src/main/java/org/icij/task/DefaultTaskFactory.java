@@ -14,7 +14,7 @@ public class DefaultTaskFactory {
 		tasks.put(name, task);
 	}
 
-	public DefaultTask getTask(final String name) throws Exception {
+	public DefaultTask<Object> getTask(final String name) throws Exception {
 		if (!tasks.containsKey(name)) {
 			throw new IllegalArgumentException(String.format("Unknown task: %s.", name));
 		}

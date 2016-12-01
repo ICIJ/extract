@@ -10,7 +10,6 @@ import org.icij.extract.cli.tasks.VersionTask;
 import org.icij.extract.tasks.*;
 import org.icij.task.DefaultTask;
 import org.icij.task.DefaultTaskFactory;
-import org.icij.task.MonitorableTask;
 import org.icij.task.transformers.CommonsTransformer;
 
 import java.util.Arrays;
@@ -69,7 +68,7 @@ public class Main {
 		}
 
 		final String command = args[0];
-		final DefaultTask task;
+		final DefaultTask<Object> task;
 
 		try {
 			task = taskFactory.getTask(command);

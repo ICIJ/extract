@@ -21,7 +21,7 @@ public class HelpTask extends DefaultTask<Void> {
 	@Override
 	public Void run(final String[] args) throws Exception {
 		final String command = args[0];
-		final DefaultTask task = Main.taskFactory.getTask(command);
+		final DefaultTask<Object> task = Main.taskFactory.getTask(command);
 		final Options options = new CommonsTransformer().apply(task.options());
 		final HelpFormatter formatter = new HelpFormatter();
 
