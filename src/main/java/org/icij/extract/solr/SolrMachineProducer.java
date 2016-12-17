@@ -17,7 +17,7 @@ import org.apache.solr.client.solrj.StreamingResponseCallback;
 import org.apache.solr.client.solrj.SolrServerException;
 
 import org.icij.events.Notifiable;
-import org.icij.extract.IndexDefaults;
+import org.icij.extract.spewer.FieldNames;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +36,7 @@ public class SolrMachineProducer extends StreamingResponseCallback implements Ca
 	private final int rows;
 	private final int parallelism;
 
-	private String idField = IndexDefaults.DEFAULT_ID_FIELD;
+	private String idField = FieldNames.DEFAULT_ID_FIELD;
 	private String filter = "*:*";
 
 	private volatile boolean stopped = false;

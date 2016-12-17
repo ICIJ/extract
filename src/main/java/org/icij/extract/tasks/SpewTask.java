@@ -12,10 +12,11 @@ import org.apache.commons.io.FileUtils;
 import java.lang.management.ManagementFactory;
 
 import com.sun.management.OperatingSystemMXBean;
-import org.icij.extract.extractor.ExtractingConsumer;
+import org.icij.extract.document.DocumentFactory;
+import org.icij.extract.extractor.DocumentConsumer;
 import org.icij.extract.extractor.Extractor;
-import org.icij.extract.queue.PathQueue;
-import org.icij.extract.queue.PathQueueDrainer;
+import org.icij.extract.queue.DocumentQueue;
+import org.icij.extract.queue.DocumentQueueDrainer;
 import org.icij.extract.queue.Scanner;
 import org.icij.extract.report.Report;
 import org.icij.extract.report.Reporter;
@@ -63,7 +64,8 @@ import org.slf4j.LoggerFactory;
 @Option(name = "path-base", description = "This is useful if your mount path for files varies from system " +
 		"to another, or if you simply want to hide the base of a path. For example, if you're working with a path " +
 		"that looks like \"/home/user/data\", specify \"/home/user/\" as the value for this option so that all queued" +
-		" paths start with \"data/\".")
+		" paths start with \"data/\".", parameter = "path")
+@Option(name = "max-depth", description = "The maximum depth to which the scanner will recurse.", parameter = "integer")
 @Option(name = "index-type", description = "Specify the index type. For now, the only valid value is " +
 		"\"solr\" (the default).", parameter = "type")
 @Option(name = "soft-commit", description = "Performs a soft commit. Makes index changes visible while " +
@@ -95,19 +97,25 @@ import org.slf4j.LoggerFactory;
 		"fields are set using an optional prefix. On by default.")
 @Option(name = "tag", description = "Set the given field to a corresponding value on each document output" +
 		".", parameter = "name-value-pair")
-@Option(name = "output-encoding", description = "Set the text output encoding. Defaults to UTF-8.",
-		parameter = "character-set")
+@Option(name = "charset", description = "Set the output encoding for text and document attributes. Defaults to UTF-8.",
+		parameter = "name")
 @Option(name = "id-field", description = "Index field for an automatically generated identifier. The ID " +
 		"for the same file is guaranteed not to change if the path doesn't change. Defaults to \"id\".", code = "i",
 		parameter = "name")
-@Option(name = "text-field", description = "Index field for extracted text. Defaults to \"text\".", code =
+@Option(name = "id-method", description = "The method for determining document IDs, for queues that use them. " +
+		"Defaults to using the path as an ID.",
+		parameter = "name")
+@Option(name = "id-digest-method", description = "For calculating document ID digests, where applicable depending on " +
+		"the ID method.", parameter = "name")
+@Option(name = "text-field", description = "Field name for extracted text.", code =
 		"t", parameter = "name")
-@Option(name = "path-field", description = "Index field for the file path. Defaults to \"path\".", parameter
+@Option(name = "path-field", description = "Field name for the file path.", parameter
 		= "name", code = "p")
-@Option(name = "id-algorithm", description = "The hashing algorithm used for generating index document " +
-		"identifiers from paths e.g. \"SHA-224\". Defaults to \"SHA-256\".", parameter = "algorithm")
+@Option(name = "parent-path-field", description = "Field name for the parent directory path.", parameter = "name")
+@Option(name = "base-type-field", description = "Field name for the base content-type.", parameter = "name")
+@Option(name = "version-field", description = "Index field name for the version.", parameter = "name")
 @Option(name = "metadata-prefix", description = "Prefix for metadata fields added to the index. " +
-		"Defaults to \"metadata_\".", parameter = "name")
+		"Defaults to \"metadata:\".", parameter = "name")
 @Option(name = "jobs", description = "The number of documents to process at a time. Defaults to the number" +
 		" of available processors.", parameter = "number")
 @Option(name = "commit-interval", description = "Commit to the index every time the specified number of " +
@@ -127,6 +135,10 @@ import org.slf4j.LoggerFactory;
 		"current directory.", parameter = "path")
 @Option(name = "output-type", description = "Set the output type. Either \"file\", \"stdout\" or \"solr\"" +
 		".", parameter = "type", code = "o")
+@Option(name = "digest-method", description = "The hash digest method used for documents, for example \"SHA256\". May" +
+		" be specified multiple times", parameter = "name")
+@Option(name = "retries-on-conflict", description = "The number of times to retry adding a document when a " +
+		"conflict error is returned by the index, after merging in existing fields.", parameter = "number")
 public class SpewTask extends DefaultTask<Long> {
 
 	private static final Logger logger = LoggerFactory.getLogger(SpewTask.class);
@@ -146,11 +158,17 @@ public class SpewTask extends DefaultTask<Long> {
 	public Long run(final String[] paths) throws Exception {
 		checkMemory();
 
-		try (final Report report = new ReportFactory(options).create();
-		     final Spewer spewer = SpewerFactory.createSpewer(options);
-		     final PathQueue queue = new PathQueueFactory(options).create()) {
+		final DocumentFactory factory = new DocumentFactory().configure(options);
 
-			return spew(report, spewer, queue, paths);
+		try (final Report report = new ReportFactory(options)
+				.withDocumentFactory(factory)
+				.create();
+		     final Spewer spewer = SpewerFactory.createSpewer(options);
+		     final DocumentQueue queue = new DocumentQueueFactory(options)
+				     .withDocumentFactory(factory)
+				     .create()) {
+
+			return spew(factory, report, spewer, queue, paths);
 		}
 	}
 
@@ -159,14 +177,14 @@ public class SpewTask extends DefaultTask<Long> {
 		return run(null);
 	}
 
-	private Long spew(final Report report, final Spewer spewer, final PathQueue queue, final String[] paths) throws
-			Exception {
-		final int parallelism = options.get("jobs").parse().asInteger().orElse(ExtractingConsumer.defaultPoolSize());
+	private Long spew(final DocumentFactory factory, final Report report, final Spewer spewer, final DocumentQueue
+			queue, final String[] paths) throws Exception {
+		final int parallelism = options.get("jobs").parse().asInteger().orElse(DocumentConsumer.defaultPoolSize());
 		logger.info(String.format("Processing up to %d file(s) in parallel.", parallelism));
 
-		final Extractor extractor = new Extractor(options);
-		final ExtractingConsumer consumer = new ExtractingConsumer(spewer, extractor, parallelism);
-		final PathQueueDrainer drainer = new PathQueueDrainer(queue, consumer);
+		final Extractor extractor = new Extractor().configure(options);
+		final DocumentConsumer consumer = new DocumentConsumer(spewer, extractor, parallelism);
+		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer);
 
 		options.get("queue-poll").parse().asDuration().ifPresent(drainer::setPollTimeout);
 
@@ -178,7 +196,7 @@ public class SpewTask extends DefaultTask<Long> {
 		final Long drained;
 
 		if (null != paths && paths.length > 0) {
-			final Scanner scanner = new Scanner(queue, new BooleanSealableLatch(), null, options);
+			final Scanner scanner = new Scanner(factory, queue, new BooleanSealableLatch(), null).configure(options);
 			final List<Future<Path>> scanning = scanner.scan(options.get("path-base").value().orElse(null), paths);
 
 			// Set the latch that will be waited on for polling, then start draining in the background.
@@ -188,7 +206,7 @@ public class SpewTask extends DefaultTask<Long> {
 			// Start scanning in a background thread but block until every path has been scanned and queued.
 			for (Future<Path> scan : scanning) scan.get();
 
-			// Only a short timeout is needed when awaiting termination, because the call to get the result of each
+			// Only a short timeout is needed when awaiting termination, because the call to parse the result of each
 			// job is blocking and by the time `awaitTermination` is reached the jobs would have finished.
 			scanner.shutdown();
 			scanner.awaitTermination(5, TimeUnit.SECONDS);

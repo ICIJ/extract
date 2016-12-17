@@ -1,27 +1,17 @@
 package org.icij.extract.spewer;
 
-import org.icij.extract.IndexDefaults;
-
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import java.util.regex.Pattern;
-
 import java.io.Reader;
 import java.io.IOException;
 
-import java.nio.file.Path;
-
-import java.security.Security;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.stream.Stream;
 
-import javax.xml.bind.DatatypeConverter;
-
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.mime.MediaType;
 
 import org.apache.solr.common.SolrInputDocument;
@@ -34,6 +24,8 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.http.impl.client.CloseableHttpClient;
 
 import org.apache.commons.io.IOUtils;
+import org.icij.extract.document.Document;
+import org.icij.extract.document.EmbeddedDocument;
 import org.icij.extract.parser.ParsingReader;
 import org.icij.task.Options;
 import org.slf4j.Logger;
@@ -45,17 +37,11 @@ import org.slf4j.LoggerFactory;
  * @since 1.0.0-beta
  */
 public class SolrSpewer extends Spewer {
-	private static final Pattern fieldName = Pattern.compile("[^A-Za-z0-9]");
 	private static final Logger logger = LoggerFactory.getLogger(SolrSpewer.class);
 
-	private final SolrClient client;
-	private final Semaphore commitSemaphore = new Semaphore(1);
+	protected final SolrClient client;
 
-	private String textField = IndexDefaults.DEFAULT_TEXT_FIELD;
-	private String pathField = IndexDefaults.DEFAULT_PATH_FIELD;
-	private String idField = IndexDefaults.DEFAULT_ID_FIELD;
-	private String metadataFieldPrefix = IndexDefaults.DEFAULT_METADATA_FIELD_PREFIX;
-	private String idAlgorithm = IndexDefaults.DEFAULT_ID_ALGORITHM;
+	private final Semaphore commitSemaphore = new Semaphore(1);
 
 	private final AtomicInteger pending = new AtomicInteger(0);
 	private int commitThreshold = 0;
@@ -63,61 +49,20 @@ public class SolrSpewer extends Spewer {
 	private boolean atomicWrites = false;
 	private boolean fixDates = true;
 
-	public SolrSpewer(final SolrClient client) {
-		super();
+	public SolrSpewer(final SolrClient client, final FieldNames fields) {
+		super(fields);
 		this.client = client;
 	}
 
-	public SolrSpewer(final SolrClient client, final Options<String> options) {
-		super(options);
-		this.client = client;
+	public SolrSpewer configure(final Options<String> options) {
+		super.configure(options);
 
 		options.get("atomic-writes").parse().asBoolean().ifPresent(this::atomicWrites);
 		options.get("fix-dates").parse().asBoolean().ifPresent(this::fixDates);
-		options.get("text-field").value().ifPresent(this::setTextField);
-		options.get("path-field").value().ifPresent(this::setPathField);
-		options.get("id-field").value().ifPresent(this::setIdField);
-		options.get("metadata-prefix").value().ifPresent(this::setMetadataFieldPrefix);
 		options.get("commit-interval").parse().asInteger().ifPresent(this::setCommitThreshold);
 		options.get("commit-within").parse().asDuration().ifPresent(this::setCommitWithin);
 
-		final Optional<String> idAlgorithm = options.get("id-algorithm").value();
-
-		if (idAlgorithm.isPresent()) {
-			try {
-				setIdAlgorithm(idAlgorithm.get());
-			} catch (NoSuchAlgorithmException e) {
-				throw new IllegalArgumentException(String.format("Hashing algorithm \"%s\" not available on this platform.",
-						idAlgorithm.get()));
-			}
-		}
-	}
-
-	public void setTextField(final String textField) {
-		this.textField = textField;
-	}
-
-	public void setPathField(final String pathField) {
-		this.pathField = pathField;
-	}
-
-	public void setIdField(final String idField) {
-		this.idField = idField;
-	}
-
-	public void setIdAlgorithm(final String idAlgorithm) throws NoSuchAlgorithmException {
-		if (null == idAlgorithm) {
-			this.idAlgorithm = null;
-		} else if (idAlgorithm.matches("^[a-zA-Z\\-\\d]+$") &&
-			null != Security.getProviders("MessageDigest." + idAlgorithm)) {
-			this.idAlgorithm = idAlgorithm;
-		} else {
-			throw new NoSuchAlgorithmException(String.format("No such algorithm: \"%s\".", idAlgorithm));
-		}
-	}
-
-	public void setMetadataFieldPrefix(final String metadataFieldPrefix) {
-		this.metadataFieldPrefix = metadataFieldPrefix;
+		return this;
 	}
 
 	public void setCommitThreshold(final int commitThreshold) {
@@ -132,7 +77,7 @@ public class SolrSpewer extends Spewer {
 	 *
 	 * Automatic committing is disabled by default.
 	 *
-	 * @param commitWithin
+	 * @param commitWithin the duration that each document added will be committed within
 	 */
 	public void setCommitWithin(final Duration commitWithin) {
 		this.commitWithin = commitWithin;
@@ -168,69 +113,96 @@ public class SolrSpewer extends Spewer {
 		}
 	}
 
-	public String generateId(final Path file) throws NoSuchAlgorithmException {
-		return DatatypeConverter.printHexBinary(MessageDigest.getInstance(idAlgorithm)
-			.digest(file.toString().getBytes(outputEncoding)));
-	}
-
 	@Override
-	public void write(final Path file, final Metadata metadata, final Reader reader) throws IOException {
-		final SolrInputDocument document = new SolrInputDocument();
+	public void write(final Document document, final Reader reader) throws IOException {
+		final SolrInputDocument inputDocument = prepareDocument(document, reader);
 		final UpdateResponse response;
 
-		// Set extracted metadata fields supplied by Tika.
-		if (outputMetadata) {
-			setMetadataFieldValues(metadata, document);
-		}
-
-		// Set tags supplied by the caller.
-		if (null != tags) {
-			setTagFieldValues(document);
-		}
-
-		// Set the ID. Must never be written atomically.
-		if (null != idField && null != idAlgorithm) {
-			setIdFieldValue(file, document);
-		}
-
-		// Set the path field.
-		setFieldValue(document, pathField, file.toString());
-
-		// Set the parent path.
-		if (file.getNameCount() > 1) {
-			setFieldValue(document, IndexDefaults.DEFAULT_PARENT_PATH_FIELD, file.getParent().toString());
-		}
-
-		// Add the base type. De-duplicated. Eases faceting on type.
-		setBaseTypeField(file, metadata, document);
-
-		// Finally, set the text field containing the actual extracted text.
-		setFieldValue(document, textField, IOUtils.toString(reader));
-
 		try {
-			if (null == commitWithin) {
-				response = client.add(document);
-			} else {
-				response = client.add(document, Math.toIntExact(commitWithin.toMillis()));
-			}
+			response = write(document, inputDocument);
 		} catch (SolrServerException e) {
-			throw new SpewerException(String.format("Unable to add file to Solr: \"%s\". " +
-				"There was server-side error.", file), e);
+			throw new SpewerException(String.format("Unable to add document to Solr: \"%s\". " +
+					"There was server-side error.", document), e);
 		} catch (SolrException e) {
-			throw new SpewerException(String.format("Unable to add file to Solr: \"%s\". " +
-				"HTTP error %d was returned.", file, e.code()), e);
+			throw new SpewerException(String.format("Unable to add document to Solr: \"%s\". " +
+					"HTTP error %d was returned.", document, e.code()), e);
 		} catch (IOException e) {
-			throw new SpewerException(String.format("Unable to add file to Solr: \"%s\". " +
-				"There was an error communicating with the server.", file), e);
+			throw new SpewerException(String.format("Unable to add document to Solr: \"%s\". " +
+					"There was an error communicating with the server.", document), e);
 		}
 
-		logger.info(String.format("Document added to Solr in %dms: \"%s\".", response.getElapsedTime(), file));
+		logger.info(String.format("Document added to Solr in %dms: \"%s\".", response.getElapsedTime(), document));
 		pending.incrementAndGet();
 
 		// Autocommit if the interval is hit and enabled.
 		if (commitThreshold > 0) {
 			commitPending(commitThreshold);
 		}
+	}
+
+	@Override
+	public void writeMetadata(final Document document) {
+		throw new UnsupportedOperationException();
+	}
+
+	protected UpdateResponse write(final Document document, final SolrInputDocument inputDocument) throws
+			IOException, SolrServerException {
+		if (null != commitWithin) {
+			return client.add(inputDocument, Math.toIntExact(commitWithin.toMillis()));
+		}
+
+		return client.add(inputDocument);
+	}
+
+	private SolrInputDocument prepareDocument(final Document document, final Reader reader) throws IOException {
+		final SolrInputDocument inputDocument = new SolrInputDocument();
+
+		// Set extracted metadata fields supplied by Tika.
+		if (outputMetadata) {
+			setMetadataFieldValues(document.getMetadata(), inputDocument);
+		}
+
+		// Set tags supplied by the caller.
+		tags.forEach((key, value)-> setFieldValue(inputDocument, fields.forTagPrefix() + key, value));
+
+		// Set the ID. Must never be written atomically.
+		if (null != fields.forId() && null != document.getId()) {
+			inputDocument.setField(fields.forId(), document.getId());
+		}
+
+		// Add the base type. De-duplicated. Eases faceting on type.
+		setFieldValue(inputDocument, fields.forBaseType(), Arrays.stream(document.getMetadata()
+				.getValues(Metadata.CONTENT_TYPE)).map((type)-> {
+			final MediaType mediaType = MediaType.parse(type);
+
+			if (null == mediaType) {
+				logger.warn(String.format("Content type could not be parsed: \"%s\". Was: \"%s\".", document, type));
+				return type;
+			}
+
+			return mediaType.getBaseType().toString();
+		}).toArray(String[]::new));
+
+		// Set the path field.
+		if (null != fields.forPath()) {
+			setFieldValue(inputDocument, fields.forPath(), document.getPath().toString());
+		}
+
+		// Set the parent path field.
+		if (null != fields.forParentPath() && document.getPath().getNameCount() > 1) {
+			setFieldValue(inputDocument, fields.forParentPath(), document.getPath().getParent().toString());
+		}
+
+		// Finally, set the text field containing the actual extracted text.
+		setFieldValue(inputDocument, fields.forText(), IOUtils.toString(reader));
+
+		// Add embedded documents as child documents.
+		for (EmbeddedDocument embed : document.getEmbeds()) {
+			inputDocument.addChildDocument(prepareDocument(embed, embed.getReader()));
+		}
+
+		reader.close();
+		return inputDocument;
 	}
 
 	private void commitPending(final int threshold) {
@@ -278,16 +250,12 @@ public class SolrSpewer extends Spewer {
 
 	private void setMetadataFieldValues(final Metadata metadata, final SolrInputDocument document) {
 		for (String name : metadata.names()) {
-			String normalizedName = normalizeFieldName(name);
-
-			if (null != metadataFieldPrefix) {
-				normalizedName = metadataFieldPrefix + normalizedName;
-			}
+			String normalizedName = normalizeMetadataName(name);
 
 			if (metadata.isMultiValued(name) &&
 
 					// Bad HTML files can have many titles. Ignore all but the first.
-					!name.equals(Metadata.TITLE)) {
+					!name.equals(TikaCoreProperties.TITLE.getName())) {
 				String[] values = metadata.getValues(name);
 				Stream<String> stream = Arrays.stream(values);
 
@@ -302,7 +270,7 @@ public class SolrSpewer extends Spewer {
 
 				values = stream.toArray(String[]::new);
 				if (values.length > 0) {
-					setFieldValues(document, normalizedName, values);
+					setFieldValue(document, normalizedName, values);
 				}
 			} else {
 				String value = metadata.get(name);
@@ -318,40 +286,6 @@ public class SolrSpewer extends Spewer {
 		}
 	}
 
-	private void setBaseTypeField(final Path file, final Metadata metadata, final SolrInputDocument document) {
-		final Set<String> baseTypes = new HashSet<>();
-
-		for (String type : metadata.getValues(Metadata.CONTENT_TYPE)) {
-			MediaType mediaType = MediaType.parse(type);
-
-			if (null == mediaType) {
-				logger.warn(String.format("Content type could not be parsed: \"%s\". Was: \"%s\".", file, type));
-			} else {
-				baseTypes.add(mediaType.getBaseType().toString());
-			}
-		}
-
-		setFieldValues(document, IndexDefaults.DEFAULT_BASE_TYPE_FIELD, baseTypes.toArray(new String[baseTypes.size()]));
-	}
-
-	private void setTagFieldValues(final SolrInputDocument document) {
-		for (Map.Entry<String, String> tag : tags.entrySet()) {
-			setFieldValue(document, normalizeFieldName(tag.getKey()), tag.getValue());
-		}
-	}
-
-	private void setIdFieldValue(final Path file, final SolrInputDocument document) {
-		try {
-			document.setField(idField, generateId(file));
-		} catch (NoSuchAlgorithmException e) {
-			throw new IllegalStateException(e);
-		}
-	}
-
-	private String normalizeFieldName(final String name) {
-		return fieldName.matcher(name).replaceAll("_").toLowerCase(Locale.ROOT);
-	}
-
 	/**
 	 * Set a value to a field on a Solr document.
 	 *
@@ -359,7 +293,7 @@ public class SolrSpewer extends Spewer {
 	 * @param name the name of the field
 	 * @param value the value
 	 */
-	private void setFieldValue(final SolrInputDocument document, final String name, final String value) {
+	void setFieldValue(final SolrInputDocument document, final String name, final String value) {
 		if (atomicWrites) {
 			final Map<String, Object> atomic = new HashMap<>();
 			atomic.put("set", value);
@@ -376,7 +310,7 @@ public class SolrSpewer extends Spewer {
 	 * @param name the name of the field
 	 * @param values the values
 	 */
-	private void setFieldValues(final SolrInputDocument document, final String name, final String[] values) {
+	void setFieldValue(final SolrInputDocument document, final String name, final String[] values) {
 		if (atomicWrites) {
 			final Map<String, String[]> atomic = new HashMap<>();
 			atomic.put("set", values);

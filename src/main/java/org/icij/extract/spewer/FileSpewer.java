@@ -3,9 +3,9 @@ package org.icij.extract.spewer;
 import java.io.File;
 import java.io.Reader;
 import java.io.OutputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -18,6 +18,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonEncoding;
 
+import org.icij.extract.document.Document;
 import org.icij.extract.extractor.Extractor;
 import org.icij.task.Options;
 import org.slf4j.LoggerFactory;
@@ -35,16 +36,16 @@ public class FileSpewer extends Spewer {
 
 	private static final String DEFAULT_EXTENSION = "txt";
 
-	private final Path outputDirectory;
+	private Path outputDirectory = Paths.get(".");
 	private String outputExtension = DEFAULT_EXTENSION;
 
-	public FileSpewer(final Path outputDirectory) {
-		super();
-		this.outputDirectory = outputDirectory;
+	public FileSpewer(final FieldNames fields) {
+		super(fields);
 	}
 
-	public FileSpewer(final Options<String> options) {
-		super(options);
+	@Override
+	public FileSpewer configure(final Options<String> options) {
+		super.configure(options);
 
 		final Extractor.OutputFormat outputFormat = options.get("output-format").parse()
 				.asEnum(Extractor.OutputFormat::parse).orElse(null);
@@ -53,7 +54,16 @@ public class FileSpewer extends Spewer {
 			setOutputExtension("html");
 		}
 
-		this.outputDirectory = options.get("output-directory").parse().asPath().orElse(Paths.get("."));
+		options.get("output-directory").parse().asPath().ifPresent(this::setOutputDirectory);
+		return this;
+	}
+
+	public void setOutputDirectory(final Path outputDirectory) {
+		this.outputDirectory = outputDirectory;
+	}
+
+	public Path getOutputDirectory() {
+		return outputDirectory;
 	}
 
 	public String getOutputExtension() {
@@ -72,22 +82,13 @@ public class FileSpewer extends Spewer {
 	public void close() throws IOException {}
 
 	@Override
-	public void write(final Path path, final Metadata metadata, final Reader reader) throws IOException {
-		Path outputPath;
-
-		// Join the file path to the output directory path to get the output path.
-		// If the file path is absolute, the leading slash must be removed.
-		if (path.isAbsolute()) {
-			outputPath = outputDirectory.resolve(path.toString().substring(1));
-		} else {
-			outputPath = outputDirectory.resolve(path);
-		}
+	public void write(final Document document, final Reader reader) throws IOException {
+		final Path outputPath = getOutputPath(document);
 
 		// Add the output extension.
 		Path contentsOutputPath;
 		if (null != outputExtension) {
-			contentsOutputPath = outputPath.getFileSystem().getPath(outputPath
-				.toString() + "." + outputExtension);
+			contentsOutputPath = outputPath.getFileSystem().getPath(outputPath.toString() + "." + outputExtension);
 		} else {
 			contentsOutputPath = outputPath;
 		}
@@ -109,41 +110,49 @@ public class FileSpewer extends Spewer {
 
 		TaggedOutputStream tagged = null;
 
-		try (
-
-			// IOUtils#copy buffers the input so there's no need to use an output buffer.
-			final OutputStream output = new FileOutputStream(contentsOutputPath.toFile())
-		) {
+		// IOUtils#copy buffers the input so there's no need to use an output buffer.
+		try (final OutputStream output = Files.newOutputStream(contentsOutputPath)) {
 			tagged = new TaggedOutputStream(output);
 			IOUtils.copy(reader, tagged, outputEncoding);
 		} catch (IOException e) {
 			if (null != tagged && tagged.isCauseOf(e)) {
-				throw new SpewerException(String.format("Error writing output to file: \"%s\".", contentsOutputPath),
-						e);
+				throw new SpewerException(String.format("Error writing output to file: \"%s\".", contentsOutputPath), e);
 			} else {
 				throw e;
 			}
 		}
 
 		if (outputMetadata) {
-			writeMetadata(outputPath.getFileSystem().getPath(outputPath
-				.toString() + ".json"), metadata);
+			writeMetadata(document);
 		}
 	}
 
-	private void writeMetadata(final Path metaOutputFile, final Metadata metadata)
-		throws IOException {
-		logger.info(String.format("Outputting metadata to file: \"%s\".", metaOutputFile));
+	@Override
+	public void writeMetadata(final Document document) throws IOException {
+		final Metadata metadata = document.getMetadata();
+		Path outputPath = getOutputPath(document);
+		outputPath = outputPath.getFileSystem().getPath(outputPath.toString() + ".json");
 
-		try (
-			final JsonGenerator jsonGenerator = new JsonFactory().createGenerator(metaOutputFile.toFile(),
-				JsonEncoding.UTF8)
-		) {
+		logger.info(String.format("Outputting metadata to file: \"%s\".", outputPath));
+
+		try (final JsonGenerator jsonGenerator = new JsonFactory().createGenerator(outputPath.toFile(),
+				JsonEncoding.UTF8)) {
 			jsonGenerator.useDefaultPrettyPrinter();
 			jsonGenerator.writeStartObject();
 
 			for (String name : metadata.names()) {
-				jsonGenerator.writeStringField(name, metadata.get(name));
+				String normalizedName = normalizeMetadataName(name);
+
+				if (metadata.isMultiValued(name)) {
+					jsonGenerator.writeArrayFieldStart(normalizedName);
+					jsonGenerator.writeStartArray();
+
+					for (String value: metadata.getValues(name)) {
+						jsonGenerator.writeString(value);
+					}
+				} else {
+					jsonGenerator.writeStringField(normalizedName, metadata.get(name));
+				}
 			}
 
 			jsonGenerator.writeEndObject();
@@ -151,5 +160,21 @@ public class FileSpewer extends Spewer {
 		} catch (IOException e) {
 			throw new SpewerException("Unable to output JSON.", e);
 		}
+	}
+
+	private Path getOutputPath(final Document document) {
+		final Path path = document.getPath();
+
+		// Join the file path to the output directory path to parse the output path.
+		// If the file path is absolute, the leading slash must be removed.
+		if (null != outputDirectory) {
+			if (path.isAbsolute()) {
+				return outputDirectory.resolve(path.toString().substring(1));
+			}
+
+			return outputDirectory.resolve(path);
+		}
+
+		return path;
 	}
 }

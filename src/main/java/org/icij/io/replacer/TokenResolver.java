@@ -13,18 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.icij.extract.replacer;
+package org.icij.io.replacer;
 
-import java.io.Reader;
 import java.io.IOException;
 
 /**
  * Interface for resolving of tokens found via {@link TokenReplacingReader}.
  *
  * Based on original code by Oleg Varaksin (ovaraksin@googlemail.com), the license of which is copied above. This
- * version resolves tokens to {@link Reader} instances so that .
+ * version is type-generic.
  */
-public interface TokenResolver {
+@FunctionalInterface
+public interface TokenResolver<R> {
 
-	Reader resolveToken(final String token) throws IOException;
+	R resolveToken(final String token) throws IOException;
 }

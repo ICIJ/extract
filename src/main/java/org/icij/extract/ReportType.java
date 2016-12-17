@@ -9,7 +9,7 @@ import java.util.Locale;
  * @since 1.0.0-beta
  */
 public enum ReportType {
-	REDIS;
+	REDIS, HASH;
 
 	/**
 	 * Return the name of the report type.

@@ -1,5 +1,8 @@
 package org.icij.extract.core;
 
+import org.icij.extract.document.Document;
+import org.icij.extract.document.DocumentFactory;
+import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.extractor.Extractor;
 import org.icij.extract.parser.ExcludedMediaTypeException;
 import org.icij.extract.test.*;
@@ -26,22 +29,23 @@ import org.junit.rules.ExpectedException;
 
 public class ExtractorTest {
 
+	private final DocumentFactory factory = new DocumentFactory().withIdentifier(new PathIdentifier());
+
 	@Rule
 	public final ExpectedException thrown = ExpectedException.none();
 
 	@Test
 	public void testOcr() throws Throwable {
 		final Extractor extractor = new Extractor();
-		final Path file = Paths.get(getClass().getResource("/documents/ocr/simple.tiff").toURI());
-		final Metadata metadata = new Metadata();
+		final Document document = factory.create(getClass().getResource("/documents/ocr/simple.tiff"));
 
 		String text;
 
-		try (Reader reader = extractor.extract(file, metadata)) {
+		try (Reader reader = extractor.extract(document)) {
 			text = IOUtils.toString(reader);
 		}
 
-		Assert.assertEquals("image/tiff", metadata.get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals("image/tiff", document.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("HEAVY\nMETAL\n\n\n", text);
 	}
 
@@ -50,85 +54,92 @@ public class ExtractorTest {
 		final Extractor extractor = new Extractor();
 		extractor.disableOcr();
 
-		final Path file = Paths.get(getClass().getResource("/documents/ocr/simple.tiff").toURI());
-		final Metadata metadata = new Metadata();
+		final Document document = factory.create(getClass().getResource("/documents/ocr/simple.tiff"));
 
 		thrown.expect(IOException.class);
 		thrown.expectMessage("");
 		thrown.expectCause(new CauseMatcher(ExcludedMediaTypeException.class, "Excluded media type: image/tiff"));
 
-		try (Reader reader = extractor.extract(file, metadata)) {
-			reader.read();
+		final int read;
+
+		try (Reader reader = extractor.extract(document)) {
+			read = reader.read();
 		} catch (IOException e) {
-			Assert.assertEquals("image/tiff", metadata.get(Metadata.CONTENT_TYPE));
+			Assert.assertEquals("image/tiff", document.getMetadata().get(Metadata.CONTENT_TYPE));
 			throw e;
 		}
+
+		Assert.fail(String.format("Read \"%d\" while expecting exception.", read));
 	}
 
 	@Test
 	public void testFileNotFound() throws Throwable {
 		final Extractor extractor = new Extractor();
 
-		final Path file = Paths.get("nothing");
+		final Document document = factory.create(Paths.get("nothing"));
 
 		thrown.expect(NoSuchFileException.class);
 		thrown.expectMessage("nothing");
 
-		extractor.extract(file);
+		extractor.extract(document);
 	}
 
 	@Test
 	public void testEncryptedPdf() throws Throwable {
 		final Extractor extractor = new Extractor();
 
-		final Path file = Paths.get(getClass().getResource("/documents/pdf/encrypted.pdf").toURI());
-		final Metadata metadata = new Metadata();
+		final Document document = factory.create(getClass().getResource("/documents/pdf/encrypted.pdf"));
 
 		thrown.expect(IOException.class);
 		thrown.expectMessage("");
 		thrown.expectCause(new CauseMatcher(EncryptedDocumentException.class, "Unable to process: document is encrypted"));
 
-		try (Reader reader = extractor.extract(file, metadata)) {
-			reader.read();
+		final int read;
+
+		try (Reader reader = extractor.extract(document)) {
+			read = reader.read();
 		} catch (IOException e) {
-			Assert.assertEquals("application/pdf", metadata.get(Metadata.CONTENT_TYPE));
+			Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
 			throw e;
 		}
+
+		Assert.fail(String.format("Read \"%d\" while expecting exception.", read));
 	}
 
 	@Test
 	public void testGarbage() throws Throwable {
 		final Extractor extractor = new Extractor();
 
-		final Path file = Paths.get(getClass().getResource("/documents/garbage.bin").toURI());
-		final Metadata metadata = new Metadata();
+		final Document document = factory.create(getClass().getResource("/documents/garbage.bin"));
 
 		thrown.expect(IOException.class);
 		thrown.expectMessage("");
 		thrown.expectCause(new CauseMatcher(TikaException.class, "Unsupported media type: application/octet-stream"));
 
-		try (Reader reader = extractor.extract(file, metadata)) {
-			reader.read();
+		final int read;
+
+		try (Reader reader = extractor.extract(document)) {
+			read = reader.read();
 		} catch (IOException e) {
-			Assert.assertEquals("application/octet-stream", metadata.get(Metadata.CONTENT_TYPE));
+			Assert.assertEquals("application/octet-stream", document.getMetadata().get(Metadata.CONTENT_TYPE));
 			throw e;
 		}
+
+		Assert.fail(String.format("Read \"%d\" while expecting exception.", read));
 	}
 
 	@Test
 	public void testEmbeds() throws Throwable {
 		final Extractor extractor = new Extractor();
 
-		final Path file = Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").toURI());
-		final Metadata metadata = new Metadata();
-
+		final Document document = factory.create(getClass().getResource("/documents/ocr/embedded.pdf"));
 		String text;
 
-		try (Reader reader = extractor.extract(file, metadata)) {
+		try (Reader reader = extractor.extract(document)) {
 			text = IOUtils.toString(reader);
 		}
 
-		Assert.assertEquals("application/pdf", metadata.get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("\nHEAVY\nMETAL\n\n\n\n\n\nHEAVY\nMETAL\n\n\n\n\n", text);
 	}
 
@@ -139,16 +150,15 @@ public class ExtractorTest {
 		extractor.setEmbedHandling(Extractor.EmbedHandling.IGNORE);
 		Assert.assertEquals(extractor.getEmbedHandling(), Extractor.EmbedHandling.IGNORE);
 
-		final Path file = Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").toURI());
-		final Metadata metadata = new Metadata();
+		final Document document = factory.create(getClass().getResource("/documents/ocr/embedded.pdf"));
 
 		String text;
 
-		try (Reader reader = extractor.extract(file, metadata)) {
+		try (Reader reader = extractor.extract(document)) {
 			text = IOUtils.toString(reader);
 		}
 
-		Assert.assertEquals("application/pdf", metadata.get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("\n\n\n\n", text);
 	}
 
@@ -157,16 +167,15 @@ public class ExtractorTest {
 		final Extractor extractor = new Extractor();
 		extractor.disableOcr();
 
-		final Path file = Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").toURI());
-		final Metadata metadata = new Metadata();
+		final Document document = factory.create(getClass().getResource("/documents/ocr/embedded.pdf"));
 
 		String text;
 
-		try (Reader reader = extractor.extract(file, metadata)) {
+		try (Reader reader = extractor.extract(document)) {
 			text = IOUtils.toString(reader);
 		}
 
-		Assert.assertEquals("application/pdf", metadata.get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("\n\n\n\n", text);
 	}
 
@@ -175,16 +184,15 @@ public class ExtractorTest {
 		final Extractor extractor = new Extractor();
 		extractor.setOutputFormat(Extractor.OutputFormat.HTML);
 
-		final Path file = Paths.get(getClass().getResource("/documents/text/utf16.txt").toURI());
-		final Metadata metadata = new Metadata();
+		final Document document = factory.create(getClass().getResource("/documents/text/utf16.txt"));
 
 		String text;
 
-		try (Reader reader = extractor.extract(file, metadata)) {
+		try (Reader reader = extractor.extract(document)) {
 			text = IOUtils.toString(reader);
 		}
 
-		Assert.assertEquals("text/plain; charset=UTF-16LE", metadata.get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals("text/plain; charset=UTF-16LE", document.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals(getExpected("/expected/text/utf16-txt.html"), text);
 	}
 
@@ -193,16 +201,15 @@ public class ExtractorTest {
 		final Extractor extractor = new Extractor();
 		extractor.setOutputFormat(Extractor.OutputFormat.HTML);
 
-		final Path file = Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").toURI());
-		final Metadata metadata = new Metadata();
+		final Document document = factory.create(getClass().getResource("/documents/ocr/embedded.pdf"));
 
 		String text;
 
-		try (Reader reader = extractor.extract(file, metadata)) {
+		try (Reader reader = extractor.extract(document)) {
 			text = IOUtils.toString(reader);
 		}
 
-		Assert.assertEquals("application/pdf", metadata.get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals(getExpected("/expected/text/embedded-pdf.html"), text);
 	}
 
@@ -216,29 +223,28 @@ public class ExtractorTest {
 		extractor.setEmbedHandling(Extractor.EmbedHandling.EMBED);
 		Assert.assertEquals(extractor.getEmbedHandling(), Extractor.EmbedHandling.EMBED);
 
-		final Path file = Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").toURI());
-		final Metadata metadata = new Metadata();
+		final Document document = factory.create(getClass().getResource("/documents/ocr/embedded.pdf"));
 
 		String text;
 
-		try (Reader reader = extractor.extract(file, metadata)) {
+		try (Reader reader = extractor.extract(document)) {
 			text = IOUtils.toString(reader);
 		}
 
-		Assert.assertEquals("application/pdf", metadata.get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals(getExpected("/expected/text/embedded-data-uri-pdf.html"), text);
 	}
 
 	@Test
 	public void testFailsWithoutWorkingDirectory() throws Throwable {
 		final Extractor extractor = new Extractor();
-		final Path file = Paths.get("text/plain.txt");
+		final Document document = factory.create(Paths.get("text/plain.txt"));
 
 		Assert.assertNull(extractor.getWorkingDirectory());
 		thrown.expect(NoSuchFileException.class);
 		thrown.expectMessage("text/plain.txt");
 
-		extractor.extract(file);
+		extractor.extract(document);
 	}
 
 	@Test
@@ -249,7 +255,7 @@ public class ExtractorTest {
 		Assert.assertEquals(workingDirectory.toString(), extractor.getWorkingDirectory().toString());
 
 		String text;
-		try (Reader reader = extractor.extract(Paths.get("text/plain.txt"))) {
+		try (Reader reader = extractor.extract(factory.create(Paths.get("text/plain.txt")))) {
 			text = IOUtils.toString(reader);
 		}
 

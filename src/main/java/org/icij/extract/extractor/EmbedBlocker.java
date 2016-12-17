@@ -14,7 +14,7 @@ import org.xml.sax.SAXException;
  *
  * @since 1.0.0-beta
  */
-public class DenyingEmbeddedDocumentExtractor implements EmbeddedDocumentExtractor {
+public class EmbedBlocker implements EmbeddedDocumentExtractor {
 
 	@Override
 	public boolean shouldParseEmbedded(final Metadata metadata) {

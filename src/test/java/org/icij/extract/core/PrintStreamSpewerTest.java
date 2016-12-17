@@ -9,11 +9,12 @@ import java.io.PrintStream;
 import java.nio.file.Paths;
 import java.nio.charset.StandardCharsets;
 
-import org.apache.tika.metadata.Metadata;
 import org.apache.tika.exception.TikaException;
 
+import org.icij.extract.document.DocumentFactory;
+import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.parser.ParsingReader;
-import org.icij.extract.parser.TextParsingReader;
+import org.icij.extract.spewer.FieldNames;
 import org.icij.extract.spewer.PrintStreamSpewer;
 import org.icij.extract.spewer.Spewer;
 import org.junit.Test;
@@ -21,18 +22,20 @@ import org.junit.Assert;
 
 public class PrintStreamSpewerTest {
 
+	private final DocumentFactory factory = new DocumentFactory().withIdentifier(new PathIdentifier());
+
 	@Test
 	public void testWrite() throws IOException, TikaException {
 		final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 		final PrintStream printStream = new PrintStream(outputStream);
-		final Spewer spewer = new PrintStreamSpewer(printStream);
+		final Spewer spewer = new PrintStreamSpewer(printStream, new FieldNames());
 
 		final String buffer = "$";
 		final String name = "imaginary-file.txt";
 		final InputStream inputStream = new ByteArrayInputStream(buffer.getBytes(StandardCharsets.UTF_8));
-		final ParsingReader reader = new TextParsingReader(inputStream, name);
+		final ParsingReader reader = new ParsingReader(inputStream, name);
 
-		spewer.write(Paths.get(name), new Metadata(), reader);
+		spewer.write(factory.create(Paths.get(name)), reader);
 
 		Assert.assertEquals("$\n", outputStream.toString(StandardCharsets.UTF_8.name()));
 		Assert.assertArrayEquals(new byte[] {0x24, 0x0A}, outputStream.toByteArray());
@@ -42,14 +45,14 @@ public class PrintStreamSpewerTest {
 	public void testWriteFromUTF16LE() throws IOException, TikaException {
 		final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 		final PrintStream printStream = new PrintStream(outputStream);
-		final Spewer spewer = new PrintStreamSpewer(printStream);
+		final Spewer spewer = new PrintStreamSpewer(printStream, new FieldNames());
 
 		final byte[] buffer = new byte[] {(byte) 0xFF, (byte) 0xFE, 0x24, 0x00};
 		final String name = "imaginary-file.txt";
 		final InputStream inputStream = new ByteArrayInputStream(buffer);
-		final ParsingReader reader = new TextParsingReader(inputStream, name);
+		final ParsingReader reader = new ParsingReader(inputStream, name);
 
-		spewer.write(Paths.get(name), new Metadata(), reader);
+		spewer.write(factory.create(Paths.get(name)), reader);
 
 		Assert.assertEquals("$\n", outputStream.toString(StandardCharsets.UTF_8.name()));
 		Assert.assertArrayEquals(new byte[] {0x24, 0x0A}, outputStream.toByteArray());
@@ -59,14 +62,14 @@ public class PrintStreamSpewerTest {
 	public void testWriteFromUTF16BE() throws IOException, TikaException {
 		final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 		final PrintStream printStream = new PrintStream(outputStream);
-		final Spewer spewer = new PrintStreamSpewer(printStream);
+		final Spewer spewer = new PrintStreamSpewer(printStream, new FieldNames());
 
 		final byte[] buffer = new byte[] {(byte) 0xFE, (byte) 0xFF, 0x00, 0x24};
 		final String name = "imaginary-file.txt";
 		final InputStream inputStream = new ByteArrayInputStream(buffer);
-		final ParsingReader reader = new TextParsingReader(inputStream, name);
+		final ParsingReader reader = new ParsingReader(inputStream, name);
 
-		spewer.write(Paths.get(name), new Metadata(), reader);
+		spewer.write(factory.create(Paths.get(name)), reader);
 
 		Assert.assertEquals("$\n", outputStream.toString(StandardCharsets.UTF_8.name()));
 		Assert.assertArrayEquals(new byte[] {0x24, 0x0A}, outputStream.toByteArray());
@@ -76,7 +79,7 @@ public class PrintStreamSpewerTest {
 	public void testWriteToUTF16LE() throws IOException, TikaException {
 		final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 		final PrintStream printStream = new PrintStream(outputStream);
-		final Spewer spewer = new PrintStreamSpewer(printStream);
+		final Spewer spewer = new PrintStreamSpewer(printStream, new FieldNames());
 
 		// Declare file contents of a single dollar sign ($).
 		final String buffer = "\u0024";
@@ -84,10 +87,10 @@ public class PrintStreamSpewerTest {
 
 		// Tika parsers always output UTF-8.
 		final InputStream inputStream = new ByteArrayInputStream(buffer.getBytes(StandardCharsets.UTF_8));
-		final ParsingReader reader = new TextParsingReader(inputStream, name);
+		final ParsingReader reader = new ParsingReader(inputStream, name);
 
 		spewer.setOutputEncoding(StandardCharsets.UTF_16LE);
-		spewer.write(Paths.get("test-file"), new Metadata(), reader);
+		spewer.write(factory.create(Paths.get("test-file")), reader);
 
 		Assert.assertArrayEquals(new byte[] {0x24, 0x00, 0x0A, 0x00}, outputStream.toByteArray());
 	}
@@ -96,7 +99,7 @@ public class PrintStreamSpewerTest {
 	public void testWriteToUTF16BE() throws IOException, TikaException {
 		final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 		final PrintStream printStream = new PrintStream(outputStream);
-		final Spewer spewer = new PrintStreamSpewer(printStream);
+		final Spewer spewer = new PrintStreamSpewer(printStream, new FieldNames());
 
 		// Declare file contents of a single dollar sign ($).
 		final String buffer = "\u0024";
@@ -104,10 +107,10 @@ public class PrintStreamSpewerTest {
 
 		// Tika parsers always output UTF-8.
 		final InputStream inputStream = new ByteArrayInputStream(buffer.getBytes(StandardCharsets.UTF_8));
-		final ParsingReader reader = new TextParsingReader(inputStream, name);
+		final ParsingReader reader = new ParsingReader(inputStream, name);
 
 		spewer.setOutputEncoding(StandardCharsets.UTF_16BE);
-		spewer.write(Paths.get("test-file"), new Metadata(), reader);
+		spewer.write(factory.create(Paths.get("test-file")), reader);
 
 		Assert.assertArrayEquals(new byte[] {0x00, 0x24, 0x00, 0x0A}, outputStream.toByteArray());
 	}

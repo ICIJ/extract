@@ -7,18 +7,17 @@ import java.util.concurrent.RejectedExecutionException;
 
 import java.util.function.Consumer;
 
-import java.nio.file.Path;
-
 import org.icij.executor.BlockingThreadPoolExecutor;
 import org.icij.executor.ExecutorProxy;
 
+import org.icij.extract.document.Document;
 import org.icij.extract.report.Reporter;
 import org.icij.extract.spewer.Spewer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Base consumer for file paths. Superclasses should call {@link #accept(Path)}. All tasks are sent to a
+ * Base consumer for documents. Superclasses should call {@link #accept(Document)}. All tasks are sent to a
  * work-stealing thread pool.
  *
  * The parallelism of the thread pool is defined in the call to the constructor.
@@ -30,9 +29,9 @@ import org.slf4j.LoggerFactory;
  *
  * @since 1.0.0-beta
  */
-public class ExtractingConsumer extends ExecutorProxy implements Consumer<Path> {
+public class DocumentConsumer extends ExecutorProxy implements Consumer<Document> {
 
-	private static final Logger logger = LoggerFactory.getLogger(ExtractingConsumer.class);
+	private static final Logger logger = LoggerFactory.getLogger(DocumentConsumer.class);
 
 	protected final Spewer spewer;
 	protected final Extractor extractor;
@@ -58,7 +57,7 @@ public class ExtractingConsumer extends ExecutorProxy implements Consumer<Path> 
 	 * @param extractor the {@code Extractor} used to extract from files
 	 * @param executor the executor used to run consuming tasks
 	 */
-	public ExtractingConsumer(final Spewer spewer, final Extractor extractor, final ExecutorService executor) {
+	public DocumentConsumer(final Spewer spewer, final Extractor extractor, final ExecutorService executor) {
 		super(executor);
 		this.spewer = spewer;
 		this.extractor = extractor;
@@ -70,9 +69,9 @@ public class ExtractingConsumer extends ExecutorProxy implements Consumer<Path> 
 	 *
 	 * @param spewer the {@code Spewer} used to write extracted text and metadata
 	 * @param extractor the {@code Extractor} used to extract from files
-	 * @param poolSize the fixed size of the thread pool used to consume paths
+	 * @param poolSize the fixed size of the thread pool used to consume documents
 	 */
-	public ExtractingConsumer(final Spewer spewer, final Extractor extractor, final int poolSize) {
+	public DocumentConsumer(final Spewer spewer, final Extractor extractor, final int poolSize) {
 		this(spewer, extractor, new BlockingThreadPoolExecutor(poolSize));
 	}
 
@@ -82,7 +81,7 @@ public class ExtractingConsumer extends ExecutorProxy implements Consumer<Path> 
 	 * @param spewer the {@code Spewer} used to write extracted text and metadata
 	 * @param extractor the {@code Extractor} used to extract from files
 	 */
-	public ExtractingConsumer(final Spewer spewer, final Extractor extractor) {
+	public DocumentConsumer(final Spewer spewer, final Extractor extractor) {
 		this(spewer, extractor, defaultPoolSize());
 	}
 
@@ -112,13 +111,25 @@ public class ExtractingConsumer extends ExecutorProxy implements Consumer<Path> 
 	 * available. Otherwise the behaviour is similar to {@link ExecutorService#execute(Runnable)}, causing the task
 	 * to be put in a queue.
 	 *
-	 * @param file file path
+	 * @param document the document to consume
 	 * @throws RejectedExecutionException if unable to queue the consumer task for execution, including when the
 	 * current thread is interrupted.
 	 */
 	@Override
-	public void accept(final Path file) {
-		logger.info(String.format("Sending to thread pool; will queue if full: \"%s\".", file));
-		executor.execute(new ExtractionTask(file, extractor, spewer, reporter));
+	public void accept(final Document document) {
+		logger.info(String.format("Sending to thread pool; will queue if full: \"%s\".", document));
+		executor.execute(()-> {
+			logger.info(String.format("Beginning extraction: \"%s\".", document));
+
+			try {
+				if (null != reporter) {
+					extractor.extract(document, spewer, reporter);
+				} else {
+					extractor.extract(document, spewer);
+				}
+			} catch (Exception e) {
+				logger.error(String.format("Exception while consuming file: \"%s\".", document), e);
+			}
+		});
 	}
 }

@@ -4,9 +4,10 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.io.input.CloseShieldInputStream;
 
-import org.icij.extract.queue.PathQueue;
-import org.icij.extract.json.PathQueueDeserializer;
-import org.icij.extract.tasks.factories.PathQueueFactory;
+import org.icij.extract.document.DocumentFactory;
+import org.icij.extract.queue.DocumentQueue;
+import org.icij.extract.json.DocumentQueueDeserializer;
+import org.icij.extract.tasks.factories.DocumentQueueFactory;
 
 import java.io.*;
 import java.nio.file.Paths;
@@ -20,7 +21,7 @@ import org.icij.task.annotation.Option;
 import org.icij.task.annotation.Task;
 
 /**
- * A command that loads a {@link PathQueue} from JSON.
+ * A command that loads a {@link DocumentQueue} from JSON.
  *
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
@@ -32,16 +33,25 @@ import org.icij.task.annotation.Task;
 @Option(name = "queue-name", description = "The name of the queue, the default of which is type-dependent" +
 		".", parameter = "name")
 @Option(name = "format", description = "The dump file format. Defaults to JSON.", parameter = "csv|json")
-@Option(name = "path-field", description = "The name of CSV field to get the path from.", parameter = "name")
+@Option(name = "path-field", description = "The name of CSV field to parse the path from.", parameter = "name")
 @Option(name = "redis-address", description = "Set the Redis backend address. Defaults to " +
 		"127.0.0.1:6379.", parameter = "address")
+@Option(name = "id-method", description = "The method for determining document IDs, for queues that use them.",
+		parameter = "name")
+@Option(name = "id-digest-method", description = "For calculating document IDs, where applicable depending on the " +
+		"queue type. Defaults to using the path as an ID.", parameter = "name")
+@Option(name = "charset", description = "The character set for documents stored in the queue.", parameter = "name")
 public class LoadQueueTask extends DefaultTask<Void> {
 
 	@Override
 	public Void run() throws Exception {
+		final DocumentFactory factory = new DocumentFactory().configure(options);
+
 		try (final InputStream input = new CloseShieldInputStream(System.in);
-		     final PathQueue queue = new PathQueueFactory(options).createShared()) {
-			load(queue, input);
+		     final DocumentQueue queue = new DocumentQueueFactory(options)
+				     .withDocumentFactory(factory)
+				     .createShared()) {
+			load(factory, queue, input);
 		}
 
 		return null;
@@ -49,9 +59,13 @@ public class LoadQueueTask extends DefaultTask<Void> {
 
 	@Override
 	public Void run(final String[] arguments) throws Exception {
-		try (final PathQueue queue = new PathQueueFactory(options).createShared()) {
+		final DocumentFactory factory = new DocumentFactory().configure(options);
+
+		try (final DocumentQueue queue = new DocumentQueueFactory(options)
+				.withDocumentFactory(factory)
+				.createShared()) {
 			for (String argument : arguments) {
-				load(queue, argument);
+				load(factory, queue, argument);
 			}
 		} catch (FileNotFoundException e) {
 			throw new RuntimeException("Unable to open dump file for reading.", e);
@@ -67,9 +81,9 @@ public class LoadQueueTask extends DefaultTask<Void> {
 	 * @param path the path to load the dump from
 	 * @throws IOException if the dump could not be loaded
 	 */
-	private void load(final PathQueue queue, final String path) throws IOException {
+	private void load(final DocumentFactory factory, final DocumentQueue queue, final String path) throws IOException {
 		try (final InputStream input = new BufferedInputStream(new FileInputStream(path))) {
-			load(queue, input);
+			load(factory, queue, input);
 		}
 	}
 
@@ -80,13 +94,14 @@ public class LoadQueueTask extends DefaultTask<Void> {
 	 * @param input the input stream to load the dump from
 	 * @throws IOException if the dump could not be loaded
 	 */
-	private void load(final PathQueue queue, final InputStream input) throws IOException {
+	private void load(final DocumentFactory factory, final DocumentQueue queue, final InputStream input) throws
+			IOException {
 		final String format = options.get("format").value().orElse("json");
 
 		if (format.toLowerCase().equals("csv")) {
-			loadFromCSV(queue, input);
+			loadFromCSV(factory, queue, input);
 		} else {
-			loadFromJSON(queue, input);
+			loadFromJSON(factory, queue, input);
 		}
 	}
 
@@ -97,11 +112,12 @@ public class LoadQueueTask extends DefaultTask<Void> {
 	 * @param input the input stream to load the dump from
 	 * @throws IOException if the dump could not be loaded
 	 */
-	private void loadFromCSV(final PathQueue queue, final InputStream input) throws IOException {
+	private void loadFromCSV(final DocumentFactory factory, final DocumentQueue queue, final InputStream input) throws
+			IOException {
 		final String pathField = options.get("path-field").value().orElse("path");
 
 		for (CSVRecord record : CSVFormat.RFC4180.withHeader().parse(new InputStreamReader(input))) {
-			queue.add(Paths.get(record.get(pathField)));
+			queue.add(factory.create(Paths.get(record.get(pathField))));
 		}
 	}
 
@@ -112,15 +128,16 @@ public class LoadQueueTask extends DefaultTask<Void> {
 	 * @param input the input stream to load the dump from
 	 * @throws IOException if the dump could not be loaded
 	 */
-	private void loadFromJSON(final PathQueue queue, final InputStream input) throws IOException {
+	private void loadFromJSON(final DocumentFactory factory, final DocumentQueue queue, final InputStream input)
+			throws IOException {
 		final ObjectMapper mapper = new ObjectMapper();
 		final SimpleModule module = new SimpleModule();
 
-		module.addDeserializer(PathQueue.class, new PathQueueDeserializer(queue));
+		module.addDeserializer(DocumentQueue.class, new DocumentQueueDeserializer(factory, queue));
 		mapper.registerModule(module);
 
 		try (final JsonParser jsonParser = new JsonFactory().setCodec(mapper).createParser(input)) {
-			jsonParser.readValueAs(PathQueue.class);
+			jsonParser.readValueAs(DocumentQueue.class);
 		}
 	}
 }

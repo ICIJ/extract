@@ -7,13 +7,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.solr.common.SolrDocument;
 
 import org.icij.events.Notifiable;
-import org.icij.extract.IndexDefaults;
+import org.icij.extract.spewer.FieldNames;
 
 public abstract class SolrMachineConsumer implements Consumer<SolrDocument> {
 
 	private final AtomicInteger consumed = new AtomicInteger();
 
-	String idField = IndexDefaults.DEFAULT_ID_FIELD;
+	String idField = FieldNames.DEFAULT_ID_FIELD;
 	private Notifiable notifiable = null;
 
 	@Override

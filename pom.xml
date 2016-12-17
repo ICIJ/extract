@@ -300,7 +300,7 @@
 					<systemProperties>
 						<property>
 							<name>java.util.logging.config.file</name>
-							<value>src/test/resources/logging.properties</value>
+							<code>src/test/resources/logging.properties</code>
 						</property>
 					</systemProperties>
 				</configuration>

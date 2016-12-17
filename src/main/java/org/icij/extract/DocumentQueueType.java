@@ -8,7 +8,7 @@ import java.util.Locale;
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
  */
-public enum PathQueueType {
+public enum DocumentQueueType {
 	NONE, ARRAY, REDIS;
 
 	/**
@@ -24,9 +24,9 @@ public enum PathQueueType {
 	 * Parse the given string representation of the type into an instance.
 	 *
 	 * @param queueType the type of queue as a string value
-	 * @return The type of queue as a {@link PathQueueType} instance.
+	 * @return The type of queue as a {@link DocumentQueueType} instance.
 	 */
-	public static PathQueueType parse(final String queueType) {
+	public static DocumentQueueType parse(final String queueType) {
 		if (null == queueType) {
 			return NONE;
 		}

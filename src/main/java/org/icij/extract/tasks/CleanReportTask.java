@@ -1,5 +1,6 @@
 package org.icij.extract.tasks;
 
+import org.icij.extract.document.Document;
 import org.icij.extract.report.Report;
 import org.icij.extract.tasks.factories.ReportFactory;
 
@@ -32,11 +33,11 @@ public class CleanReportTask extends MonitorableTask<Integer> {
 		int i = 0;
 
 		try (final Report report = new ReportFactory(options).createShared()) {
-			final Iterator<Path> iterator = report.keySet().iterator();
+			final Iterator<Document> iterator = report.keySet().iterator();
 
 			monitor.hintRemaining(report.size());
 			while (iterator.hasNext()) {
-				Path path = iterator.next();
+				Path path = iterator.next().getPath();
 
 				if (Files.notExists(path)) {
 					iterator.remove();

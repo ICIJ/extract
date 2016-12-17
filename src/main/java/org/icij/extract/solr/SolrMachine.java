@@ -116,7 +116,7 @@ public class SolrMachine implements Callable<Long> {
 			while (!Thread.currentThread().isInterrupted()) {
 				SolrDocument document = supplier.get();
 
-				// Null value is used as a poison pull to get workers to exit.
+				// Null value is used as a poison pull to parse workers to exit.
 				if (null == document) {
 					break;
 				}

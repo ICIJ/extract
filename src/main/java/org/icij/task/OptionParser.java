@@ -1,5 +1,6 @@
 package org.icij.task;
 
+import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Optional;
@@ -14,6 +15,8 @@ public interface OptionParser<V> {
 	Optional<Integer> asInteger();
 
 	Optional<Boolean> asBoolean();
+
+	Optional<Charset> asCharset();
 
 	boolean isOn();
 

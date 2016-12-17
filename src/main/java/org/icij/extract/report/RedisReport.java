@@ -1,18 +1,17 @@
 package org.icij.extract.report;
 
-import org.icij.extract.redis.ConnectionManagerFactory;
-import org.icij.extract.redis.PathDecoder;
-import org.icij.extract.redis.ResultDecoder;
-import org.icij.extract.redis.ResultEncoder;
-import org.icij.extract.extractor.ExtractionResult;
+import org.icij.extract.document.Document;
+import org.icij.extract.document.DocumentFactory;
+import org.icij.extract.redis.*;
+import org.icij.extract.extractor.ExtractionStatus;
 
 import java.io.IOException;
-
-import java.nio.file.Path;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 import org.icij.task.Options;
 import org.redisson.RedissonMap;
-import org.redisson.client.codec.StringCodec;
+import org.redisson.client.codec.Codec;
 import org.redisson.client.protocol.Decoder;
 import org.redisson.client.protocol.Encoder;
 import org.redisson.command.CommandSyncService;
@@ -24,7 +23,7 @@ import org.redisson.connection.ConnectionManager;
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
  */
-public class RedisReport extends RedissonMap<Path, ExtractionResult> implements Report {
+public class RedisReport extends RedissonMap<Document, ExtractionStatus> implements Report {
 
 	/**
 	 * The default name for a report in Redis.
@@ -38,9 +37,10 @@ public class RedisReport extends RedissonMap<Path, ExtractionResult> implements 
 	 *
 	 * @param options options for connecting to Redis
 	 */
-	public RedisReport(final Options<String> options) {
-		this(new ConnectionManagerFactory().withOptions(options).create(),
-				options.get("report-name").value().orElse(DEFAULT_NAME));
+	public RedisReport(final DocumentFactory factory, final Options<String> options) {
+		this(factory, new ConnectionManagerFactory().withOptions(options).create(),
+				options.get("report-name").value().orElse(DEFAULT_NAME),
+				options.get("charset").parse().asCharset().orElse(StandardCharsets.UTF_8));
 	}
 
 	/**
@@ -49,8 +49,10 @@ public class RedisReport extends RedissonMap<Path, ExtractionResult> implements 
 	 * @param connectionManager instantiated using {@link ConnectionManagerFactory}
 	 * @param name the name of the report
 	 */
-	public RedisReport(final ConnectionManager connectionManager, final String name) {
-		super(new RedisReportCodec(), new CommandSyncService(connectionManager), null == name ? DEFAULT_NAME : name);
+	private RedisReport(final DocumentFactory factory, final ConnectionManager connectionManager, final String name,
+	                   final Charset charset) {
+		super(new ReportCodec(factory, charset), new CommandSyncService(connectionManager), null == name ?
+				DEFAULT_NAME : name);
 		this.connectionManager = connectionManager;
 	}
 
@@ -65,15 +67,21 @@ public class RedisReport extends RedissonMap<Path, ExtractionResult> implements 
 	 * @author Matthew Caruana Galizia <mcaruana@icij.org>
 	 * @since 1.0.0-beta
 	 */
-	static class RedisReportCodec extends StringCodec {
+	static class ReportCodec implements Codec {
 
+		private final Decoder<Object> documentDecoder;
+		private final Encoder documentEncoder;
 		private final Decoder<Object> resultDecoder = new ResultDecoder();
-		private final Decoder<Object> pathDecoder = new PathDecoder();
 		private final Encoder resultEncoder = new ResultEncoder();
+
+		ReportCodec(final DocumentFactory factory, final Charset charset) {
+			this.documentDecoder = new DocumentDecoder(factory, charset);
+			this.documentEncoder = new DocumentEncoder(charset);
+		}
 
 		@Override
 		public Decoder<Object> getMapKeyDecoder() {
-			return pathDecoder;
+			return documentDecoder;
 		}
 
 	    @Override
@@ -83,6 +91,21 @@ public class RedisReport extends RedissonMap<Path, ExtractionResult> implements 
 
 	    @Override
 	    public Encoder getMapValueEncoder() {
+			return resultEncoder;
+	    }
+
+	    @Override
+		public Encoder getMapKeyEncoder() {
+			return documentEncoder;
+	    }
+
+	    @Override
+		public Decoder<Object> getValueDecoder() {
+			return resultDecoder;
+	    }
+
+	    @Override
+		public Encoder getValueEncoder() {
 			return resultEncoder;
 	    }
 	}

@@ -1,8 +1,8 @@
 package org.icij.extract.report;
 
-import org.icij.extract.extractor.ExtractionResult;
+import org.icij.extract.document.Document;
+import org.icij.extract.extractor.ExtractionStatus;
 
-import java.nio.file.Path;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
  */
-public class HashMapReport extends ConcurrentHashMap<Path, ExtractionResult> implements Report {
+public class HashMapReport extends ConcurrentHashMap<Document, ExtractionStatus> implements Report {
 
 	private static final long serialVersionUID = -1686535587329141323L;
 

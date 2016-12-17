@@ -79,10 +79,10 @@ public class BlockingThreadPoolExecutor extends ThreadPoolExecutor {
 
 	/**
 	 * This is the {@code Synchronizer} instance that is used in order to notify all interested code of when all the
-	 * tasks that have been submitted to the execute() method have run to conclusion. This notification can occur a
-	 * numerous amount of times. It is all up to the client code. Whenever the {@code ThreadPoolExecutor} concludes to
-	 * run all the tasks the {@code Synchronizer} object will be notified and will in turn notify the code which is
-	 * waiting on it.
+	 * tasks that have been submitted to the {@link #execute(Runnable)} method have run to conclusion. This
+	 * notification can occur a numerous amount of times. It is all up to the client code. Whenever the {@code
+	 * ThreadPoolExecutor} concludes to run all the tasks the {@code Synchronizer} object will be notified and will
+	 * in turn notify the code which is waiting on it.
 	 */
 	private final Synchronizer synchronizer = new Synchronizer();
 

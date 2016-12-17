@@ -19,7 +19,7 @@ import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrServerException;
-import org.icij.extract.IndexDefaults;
+import org.icij.extract.spewer.FieldNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +42,7 @@ public class SolrRehashConsumer extends SolrMachineConsumer {
 	private Pattern pattern = null;
 	private String replacement = "";
 	private Charset outputEncoding = StandardCharsets.UTF_8;
-	private String pathField = IndexDefaults.DEFAULT_PATH_FIELD;
+	private String pathField = FieldNames.DEFAULT_PATH_FIELD;
 
 	public SolrRehashConsumer(final SolrClient client, final String idAlgorithm) {
 		super();
@@ -52,10 +52,6 @@ public class SolrRehashConsumer extends SolrMachineConsumer {
 
 	public void setOutputEncoding(final Charset outputEncoding) {
 		this.outputEncoding = outputEncoding;
-	}
-
-	public void setOutputEncoding(final String outputEncoding) {
-		setOutputEncoding(Charset.forName(outputEncoding));
 	}
 
 	public void setPathField(final String pathField) {
@@ -101,7 +97,7 @@ public class SolrRehashConsumer extends SolrMachineConsumer {
 		output.setField("_version_", "-1"); // The document must not exist.
 		output.setField(idField, outputId);
 		output.setField(pathField, outputPath);
-		output.setField(IndexDefaults.DEFAULT_PARENT_PATH_FIELD, outputPathParent);
+		output.setField(FieldNames.DEFAULT_PARENT_PATH_FIELD, outputPathParent);
 
 		logger.info(String.format("Replacing path \"%s\" with \"%s\" and rehashing ID from \"%s\" to \"%s\".",
 				inputPath, outputPath, inputId, outputId));

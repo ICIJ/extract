@@ -76,7 +76,7 @@ public class DataURIEncodingInputStream extends InputStream {
 	private static Charset detectCharset(final Path path, final Metadata metadata) throws IOException {
 		final Charset charset;
 
-		// Try to get the character set from the content-encoding.
+		// Try to parse the character set from the content-encoding.
 		String orig = metadata.get(Metadata.CONTENT_ENCODING);
 
 		// Try to detect the character set.

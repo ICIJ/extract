@@ -3,6 +3,8 @@ package org.icij.extract.queue;
 import org.icij.events.Notifiable;
 import org.icij.executor.ExecutorProxy;
 import org.icij.concurrent.*;
+import org.icij.extract.document.Document;
+import org.icij.extract.document.DocumentFactory;
 import org.icij.io.file.matcher.*;
 
 import org.icij.task.Options;
@@ -38,13 +40,13 @@ import java.nio.file.attribute.BasicFileAttributes;
  * The {@link #scan} method is non-blocking, which is useful for creating parallelized producer-consumer setups, where
  * files are processed as they're scanned.
  *
- * Encountered file paths are put in a given queue. This is a classic producer, putting elements in a queue which are
+ * Encountered documents are put in a given queue. This is a classic producer, putting elements in a queue which are
  * then extracted by a consumer.
  *
  * The queue should be bounded, to avoid the scanner filling up memory, but the bound should be high enough to create a
  * significant buffer between the scanner and the consumer.
  *
- * Paths are pushed into the queue synchronously and if the queue is bounded, only when a space becomes available.
+ * Documents are pushed into the queue synchronously and if the queue is bounded, only when a space becomes available.
  *
  * This implementation is thread-safe.
  *
@@ -54,12 +56,15 @@ public class Scanner extends ExecutorProxy {
 
 	private static final Logger logger = LoggerFactory.getLogger(Scanner.class);
 
-	protected final BlockingQueue<Path> queue;
+	protected final BlockingQueue<Document> queue;
 
 	private final ArrayDeque<String> includeGlobs = new ArrayDeque<>();
 	private final ArrayDeque<String> excludeGlobs = new ArrayDeque<>();
+
+	private final DocumentFactory factory;
 	private final SealableLatch latch;
 	private final Notifiable notifiable;
+
 	private long queued = 0;
 
 	private int maxDepth = Integer.MAX_VALUE;
@@ -70,48 +75,48 @@ public class Scanner extends ExecutorProxy {
 	/**
 	 * @see Scanner(BlockingQueue, SealableLatch, Notifiable)
 	 */
-	public Scanner(final BlockingQueue<Path> queue) {
-		this(queue, null, null);
+	public Scanner(final DocumentFactory factory, final BlockingQueue<Document> queue) {
+		this(factory, queue, null, null);
 	}
 
 	/**
 	 * @see Scanner(BlockingQueue, SealableLatch, Notifiable)
 	 */
-	public Scanner(final BlockingQueue<Path> queue, final SealableLatch latch) {
-		this(queue, latch, null);
+	public Scanner(final DocumentFactory factory, final BlockingQueue<Document> queue, final SealableLatch latch) {
+		this(factory, queue, latch, null);
 	}
 
 	/**
-	 * Creates a {@code Scanner} that sends all results straight to the underlying {@link BlockingQueue<Path>} on a single thread.
+	 * Creates a {@code Scanner} that sends all results straight to the underlying {@link BlockingQueue<Document>} on a
+	 * single thread.
 	 *
 	 * @param queue results from the scanner will be put on this queue
-	 * @param latch signalled when a path is queued
-	 * @param notifiable receives notifications when new file paths are queued
+	 * @param latch signalled when a document is queued
+	 * @param notifiable receives notifications when new file documents are queued
 	 */
-	public Scanner(final BlockingQueue<Path> queue, final SealableLatch latch, final Notifiable notifiable) {
+	public Scanner(final DocumentFactory factory, final BlockingQueue<Document> queue, final SealableLatch latch, final
+	Notifiable notifiable) {
 		super(Executors.newSingleThreadExecutor());
+		this.factory = factory;
 		this.queue = queue;
 		this.notifiable = notifiable;
 		this.latch = latch;
 	}
 
-	public Scanner(final BlockingQueue<Path> queue, final SealableLatch latch, final Notifiable notifiable, final
-	Options<String> options) {
-		this(queue, latch, notifiable);
+	/**
+	 * Configure the scanner with the given options.
+	 *
+	 * @param options options for configuring the scanner
+	 * @return the scanner
+	 */
+	public Scanner configure(final Options<String> options) {
 		options.get("include-os-files").parse().asBoolean().ifPresent(this::ignoreSystemFiles);
 		options.get("include-hidden-files").parse().asBoolean().ifPresent(this::ignoreHiddenFiles);
 		options.get("follow-symlinks").parse().asBoolean().ifPresent(this::followSymLinks);
-
-		final List<String> includePatterns = options.get("include-pattern").values();
-		final List<String> excludePatterns = options.get("exclude-pattern").values();
-
-		for (String includePattern : includePatterns) {
-			include(includePattern);
-		}
-
-		for (String excludePattern : excludePatterns) {
-			exclude(excludePattern);
-		}
+		options.get("include-pattern").values().forEach(this::include);
+		options.get("exclude-pattern").values().forEach(this::exclude);
+		options.get("max-depth").parse().asInteger().ifPresent(this::setMaxDepth);
+		return this;
 	}
 
 	/**
@@ -217,7 +222,7 @@ public class Scanner extends ExecutorProxy {
 	}
 
 	/**
-	 * @return The total number of queued paths over the lifetime of this scanner.
+	 * @return The total number of queued documents over the lifetime of this scanner.
 	 */
 	public long queued() {
 		return queued;
@@ -384,12 +389,15 @@ public class Scanner extends ExecutorProxy {
 		 * @throws InterruptedException if interrupted while waiting for a queue slot
 		 */
 		void queue(final Path file) throws InterruptedException {
+			final Document document;
+
 			if (null != base && file.startsWith(base)) {
-				queue.put(file.subpath(base.getNameCount(), file.getNameCount()));
+				document = factory.create(file.subpath(base.getNameCount(), file.getNameCount()));
 			} else {
-				queue.put(file);
+				document = factory.create(file);
 			}
 
+			queue.put(document);
 			queued++;
 
 			if (null != latch) {
@@ -480,7 +488,7 @@ public class Scanner extends ExecutorProxy {
 
 			// From the documentation:
 			// "When following links, and the attributes of the target cannot be read, then this method attempts to
-			// get the BasicFileAttributes of the link."
+			// parse the BasicFileAttributes of the link."
 			if (attributes.isSymbolicLink()) {
 				if (followLinks) {
 					logger.warn(String.format("Unable to read attributes of symlink target: \"%s\". Skipping.", file));

@@ -1,6 +1,7 @@
 package org.icij.extract.tasks;
 
 import org.apache.commons.io.input.CloseShieldInputStream;
+import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.report.Report;
 import org.icij.extract.json.ReportDeserializer;
 import org.icij.extract.tasks.factories.ReportFactory;
@@ -29,13 +30,22 @@ import org.icij.task.annotation.Task;
 		"type-dependent.", parameter = "name")
 @Option(name = "redis-address", description = "Set the Redis backend address. Defaults to " +
 		"127.0.0.1:6379.", parameter = "address")
+@Option(name = "id-method", description = "The method for determining document IDs, for queues that use them.",
+		parameter = "name")
+@Option(name = "id-digest-method", description = "For calculating document IDs, where applicable depending on the " +
+		"queue type. Defaults to using the path as an ID.", parameter = "name")
+@Option(name = "charset", description = "The character set for documents stored in the queue.", parameter = "name")
 public class LoadReportTask extends DefaultTask<Void> {
 
 	@Override
 	public Void run() throws Exception {
+		final DocumentFactory factory = new DocumentFactory().configure(options);
+
 		try (final InputStream input = new CloseShieldInputStream(System.in);
-		     final Report report = new ReportFactory(options).createShared()) {
-			load(report, input);
+		     final Report report = new ReportFactory(options)
+				     .withDocumentFactory(factory)
+				     .createShared()) {
+			load(factory, report, input);
 		}
 
 		return null;
@@ -43,9 +53,13 @@ public class LoadReportTask extends DefaultTask<Void> {
 
 	@Override
 	public Void run(final String[] arguments) throws Exception {
-		try (final Report report = new ReportFactory(options).createShared()) {
+		final DocumentFactory factory = new DocumentFactory().configure(options);
+
+		try (final Report report = new ReportFactory(options)
+				.withDocumentFactory(factory)
+				.createShared()) {
 			for (String argument : arguments) {
-				load(report, argument);
+				load(factory, report, argument);
 			}
 		} catch (FileNotFoundException e) {
 			throw new RuntimeException("Unable to open dump file for reading.", e);
@@ -61,9 +75,9 @@ public class LoadReportTask extends DefaultTask<Void> {
 	 * @param path the path to load the dump from
 	 * @throws IOException if the dump could not be loaded
 	 */
-	private void load(final Report report, final String path) throws IOException {
+	private void load(final DocumentFactory factory, final Report report, final String path) throws IOException {
 		try (final InputStream input = new BufferedInputStream(new FileInputStream(path))) {
-			load(report, input);
+			load(factory, report, input);
 		}
 	}
 
@@ -73,11 +87,11 @@ public class LoadReportTask extends DefaultTask<Void> {
 	 * @param report the report to load into
 	 * @param input the input stream to load from
 	 */
-	private void load(final Report report, final InputStream input) throws IOException {
+	private void load(final DocumentFactory factory, final Report report, final InputStream input) throws IOException {
 		final ObjectMapper mapper = new ObjectMapper();
 		final SimpleModule module = new SimpleModule();
 
-		module.addDeserializer(Report.class, new ReportDeserializer(report));
+		module.addDeserializer(Report.class, new ReportDeserializer(factory, report));
 		mapper.registerModule(module);
 
 		try (final JsonParser jsonParser = new JsonFactory().setCodec(mapper).createParser(input)) {

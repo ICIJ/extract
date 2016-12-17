@@ -90,6 +90,6 @@ public class DeleteTask extends MonitorableTask<Integer> {
 
 	@Override
 	public Integer run() throws Exception {
-		return run(null);
+		return run(new String[]{"*:*"});
 	}
 }

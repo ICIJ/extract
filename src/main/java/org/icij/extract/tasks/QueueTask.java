@@ -1,9 +1,10 @@
 package org.icij.extract.tasks;
 
-import org.icij.extract.queue.PathQueue;
+import org.icij.extract.document.DocumentFactory;
+import org.icij.extract.queue.DocumentQueue;
 import org.icij.extract.queue.Scanner;
 
-import org.icij.extract.tasks.factories.PathQueueFactory;
+import org.icij.extract.tasks.factories.DocumentQueueFactory;
 
 import java.nio.file.Path;
 import java.util.concurrent.ExecutionException;
@@ -42,7 +43,15 @@ import org.icij.task.annotation.Task;
 @Option(name = "path-base", description = "This is useful if your mount path for files varies from system " +
 		"to another, or if you simply want to hide the base of a path. For example, if you're working with a path " +
 		"that looks like \"/home/user/data\", specify \"/home/user/\" as the value for this option so that all queued" +
-		" paths start with \"data/\".")
+		" paths start with \"data/\".", parameter = "path")
+@Option(name = "max-depth", description = "The maximum depth to which the scanner will recurse.", parameter = "integer")
+@Option(name = "id-method", description = "The method for determining document IDs, for queues that use them. " +
+		"Defaults to using the path as an ID.",
+		parameter = "name")
+@Option(name = "id-digest-method", description = "For calculating document ID digests, where applicable depending on " +
+		"the ID method.", parameter = "name")
+@Option(name = "charset", description = "The character set for document attributes stored in the queue.", parameter =
+		"name")
 public class QueueTask extends MonitorableTask<Long> {
 
 	@Override
@@ -51,8 +60,12 @@ public class QueueTask extends MonitorableTask<Long> {
 			throw new IllegalArgumentException("You must pass the paths to scan on the command line.");
 		}
 
-		try (final PathQueue queue = new PathQueueFactory(options).createShared()) {
-			return queue(new Scanner(queue, null, monitor, options), paths);
+		final DocumentFactory factory = new DocumentFactory().configure(options);
+
+		try (final DocumentQueue queue = new DocumentQueueFactory(options)
+				.withDocumentFactory(factory)
+				.createShared()) {
+			return queue(new Scanner(factory, queue, null, monitor).configure(options), paths);
 		}
 	}
 
@@ -72,7 +85,7 @@ public class QueueTask extends MonitorableTask<Long> {
 	 * @throws InterruptedException if interrupted while waiting for a scan to complete
 	 * @throws ExecutionException if an exception occurs while scanning
 	 */
-	private long queue(final Scanner scanner, final String[] paths) throws InterruptedException, ExecutionException {
+	private long queue(final Scanner scanner, final String... paths) throws InterruptedException, ExecutionException {
 		final String base = options.get("path-base").value().orElse(null);
 
 		// Block until each scan has completed. These jobs will complete in serial or parallel depending on the

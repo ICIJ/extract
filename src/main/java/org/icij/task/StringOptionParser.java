@@ -2,6 +2,7 @@ package org.icij.task;
 
 import org.icij.time.HumanDuration;
 
+import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -13,7 +14,7 @@ public class StringOptionParser implements OptionParser<String> {
 
 	private final Option<String> option;
 
-	public StringOptionParser(final Option<String> option) {
+	StringOptionParser(final Option<String> option) {
 		this.option = option;
 	}
 
@@ -25,6 +26,11 @@ public class StringOptionParser implements OptionParser<String> {
 	@Override
 	public Optional<Path> asPath() {
 		return option.value(Paths::get);
+	}
+
+	@Override
+	public Optional<Charset> asCharset() {
+		return option.value((value)-> Charset.forName(value.toUpperCase()));
 	}
 
 	@Override

@@ -1,9 +1,9 @@
 package org.icij.extract.tasks;
 
 import org.apache.commons.io.output.CloseShieldOutputStream;
-import org.icij.extract.queue.PathQueue;
-import org.icij.extract.json.PathQueueSerializer;
-import org.icij.extract.tasks.factories.PathQueueFactory;
+import org.icij.extract.queue.DocumentQueue;
+import org.icij.extract.json.DocumentQueueSerializer;
+import org.icij.extract.tasks.factories.DocumentQueueFactory;
 
 import java.io.*;
 
@@ -35,7 +35,7 @@ public class DumpQueueTask extends MonitorableTask<Void> {
 	@Override
 	public Void run(final String[] arguments) throws Exception {
 		try (final OutputStream output = new BufferedOutputStream(new FileOutputStream(arguments[0]));
-		     final PathQueue queue = new PathQueueFactory(options).createShared()) {
+		     final DocumentQueue queue = new DocumentQueueFactory(options).createShared()) {
 			monitor.hintRemaining(queue.size());
 			dump(queue, output);
 		} catch (FileNotFoundException e) {
@@ -48,7 +48,7 @@ public class DumpQueueTask extends MonitorableTask<Void> {
 	@Override
 	public Void run() throws Exception {
 		try (final OutputStream output = new BufferedOutputStream(new CloseShieldOutputStream(System.out));
-		final PathQueue queue = new PathQueueFactory(options).createShared()) {
+		final DocumentQueue queue = new DocumentQueueFactory(options).createShared()) {
 			monitor.hintRemaining(queue.size());
 			dump(queue, output);
 		}
@@ -62,11 +62,11 @@ public class DumpQueueTask extends MonitorableTask<Void> {
 	 * @param queue the queue to dump
 	 * @param output the output stream to dump to
 	 */
-	private void dump(final PathQueue queue, final OutputStream output) throws IOException {
+	private void dump(final DocumentQueue queue, final OutputStream output) throws IOException {
 		final ObjectMapper mapper = new ObjectMapper();
 		final SimpleModule module = new SimpleModule();
 
-		module.addSerializer(PathQueue.class, new PathQueueSerializer(monitor));
+		module.addSerializer(DocumentQueue.class, new DocumentQueueSerializer(monitor));
 		mapper.registerModule(module);
 
 		try (final JsonGenerator jsonGenerator = new JsonFactory().setCodec(mapper).createGenerator(output,

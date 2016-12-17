@@ -7,34 +7,33 @@ import java.time.Duration;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
+import org.icij.extract.document.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.file.Path;
-
 /**
- * Drains a queue by polling for paths to consume.
+ * Drains a queue by polling for documents to consume.
  *
  * @since 1.0.0
  */
-public class PathQueueDrainer extends ExecutorProxy {
+public class DocumentQueueDrainer extends ExecutorProxy {
 	private static final Duration DEFAULT_TIMEOUT = Duration.ZERO;
 
-	private final PathQueue queue;
-	private final Consumer<Path> consumer;
+	private final DocumentQueue queue;
+	private final Consumer<Document> consumer;
 
 	private SealableLatch latch = null;
 	private Duration pollTimeout = DEFAULT_TIMEOUT;
 
-	private static final Logger logger = LoggerFactory.getLogger(PathQueueDrainer.class);
+	private static final Logger logger = LoggerFactory.getLogger(DocumentQueueDrainer.class);
 
 	/**
-	 * Create a new drainer that will drain tasks from the given queue to the given consumer on a single thread.
+	 * Create a new drainer that will drain documents from the given queue to the given consumer on a single thread.
 	 *
 	 * @param queue the queue to drain
-	 * @param consumer must accept paths drained from the queue
+	 * @param consumer must accept documents drained from the queue
 	 */
-	public PathQueueDrainer(final PathQueue queue, final Consumer<Path> consumer) {
+	public DocumentQueueDrainer(final DocumentQueue queue, final Consumer<Document> consumer) {
 		super(Executors.newSingleThreadExecutor());
 		this.queue = queue;
 		this.consumer = consumer;
@@ -98,7 +97,8 @@ public class PathQueueDrainer extends ExecutorProxy {
 	 * Drain the queue in a non-blocking way until the draining thread is interrupted, the task is cancelled or the
 	 * given timeout is reached (if any is set).
 	 *
-	 * @return A {@link Future} representing the draining task that returns the number of paths consumed as a result.
+	 * @return A {@link Future} representing the draining task that returns the number of documents consumed as a
+	 * result.
 	 */
 	public Future<Long> drain() {
 		return executor.submit(new DrainingTask());
@@ -110,7 +110,7 @@ public class PathQueueDrainer extends ExecutorProxy {
 	 * @param poison the poison pill to test for when polling
 	 * @see #drain()
 	 */
-	public Future<Long> drain(final Path poison) {
+	public Future<Long> drain(final Document poison) {
 		return executor.submit(new DrainingTask(poison));
 	}
 
@@ -123,27 +123,27 @@ public class PathQueueDrainer extends ExecutorProxy {
 		/**
 		 * The poison pill or null if constructed without one.
 		 */
-		private final Path poison;
+		private final Document poison;
 
 		/**
-		 * Instantiate a draining task that will drain the queue until {@link PathQueue#poll()} returns {@code null},
-		 * or, if a timeout is specified, {@link PathQueue#poll(long, TimeUnit)} returns null after waiting.
+		 * Instantiate a draining task that will drain the queue until {@link DocumentQueue#poll()} returns {@code null},
+		 * or, if a timeout is specified, {@link DocumentQueue#poll(long, TimeUnit)} returns null after waiting.
 		 *
 		 * Note that if not timeout is specified, the draining thread will run until interrupted. If you want to
-		 * signal it to stop, use {@link DrainingTask#DrainingTask(Path)} with a user-defined poison pill.
+		 * signal it to stop, use {@link DrainingTask#DrainingTask(Document)} with a user-defined poison pill.
 		 */
 		DrainingTask() {
 			this.poison = null;
 		}
 
 		/**
-		 * Instantiate a draining task that will stop when {@link PathQueue#poll()} or
-		 * {@link PathQueue#poll(long, TimeUnit)} returns {@code null} or the given poison pill. Poisoning a queue
+		 * Instantiate a draining task that will stop when {@link DocumentQueue#poll()} or
+		 * {@link DocumentQueue#poll(long, TimeUnit)} returns {@code null} or the given poison pill. Poisoning a queue
 		 * should be done with caution if the queue is shared by different processes.
 		 *
 		 * @param poison poison pill that will signal draining to stop
 		 */
-		DrainingTask(final Path poison) {
+		DrainingTask(final Document poison) {
 			this.poison = poison;
 		}
 
@@ -159,51 +159,51 @@ public class PathQueueDrainer extends ExecutorProxy {
 		 *
 		 * @throws InterruptedException if interrupted while polling
 		 */
-		private Path poll() throws InterruptedException {
+		private Document poll() throws InterruptedException {
 
 			// Store the latch and timeout in local constants so that they be used in a thread-safe way.
 			final Duration pollTimeout = getPollTimeout();
 			final SealableLatch latch = getLatch();
 
-			Path file;
+			Document document;
 
 			if (null != latch) {
-				file = queue.poll();
+				document = queue.poll();
 
 				// Wait for a signal from the latch before polling again, but if a signal has been received and the
 				// latch has been sealed in the meantime, break.
-				while (null == file && !latch.isSealed()) {
+				while (null == document && !latch.isSealed()) {
 					latch.await();
-					file = queue.poll();
+					document = queue.poll();
 				}
 			} else if (null == pollTimeout) {
 				logger.info("Polling the queue, waiting indefinitely.");
-				file = queue.take();
+				document = queue.take();
 			} else if (pollTimeout.getSeconds() > 0) {
 				logger.info(String.format("Polling the queue, waiting up to \"%s\".", pollTimeout));
-				file = queue.poll(pollTimeout.getSeconds(), TimeUnit.SECONDS);
+				document = queue.poll(pollTimeout.getSeconds(), TimeUnit.SECONDS);
 			} else {
 				logger.info("Polling the queue without waiting.");
-				file = queue.poll();
+				document = queue.poll();
 			}
 
-			return file;
+			return document;
 		}
 
 		/**
 		 * Drain the queue to the given consumer until polling returns {@code null} or a poison pill.
 		 *
-		 * @return The number of paths consumed.
+		 * @return The number of documents consumed.
 		 * @throws InterruptedException if interrupted while polling
 		 */
 		private long drain() throws InterruptedException {
 			long consumed = 0;
 
-			Path file = poll();
-			while (null != file && (null == poison || !file.equals(poison))) {
-				consumer.accept(file);
+			Document document = poll();
+			while (null != document && (null == poison || !document.equals(poison))) {
+				consumer.accept(document);
 				consumed++;
-				file = poll();
+				document = poll();
 			}
 
 			return consumed;

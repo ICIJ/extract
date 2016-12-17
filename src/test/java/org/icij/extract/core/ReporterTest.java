@@ -1,9 +1,11 @@
 package org.icij.extract.core;
 
-import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import org.icij.extract.extractor.ExtractionResult;
+import org.icij.extract.document.Document;
+import org.icij.extract.document.DocumentFactory;
+import org.icij.extract.document.PathIdentifier;
+import org.icij.extract.extractor.ExtractionStatus;
 import org.icij.extract.report.HashMapReport;
 import org.icij.extract.report.Report;
 import org.icij.extract.report.Reporter;
@@ -31,19 +33,21 @@ public class ReporterTest {
 		}
 	}
 
+	private final DocumentFactory factory = new DocumentFactory().withIdentifier(new PathIdentifier());
+
 	@Test
 	public void testSave() throws Throwable {
-		final Path a = Paths.get("/path/to/a");
-		final Path b = Paths.get("/path/to/b");
+		final Document a = factory.create(Paths.get("/path/to/a"));
+		final Document b = factory.create(Paths.get("/path/to/b"));
 
 		final Report report = new HashMapReport();
 		final Reporter reporter = new Reporter(report);
 
-		reporter.save(a, ExtractionResult.SUCCEEDED);
-		Assert.assertTrue(reporter.check(a, ExtractionResult.SUCCEEDED));
-		reporter.save(b, ExtractionResult.NOT_FOUND);
-		Assert.assertTrue(reporter.check(b, ExtractionResult.NOT_FOUND));
-		Assert.assertFalse(reporter.check(b, ExtractionResult.SUCCEEDED));
+		reporter.save(a, ExtractionStatus.SUCCEEDED);
+		Assert.assertTrue(reporter.check(a, ExtractionStatus.SUCCEEDED));
+		reporter.save(b, ExtractionStatus.NOT_FOUND);
+		Assert.assertTrue(reporter.check(b, ExtractionStatus.NOT_FOUND));
+		Assert.assertFalse(reporter.check(b, ExtractionStatus.SUCCEEDED));
 	}
 
 	@Test

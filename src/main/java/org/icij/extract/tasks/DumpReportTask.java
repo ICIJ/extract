@@ -2,7 +2,7 @@ package org.icij.extract.tasks;
 
 import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.icij.extract.report.Report;
-import org.icij.extract.extractor.ExtractionResult;
+import org.icij.extract.extractor.ExtractionStatus;
 import org.icij.extract.json.ReportSerializer;
 import org.icij.extract.tasks.factories.ReportFactory;
 
@@ -39,7 +39,7 @@ public class DumpReportTask extends MonitorableTask<Void> {
 
 	@Override
 	public Void run(final String[] arguments) throws Exception {
-		final Optional<ExtractionResult> result = options.get("report-status").value(ExtractionResult::get);
+		final Optional<ExtractionStatus> result = options.get("report-status").value(ExtractionStatus::parse);
 
 		try (final OutputStream output = new BufferedOutputStream(new FileOutputStream(arguments[0]));
 		     final Report report = new ReportFactory(options).createShared()) {
@@ -54,7 +54,7 @@ public class DumpReportTask extends MonitorableTask<Void> {
 
 	@Override
 	public Void run() throws Exception {
-		final Optional<ExtractionResult> result = options.get("report-status").value(ExtractionResult::get);
+		final Optional<ExtractionStatus> result = options.get("report-status").value(ExtractionStatus::parse);
 
 		try (final OutputStream output = new BufferedOutputStream(new CloseShieldOutputStream(System.out));
 		     final Report report = new ReportFactory(options).createShared()) {
@@ -72,7 +72,7 @@ public class DumpReportTask extends MonitorableTask<Void> {
 	 * @param output the stream to dump to
 	 * @param match only dump matching results
 	 */
-	private void dump(final Report report, final OutputStream output, final ExtractionResult match) throws
+	private void dump(final Report report, final OutputStream output, final ExtractionStatus match) throws
 			IOException {
 		final ObjectMapper mapper = new ObjectMapper();
 		final SimpleModule module = new SimpleModule();

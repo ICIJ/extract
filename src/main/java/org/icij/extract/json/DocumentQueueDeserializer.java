@@ -1,6 +1,7 @@
 package org.icij.extract.json;
 
-import org.icij.extract.queue.PathQueue;
+import org.icij.extract.document.DocumentFactory;
+import org.icij.extract.queue.DocumentQueue;
 
 import java.io.IOException;
 
@@ -12,26 +13,28 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.DeserializationContext;
 
 /**
- * Deserializes a {@link PathQueue} from JSON.
+ * Deserializes a {@link DocumentQueue} from JSON.
  *
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
  */
-public class PathQueueDeserializer extends JsonDeserializer<PathQueue> {
+public class DocumentQueueDeserializer extends JsonDeserializer<DocumentQueue> {
 
-	private final PathQueue queue;
+	private final DocumentQueue queue;
+	private final DocumentFactory factory;
 
-	public PathQueueDeserializer(final PathQueue queue) {
+	public DocumentQueueDeserializer(final DocumentFactory factory, final DocumentQueue queue) {
 		this.queue = queue;
+		this.factory = factory;
 	}
 
 	@Override
-	public PathQueue deserialize(final JsonParser jsonParser, final DeserializationContext context)
+	public DocumentQueue deserialize(final JsonParser jsonParser, final DeserializationContext context)
 		throws IOException {
 
 		jsonParser.nextToken(); // Skip over the start of the array.
 		while (jsonParser.nextToken() != JsonToken.END_ARRAY && jsonParser.nextValue() != null) {
-			queue.add(Paths.get(jsonParser.getValueAsString()));
+			queue.add(factory.create(Paths.get(jsonParser.getValueAsString())));
 		}
 
 		return queue;

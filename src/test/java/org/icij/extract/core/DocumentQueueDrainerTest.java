@@ -2,9 +2,12 @@ package org.icij.extract.core;
 
 import org.icij.concurrent.BooleanSealableLatch;
 import org.icij.concurrent.SealableLatch;
-import org.icij.extract.queue.ArrayPathQueue;
-import org.icij.extract.queue.PathQueue;
-import org.icij.extract.queue.PathQueueDrainer;
+import org.icij.extract.document.Document;
+import org.icij.extract.document.DocumentFactory;
+import org.icij.extract.document.PathIdentifier;
+import org.icij.extract.queue.ArrayDocumentQueue;
+import org.icij.extract.queue.DocumentQueue;
+import org.icij.extract.queue.DocumentQueueDrainer;
 import org.icij.time.HumanDuration;
 import org.junit.*;
 
@@ -13,27 +16,29 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.Consumer;
 
-public class PathQueueDrainerTest {
+public class DocumentQueueDrainerTest {
 
-	private static class MockConsumer implements Consumer<Path> {
+	private final DocumentFactory factory = new DocumentFactory().withIdentifier(new PathIdentifier());
 
-		private final Deque<Path> accepted = new ArrayDeque<>();
+	private static class MockConsumer implements Consumer<Document> {
+
+		private final Deque<Document> accepted = new ArrayDeque<>();
 
 		@Override
-		public void accept(final Path path) {
-			accepted.add(path);
+		public void accept(final Document document) {
+			accepted.add(document);
 		}
 
-		Deque<Path> getAccepted() {
+		Deque<Document> getAccepted() {
 			return accepted;
 		}
 	}
 
-	private PathQueue createQueue() {
-		final PathQueue queue = new ArrayPathQueue(26);
+	private DocumentQueue createQueue() {
+		final DocumentQueue queue = new ArrayDocumentQueue(26);
 
 		for (char a = 'a'; a <= 'z'; a++) {
-			queue.add(Paths.get(Character.toString(a)));
+			queue.add(factory.create(Paths.get(Character.toString(a))));
 		}
 
 		return queue;
@@ -41,21 +46,21 @@ public class PathQueueDrainerTest {
 
 	@Test
 	public void testDefaultPollTimeoutIs0() {
-		final PathQueue queue = createQueue();
-		final Consumer<Path> consumer = new MockConsumer();
-		final PathQueueDrainer drainer = new PathQueueDrainer(queue, consumer);
+		final DocumentQueue queue = createQueue();
+		final Consumer<Document> consumer = new MockConsumer();
+		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer);
 
 		Assert.assertEquals(0, drainer.getPollTimeout().getSeconds());
 	}
 
 	@Test
 	public void testDrainsQueue() throws Throwable {
-		final PathQueue queue = createQueue();
+		final DocumentQueue queue = createQueue();
 		final MockConsumer consumer = new MockConsumer();
-		final PathQueueDrainer drainer = new PathQueueDrainer(queue, consumer);
+		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer);
 
 		final long drained = drainer.drain().get();
-		final Queue<Path> accepted = consumer.getAccepted();
+		final Queue<Document> accepted = consumer.getAccepted();
 
 		Assert.assertEquals(26, drained);
 		Assert.assertEquals(26, accepted.size());
@@ -68,13 +73,13 @@ public class PathQueueDrainerTest {
 
 	@Test
 	public void testDrainsQueueUntilPoison() throws Throwable {
-		final PathQueue queue = createQueue();
+		final DocumentQueue queue = createQueue();
 		final MockConsumer consumer = new MockConsumer();
-		final PathQueueDrainer drainer = new PathQueueDrainer(queue, consumer);
-		final Path poison = Paths.get("c");
+		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer);
+		final Document poison = factory.create(Paths.get("c"));
 
 		final long drained = drainer.drain(poison).get();
-		final Queue<Path> accepted = consumer.getAccepted();
+		final Queue<Document> accepted = consumer.getAccepted();
 
 		Assert.assertEquals(2, drained);
 		Assert.assertEquals(2, accepted.size());
@@ -85,10 +90,10 @@ public class PathQueueDrainerTest {
 
 	@Test
 	public void testClearPollTimeout() throws Throwable {
-		final PathQueue queue = createQueue();
+		final DocumentQueue queue = createQueue();
 		final MockConsumer consumer = new MockConsumer();
-		final PathQueueDrainer drainer = new PathQueueDrainer(queue, consumer);
-		final Path poison = Paths.get("1");
+		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer);
+		final Document poison = factory.create(Paths.get("1"));
 
 		drainer.clearPollTimeout();
 		Assert.assertNull(drainer.getPollTimeout());
@@ -98,13 +103,13 @@ public class PathQueueDrainerTest {
 
 			@Override
 			public void run() {
-				queue.add(Paths.get("0"));
+				queue.add(factory.create(Paths.get("0")));
 				queue.add(poison);
 			}
 		}, 1000);
 
 		final long drained = drainer.drain(poison).get();
-		final Deque<Path> accepted = consumer.getAccepted();
+		final Deque<Document> accepted = consumer.getAccepted();
 
 		Assert.assertEquals(27, drained);
 		Assert.assertEquals(27, accepted.size());
@@ -114,9 +119,9 @@ public class PathQueueDrainerTest {
 
 	@Test
 	public void testSetPollTimeout() throws Throwable {
-		final PathQueue queue = createQueue();
+		final DocumentQueue queue = createQueue();
 		final MockConsumer consumer = new MockConsumer();
-		final PathQueueDrainer drainer = new PathQueueDrainer(queue, consumer);
+		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer);
 
 		drainer.setPollTimeout(HumanDuration.parse("2s"));
 		Assert.assertEquals(2, drainer.getPollTimeout().getSeconds());
@@ -126,12 +131,12 @@ public class PathQueueDrainerTest {
 
 			@Override
 			public void run() {
-				queue.add(Paths.get("0"));
+				queue.add(factory.create(Paths.get("0")));
 			}
 		}, 1000);
 
 		final long drained = drainer.drain().get();
-		final Deque<Path> accepted = consumer.getAccepted();
+		final Deque<Document> accepted = consumer.getAccepted();
 
 		Assert.assertEquals(27, drained);
 		Assert.assertEquals(27, accepted.size());
@@ -141,9 +146,9 @@ public class PathQueueDrainerTest {
 
 	@Test
 	public void testSetLatch() throws Throwable {
-		final PathQueue queue = createQueue();
+		final DocumentQueue queue = createQueue();
 		final MockConsumer consumer = new MockConsumer();
-		final PathQueueDrainer drainer = new PathQueueDrainer(queue, consumer);
+		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer);
 		final SealableLatch latch = new BooleanSealableLatch();
 
 		drainer.setLatch(latch);
@@ -155,9 +160,9 @@ public class PathQueueDrainerTest {
 			@Override
 			public void run() {
 				try {
-					queue.put(Paths.get("0"));
+					queue.put(factory.create(Paths.get("0")));
 					latch.signal();
-					queue.put(Paths.get("1"));
+					queue.put(factory.create(Paths.get("1")));
 					Thread.sleep(1000);
 				} catch (InterruptedException e) {
 					Assert.fail(e.getMessage());
@@ -169,7 +174,7 @@ public class PathQueueDrainerTest {
 		}, 1000);
 
 		final long drained = drainer.drain().get();
-		final Deque<Path> accepted = consumer.getAccepted();
+		final Deque<Document> accepted = consumer.getAccepted();
 
 		Assert.assertEquals(28, drained);
 		Assert.assertEquals(28, accepted.size());

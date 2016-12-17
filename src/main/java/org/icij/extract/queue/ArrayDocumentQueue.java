@@ -1,16 +1,16 @@
 package org.icij.extract.queue;
 
-import java.nio.file.Path;
+import org.icij.extract.document.Document;
 
 import java.util.concurrent.ArrayBlockingQueue;
 
 /**
- * A {@link PathQueue} using an array as a backend.
+ * A {@link DocumentQueue} using an array as a backend.
  *
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
  */
-public class ArrayPathQueue extends ArrayBlockingQueue<Path> implements PathQueue {
+public class ArrayDocumentQueue extends ArrayBlockingQueue<Document> implements DocumentQueue {
 
 	private static final long serialVersionUID = -7491630465350342533L;
 
@@ -19,7 +19,7 @@ public class ArrayPathQueue extends ArrayBlockingQueue<Path> implements PathQueu
 	 *
 	 * @param capacity the capacity of the queue
 	 */
-	public ArrayPathQueue(final int capacity) {
+	public ArrayDocumentQueue(final int capacity) {
 		super(capacity);
 	}
 

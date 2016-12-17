@@ -41,7 +41,6 @@ public class Main {
 		taskFactory.addTask("load-report", LoadReportTask.class);
 		taskFactory.addTask("queue", QueueTask.class);
 		taskFactory.addTask("rehash", RehashTask.class);
-		taskFactory.addTask("replace-report", ReplaceReportTask.class);
 		taskFactory.addTask("rollback", RollbackTask.class);
 		taskFactory.addTask("spew", SpewTask.class);
 		taskFactory.addTask("tag", TagTask.class);

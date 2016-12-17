@@ -24,13 +24,16 @@ import java.io.PipedWriter;
 import java.io.Reader;
 import java.io.Writer;
 import java.util.concurrent.Executor;
+import java.util.function.Function;
 
+import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 
 import org.apache.tika.metadata.Metadata;
 
+import org.apache.tika.sax.BodyContentHandler;
 import org.xml.sax.ContentHandler;
 
 /**
@@ -42,47 +45,47 @@ import org.xml.sax.ContentHandler;
  *
  * @since 1.0.0-beta
  */
-public abstract class ParsingReader extends Reader {
+public class ParsingReader extends Reader {
 
 	/**
 	 * Executor for background parsing tasks.
 	 */
-	protected final Executor executor = new ParsingExecutor();
+	private final Executor executor = new ParsingExecutor();
 
 	/**
 	 * Parser instance used for parsing the given binary stream.
 	 */
 	protected final Parser parser;
-	
+
 	/**
 	 * Buffered read end of the pipe.
 	 */
 	protected final Reader reader;
-	
+
 	/**
 	 * Write end of the pipe.
 	 */
-	Writer writer;
-	
+	private final Writer writer;
+
 	/**
 	 * The binary stream being parsed.
 	 */
-	protected InputStream input;
-	
+	protected final InputStream input;
+
 	/**
 	 * Metadata associated with the document being parsed.
 	 */
-	protected Metadata metadata;
-	
+	protected final Metadata metadata;
+
 	/**
 	 * The parse context.
 	 */
-	protected ParseContext context;
+	protected final ParseContext context;
 
 	/**
-	 * The content handler.
+	 * Receives SAX events.
 	 */
-	protected ContentHandler handler;
+	protected final ContentHandler handler;
 
 	/**
 	 * An exception (if any) thrown by the parsing thread.
@@ -96,7 +99,7 @@ public abstract class ParsingReader extends Reader {
 	 * @return metadata instance
 	 */
 	private static Metadata getMetadata(final String name) {
-		Metadata metadata = new Metadata();
+		final Metadata metadata = new Metadata();
 
 		if (name != null && name.length() > 0) {
 			metadata.set(Metadata.RESOURCE_NAME_KEY, name);
@@ -112,10 +115,10 @@ public abstract class ParsingReader extends Reader {
 	 * @throws IOException if the document can not be parsed
 	 */
 	public ParsingReader(final InputStream input) throws IOException {
-		this(new AutoDetectParser(), input, new Metadata(), new ParseContext());
+		this(new AutoDetectParser(), input, getMetadata(null), new ParseContext());
 		context.set(Parser.class, parser);
 	}
-	
+
 	/**
 	 * Creates a reader for the content of the given binary stream with the given name.
 	 *
@@ -126,6 +129,11 @@ public abstract class ParsingReader extends Reader {
 	public ParsingReader(final InputStream input, final String name) throws IOException {
 		this(new AutoDetectParser(), input, getMetadata(name), new ParseContext());
 		context.set(Parser.class, parser);
+	}
+
+	public ParsingReader(final Parser parser, final InputStream input, final Metadata metadata, final ParseContext
+			context) throws IOException {
+		this(parser, input, metadata, context, BodyContentHandler::new);
 	}
 
 	/**
@@ -143,8 +151,8 @@ public abstract class ParsingReader extends Reader {
 	 * @param context parsing context
 	 * @throws IOException if the document can not be parsed
 	 */
-	public ParsingReader(final Parser parser, final InputStream input, final Metadata metadata, ParseContext context)
-		throws IOException {
+	public ParsingReader(final Parser parser, final InputStream input, final Metadata metadata, final ParseContext
+			context, final Function<Writer, ContentHandler> handler) throws IOException {
 		final PipedReader pipedReader = new PipedReader();
 
 		this.parser = parser;
@@ -160,7 +168,10 @@ public abstract class ParsingReader extends Reader {
 		this.metadata = metadata;
 		this.context = context;
 
-		execute();
+		// Generate the handler.
+		this.handler = handler.apply(writer);
+
+		parse();
 		
 		// TIKA-203: Buffer first character to force metadata extraction.
 		reader.mark(1);
@@ -200,15 +211,50 @@ public abstract class ParsingReader extends Reader {
 	 */
 	@Override
 	public void close() throws IOException {
-	    reader.close();
+		final TemporaryResources tmp = context.get(TemporaryResources.class);
+
+		if (null != tmp) {
+			try {
+				tmp.close();
+			} finally {
+				reader.close();
+			}
+		} else {
+			reader.close();
+		}
 	}
 
 	/**
-	 * Execute a parsing task in the executor.
-	 * This method gives implementing classes a chance to override
-	 * the {@link ParsingTask}.
+	 * Parses the given binary stream and writes the text content to the write end of the pipe.
+	 *
+	 * Potential exceptions (including the one caused if the read end is closed unexpectedly) are stored before the
+	 * input stream is closed and processing is stopped.
 	 */
-	protected abstract void execute();
+	public void parse() {
+		executor.execute(()-> {
+			try {
+				parser.parse(input, handler, metadata, context);
+			} catch (Throwable t) {
+				throwable = t;
+			}
+
+			try {
+				input.close();
+			} catch (Throwable t) {
+				if (throwable == null) {
+					throwable = t;
+				}
+			}
+
+			try {
+				writer.close();
+			} catch (Throwable t) {
+				if (throwable == null) {
+					throwable = t;
+				}
+			}
+		});
+	}
 
 	/**
 	 * The executor for background parsing tasks.
@@ -234,41 +280,5 @@ public abstract class ParsingReader extends Reader {
 			thread.setDaemon(true);
 			thread.start();
         }
-	}
-
-	/**
-	 * The background parsing task.
-	 */
-	class ParsingTask implements Runnable {
-
-	    /**
-	     * Parses the given binary stream and writes the text content to the write end of the pipe. Potential
-	     * exceptions (including the one caused if the read end is closed unexpectedly) are stored before the input
-	     * stream is closed and processing is stopped.
-	     */
-	    @Override
-		public void run() {
-			try {
-				parser.parse(input, handler, metadata, context);
-			} catch (Throwable t) {
-				throwable = t;
-			}
-
-			try {
-				input.close();
-			} catch (Throwable t) {
-				if (throwable == null) {
-					throwable = t;
-				}
-			}
-			
-			try {
-				writer.close();
-			} catch (Throwable t) {
-				if (throwable == null) {
-					throwable = t;
-				}
-			}
-		}
 	}
 }

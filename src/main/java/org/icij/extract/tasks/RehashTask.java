@@ -1,6 +1,5 @@
 package org.icij.extract.tasks;
 
-import org.icij.extract.IndexDefaults;
 import org.icij.extract.solr.*;
 import org.icij.net.http.PinnedHttpClientBuilder;
 
@@ -75,7 +74,7 @@ public class RehashTask extends MonitorableTask<Long> {
 					.build()
 		) {
 			final SolrRehashConsumer consumer = new SolrRehashConsumer(client, options.get("id-algorithm").value()
-					.orElse(IndexDefaults.DEFAULT_ID_ALGORITHM));
+					.orElse("SHA256"));
 			final SolrMachineProducer producer = new SolrMachineProducer(client, new HashSet<>(Collections
 					.singletonList("*")), parallelism);
 			final SolrMachine machine = new SolrMachine(consumer, producer, parallelism);

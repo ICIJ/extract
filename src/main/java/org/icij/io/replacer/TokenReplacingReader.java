@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-package org.icij.extract.replacer;
+package org.icij.io.replacer;
 
 import java.io.IOException;
 import java.io.PushbackReader;
@@ -26,7 +26,7 @@ import java.util.Arrays;
  * Reader for in-place token replacements. It does not use as much memory as the {@link String#replace} method.
  *
  * Based on original code by Oleg Varaksin (ovaraksin@googlemail.com), the license of which is copied above. This
- * version resolves tokens to {@link java.io.InputStream} instances.
+ * version resolves tokens to {@link Reader} instances.
  */
 public class TokenReplacingReader extends Reader {
 
@@ -37,11 +37,11 @@ public class TokenReplacingReader extends Reader {
 	private char[] startCharsBuffer;
 	private char[] endCharsBuffer;
 	private final PushbackReader pushback;
-	private final TokenResolver resolver;
+	private final TokenResolver<Reader> resolver;
 	private final StringBuilder token = new StringBuilder();
 	private Reader resolved = null;
 
-	public TokenReplacingReader(final TokenResolver resolver, final Reader source, final String start, final String end) {
+	public TokenReplacingReader(final TokenResolver<Reader> resolver, final Reader source, final String start, final String end) {
 		if (resolver == null) {
 			throw new IllegalArgumentException("Token resolver is null");
 		}

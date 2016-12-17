@@ -4,24 +4,29 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 
 import java.net.URISyntaxException;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
 
-import org.icij.extract.extractor.ExtractingConsumer;
-import org.icij.extract.extractor.ExtractionResult;
+import org.icij.extract.document.Document;
+import org.icij.extract.document.DocumentFactory;
+import org.icij.extract.document.PathIdentifier;
+import org.icij.extract.extractor.DocumentConsumer;
+import org.icij.extract.extractor.ExtractionStatus;
 import org.icij.extract.extractor.Extractor;
 import org.icij.extract.report.HashMapReport;
 import org.icij.extract.report.Reporter;
+import org.icij.extract.spewer.FieldNames;
 import org.icij.extract.spewer.PrintStreamSpewer;
 import org.icij.extract.spewer.Spewer;
 import org.junit.Test;
 import org.junit.Assert;
 
-public class ExtractingConsumerTest {
+public class DocumentConsumerTest {
 
-	private Path getFile() throws URISyntaxException {
-		return Paths.get(getClass().getResource("/documents/text/plain.txt").toURI());
+	private final DocumentFactory factory = new DocumentFactory().withIdentifier(new PathIdentifier());
+
+	private Document getFile() throws URISyntaxException {
+		return factory.create(Paths.get(getClass().getResource("/documents/text/plain.txt").toURI()));
 	}
 
 	@Test
@@ -30,13 +35,13 @@ public class ExtractingConsumerTest {
 
 		final ByteArrayOutputStream output = new ByteArrayOutputStream();
 		final PrintStream print = new PrintStream(output);
-		final Spewer spewer = new PrintStreamSpewer(print);
+		final Spewer spewer = new PrintStreamSpewer(print, new FieldNames());
 
-		final ExtractingConsumer consumer = new ExtractingConsumer(spewer, extractor, 1);
+		final DocumentConsumer consumer = new DocumentConsumer(spewer, extractor, 1);
 
-		final Path file = getFile();
+		final Document document = getFile();
 
-		consumer.accept(file);
+		consumer.accept(document);
 		consumer.shutdown();
 		Assert.assertTrue(consumer.awaitTermination(1, TimeUnit.MINUTES));
 
@@ -45,10 +50,10 @@ public class ExtractingConsumerTest {
 
 	@Test
 	public void testSetReporter() throws Throwable {
-		final Spewer spewer = new PrintStreamSpewer(new PrintStream(new ByteArrayOutputStream()));
-		final ExtractingConsumer consumer = new ExtractingConsumer(spewer, new Extractor(), 1);
+		final Spewer spewer = new PrintStreamSpewer(new PrintStream(new ByteArrayOutputStream()), new FieldNames());
+		final DocumentConsumer consumer = new DocumentConsumer(spewer, new Extractor(), 1);
 		final Reporter reporter = new Reporter(new HashMapReport());
-		final Path file = getFile();
+		final Document document = getFile();
 
 		// Assert that no reporter is set by default.
 		Assert.assertNull(consumer.getReporter());
@@ -56,10 +61,10 @@ public class ExtractingConsumerTest {
 		Assert.assertEquals(reporter, consumer.getReporter());
 
 		// Assert that the extraction result is reported.
-		Assert.assertNull(reporter.result(file));
-		consumer.accept(file);
+		Assert.assertNull(reporter.result(document));
+		consumer.accept(document);
 		consumer.shutdown();
 		Assert.assertTrue(consumer.awaitTermination(1, TimeUnit.MINUTES));
-		Assert.assertEquals(ExtractionResult.SUCCEEDED, reporter.result(file));
+		Assert.assertEquals(ExtractionStatus.SUCCEEDED, reporter.result(document));
 	}
 }

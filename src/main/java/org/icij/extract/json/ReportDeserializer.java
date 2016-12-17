@@ -1,7 +1,8 @@
 package org.icij.extract.json;
 
+import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.report.Report;
-import org.icij.extract.extractor.ExtractionResult;
+import org.icij.extract.extractor.ExtractionStatus;
 
 import java.io.IOException;
 
@@ -21,9 +22,11 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 public class ReportDeserializer extends JsonDeserializer<Report> {
 
 	private final Report report;
+	private final DocumentFactory factory;
 
-	public ReportDeserializer(final Report report) {
+	public ReportDeserializer(final DocumentFactory factory, final Report report) {
 		this.report = report;
+		this.factory = factory;
 	}
 
 	@Override
@@ -32,7 +35,8 @@ public class ReportDeserializer extends JsonDeserializer<Report> {
 
 		jsonParser.nextToken(); // Skip over the start of the object.
 		while (jsonParser.nextToken() != JsonToken.END_OBJECT && jsonParser.nextValue() != null) {
-			report.put(Paths.get(jsonParser.getCurrentName()), ExtractionResult.get(jsonParser.getValueAsInt()));
+			report.put(factory.create(Paths.get(jsonParser.getCurrentName())), ExtractionStatus.parse(jsonParser
+					.getValueAsInt()));
 		}
 
 		return report;
