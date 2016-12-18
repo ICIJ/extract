@@ -5,22 +5,20 @@ import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.extractor.Extractor;
 import org.icij.extract.parser.ExcludedMediaTypeException;
+import org.icij.extract.spewer.Spewer;
 import org.icij.extract.test.*;
 
+import java.io.InputStreamReader;
 import java.io.Reader;
-import java.io.InputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.NoSuchFileException;
 
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.charset.StandardCharsets;
 
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
-
-import org.apache.commons.io.IOUtils;
 
 import org.junit.Test;
 import org.junit.Assert;
@@ -42,7 +40,7 @@ public class ExtractorTest {
 		String text;
 
 		try (Reader reader = extractor.extract(document)) {
-			text = IOUtils.toString(reader);
+			text = Spewer.toString(reader);
 		}
 
 		Assert.assertEquals("image/tiff", document.getMetadata().get(Metadata.CONTENT_TYPE));
@@ -136,7 +134,7 @@ public class ExtractorTest {
 		String text;
 
 		try (Reader reader = extractor.extract(document)) {
-			text = IOUtils.toString(reader);
+			text = Spewer.toString(reader);
 		}
 
 		Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
@@ -155,7 +153,7 @@ public class ExtractorTest {
 		String text;
 
 		try (Reader reader = extractor.extract(document)) {
-			text = IOUtils.toString(reader);
+			text = Spewer.toString(reader);
 		}
 
 		Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
@@ -172,7 +170,7 @@ public class ExtractorTest {
 		String text;
 
 		try (Reader reader = extractor.extract(document)) {
-			text = IOUtils.toString(reader);
+			text = Spewer.toString(reader);
 		}
 
 		Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
@@ -189,7 +187,7 @@ public class ExtractorTest {
 		String text;
 
 		try (Reader reader = extractor.extract(document)) {
-			text = IOUtils.toString(reader);
+			text = Spewer.toString(reader);
 		}
 
 		Assert.assertEquals("text/plain; charset=UTF-16LE", document.getMetadata().get(Metadata.CONTENT_TYPE));
@@ -206,7 +204,7 @@ public class ExtractorTest {
 		String text;
 
 		try (Reader reader = extractor.extract(document)) {
-			text = IOUtils.toString(reader);
+			text = Spewer.toString(reader);
 		}
 
 		Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
@@ -228,43 +226,16 @@ public class ExtractorTest {
 		String text;
 
 		try (Reader reader = extractor.extract(document)) {
-			text = IOUtils.toString(reader);
+			text = Spewer.toString(reader);
 		}
 
 		Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals(getExpected("/expected/text/embedded-data-uri-pdf.html"), text);
 	}
 
-	@Test
-	public void testFailsWithoutWorkingDirectory() throws Throwable {
-		final Extractor extractor = new Extractor();
-		final Document document = factory.create(Paths.get("text/plain.txt"));
-
-		Assert.assertNull(extractor.getWorkingDirectory());
-		thrown.expect(NoSuchFileException.class);
-		thrown.expectMessage("text/plain.txt");
-
-		extractor.extract(document);
-	}
-
-	@Test
-	public void testSucceedsWithWorkingDirectory() throws Throwable {
-		final Extractor extractor = new Extractor();
-		final Path workingDirectory = Paths.get(getClass().getResource("/documents").toURI());
-		extractor.setWorkingDirectory(workingDirectory);
-		Assert.assertEquals(workingDirectory.toString(), extractor.getWorkingDirectory().toString());
-
-		String text;
-		try (Reader reader = extractor.extract(factory.create(Paths.get("text/plain.txt")))) {
-			text = IOUtils.toString(reader);
-		}
-
-		Assert.assertEquals("This is a test.\n\n", text);
-	}
-
 	private String getExpected(final String file) throws IOException {
-		try (InputStream input = getClass().getResourceAsStream(file)) {
-			return IOUtils.toString(input, StandardCharsets.UTF_8);
+		try (final Reader input = new InputStreamReader(getClass().getResourceAsStream(file), StandardCharsets.UTF_8)) {
+			return Spewer.toString(input);
 		}
 	}
 }

@@ -23,7 +23,6 @@ import org.apache.solr.client.solrj.SolrServerException;
 
 import org.apache.http.impl.client.CloseableHttpClient;
 
-import org.apache.commons.io.IOUtils;
 import org.icij.extract.document.Document;
 import org.icij.extract.document.EmbeddedDocument;
 import org.icij.extract.parser.ParsingReader;
@@ -194,7 +193,7 @@ public class SolrSpewer extends Spewer {
 		}
 
 		// Finally, set the text field containing the actual extracted text.
-		setFieldValue(inputDocument, fields.forText(), IOUtils.toString(reader));
+		setFieldValue(inputDocument, fields.forText(), toString(reader));
 
 		// Add embedded documents as child documents.
 		for (EmbeddedDocument embed : document.getEmbeds()) {

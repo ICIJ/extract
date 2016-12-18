@@ -6,7 +6,6 @@ import java.io.PrintStream;
 
 import org.apache.tika.metadata.Metadata;
 
-import org.apache.commons.io.IOUtils;
 import org.icij.extract.document.Document;
 import org.icij.extract.document.EmbeddedDocument;
 import org.icij.extract.parser.ParsingReader;
@@ -33,7 +32,7 @@ public class PrintStreamSpewer extends Spewer {
 
 		// A PrintStream should never throw an IOException: the exception would always come from the input stream.
 		// There's no need to use a TaggedOutputStream or catch IOExceptions.
-		IOUtils.copy(reader, stream, outputEncoding);
+		copy(reader, stream);
 
 		// Add an extra newline to signify the end of the text.
 		stream.println();

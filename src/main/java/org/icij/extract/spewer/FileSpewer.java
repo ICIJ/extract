@@ -1,15 +1,11 @@
 package org.icij.extract.spewer;
 
-import java.io.File;
-import java.io.Reader;
-import java.io.OutputStream;
-import java.io.IOException;
+import java.io.*;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.TaggedOutputStream;
 
 import org.apache.tika.metadata.Metadata;
@@ -110,10 +106,10 @@ public class FileSpewer extends Spewer {
 
 		TaggedOutputStream tagged = null;
 
-		// IOUtils#copy buffers the input so there's no need to use an output buffer.
+		// #copy buffers the input so there's no need to use an output buffer.
 		try (final OutputStream output = Files.newOutputStream(contentsOutputPath)) {
 			tagged = new TaggedOutputStream(output);
-			IOUtils.copy(reader, tagged, outputEncoding);
+			copy(reader, tagged);
 		} catch (IOException e) {
 			if (null != tagged && tagged.isCauseOf(e)) {
 				throw new SpewerException(String.format("Error writing output to file: \"%s\".", contentsOutputPath), e);

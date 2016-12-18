@@ -1,11 +1,9 @@
 package org.icij.extract.spewer;
 
+import java.io.*;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-
-import java.io.Reader;
-import java.io.IOException;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -92,5 +90,27 @@ public abstract class Spewer implements AutoCloseable {
 		} else {
 			throw new IllegalArgumentException(String.format("Invalid tag pair: \"%s\".", tag));
 		}
+	}
+
+	public static String toString(final Reader reader) throws IOException {
+		final StringWriter writer = new StringWriter(4096);
+
+		copy(reader, writer);
+		return writer.toString();
+	}
+
+	protected void copy(final Reader input, final OutputStream output) throws IOException {
+		copy(input, new OutputStreamWriter(output, outputEncoding));
+	}
+
+	public static void copy(final Reader input, final Writer output) throws IOException {
+		final char[] buffer = new char[1024];
+		int n;
+
+		while (-1 != (n = input.read(buffer))) {
+			output.write(buffer, 0, n);
+		}
+
+		output.flush();
 	}
 }
