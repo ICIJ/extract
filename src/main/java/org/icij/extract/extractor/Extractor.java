@@ -75,7 +75,6 @@ public class Extractor {
 	private static final Logger logger = LoggerFactory.getLogger(Extractor.class);
 
 	private boolean ocrDisabled = false;
-	private Path workingDirectory = null;
 	private DigestAlgorithm[] digestAlgorithms = null;
 
 	private final TikaConfig config = TikaConfig.getDefaultConfig();
@@ -115,7 +114,6 @@ public class Extractor {
 		options.get("embed-handling").parse().asEnum(EmbedHandling::parse).ifPresent(this::setEmbedHandling);
 		options.get("ocr-language").value().ifPresent(this::setOcrLanguage);
 		options.get("ocr-timeout").parse().asDuration().ifPresent(this::setOcrTimeout);
-		options.get("working-directory").parse().asPath().ifPresent(this::setWorkingDirectory);
 
 		final Collection<DigestAlgorithm> digestAlgorithms = options.get("digest-method").values
 				(DigestAlgorithm::valueOf);
@@ -210,25 +208,6 @@ public class Extractor {
 	}
 
 	/**
-	 * Set the working directory for the extractor when the paths passed to it are relative. All paths passed to
-	 * the extraction methods will be resolved from the working directory.
-	 *
-	 * @param workingDirectory the working directory
-	 */
-	public void setWorkingDirectory(final Path workingDirectory) {
-		this.workingDirectory = workingDirectory;
-	}
-
-	/**
-	 * Get the the working directory.
-	 *
-	 * @return the working directory
-	 */
-	public Path getWorkingDirectory() {
-		return workingDirectory;
-	}
-
-	/**
 	 * This method will wrap the given {@link Document} in a {@link TikaInputStream} and return a {@link Reader}
 	 * which can be used to initiate extraction on demand.
 	 *
@@ -239,17 +218,10 @@ public class Extractor {
 	 * @return A {@link Reader} that can be used to read extracted text on demand.
 	 */
 	public Reader extract(final Document document) throws IOException {
-		final TikaInputStream input;
 
 		// Use the the TikaInputStream.parse method that accepts a file, because this sets metadata properties like the
 		// resource name and size.
-		if (null != workingDirectory) {
-			input = TikaInputStream.get(workingDirectory.resolve(document.getPath()), document.getMetadata());
-		} else {
-			input = TikaInputStream.get(document.getPath(), document.getMetadata());
-		}
-
-		return extract(document, input);
+		return extract(document, TikaInputStream.get(document.getPath(), document.getMetadata()));
 	}
 
 	/**

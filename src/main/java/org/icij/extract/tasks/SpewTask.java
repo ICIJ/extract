@@ -86,8 +86,6 @@ import org.slf4j.LoggerFactory;
 @Option(name = "ocr-timeout", description = "Set the timeout for the Tesseract process to finish e.g. \"5s\" or \"1m\". " +
 		"Defaults to 12 hours.", parameter = "duration")
 @Option(name = "ocr", description = "Enable or disable automatic OCR. On by default.")
-@Option(name = "working-directory", description = "Set the working directory from which to resolve paths " +
-		"for files passed to the extractor.", parameter = "path")
 @Option(name = "output-metadata", description = "Output metadata along with extracted text. For the " +
 		"\"file\" output type, a corresponding JSON file is created for every input file. With indexes, metadata " +
 		"fields are set using an optional prefix. On by default.")
