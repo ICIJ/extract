@@ -46,7 +46,7 @@ public class ExtractorTest {
 		}
 
 		Assert.assertEquals("image/tiff", document.getMetadata().get(Metadata.CONTENT_TYPE));
-		Assert.assertEquals("HEAVY\nMETAL\n\n\n", text);
+		Assert.assertEquals("HEAVY\nMETAL", text.trim());
 	}
 
 	@Test
@@ -140,7 +140,7 @@ public class ExtractorTest {
 		}
 
 		Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
-		Assert.assertEquals("\nHEAVY\nMETAL\n\n\n\n\n\nHEAVY\nMETAL\n\n\n\n\n", text);
+		Assert.assertEquals("HEAVY\nMETAL\n\n\n\n\n\nHEAVY\nMETAL", text.trim());
 	}
 
 	@Test
