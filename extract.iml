@@ -112,10 +112,7 @@
     <orderEntry type="library" name="Maven: com.levigo.jbig2:levigo-jbig2-imageio:1.6.5" level="project" />
     <orderEntry type="library" name="Maven: com.github.jai-imageio:jai-imageio-core:1.3.1" level="project" />
     <orderEntry type="library" name="Maven: com.github.jai-imageio:jai-imageio-jpeg2000:1.3.0" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.solr:solr-solrj:6.2.1" level="project" />
-    <orderEntry type="library" name="Maven: com.fasterxml.jackson.core:jackson-annotations:2.5.4" level="project" />
-    <orderEntry type="library" name="Maven: com.fasterxml.jackson.core:jackson-databind:2.5.4" level="project" />
-    <orderEntry type="library" name="Maven: com.google.guava:guava:14.0.1" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.solr:solr-solrj:6.3.0" level="project" />
     <orderEntry type="library" name="Maven: org.apache.httpcomponents:httpmime:4.4.1" level="project" />
     <orderEntry type="library" name="Maven: org.apache.zookeeper:zookeeper:3.4.6" level="project" />
     <orderEntry type="library" name="Maven: org.codehaus.woodstox:stax2-api:3.1.4" level="project" />
@@ -125,7 +122,8 @@
     <orderEntry type="library" name="Maven: org.apache.httpcomponents:httpclient:4.5.2" level="project" />
     <orderEntry type="library" name="Maven: commons-logging:commons-logging:1.2" level="project" />
     <orderEntry type="library" name="Maven: org.apache.httpcomponents:httpcore:4.4.5" level="project" />
-    <orderEntry type="library" name="Maven: org.redisson:redisson:3.0.1" level="project" />
+    <orderEntry type="library" name="Maven: org.redisson:redisson:3.2.0" level="project" />
+    <orderEntry type="library" name="Maven: javax.cache:cache-api:1.0.0" level="project" />
     <orderEntry type="library" name="Maven: io.netty:netty-common:4.0.42.Final" level="project" />
     <orderEntry type="library" name="Maven: io.netty:netty-codec:4.0.42.Final" level="project" />
     <orderEntry type="library" name="Maven: io.netty:netty-buffer:4.0.42.Final" level="project" />
@@ -136,40 +134,43 @@
     <orderEntry type="library" name="Maven: org.reactivestreams:reactive-streams:1.0.0" level="project" />
     <orderEntry type="library" name="Maven: com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.7.6" level="project" />
     <orderEntry type="library" name="Maven: org.yaml:snakeyaml:1.15" level="project" />
+    <orderEntry type="library" name="Maven: com.fasterxml.jackson.core:jackson-databind:2.7.6" level="project" />
+    <orderEntry type="library" name="Maven: com.fasterxml.jackson.core:jackson-annotations:2.7.0" level="project" />
     <orderEntry type="library" name="Maven: net.openhft:zero-allocation-hashing:0.5" level="project" />
     <orderEntry type="library" name="Maven: net.bytebuddy:byte-buddy:1.4.26" level="project" />
     <orderEntry type="library" name="Maven: org.jodd:jodd-bean:3.7.1" level="project" />
     <orderEntry type="library" name="Maven: org.jodd:jodd-core:3.7.1" level="project" />
-    <orderEntry type="library" name="Maven: com.fasterxml.jackson.core:jackson-core:2.8.4" level="project" />
-    <orderEntry type="library" name="Maven: org.slf4j:slf4j-api:1.7.21" level="project" />
-    <orderEntry type="library" name="Maven: org.slf4j:slf4j-jdk14:1.7.21" level="project" />
+    <orderEntry type="library" name="Maven: com.fasterxml.jackson.core:jackson-core:2.8.5" level="project" />
+    <orderEntry type="library" name="Maven: org.slf4j:slf4j-api:1.7.22" level="project" />
+    <orderEntry type="library" name="Maven: org.slf4j:slf4j-jdk14:1.7.22" level="project" />
     <orderEntry type="library" name="Maven: me.tongfei:progressbar:0.5.1" level="project" />
     <orderEntry type="library" name="Maven: jline:jline:2.12" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: junit:junit:4.12" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.hamcrest:hamcrest-core:1.3" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.solr:solr-core:6.2.1" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-analyzers-common:6.2.1" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-analyzers-kuromoji:6.2.1" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-analyzers-phonetic:6.2.1" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-backward-codecs:6.2.1" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-classification:6.2.1" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-codecs:6.2.1" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-core:6.2.1" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-expressions:6.2.1" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-grouping:6.2.1" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-highlighter:6.2.1" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-join:6.2.1" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-memory:6.2.1" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-misc:6.2.1" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-queries:6.2.1" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-queryparser:6.2.1" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-sandbox:6.2.1" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-spatial-extras:6.2.1" level="project" />
-    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-suggest:6.2.1" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.apache.solr:solr-core:6.3.0" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-analyzers-common:6.3.0" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-analyzers-kuromoji:6.3.0" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-analyzers-phonetic:6.3.0" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-backward-codecs:6.3.0" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-classification:6.3.0" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-codecs:6.3.0" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-core:6.3.0" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-expressions:6.3.0" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-grouping:6.3.0" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-highlighter:6.3.0" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-join:6.3.0" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-memory:6.3.0" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-misc:6.3.0" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-queries:6.3.0" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-queryparser:6.3.0" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-sandbox:6.3.0" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-spatial-extras:6.3.0" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.apache.lucene:lucene-suggest:6.3.0" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: com.carrotsearch:hppc:0.7.1" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: com.facebook.presto:presto-parser:0.122" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.5.4" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: com.github.ben-manes.caffeine:caffeine:1.0.1" level="project" />
+    <orderEntry type="library" name="Maven: com.google.guava:guava:14.0.1" level="project" />
     <orderEntry type="library" name="Maven: com.google.protobuf:protobuf-java:2.5.0" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: com.tdunning:t-digest:3.1" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: commons-collections:commons-collections:3.2.2" level="project" />
@@ -199,6 +200,8 @@
     <orderEntry type="library" scope="TEST" name="Maven: org.apache.hadoop:hadoop-common:2.7.2" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.apache.hadoop:hadoop-hdfs:2.7.2" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.apache.htrace:htrace-core:3.2.0-incubating" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.codehaus.jackson:jackson-core-asl:1.9.13" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.codehaus.jackson:jackson-mapper-asl:1.9.13" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.eclipse.jetty:jetty-continuation:9.3.8.v20160314" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.eclipse.jetty:jetty-deploy:9.3.8.v20160314" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.eclipse.jetty:jetty-http:9.3.8.v20160314" level="project" />
