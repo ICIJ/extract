@@ -58,30 +58,6 @@ public class ScannerTest {
 	}
 
 	@Test
-	public void testScanDirectoryWithBase() throws Throwable {
-		final Path root = Paths.get(getClass().getResource("/documents/text/").toURI());
-		final Scanner scanner = createScanner();
-		final Future<Path> job = scanner.scan(root, root);
-
-		Assert.assertEquals(job.get(), root);
-		shutdownScanner(scanner);
-
-		// Assert that the queue contains at least one file, manually.
-		Assert.assertTrue(Files.exists(root.resolve("plain.txt")));
-		Assert.assertTrue(queue.contains(factory.create(Paths.get("plain.txt"))));
-
-		// Assert that the queue contains the basename (the name of the file without the directory component) of every
-		// file in the directory.
-		try (DirectoryStream<Path> directoryStream = Files.newDirectoryStream(root)) {
-			for (Path file : directoryStream) {
-				Path fileName = file.getFileName();
-				Assert.assertTrue(String.format("Failed asserting that queue contains \"%s\".", fileName),
-						queue.contains(factory.create(fileName)));
-			}
-		}
-	}
-
-	@Test
 	public void testScanDirectoryWithIncludeGlob() throws Throwable {
 		final Path root = Paths.get(getClass().getResource("/documents/").toURI());
 		final Scanner scanner = createScanner();

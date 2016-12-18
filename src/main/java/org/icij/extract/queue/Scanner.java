@@ -234,13 +234,12 @@ public class Scanner extends ExecutorProxy {
 	 * Jobs are put in an unbounded queue and executed in serial, in a separate thread.
 	 * This method doesn't block. Call {@link #awaitTermination(long, TimeUnit)} to block.
 	 *
-	 * @param base the base path, stripped from file paths encountered by the scanner before queuing
 	 * @param path the path to scan
 	 * @return A {@link Future} that can be used to wait on the result or cancel.
 	 */
-	public Future<Path> scan(final Path base, final Path path) {
+	public Future<Path> scan(final Path path) {
 		final FileSystem fileSystem = path.getFileSystem();
-		final ScannerVisitor visitor = new ScannerVisitor(base, path);
+		final ScannerVisitor visitor = new ScannerVisitor(path);
 
 		// In order to make hidden-file-ignoring logic more predictable, always ignore file names starting with a
 		// dot, but only ignore DOS hidden files if the file system supports that attribute.
@@ -268,85 +267,50 @@ public class Scanner extends ExecutorProxy {
 	}
 
 	/**
-	 * @see Scanner#scan(Path, Path)
-	 */
-	public Future<Path> scan(final String base, final String path) {
-		if (null != base) {
-			return scan(Paths.get(base), Paths.get(path));
-		} else {
-			return scan(path);
-		}
-	}
-
-	/**
 	 * Submit all of the given paths to the scanner for execution, returning a list of {@link Future} objects
 	 * representing those tasks.
 	 *
-	 * @see #scan(Path, Path)
+	 * @see #scan(Path)
 	 * @return a {@link Future} for each path scanned
 	 */
-	public List<Future<Path>> scan(final Path base, final Path[] paths) {
+	public List<Future<Path>> scan(final Path[] paths) {
 		final List<Future<Path>> futures = new ArrayList<>();
 
-		for (Path path : paths) futures.add(scan(base, path));
+		for (Path path : paths) futures.add(scan(path));
 		return futures;
 	}
 
 	/**
-	 * @see #scan(Path, Path[])
+	 * @see #scan(Path[])
 	 */
-	public List<Future<Path>> scan(final String base, final String[] paths) {
+	public List<Future<Path>> scan(final String[] paths) {
 		final Path[] _paths = new Path[paths.length];
 
 		for (int i = 0; i < paths.length; i++) _paths[i] = Paths.get(paths[i]);
-
-		if (null != base) {
-			return scan(Paths.get(base), _paths);
-		}
 
 		return scan(_paths);
 	}
 
 	/**
-	 * @see Scanner#scan(Path, Path)
-	 */
-	public Future<Path> scan(final Path path) {
-		return scan(null, path);
-	}
-
-	/**
-	 * @see Scanner#scan(Path, Path)
+	 * @see Scanner#scan(Path)
 	 */
 	public Future<Path> scan(final String path) {
-		return scan(null, Paths.get(path));
+		return scan(Paths.get(path));
 	}
-
-	/**
-	 * @see #scan(String, String[])
-	 */
-	public List<Future<Path>> scan(final Path[] paths) { return scan(null, paths); }
-
-	/**
-	 * @see #scan(Path, Path[])
-	 */
-	public List<Future<Path>> scan(final String[] paths) { return scan(null, paths); }
 
 	private class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<Path> {
 
 		private final ArrayDeque<PathMatcher> includeMatchers = new ArrayDeque<>();
 		private final ArrayDeque<PathMatcher> excludeMatchers = new ArrayDeque<>();
 
-		private final Path base;
 		private final Path path;
 
 		/**
 		 * Instantiate a new task for scanning the given path.
 		 *
-		 * @param base the base path, to be stripped from scanned paths before queuing
 		 * @param path the path to scan
 		 */
-		ScannerVisitor(final Path base, final Path path) {
-			this.base = base;
+		ScannerVisitor(final Path path) {
 			this.path = path;
 		}
 
@@ -389,13 +353,7 @@ public class Scanner extends ExecutorProxy {
 		 * @throws InterruptedException if interrupted while waiting for a queue slot
 		 */
 		void queue(final Path file) throws InterruptedException {
-			final Document document;
-
-			if (null != base && file.startsWith(base)) {
-				document = factory.create(file.subpath(base.getNameCount(), file.getNameCount()));
-			} else {
-				document = factory.create(file);
-			}
+			final Document document = factory.create(file);
 
 			queue.put(document);
 			queued++;
