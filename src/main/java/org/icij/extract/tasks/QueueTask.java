@@ -22,8 +22,8 @@ import org.icij.task.annotation.Task;
  * @since 1.0.0-beta
  */
 @Task("Queue files for processing later.")
-@Option(name = "queue-type", description = "Set the report backend type. For now, the only valid value is " +
-		"\"redis\".", parameter = "type", code = "q")
+@Option(name = "queue-type", description = "Set the report backend type. For now, the only valid value is \"redis\"" +
+		".", parameter = "type", code = "q")
 @Option(name = "queue-name", description = "The name of the report, the default of which is type-dependent" +
 		".", parameter = "name")
 @Option(name = "redis-address", description = "Set the Redis backend address. Defaults to " +

@@ -45,16 +45,15 @@ import org.slf4j.LoggerFactory;
 		"Defaults to 0.", parameter = "duration")
 @Option(name = "report-type", description = "Set the report backend type. For now, the only valid value is" +
 		" \"redis\".", parameter = "type", code = "r")
-@Option(name = "report-name", description = "The name of the report, the default of which is " +
-		"type-dependent.", parameter = "name")
-@Option(name = "redis-address", description = "Set the Redis backend address. Defaults to " +
-		"127.0.0.1:6379.", parameter = "address")
+@Option(name = "report-name", description = "The name of the report, the default of which is type-dependent.",
+		parameter = "name")
+@Option(name = "redis-address", description = "Set the Redis backend address. Defaults to 127.0.0.1:6379.", parameter
+		= "address")
 @Option(name = "include-pattern", description = "Glob pattern for matching files e.g. \"**/*.{tif,pdf}\". " +
 		"Files not matching the pattern will be ignored.", parameter = "pattern")
 @Option(name = "exclude-pattern", description = "Glob pattern for excluding files and directories. Files " +
 		"and directories matching the pattern will be ignored.", parameter = "pattern")
-@Option(name = "follow-symlinks", description = "Follow symbolic links, which are not followed by default" +
-		".")
+@Option(name = "follow-symlinks", description = "Follow symbolic links, which are not followed by default.")
 @Option(name = "include-hidden-files", description = "Don't ignore hidden files. On DOS file systems, this" +
 		" means all files or directories with the \"hidden\" file attribute. On all other file systems, this means " +
 		"all file or directories starting with a dot. Hidden files are ignored by default.")
@@ -67,8 +66,7 @@ import org.slf4j.LoggerFactory;
 @Option(name = "soft-commit", description = "Performs a soft commit. Makes index changes visible while " +
 		"neither fsync-ing index files nor writing a new index descriptor. This could lead to data loss if Solr is " +
 		"terminated unexpectedly.")
-@Option(name = "index-address", description = "Index core API endpoint address.", code = "s", parameter =
-		"url")
+@Option(name = "index-address", description = "Index core API endpoint address.", code = "s", parameter = "url")
 @Option(name = "index-server-certificate", description = "The index server's public certificate, used for" +
 		" certificate pinning. Supported formats are PEM, DER, PKCS #12 and JKS.", parameter = "path")
 @Option(name = "index-verify-host", description = "Verify the index server's public certificate against " +
@@ -89,27 +87,25 @@ import org.slf4j.LoggerFactory;
 @Option(name = "output-metadata", description = "Output metadata along with extracted text. For the " +
 		"\"file\" output type, a corresponding JSON file is created for every input file. With indexes, metadata " +
 		"fields are set using an optional prefix. On by default.")
-@Option(name = "tag", description = "Set the given field to a corresponding value on each document output" +
-		".", parameter = "name-value-pair")
+@Option(name = "tag", description = "Set the given field to a corresponding value on each document output.",
+		parameter = "name-value-pair")
 @Option(name = "charset", description = "Set the output encoding for text and document attributes. Defaults to UTF-8.",
 		parameter = "name")
 @Option(name = "id-field", description = "Index field for an automatically generated identifier. The ID " +
 		"for the same file is guaranteed not to change if the path doesn't change. Defaults to \"id\".", code = "i",
 		parameter = "name")
 @Option(name = "id-method", description = "The method for determining document IDs, for queues that use them. " +
-		"Defaults to using the path as an ID.",
-		parameter = "name")
+		"Defaults to using the path as an ID.", parameter = "name")
 @Option(name = "id-digest-method", description = "For calculating document ID digests, where applicable depending on " +
 		"the ID method.", parameter = "name")
 @Option(name = "text-field", description = "Field name for extracted text.", code =
 		"t", parameter = "name")
-@Option(name = "path-field", description = "Field name for the file path.", parameter
-		= "name", code = "p")
+@Option(name = "path-field", description = "Field name for the file path.", parameter = "name", code = "p")
 @Option(name = "parent-path-field", description = "Field name for the parent directory path.", parameter = "name")
 @Option(name = "base-type-field", description = "Field name for the base content-type.", parameter = "name")
 @Option(name = "version-field", description = "Index field name for the version.", parameter = "name")
-@Option(name = "metadata-prefix", description = "Prefix for metadata fields added to the index. " +
-		"Defaults to \"metadata:\".", parameter = "name")
+@Option(name = "metadata-prefix", description = "Prefix for metadata fields added to the index. Defaults to " +
+		"\"metadata:\".", parameter = "name")
 @Option(name = "jobs", description = "The number of documents to process at a time. Defaults to the number" +
 		" of available processors.", parameter = "number")
 @Option(name = "commit-interval", description = "Commit to the index every time the specified number of " +
