@@ -21,15 +21,18 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 
 import static org.apache.tika.sax.XHTMLContentHandler.XHTML;
 
 public class WMFParser extends AbstractParser {
 
-	private static final Set<MediaType> SUPPORTED_TYPES = Collections.singleton(MediaType.application("x-msmetafile"));
-	private static final String WMF_MIME_TYPE = "application/x-msmetafile";
+	private static final Set<MediaType> SUPPORTED_TYPES = Collections.unmodifiableSet(new HashSet<>(Arrays
+			.asList(MediaType.application("x-msmetafile"), MediaType.image("x-wmf"), MediaType.image("wmf"))));
+	private static final String WMF_MIME_TYPE = "image/wmf";
 	private static final long serialVersionUID = 5516989102471431040L;
 
 	@Override
@@ -64,7 +67,7 @@ public class WMFParser extends AbstractParser {
 				case WMFConstants.META_SELECTOBJECT:
 					int gdiIndex = record.ElementAt( 0 );
 
-					if ((gdiIndex & 0x80000000 ) != 0) {
+					if ((gdiIndex & 0x80000000) != 0) {
 						break;
 					}
 
