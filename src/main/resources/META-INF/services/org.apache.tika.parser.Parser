@@ -1,2 +1,4 @@
 org.icij.extract.parser.ocr.ExtendedTesseractOCRParser
 org.icij.extract.parser.wmf.WMFParser
+org.icij.extract.parser.emf.EMFParser
+
