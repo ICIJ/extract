@@ -52,13 +52,11 @@ public class EMFParser extends AbstractParser {
 				continue;
 			}
 
-			xhtml.startElement(XHTML, "p", "p", new AttributesImpl());
-
 			if ((tag instanceof ExtTextOutA) || (tag instanceof ExtTextOutW)) {
+				xhtml.startElement(XHTML, "p", "p", new AttributesImpl());
 				xhtml.characters(((AbstractExtTextOut) tag).getText().getString());
+				xhtml.endElement(XHTML, "p", "p");
 			}
-
-			xhtml.endElement(XHTML, "p", "p");
 		}
 
 		xhtml.endDocument();
