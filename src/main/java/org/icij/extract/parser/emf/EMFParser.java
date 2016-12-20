@@ -6,14 +6,19 @@ import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AbstractParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.sax.XHTMLContentHandler;
+
 import org.freehep.graphicsio.emf.EMFInputStream;
 import org.freehep.graphicsio.emf.EMFTag;
 import org.freehep.graphicsio.emf.gdi.*;
+
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
+import java.awt.Rectangle;
+
 import java.io.IOException;
 import java.io.InputStream;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -43,6 +48,10 @@ public class EMFParser extends AbstractParser {
 
 		final EMFInputStream input = new EMFInputStream(stream);
 		Tag tag;
+
+		final Rectangle rectangle = input.readHeader().getBounds();
+		metadata.set("height", Integer.toString(Double.valueOf(rectangle.getHeight()).intValue()));
+		metadata.set("width", Integer.toString(Double.valueOf(rectangle.getWidth()).intValue()));
 
 		final XHTMLContentHandler xhtml = new XHTMLContentHandler(handler, metadata);
 		xhtml.startDocument();
