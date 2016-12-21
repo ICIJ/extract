@@ -2,6 +2,9 @@ package org.icij.extract.spewer;
 
 import org.icij.task.Options;
 
+import java.util.Locale;
+import java.util.regex.Pattern;
+
 /**
  * Defaults for use with spewers.
  *
@@ -9,6 +12,8 @@ import org.icij.task.Options;
  * @since 1.0.0-beta
  */
 public class FieldNames {
+
+	private static final Pattern fieldName = Pattern.compile("[^A-Za-z0-9_:]");
 
 	public static final String DEFAULT_ID_FIELD = "extract:id";
 	public static final String DEFAULT_TEXT_FIELD = "tika:content";
@@ -90,8 +95,14 @@ public class FieldNames {
 		this.metadataFieldPrefix = metadataFieldPrefix;
 	}
 
-	String forMetadataPrefix() {
-		return metadataFieldPrefix;
+	String forMetadata(final String name) {
+		final String normalizedName = fieldName.matcher(name).replaceAll("_").toLowerCase(Locale.ROOT);
+
+		if (null != metadataFieldPrefix) {
+			return metadataFieldPrefix + normalizedName;
+		}
+
+		return normalizedName;
 	}
 
 	String forTagPrefix() {

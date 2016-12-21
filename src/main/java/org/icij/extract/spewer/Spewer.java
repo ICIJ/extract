@@ -1,15 +1,18 @@
 package org.icij.extract.spewer;
 
-import java.io.*;
+import java.io.Reader;
+import java.io.Writer;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.regex.Pattern;
 
-import org.apache.tika.metadata.Metadata;
 import org.icij.extract.document.Document;
 import org.icij.extract.parser.ParsingReader;
 import org.icij.task.Options;
@@ -22,21 +25,8 @@ import org.icij.task.Options;
  */
 public abstract class Spewer implements AutoCloseable {
 
-	private static final Pattern fieldName = Pattern.compile("[^A-Za-z0-9_:]");
-
-	String normalizeMetadataName(final String name) {
-		String normalizedName = fieldName.matcher(name).replaceAll("_").toLowerCase(Locale.ROOT);
-		final String prefix = fields.forMetadataPrefix();
-
-		if (null != prefix) {
-			normalizedName = prefix + normalizedName;
-		}
-
-		return normalizedName;
-	}
-
 	boolean outputMetadata = true;
-	Charset outputEncoding = StandardCharsets.UTF_8;
+	private Charset outputEncoding = StandardCharsets.UTF_8;
 	final Map<String, String> tags = new HashMap<>();
 	protected final FieldNames fields;
 
@@ -52,11 +42,9 @@ public abstract class Spewer implements AutoCloseable {
 		return this;
 	}
 
-	public abstract void write(final Document document, final Reader reader) throws
-			IOException;
+	public abstract void write(final Document document, final Reader reader) throws IOException;
 
-	public abstract void writeMetadata(final Document document) throws
-			IOException;
+	public abstract void writeMetadata(final Document document) throws IOException;
 
 	public void setOutputEncoding(final Charset outputEncoding) {
 		this.outputEncoding = outputEncoding;

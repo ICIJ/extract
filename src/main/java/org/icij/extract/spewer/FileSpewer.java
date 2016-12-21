@@ -137,7 +137,7 @@ public class FileSpewer extends Spewer {
 			jsonGenerator.writeStartObject();
 
 			for (String name : metadata.names()) {
-				String normalizedName = normalizeMetadataName(name);
+				final String normalizedName = fields.forMetadata(name);
 
 				if (metadata.isMultiValued(name)) {
 					jsonGenerator.writeArrayFieldStart(normalizedName);

@@ -7,6 +7,7 @@ import org.apache.solr.client.solrj.response.UpdateResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
+import org.apache.tika.metadata.Metadata;
 import org.icij.extract.document.Document;
 import org.icij.task.Options;
 
@@ -67,13 +68,14 @@ public class MergingSolrSpewer extends SolrSpewer {
 			SolrServerException {
 		final SolrDocument existingDocument;
 		final SolrQuery params = new SolrQuery();
+		final String resourceNameKey = fields.forMetadata(Metadata.RESOURCE_NAME_KEY);
 
 		// The document must be retrieved from the real-time-get (RTG) handler, otherwise we'd have to commit every
 		// time a document is added.
 		params.setRequestHandler("/get");
 
 		// Request only the fields which must be merged, not the entire document.
-		params.setFields(fields.forPath(), fields.forParentPath(), fields.forVersion());
+		params.setFields(fields.forPath(), fields.forParentPath(), fields.forVersion(), resourceNameKey);
 		existingDocument = client.getById(document.getId(), params);
 
 		// Since we're updating the path and parent path values of an existing document, set the version field to
@@ -98,6 +100,10 @@ public class MergingSolrSpewer extends SolrSpewer {
 			mergeField(fields.forParentPath(), document.getPath().getParent().toString(), existingDocument,
 					inputDocument);
 		}
+
+		// Merge the resource name field.
+		mergeField(resourceNameKey, document.getMetadata().get(Metadata.RESOURCE_NAME_KEY), existingDocument,
+				inputDocument);
 	}
 
 	private void mergeField(final String name, final String newValue, final SolrDocument existingDocument, final

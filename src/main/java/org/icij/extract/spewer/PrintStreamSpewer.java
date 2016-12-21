@@ -57,18 +57,16 @@ public class PrintStreamSpewer extends Spewer {
 
 		// Set the path field.
 		if (null != fields.forPath()) {
-			stream.println(String.format("%s: %s", fields.forPath(), document.getPath().toString()));
+			stream.println(fields.forPath() + ": " + document.getPath().toString());
 		}
 
 		// Set the parent path field.
 		if (null != fields.forParentPath() && document.getPath().getNameCount() > 1) {
-			stream.println(String.format("%s: %s", fields.forParentPath(), document.getPath().getParent().toString()));
+			stream.println(fields.forParentPath() + ": " + document.getPath().getParent().toString());
 		}
 
 		for (String name : metadata.names()) {
-			stream.println(String.format("%s: %s", normalizeMetadataName(name),
-					String.join(", ", metadata.getValues(name)
-			)));
+			stream.println(fields.forMetadata(name) + ": " + String.join(", ", metadata.getValues(name)));
 		}
 
 		// Add an extra newline to signify the end of the metadata.

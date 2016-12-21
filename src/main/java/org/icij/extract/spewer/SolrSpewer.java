@@ -249,7 +249,7 @@ public class SolrSpewer extends Spewer {
 
 	private void setMetadataFieldValues(final Metadata metadata, final SolrInputDocument document) {
 		for (String name : metadata.names()) {
-			String normalizedName = normalizeMetadataName(name);
+			final String normalizedName = fields.forMetadata(name);
 
 			if (metadata.isMultiValued(name) &&
 
