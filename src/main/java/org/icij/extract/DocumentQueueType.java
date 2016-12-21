@@ -9,7 +9,7 @@ import java.util.Locale;
  * @since 1.0.0-beta
  */
 public enum DocumentQueueType {
-	NONE, ARRAY, REDIS;
+	ARRAY, REDIS;
 
 	/**
 	 * Return the name of the queue type.
@@ -27,10 +27,6 @@ public enum DocumentQueueType {
 	 * @return The type of queue as a {@link DocumentQueueType} instance.
 	 */
 	public static DocumentQueueType parse(final String queueType) {
-		if (null == queueType) {
-			return NONE;
-		}
-
 		try {
 			return valueOf(queueType.toUpperCase(Locale.ROOT));
 		} catch (IllegalArgumentException e) {
