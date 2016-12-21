@@ -24,16 +24,16 @@ import org.icij.task.annotation.Task;
 @Task("Queue files for processing later.")
 @Option(name = "queue-type", description = "Set the report backend type. For now, the only valid value is \"redis\"" +
 		".", parameter = "type", code = "q")
-@Option(name = "queue-name", description = "The name of the report, the default of which is type-dependent" +
-		".", parameter = "name")
-@Option(name = "redis-address", description = "Set the Redis backend address. Defaults to " +
-		"127.0.0.1:6379.", parameter = "address")
+@Option(name = "queue-name", description = "The name of the report, the default of which is type-dependent.",
+		parameter = "name")
+@Option(name = "redis-address", description = "Set the Redis backend address. Defaults to 127.0.0.1:6379.", parameter
+		= "address")
+@Option(name = "redis-timeout", description = "The client timeout for Redis operations.", parameter = "timeout")
 @Option(name = "include-pattern", description = "Glob pattern for matching files e.g. \"**/*.{tif,pdf}\". " +
 		"Files not matching the pattern will be ignored.", parameter = "pattern")
 @Option(name = "exclude-pattern", description = "Glob pattern for excluding files and directories. Files " +
 		"and directories matching the pattern will be ignored.", parameter = "pattern")
-@Option(name = "follow-symlinks", description = "Follow symbolic links, which are not followed by default" +
-		".")
+@Option(name = "follow-symlinks", description = "Follow symbolic links, which are not followed by default.")
 @Option(name = "include-hidden-files", description = "Don't ignore hidden files. On DOS file systems, this" +
 		" means all files or directories with the \"hidden\" file attribute. On all other file systems, this means " +
 		"all file or directories starting with a dot. Hidden files are ignored by default.")

@@ -14,6 +14,7 @@ import org.redisson.connection.SingleConnectionManager;
 public class ConnectionManagerFactory {
 
 	private String address = null;
+	private int timeout = -1;
 
 	/**
 	 * Create a new connection manager by query the given set of options.
@@ -22,11 +23,30 @@ public class ConnectionManagerFactory {
 	 * @return a new connection manager
 	 */
 	public ConnectionManagerFactory withOptions(final Options<String> options) {
-		return withAddress(options.get("redis-address").value().orElse(null));
+		withAddress(options.get("redis-address").value().orElse(null));
+		options.get("redis-timeout").parse().asInteger().ifPresent(this::withTimeout);
+		return this;
 	}
 
+	/**
+	 * Set the Redis server address. Uses {@literal 127.0.0.1:6379} by default.
+	 *
+	 * @param address the Redis server address
+	 * @return chainable factory
+	 */
 	private ConnectionManagerFactory withAddress(final String address) {
 		this.address = address;
+		return this;
+	}
+
+	/**
+	 * Set the connection timeout. Uses a 60-second timeout by default.
+	 *
+	 * @param timeout the timeout in milliseconds
+	 * @return chainable factory
+	 */
+	private ConnectionManagerFactory withTimeout(final int timeout) {
+		this.timeout = timeout;
 		return this;
 	}
 
@@ -37,6 +57,7 @@ public class ConnectionManagerFactory {
 	 */
 	public ConnectionManager create() {
 		final String address = null == this.address ? "127.0.0.1:6379" : this.address;
+		final int timeout = this.timeout < 0 ? 60 * 1000 : this.timeout;
 
 		// TODO: support all the other types supported by the ConnectionManagerFactory.
 		// TODO: Create a hash of config options so that only one manager is used per unique server. This should
@@ -44,6 +65,6 @@ public class ConnectionManagerFactory {
 		return new SingleConnectionManager(new Config()
 				.useSingleServer()
 				.setAddress(address)
-				.setTimeout(6000), new Config());
+				.setTimeout(timeout), new Config());
 	}
 }

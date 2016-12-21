@@ -49,6 +49,7 @@ import org.slf4j.LoggerFactory;
 		parameter = "name")
 @Option(name = "redis-address", description = "Set the Redis backend address. Defaults to 127.0.0.1:6379.", parameter
 		= "address")
+@Option(name = "redis-timeout", description = "The client timeout for Redis operations.", parameter = "timeout")
 @Option(name = "include-pattern", description = "Glob pattern for matching files e.g. \"**/*.{tif,pdf}\". " +
 		"Files not matching the pattern will be ignored.", parameter = "pattern")
 @Option(name = "exclude-pattern", description = "Glob pattern for excluding files and directories. Files " +

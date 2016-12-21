@@ -30,12 +30,13 @@ import org.icij.task.annotation.Task;
 		"input.")
 @Option(name = "queue-type", description = "Set the report backend type. For now, the only valid value is " +
 		"\"redis\".", parameter = "type", code = "r")
-@Option(name = "queue-name", description = "The name of the queue, the default of which is type-dependent" +
-		".", parameter = "name")
+@Option(name = "queue-name", description = "The name of the queue, the default of which is type-dependent.",
+		parameter = "name")
 @Option(name = "format", description = "The dump file format. Defaults to JSON.", parameter = "csv|json")
 @Option(name = "path-field", description = "The name of CSV field to parse the path from.", parameter = "name")
-@Option(name = "redis-address", description = "Set the Redis backend address. Defaults to " +
-		"127.0.0.1:6379.", parameter = "address")
+@Option(name = "redis-address", description = "Set the Redis backend address. Defaults to 127.0.0.1:6379.", parameter
+		= "address")
+@Option(name = "redis-timeout", description = "The client timeout for Redis operations.", parameter = "timeout")
 @Option(name = "id-method", description = "The method for determining document IDs, for queues that use them.",
 		parameter = "name")
 @Option(name = "id-digest-method", description = "For calculating document IDs, where applicable depending on the " +
