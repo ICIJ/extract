@@ -1,14 +1,12 @@
 package org.icij.extract.spewer;
 
 import org.apache.solr.client.solrj.SolrClient;
+import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.response.UpdateResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
-import org.apache.solr.common.params.CommonParams;
-import org.apache.solr.common.params.ModifiableSolrParams;
-import org.apache.solr.common.params.SolrParams;
 import org.icij.extract.document.Document;
 import org.icij.task.Options;
 
@@ -68,10 +66,14 @@ public class MergingSolrSpewer extends SolrSpewer {
 	private void merge(final Document document, final SolrInputDocument inputDocument) throws IOException,
 			SolrServerException {
 		final SolrDocument existingDocument;
+		final SolrQuery params = new SolrQuery();
+
+		// The document must be retrieved from the real-time-get (RTG) handler, otherwise we'd have to commit every
+		// time a document is added.
+		params.setRequestHandler("/get");
 
 		// Request only the fields which must be merged, not the entire document.
-		final ModifiableSolrParams params = new ModifiableSolrParams();
-		params.set(CommonParams.FL, fields.forPath(), fields.forParentPath(), fields.forVersion());
+		params.setFields(fields.forPath(), fields.forParentPath(), fields.forVersion());
 		existingDocument = client.getById(document.getId(), params);
 
 		// Since we're updating the path and parent path values of an existing document, set the version field to
