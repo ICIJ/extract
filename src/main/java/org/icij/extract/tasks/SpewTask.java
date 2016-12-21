@@ -79,9 +79,9 @@ import org.slf4j.LoggerFactory;
 		"output. In embed mode, embeds are not parsed but are in-lined as a data URI representation of the raw embed " +
 		"data. The latter mode only applies when the output format is set to HTML. Defaults to extracting.",
 		parameter = "type")
-@Option(name = "ocr-language", description = "Set the language used by Tesseract. If none is specified, " +
-		"English is assumed. Multiple  languages may be specified, separated by plus characters. Tesseract uses " +
-		"3-character ISO 639-2 language codes.", parameter = "language")
+@Option(name = "ocr-language", description = "Set the languages used by Tesseract. Multiple  languages may be " +
+		"specified, separated by plus characters. Tesseract uses 3-character ISO 639-2 language codes.", parameter =
+		"language")
 @Option(name = "ocr-timeout", description = "Set the timeout for the Tesseract process to finish e.g. \"5s\" or \"1m\". " +
 		"Defaults to 12 hours.", parameter = "duration")
 @Option(name = "ocr", description = "Enable or disable automatic OCR. On by default.")

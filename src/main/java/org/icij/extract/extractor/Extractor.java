@@ -105,6 +105,9 @@ public class Extractor {
 		// Set a long OCR timeout by default, because Tika's is too short.
 		setOcrTimeout(Duration.ofDays(1));
 		ocrConfig.setEnableImageProcessing(0); // See TIKA-2167. Image processing causes OCR to fail.
+
+		// English and Spanish text recognition.
+		ocrConfig.setLanguage("eng+spa");
 	}
 
 	public Extractor configure(final Options<String> options) {
