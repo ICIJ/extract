@@ -3,12 +3,23 @@ package org.icij.extract.report;
 import org.icij.extract.document.Document;
 import org.icij.extract.extractor.ExtractionStatus;
 
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
+
 /**
  * Records the extraction result of a file to the given {@link Report}.
  *
  * @since 1.0.0-beta
  */
 public class Reporter implements AutoCloseable {
+
+	private Set<Class<? extends Exception>> journalableTypes = null;
+	private Map<Document, ExtractionStatus> journal = null;
+	private Semaphore flushing = null;
 
 	/**
 	 * The report to save results to or check.
@@ -22,6 +33,7 @@ public class Reporter implements AutoCloseable {
 	 */
 	public Reporter(final Report report) {
 		this.report = report;
+		report.journalableExceptions().ifPresent((classes)-> classes.forEach(this::journalableException));
 	}
 
 	/**
@@ -41,7 +53,23 @@ public class Reporter implements AutoCloseable {
 	 * @param result the extraction result
 	 */
 	public void save(final Document document, final ExtractionStatus result) {
-		report.put(document, result);
+		try {
+			report.fastPut(document, result);
+		} catch (Exception e) {
+			if (journalableTypes.contains(e.getClass())) {
+				journal.put(document, result);
+			}
+
+			throw e;
+		}
+
+		if (null != flushing && flushing.tryAcquire()) {
+			try {
+				flushJournal();
+			} finally {
+				flushing.release();
+			}
+		}
 	}
 
 	/**
@@ -69,6 +97,44 @@ public class Reporter implements AutoCloseable {
 
 	@Override
 	public void close() throws Exception {
+		flushing.acquire();
+
+		try {
+			flushJournal();
+		} finally {
+			flushing.release();
+		}
+
 		report.close();
+	}
+
+	/**
+	 * Add a class of {@link Exception} that when caught during {@link #save(Document, ExtractionStatus)}, would add
+	 * the arguments to journal which is flushed when the next operation succeeds.
+	 *
+	 * @param e the class of exception that is temporary
+	 */
+	private synchronized void journalableException(final Class<? extends Exception> e) {
+		if (null == journalableTypes) {
+			journalableTypes = new HashSet<>();
+			journal = new ConcurrentHashMap<>();
+			flushing = new Semaphore(1);
+		}
+
+		journalableTypes.add(e);
+	}
+
+	/**
+	 * Flush the journal of failed status to the report.
+	 */
+	private void flushJournal() {
+		final Iterator<Map.Entry<Document, ExtractionStatus>> iterator = journal.entrySet().iterator();
+
+		while (iterator.hasNext()) {
+			final Map.Entry<Document, ExtractionStatus> entry = iterator.next();
+
+			report.fastPut(entry.getKey(), entry.getValue());
+			iterator.remove();
+		}
 	}
 }

@@ -97,4 +97,5 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 
 	void writeEnd(final ContentHandler handler) throws SAXException {
 		handler.endElement(XHTML, "div", "div");
-	}}
+	}
+}

@@ -8,12 +8,17 @@ import org.icij.extract.extractor.ExtractionStatus;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Optional;
 
 import org.icij.task.Options;
+
 import org.redisson.RedissonMap;
 import org.redisson.client.codec.Codec;
 import org.redisson.client.protocol.Decoder;
 import org.redisson.client.protocol.Encoder;
+import org.redisson.client.RedisOutOfMemoryException;
 import org.redisson.command.CommandSyncService;
 import org.redisson.connection.ConnectionManager;
 
@@ -54,6 +59,15 @@ public class RedisReport extends RedissonMap<Document, ExtractionStatus> impleme
 		super(new ReportCodec(factory, charset), new CommandSyncService(connectionManager), null == name ?
 				DEFAULT_NAME : name);
 		this.connectionManager = connectionManager;
+	}
+
+	/**
+	 * Specifies that {@link RedisOutOfMemoryException} exceptions should trigger journaling of arguments when caught.
+	 *
+	 * @return a collection with only one object, the {@link RedisOutOfMemoryException} class
+	 */
+	public Optional<Collection<Class<? extends Exception>>> journalableExceptions() {
+		return Optional.of(Collections.singletonList(RedisOutOfMemoryException.class));
 	}
 
 	@Override
