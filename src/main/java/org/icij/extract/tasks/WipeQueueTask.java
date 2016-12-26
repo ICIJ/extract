@@ -1,7 +1,7 @@
 package org.icij.extract.tasks;
 
 import org.icij.extract.queue.DocumentQueue;
-import org.icij.extract.tasks.factories.DocumentQueueFactory;
+import org.icij.extract.queue.DocumentQueueFactory;
 import org.icij.task.DefaultTask;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.Task;

@@ -17,11 +17,13 @@ import org.icij.extract.extractor.DocumentConsumer;
 import org.icij.extract.extractor.Extractor;
 import org.icij.extract.queue.DocumentQueue;
 import org.icij.extract.queue.DocumentQueueDrainer;
+import org.icij.extract.queue.DocumentQueueFactory;
 import org.icij.extract.queue.Scanner;
 import org.icij.extract.report.Report;
+import org.icij.extract.report.ReportFactory;
 import org.icij.extract.report.Reporter;
 import org.icij.extract.spewer.Spewer;
-import org.icij.extract.tasks.factories.*;
+import org.icij.extract.spewer.SpewerFactory;
 import org.icij.task.DefaultTask;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.Task;
@@ -105,8 +107,7 @@ import org.slf4j.LoggerFactory;
 @Option(name = "parent-path-field", description = "Field name for the parent directory path.", parameter = "name")
 @Option(name = "base-type-field", description = "Field name for the base content-type.", parameter = "name")
 @Option(name = "version-field", description = "Index field name for the version.", parameter = "name")
-@Option(name = "metadata-prefix", description = "Prefix for metadata fields added to the index. Defaults to " +
-		"\"metadata:\".", parameter = "name")
+@Option(name = "metadata-prefix", description = "Prefix for metadata fields added to the index.", parameter = "name")
 @Option(name = "jobs", description = "The number of documents to process at a time. Defaults to the number" +
 		" of available processors.", parameter = "number")
 @Option(name = "commit-interval", description = "Commit to the index every time the specified number of " +

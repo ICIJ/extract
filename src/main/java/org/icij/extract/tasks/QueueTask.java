@@ -4,7 +4,7 @@ import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.queue.DocumentQueue;
 import org.icij.extract.queue.Scanner;
 
-import org.icij.extract.tasks.factories.DocumentQueueFactory;
+import org.icij.extract.queue.DocumentQueueFactory;
 
 import java.nio.file.Path;
 import java.util.concurrent.ExecutionException;

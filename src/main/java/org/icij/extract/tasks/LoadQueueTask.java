@@ -7,7 +7,7 @@ import org.apache.commons.io.input.CloseShieldInputStream;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.queue.DocumentQueue;
 import org.icij.extract.json.DocumentQueueDeserializer;
-import org.icij.extract.tasks.factories.DocumentQueueFactory;
+import org.icij.extract.queue.DocumentQueueFactory;
 
 import java.io.*;
 import java.nio.file.Paths;

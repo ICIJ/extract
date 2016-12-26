@@ -1,4 +1,4 @@
-package org.icij.extract;
+package org.icij.extract.queue;
 
 import java.util.Locale;
 
@@ -9,7 +9,7 @@ import java.util.Locale;
  * @since 1.0.0-beta
  */
 public enum DocumentQueueType {
-	ARRAY, REDIS;
+	ARRAY, REDIS, MYSQL;
 
 	/**
 	 * Return the name of the queue type.

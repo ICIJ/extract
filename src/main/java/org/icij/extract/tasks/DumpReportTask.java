@@ -4,7 +4,7 @@ import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.icij.extract.report.Report;
 import org.icij.extract.extractor.ExtractionStatus;
 import org.icij.extract.json.ReportSerializer;
-import org.icij.extract.tasks.factories.ReportFactory;
+import org.icij.extract.report.ReportFactory;
 
 import java.io.*;
 

@@ -2,7 +2,7 @@ package org.icij.extract.tasks;
 
 import org.icij.extract.document.Document;
 import org.icij.extract.report.Report;
-import org.icij.extract.tasks.factories.ReportFactory;
+import org.icij.extract.report.ReportFactory;
 
 import java.util.Iterator;
 

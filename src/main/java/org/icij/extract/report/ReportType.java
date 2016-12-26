@@ -1,4 +1,4 @@
-package org.icij.extract;
+package org.icij.extract.report;
 
 import java.util.Locale;
 
@@ -9,7 +9,7 @@ import java.util.Locale;
  * @since 1.0.0-beta
  */
 public enum ReportType {
-	REDIS, HASH;
+	REDIS, MYSQL, HASH;
 
 	/**
 	 * Return the name of the report type.

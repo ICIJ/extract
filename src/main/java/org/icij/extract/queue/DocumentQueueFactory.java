@@ -1,11 +1,8 @@
-package org.icij.extract.tasks.factories;
+package org.icij.extract.queue;
 
 import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
-import org.icij.extract.queue.DocumentQueue;
-import org.icij.extract.DocumentQueueType;
-import org.icij.extract.queue.ArrayDocumentQueue;
-import org.icij.extract.queue.RedisDocumentQueue;
+
 import org.icij.task.Options;
 
 /**
@@ -70,6 +67,10 @@ public class DocumentQueueFactory {
 
 		if (DocumentQueueType.REDIS == type) {
 			return new RedisDocumentQueue(factory, options);
+		}
+
+		if (DocumentQueueType.MYSQL == type) {
+			return new MySQLDocumentQueue(factory, options);
 		}
 
 		throw new IllegalArgumentException(String.format("\"%s\" is not a valid shared queue type.", type));

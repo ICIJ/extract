@@ -1,11 +1,7 @@
-package org.icij.extract.tasks.factories;
+package org.icij.extract.report;
 
 import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
-import org.icij.extract.report.HashMapReport;
-import org.icij.extract.report.Report;
-import org.icij.extract.ReportType;
-import org.icij.extract.report.RedisReport;
 
 import org.icij.task.Options;
 
@@ -68,10 +64,14 @@ public class ReportFactory {
 			factory = new DocumentFactory().configure(options);
 		}
 
-		if (ReportType.REDIS != type) {
-			throw new IllegalArgumentException(String.format("\"%s\" is not a valid shared report type.", type));
+		if (ReportType.REDIS == type) {
+			return new RedisReport(factory, options);
 		}
 
-		return new RedisReport(factory, options);
+		if (ReportType.MYSQL == type) {
+			return new MySQLReport(options);
+		}
+
+		throw new IllegalArgumentException(String.format("\"%s\" is not a valid shared report type.", type));
 	}
 }

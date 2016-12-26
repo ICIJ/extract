@@ -1,7 +1,7 @@
 package org.icij.extract.tasks;
 
 import org.icij.extract.report.Report;
-import org.icij.extract.tasks.factories.ReportFactory;
+import org.icij.extract.report.ReportFactory;
 import org.icij.task.DefaultTask;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.Task;

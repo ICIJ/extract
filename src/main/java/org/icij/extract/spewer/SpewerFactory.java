@@ -1,4 +1,4 @@
-package org.icij.extract.tasks.factories;
+package org.icij.extract.spewer;
 
 import org.apache.commons.cli.ParseException;
 import org.apache.http.impl.client.CloseableHttpClient;

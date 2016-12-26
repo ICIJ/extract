@@ -3,7 +3,7 @@ package org.icij.extract.tasks;
 import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.icij.extract.queue.DocumentQueue;
 import org.icij.extract.json.DocumentQueueSerializer;
-import org.icij.extract.tasks.factories.DocumentQueueFactory;
+import org.icij.extract.queue.DocumentQueueFactory;
 
 import java.io.*;
 
