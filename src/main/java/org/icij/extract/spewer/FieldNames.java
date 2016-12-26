@@ -13,15 +13,15 @@ import java.util.regex.Pattern;
  */
 public class FieldNames {
 
-	private static final Pattern fieldName = Pattern.compile("[^A-Za-z0-9_:]");
+	private static final Pattern fieldName = Pattern.compile("[^A-Za-z0-9_]");
 
-	public static final String DEFAULT_ID_FIELD = "extract:id";
-	public static final String DEFAULT_TEXT_FIELD = "tika:content";
-	public static final String DEFAULT_PATH_FIELD = "extract:paths";
-	public static final String DEFAULT_BASE_TYPE_FIELD = "extract:base_type";
-	public static final String DEFAULT_PARENT_PATH_FIELD = "extract:parent_paths";
+	public static final String DEFAULT_ID_FIELD = "extract_id";
+	public static final String DEFAULT_TEXT_FIELD = "tika_content";
+	public static final String DEFAULT_PATH_FIELD = "extract_paths";
+	public static final String DEFAULT_BASE_TYPE_FIELD = "extract_base_type";
+	public static final String DEFAULT_PARENT_PATH_FIELD = "extract_parent_paths";
 	public static final String DEFAULT_VERSION_FIELD = "_version_";
-	public static final String DEFAULT_METADATA_FIELD_PREFIX = "tika:metadata:";
+	public static final String DEFAULT_METADATA_FIELD_PREFIX = "tika_metadata_";
 
 	private String textField = DEFAULT_TEXT_FIELD;
 	private String pathField = DEFAULT_PATH_FIELD;
@@ -106,6 +106,6 @@ public class FieldNames {
 	}
 
 	String forTagPrefix() {
-		return "tag:";
+		return "tag_";
 	}
 }
