@@ -28,6 +28,7 @@ import org.icij.task.annotation.OptionsClass;
 @Option(name = "indexVerifyHost", description = "Verify the index server's public certificate against " +
 		"the specified host. Use the wildcard \"*\" to disable verification.", parameter = "hostname")
 @OptionsClass(SolrSpewer.class)
+@OptionsClass(MergingSolrSpewer.class)
 @OptionsClass(FileSpewer.class)
 @OptionsClass(PrintStreamSpewer.class)
 public abstract class SpewerFactory {
