@@ -8,6 +8,8 @@ import java.util.concurrent.*;
 import java.util.function.Consumer;
 
 import org.icij.extract.document.Document;
+import org.icij.task.Options;
+import org.icij.task.annotation.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,6 +18,8 @@ import org.slf4j.LoggerFactory;
  *
  * @since 1.0.0
  */
+@Option(name = "queuePoll", description = "Time to wait when polling the queue e.g. \"5s\" or \"1m\". " +
+		"Defaults to 0.", parameter = "duration")
 public class DocumentQueueDrainer extends ExecutorProxy {
 	private static final Duration DEFAULT_TIMEOUT = Duration.ZERO;
 
@@ -37,6 +41,11 @@ public class DocumentQueueDrainer extends ExecutorProxy {
 		super(Executors.newSingleThreadExecutor());
 		this.queue = queue;
 		this.consumer = consumer;
+	}
+
+	public DocumentQueueDrainer configure(final Options<String> options) {
+		options.get("queuePoll").parse().asDuration().ifPresent(this::setPollTimeout);
+		return this;
 	}
 
 	/**

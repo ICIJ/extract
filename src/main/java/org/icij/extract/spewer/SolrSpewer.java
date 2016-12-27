@@ -27,6 +27,7 @@ import org.icij.extract.document.Document;
 import org.icij.extract.document.EmbeddedDocument;
 import org.icij.extract.parser.ParsingReader;
 import org.icij.task.Options;
+import org.icij.task.annotation.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +36,19 @@ import org.slf4j.LoggerFactory;
  *
  * @since 1.0.0-beta
  */
+@Option(name = "commitInterval", description = "Commit to the index every time the specified number of " +
+		"documents is added. Disabled by default. Consider using the \"autoCommit\" \"maxDocs\" directive in your " +
+		"Solr update handler configuration instead.", parameter = "number")
+@Option(name = "commitWithin", description = "Instruct Solr to automatically commit a document after the " +
+		"specified amount of time has elapsed since it was added. Disabled by default. Consider using the " +
+		"\"autoCommit\" \"maxTime\" directive in your Solr update handler configuration instead.", parameter =
+		"duration")
+@Option(name = "atomicWrites", description = "Make atomic updates to the index. If your schema contains " +
+		"fields that are not included in the payload, this prevents their values, if any, from being erased.")
+@Option(name = "fixDates", description = "Fix invalid dates. Tika's image metadata extractor will " +
+		"generate non-ISO compliant dates if the the timezone is not available in the source metadata. When this " +
+		"option is on \"Z\" is appended to non-compliant dates, making them compatible with the Solr date field type." +
+		" On by default.")
 public class SolrSpewer extends Spewer {
 	private static final Logger logger = LoggerFactory.getLogger(SolrSpewer.class);
 
@@ -56,10 +70,10 @@ public class SolrSpewer extends Spewer {
 	public SolrSpewer configure(final Options<String> options) {
 		super.configure(options);
 
-		options.get("atomic-writes").parse().asBoolean().ifPresent(this::atomicWrites);
-		options.get("fix-dates").parse().asBoolean().ifPresent(this::fixDates);
-		options.get("commit-interval").parse().asInteger().ifPresent(this::setCommitThreshold);
-		options.get("commit-within").parse().asDuration().ifPresent(this::setCommitWithin);
+		options.get("atomicWrites").parse().asBoolean().ifPresent(this::atomicWrites);
+		options.get("fixDates").parse().asBoolean().ifPresent(this::fixDates);
+		options.get("commitInterval").parse().asInteger().ifPresent(this::setCommitThreshold);
+		options.get("commitWithin").parse().asDuration().ifPresent(this::setCommitWithin);
 
 		return this;
 	}

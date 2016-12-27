@@ -39,6 +39,7 @@ import org.icij.extract.sax.HTML5Serializer;
 import org.icij.extract.spewer.Spewer;
 import org.icij.extract.spewer.SpewerException;
 import org.icij.task.Options;
+import org.icij.task.annotation.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
@@ -48,6 +49,21 @@ import org.xml.sax.ContentHandler;
  *
  * @since 1.0.0-beta
  */
+@Option(name = "digestMethod", description = "The hash digest method used for documents, for example \"SHA256\". May" +
+		" be specified multiple times", parameter = "name")
+@Option(name = "outputFormat", description = "Set the output format. Either \"text\" or \"HTML\". " +
+		"Defaults to text output.", parameter = "type")
+@Option(name = "embedHandling", description = "Set the embed handling mode. Either \"ignore\", " +
+		"\"extract\" or \"embed\". When set to extract, embeds are parsed and the output is in-lined into the main " +
+		"output. In embed mode, embeds are not parsed but are in-lined as a data URI representation of the raw embed " +
+		"data. The latter mode only applies when the output format is set to HTML. Defaults to extracting.",
+		parameter = "type")
+@Option(name = "ocrLanguage", description = "Set the languages used by Tesseract. Multiple  languages may be " +
+		"specified, separated by plus characters. Tesseract uses 3-character ISO 639-2 language codes.", parameter =
+		"language")
+@Option(name = "ocrTimeout", description = "Set the timeout for the Tesseract process to finish e.g. \"5s\" or \"1m\"" +
+		". Defaults to 12 hours.", parameter = "duration")
+@Option(name = "ocr", description = "Enable or disable automatic OCR. On by default.")
 public class Extractor {
 
 	public enum OutputFormat {
@@ -111,12 +127,12 @@ public class Extractor {
 	}
 
 	public Extractor configure(final Options<String> options) {
-		options.get("output-format").parse().asEnum(OutputFormat::parse).ifPresent(this::setOutputFormat);
-		options.get("embed-handling").parse().asEnum(EmbedHandling::parse).ifPresent(this::setEmbedHandling);
-		options.get("ocr-language").value().ifPresent(this::setOcrLanguage);
-		options.get("ocr-timeout").parse().asDuration().ifPresent(this::setOcrTimeout);
+		options.get("outputFormat").parse().asEnum(OutputFormat::parse).ifPresent(this::setOutputFormat);
+		options.get("embedHandling").parse().asEnum(EmbedHandling::parse).ifPresent(this::setEmbedHandling);
+		options.get("ocrLanguage").value().ifPresent(this::setOcrLanguage);
+		options.get("ocrTimeout").parse().asDuration().ifPresent(this::setOcrTimeout);
 
-		final Collection<DigestAlgorithm> digestAlgorithms = options.get("digest-method").values
+		final Collection<DigestAlgorithm> digestAlgorithms = options.get("digestMethod").values
 				(DigestAlgorithm::valueOf);
 
 		if (!digestAlgorithms.isEmpty()) {

@@ -4,6 +4,8 @@ import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 
 import org.icij.task.Options;
+import org.icij.task.annotation.Option;
+import org.icij.task.annotation.OptionsClass;
 
 /**
  * Factory methods for creating queue objects.
@@ -11,6 +13,12 @@ import org.icij.task.Options;
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
  */
+@Option(name = "queueType", description = "Set the queue backend type. Valid values \"redis\" and \"mysql\".",
+		parameter = "type",	code = "q")
+@OptionsClass(DocumentFactory.class)
+@OptionsClass(ArrayDocumentQueue.class)
+@OptionsClass(RedisDocumentQueue.class)
+@OptionsClass(MySQLDocumentQueue.class)
 public class DocumentQueueFactory {
 
 	private DocumentQueueType type = null;
@@ -23,7 +31,7 @@ public class DocumentQueueFactory {
 	 * @param options options for creating the queue
 	 */
 	public DocumentQueueFactory(final Options<String> options) {
-		type = options.get("queue-type").parse().asEnum(DocumentQueueType::parse).orElse(DocumentQueueType.ARRAY);
+		type = options.get("queueType").parse().asEnum(DocumentQueueType::parse).orElse(DocumentQueueType.ARRAY);
 		this.options = options;
 	}
 
@@ -48,7 +56,7 @@ public class DocumentQueueFactory {
 	 */
 	public DocumentQueue create() throws IllegalArgumentException {
 		if (DocumentQueueType.ARRAY == type) {
-			return new ArrayDocumentQueue(options.get("queue-buffer").parse().asInteger().orElse(1024));
+			return new ArrayDocumentQueue(options);
 		}
 
 		return createShared();

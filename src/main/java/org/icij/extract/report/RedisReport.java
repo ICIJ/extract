@@ -14,6 +14,8 @@ import java.util.Optional;
 
 import org.icij.task.Options;
 
+import org.icij.task.annotation.Option;
+import org.icij.task.annotation.OptionsClass;
 import org.redisson.RedissonMap;
 import org.redisson.client.codec.Codec;
 import org.redisson.client.protocol.Decoder;
@@ -28,6 +30,11 @@ import org.redisson.connection.ConnectionManager;
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
  */
+@Option(name = "reportName", description = "The name of the report, the default of which is type-dependent.",
+		parameter = "name")
+@Option(name = "charset", description = "Set the output encoding for text and document attributes. Defaults to UTF-8.",
+		parameter = "name")
+@OptionsClass(ConnectionManager.class)
 public class RedisReport extends RedissonMap<Document, ExtractionStatus> implements Report {
 
 	/**
@@ -42,9 +49,9 @@ public class RedisReport extends RedissonMap<Document, ExtractionStatus> impleme
 	 *
 	 * @param options options for connecting to Redis
 	 */
-	public RedisReport(final DocumentFactory factory, final Options<String> options) {
+	RedisReport(final DocumentFactory factory, final Options<String> options) {
 		this(factory, new ConnectionManagerFactory().withOptions(options).create(),
-				options.get("report-name").value().orElse(DEFAULT_NAME),
+				options.get("reportName").value().orElse(DEFAULT_NAME),
 				options.get("charset").parse().asCharset().orElse(StandardCharsets.UTF_8));
 	}
 

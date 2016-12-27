@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import org.icij.task.DefaultTask;
 import org.icij.task.annotation.Option;
+import org.icij.task.annotation.OptionsClass;
 import org.icij.task.annotation.Task;
 
 /**
@@ -28,20 +29,9 @@ import org.icij.task.annotation.Task;
  */
 @Task("Load a queue from a JSON or CSV dump file. If no source path is given then the input is read from standard " +
 		"input.")
-@Option(name = "queue-type", description = "Set the report backend type. For now, the only valid value is " +
-		"\"redis\".", parameter = "type", code = "r")
-@Option(name = "queue-name", description = "The name of the queue, the default of which is type-dependent.",
-		parameter = "name")
+@OptionsClass(DocumentQueueFactory.class)
 @Option(name = "format", description = "The dump file format. Defaults to JSON.", parameter = "csv|json")
 @Option(name = "path-field", description = "The name of CSV field to parse the path from.", parameter = "name")
-@Option(name = "redis-address", description = "Set the Redis backend address. Defaults to 127.0.0.1:6379.", parameter
-		= "address")
-@Option(name = "redis-timeout", description = "The client timeout for Redis operations.", parameter = "timeout")
-@Option(name = "id-method", description = "The method for determining document IDs, for queues that use them.",
-		parameter = "name")
-@Option(name = "id-digest-method", description = "For calculating document IDs, where applicable depending on the " +
-		"queue type. Defaults to using the path as an ID.", parameter = "name")
-@Option(name = "charset", description = "The character set for documents stored in the queue.", parameter = "name")
 public class LoadQueueTask extends DefaultTask<Void> {
 
 	@Override

@@ -20,7 +20,7 @@ public class SQLBlockingQueue<E> extends AbstractBlockingQueue<E> {
 	@Override
 	public int size() {
 		try (final Connection c = ds.getConnection()) {
-			return adapter.count(c);
+			return adapter.size(c);
 		} catch (SQLException e) {
 			throw new RuntimeException(e);
 		}
@@ -29,7 +29,7 @@ public class SQLBlockingQueue<E> extends AbstractBlockingQueue<E> {
 	@Override
 	public E peek() {
 		try (final Connection c = ds.getConnection()) {
-			return adapter.selectFirst(c);
+			return adapter.peek(c);
 		} catch (SQLException e) {
 			throw new RuntimeException(e);
 		}
@@ -42,7 +42,7 @@ public class SQLBlockingQueue<E> extends AbstractBlockingQueue<E> {
 		}
 
 		try (final Connection c = ds.getConnection()) {
-			return adapter.exists(c, o);
+			return adapter.contains(c, o);
 		} catch (SQLException e) {
 			throw new RuntimeException(e);
 		}
@@ -55,7 +55,7 @@ public class SQLBlockingQueue<E> extends AbstractBlockingQueue<E> {
 		}
 
 		try (final Connection c = ds.getConnection()) {
-			return adapter.delete(c, o) > 0;
+			return adapter.remove(c, o) > 0;
 		} catch (SQLException e) {
 			throw new RuntimeException(e);
 		}
@@ -64,7 +64,7 @@ public class SQLBlockingQueue<E> extends AbstractBlockingQueue<E> {
 	@Override
 	public void clear() {
 		try (final Connection c = ds.getConnection()) {
-			adapter.deleteAll(c);
+			adapter.clear(c);
 		} catch (SQLException e) {
 			throw new RuntimeException(e);
 		}
@@ -73,7 +73,7 @@ public class SQLBlockingQueue<E> extends AbstractBlockingQueue<E> {
 	@Override
 	public E poll() {
 		try (final Connection c = ds.getConnection()) {
-			return adapter.shift(c);
+			return adapter.poll(c);
 		} catch (SQLException e) {
 			throw new RuntimeException(e);
 		}
@@ -86,7 +86,7 @@ public class SQLBlockingQueue<E> extends AbstractBlockingQueue<E> {
 		}
 
 		try (final Connection c = ds.getConnection()) {
-			return adapter.insert(c, element) > 0;
+			return adapter.add(c, element) > 0;
 		} catch (SQLException e) {
 			throw new RuntimeException(e);
 		}

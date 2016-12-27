@@ -9,6 +9,7 @@ import org.icij.sql.concurrent.SQLBlockingQueue;
 import org.icij.sql.concurrent.SQLQueueCodec;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
+import org.icij.task.annotation.OptionsClass;
 
 import javax.sql.DataSource;
 import java.nio.file.Paths;
@@ -22,6 +23,7 @@ import java.util.Map;
 @Option(name = "queueStatusKey", description = "The table key for storing the queue status.", parameter = "name")
 @Option(name = "queueWaitStatus", description = "The status value for waiting documents.", parameter = "value")
 @Option(name = "queueProcessedStatus", description = "The status value for non-waiting documents.", parameter = "value")
+@OptionsClass(DataSourceFactory.class)
 public class MySQLDocumentQueue extends SQLBlockingQueue<Document> implements DocumentQueue {
 
 	private static class DocumentQueueCodec implements SQLQueueCodec<Document> {
@@ -87,7 +89,7 @@ public class MySQLDocumentQueue extends SQLBlockingQueue<Document> implements Do
 
 	MySQLDocumentQueue(final DocumentFactory factory, final Options<String> options) {
 		this(new DataSourceFactory(options).create(), new DocumentQueueCodec(factory, options),
-				options.get("queueTable").value().orElse("document_queue"));
+				options.get("queueTable").value().orElse("documents"));
 	}
 
 	private MySQLDocumentQueue(final DataSource ds, final SQLQueueCodec<Document> codec, final String table) {

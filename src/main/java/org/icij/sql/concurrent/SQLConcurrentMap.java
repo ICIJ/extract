@@ -104,6 +104,14 @@ public class SQLConcurrentMap<K, V> extends AbstractConcurrentMap<K, V> {
 		}
 	}
 
+	public boolean fastPut(final K key, final V value) {
+		try (final Connection c = ds.getConnection()) {
+			return adapter.fastPut(c, key, value);
+		} catch (SQLException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
 	@Override
 	public boolean remove(final Object key, final Object value) {
 		try (final Connection c = ds.getConnection()) {

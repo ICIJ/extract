@@ -16,6 +16,8 @@ import java.nio.charset.StandardCharsets;
 import org.icij.extract.document.Document;
 import org.icij.extract.parser.ParsingReader;
 import org.icij.task.Options;
+import org.icij.task.annotation.Option;
+import org.icij.task.annotation.OptionsClass;
 
 /**
  * Base class for {@linkplain Spewer} superclasses that write text output from a {@link ParsingReader} to specific
@@ -23,6 +25,13 @@ import org.icij.task.Options;
  *
  * @since 1.0.0-beta
  */
+@Option(name = "outputMetadata", description = "Output metadata along with extracted text. For the " +
+		"\"file\" output type, a corresponding JSON file is created for every input file. With indexes, metadata " +
+		"fields are set using an optional prefix. On by default.")
+@Option(name = "tag", description = "Set the given field to a corresponding value on each document output.",
+		parameter = "name-value-pair")
+@Option(name = "charset", description = "Set the output encoding for text and document attributes. Defaults to UTF-8.",
+		parameter = "name")
 public abstract class Spewer implements AutoCloseable {
 
 	boolean outputMetadata = true;
@@ -35,7 +44,7 @@ public abstract class Spewer implements AutoCloseable {
 	}
 
 	public Spewer configure(final Options<String> options) {
-		options.get("output-metadata").parse().asBoolean().ifPresent(this::outputMetadata);
+		options.get("outputMetadata").parse().asBoolean().ifPresent(this::outputMetadata);
 		options.get("charset").value(Charset::forName).ifPresent(this::setOutputEncoding);
 		options.get("tag").values().forEach(this::setTag);
 

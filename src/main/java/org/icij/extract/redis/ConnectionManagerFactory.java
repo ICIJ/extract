@@ -1,6 +1,7 @@
 package org.icij.extract.redis;
 
 import org.icij.task.Options;
+import org.icij.task.annotation.Option;
 import org.redisson.config.Config;
 import org.redisson.connection.ConnectionManager;
 import org.redisson.connection.SingleConnectionManager;
@@ -11,6 +12,9 @@ import org.redisson.connection.SingleConnectionManager;
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
  */
+@Option(name = "redisAddress", description = "Set the Redis backend address. Defaults to 127.0.0.1:6379.", parameter
+		= "address")
+@Option(name = "redisTimeout", description = "The client timeout for Redis operations.", parameter = "timeout")
 public class ConnectionManagerFactory {
 
 	private String address = null;
@@ -23,8 +27,8 @@ public class ConnectionManagerFactory {
 	 * @return a new connection manager
 	 */
 	public ConnectionManagerFactory withOptions(final Options<String> options) {
-		withAddress(options.get("redis-address").value().orElse(null));
-		options.get("redis-timeout").parse().asInteger().ifPresent(this::withTimeout);
+		withAddress(options.get("redisAddress").value().orElse(null));
+		options.get("redisTimeout").parse().asInteger().ifPresent(this::withTimeout);
 		return this;
 	}
 

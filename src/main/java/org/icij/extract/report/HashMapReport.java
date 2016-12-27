@@ -23,6 +23,11 @@ public class HashMapReport extends ConcurrentHashMap<Document, ExtractionStatus>
 	}
 
 	@Override
+	public boolean fastPut(final Document key, final ExtractionStatus value) {
+		return put(key, value) != null;
+	}
+
+	@Override
 	public void close() {
 		super.clear();
 	}

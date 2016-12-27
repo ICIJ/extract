@@ -34,6 +34,14 @@ public class Option<V> {
 		return this;
 	}
 
+	public Option<V> code(final String code) {
+		if (!code.isEmpty()) {
+			this.code = code.toCharArray()[0];
+		}
+
+		return this;
+	}
+
 	public Option<V> describe(final String description) {
 		this.description = description;
 		return this;

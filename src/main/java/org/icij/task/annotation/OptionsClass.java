@@ -7,14 +7,8 @@ import java.lang.annotation.RetentionPolicy;
 
 @Inherited
 @Retention(RetentionPolicy.RUNTIME)
-@Repeatable(Options.class)
-public @interface Option {
+@Repeatable(OptionsClasses.class)
+public @interface OptionsClass {
 
-	String name();
-
-	String description();
-
-	String code() default "";
-
-	String parameter() default "yes/no";
+	Class<?> value();
 }

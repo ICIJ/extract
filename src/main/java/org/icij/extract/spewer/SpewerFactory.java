@@ -9,6 +9,8 @@ import org.icij.extract.extractor.Extractor;
 import org.icij.extract.spewer.*;
 import org.icij.net.http.PinnedHttpClientBuilder;
 import org.icij.task.Options;
+import org.icij.task.annotation.Option;
+import org.icij.task.annotation.OptionsClass;
 
 /**
  * A factory class for creating {@link Spewer} instances from given commandline option values.
@@ -16,6 +18,18 @@ import org.icij.task.Options;
  * @since 1.0.0
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  */
+@Option(name = "outputType", description = "Set the output type. Either \"file\", \"stdout\" or \"solr\".",
+		parameter = "type", code = "o")
+@Option(name = "indexType", description = "Specify the index type. For now, the only valid value is " +
+		"\"solr\" (the default).", parameter = "type")
+@Option(name = "indexAddress", description = "Index core API endpoint address.", code = "s", parameter = "url")
+@Option(name = "indexServerCertificate", description = "The index server's public certificate, used for" +
+		" certificate pinning. Supported formats are PEM, DER, PKCS #12 and JKS.", parameter = "path")
+@Option(name = "indexVerifyHost", description = "Verify the index server's public certificate against " +
+		"the specified host. Use the wildcard \"*\" to disable verification.", parameter = "hostname")
+@OptionsClass(SolrSpewer.class)
+@OptionsClass(FileSpewer.class)
+@OptionsClass(PrintStreamSpewer.class)
 public abstract class SpewerFactory {
 
 	/**
@@ -26,7 +40,7 @@ public abstract class SpewerFactory {
 	 * @throws ParseException When the commandline parameters cannot be read.
 	 */
 	public static Spewer createSpewer(final Options<String> options) throws ParseException {
-		final OutputType outputType = options.get("output-type").parse().asEnum(OutputType::parse)
+		final OutputType outputType = options.get("outputType").parse().asEnum(OutputType::parse)
 				.orElse(OutputType.STDOUT);
 
 		final FieldNames fields = new FieldNames().configure(options);
@@ -51,15 +65,15 @@ public abstract class SpewerFactory {
 	 * @return A new spewer configured according to the given parameters.
 	 */
 	private static SolrSpewer createSolrSpewer(final Options<String> options, final FieldNames fields) {
-		final Extractor.EmbedHandling handling = options.get("embed-handling").parse().asEnum(Extractor
+		final Extractor.EmbedHandling handling = options.get("embedHandling").parse().asEnum(Extractor
 				.EmbedHandling::parse).orElse(Extractor.EmbedHandling.getDefault());
 
 		// Calling #close on the SolrSpewer later on automatically closes these clients.
 		final CloseableHttpClient httpClient = PinnedHttpClientBuilder.createWithDefaults()
-				.setVerifyHostname(options.get("index-verify-host").value().orElse(null))
-				.pinCertificate(options.get("index-server-certificate").value().orElse(null))
+				.setVerifyHostname(options.get("indexVerifyHost").value().orElse(null))
+				.pinCertificate(options.get("indexServerCertificate").value().orElse(null))
 				.build();
-		final SolrClient solrClient = new HttpSolrClient.Builder(options.get("index-address").value().orElse
+		final SolrClient solrClient = new HttpSolrClient.Builder(options.get("indexAddress").value().orElse
 				("http://127.0.0.1:8983/solr/"))
 				.withHttpClient(httpClient)
 				.build();

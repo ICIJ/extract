@@ -24,9 +24,7 @@ public interface Report extends ConcurrentMap<Document, ExtractionStatus>, AutoC
 	 * @param value the new status
 	 * @return true if the field was new when the value was set; false if it was updated
 	 */
-	default boolean fastPut(final Document key, final ExtractionStatus value) {
-		return put(key, value) == null;
-	}
+	boolean fastPut(final Document key, final ExtractionStatus value);
 
 	/**
 	 * Allow implementations to define a list of exception classes that when caught, would indicate to the caller

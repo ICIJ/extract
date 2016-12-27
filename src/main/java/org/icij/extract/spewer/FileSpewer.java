@@ -17,6 +17,7 @@ import com.fasterxml.jackson.core.JsonEncoding;
 import org.icij.extract.document.Document;
 import org.icij.extract.extractor.Extractor;
 import org.icij.task.Options;
+import org.icij.task.annotation.Option;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 
@@ -26,6 +27,10 @@ import org.slf4j.Logger;
  *
  * @since 1.0.0-beta
  */
+@Option(name = "outputDirectory", description = "Directory to output extracted text. Defaults to the " +
+		"current directory.", parameter = "path")
+@Option(name = "outputFormat", description = "Set the output format. Either \"text\" or \"HTML\". " +
+		"Defaults to text output.", parameter = "type")
 public class FileSpewer extends Spewer {
 
 	private static final Logger logger = LoggerFactory.getLogger(FileSpewer.class);
@@ -43,14 +48,14 @@ public class FileSpewer extends Spewer {
 	public FileSpewer configure(final Options<String> options) {
 		super.configure(options);
 
-		final Extractor.OutputFormat outputFormat = options.get("output-format").parse()
+		final Extractor.OutputFormat outputFormat = options.get("outputFormat").parse()
 				.asEnum(Extractor.OutputFormat::parse).orElse(null);
 
 		if (null != outputFormat && outputFormat.equals(Extractor.OutputFormat.HTML)) {
 			setOutputExtension("html");
 		}
 
-		options.get("output-directory").parse().asPath().ifPresent(this::setOutputDirectory);
+		options.get("outputDirectory").parse().asPath().ifPresent(this::setOutputDirectory);
 		return this;
 	}
 

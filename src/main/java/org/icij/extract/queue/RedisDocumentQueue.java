@@ -10,6 +10,8 @@ import org.icij.extract.redis.ConnectionManagerFactory;
 import org.icij.extract.redis.DocumentDecoder;
 import org.icij.extract.redis.DocumentEncoder;
 import org.icij.task.Options;
+import org.icij.task.annotation.Option;
+import org.icij.task.annotation.OptionsClass;
 import org.redisson.RedissonBlockingQueue;
 import org.redisson.client.codec.Codec;
 import org.redisson.client.protocol.Decoder;
@@ -23,6 +25,9 @@ import org.redisson.connection.ConnectionManager;
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
  */
+@Option(name = "queueName", description = "The name of the queue.", parameter = "name")
+@Option(name = "charset", description = "Set the output encoding for strings. Defaults to UTF-8.", parameter = "name")
+@OptionsClass(ConnectionManagerFactory.class)
 public class RedisDocumentQueue extends RedissonBlockingQueue<Document> implements DocumentQueue {
 
 	/**
@@ -38,9 +43,9 @@ public class RedisDocumentQueue extends RedissonBlockingQueue<Document> implemen
 	 * @param factory for creating {@link Document} objects
 	 * @param options options for connecting to Redis
 	 */
-	public RedisDocumentQueue(final DocumentFactory factory, final Options<String> options) {
+	RedisDocumentQueue(final DocumentFactory factory, final Options<String> options) {
 		this(factory, new ConnectionManagerFactory().withOptions(options).create(),
-				options.get("queue-name").value().orElse(DEFAULT_NAME),
+				options.get("queueName").value().orElse(DEFAULT_NAME),
 				options.get("charset").parse().asCharset().orElse(StandardCharsets.UTF_8));
 	}
 

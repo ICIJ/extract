@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import org.icij.task.annotation.Option;
+import org.icij.task.annotation.OptionsClass;
 import org.icij.task.annotation.Task;
 import org.icij.task.MonitorableTask;
 
@@ -20,13 +21,7 @@ import org.icij.task.MonitorableTask;
  * @since 1.0.0-beta
  */
 @Task("Remove any files that don't exist on disk from the report.")
-@Option(name = "report-type", description = "Set the report backend type. For now, the only valid value is \"redis\"" +
-		".", parameter = "type", code = "r")
-@Option(name = "report-name", description = "The name of the report, the default of which is type-dependent.",
-		parameter = "name")
-@Option(name = "redis-address", description = "Set the Redis backend address. Defaults to 127.0.0.1:6379.", parameter
-		= "address")
-@Option(name = "redis-timeout", description = "The client timeout for Redis operations.", parameter = "timeout")
+@OptionsClass(ReportFactory.class)
 public class CleanReportTask extends MonitorableTask<Integer> {
 
 	@Override

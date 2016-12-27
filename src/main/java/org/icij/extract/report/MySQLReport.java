@@ -8,6 +8,7 @@ import org.icij.sql.concurrent.SQLCodec;
 import org.icij.sql.concurrent.SQLConcurrentMap;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
+import org.icij.task.annotation.OptionsClass;
 
 import javax.sql.DataSource;
 import java.sql.ResultSet;
@@ -18,6 +19,7 @@ import java.util.Map;
 @Option(name = "reportTable", description = "The report table. Defaults to \"document_report\".", parameter = "name")
 @Option(name = "reportPathKey", description = "The report table key for storing the document path.", parameter = "name")
 @Option(name = "reportStatusKey", description = "The table key for storing the report status.", parameter = "name")
+@OptionsClass(DataSourceFactory.class)
 public class MySQLReport extends SQLConcurrentMap<Document, ExtractionStatus> implements Report {
 
 	private static class ReportCodec implements SQLCodec<ExtractionStatus> {
@@ -27,7 +29,7 @@ public class MySQLReport extends SQLConcurrentMap<Document, ExtractionStatus> im
 
 		ReportCodec(final Options<String> options) {
 			this.pathKey = options.get("reportPathKey").value().orElse("path");
-			this.statusKey = options.get("reportStatusKey").value().orElse("report_status");
+			this.statusKey = options.get("reportStatusKey").value().orElse("extraction_status");
 		}
 
 		@Override
@@ -62,9 +64,9 @@ public class MySQLReport extends SQLConcurrentMap<Document, ExtractionStatus> im
 		}
 	}
 
-	public MySQLReport(final Options<String> options) {
+	MySQLReport(final Options<String> options) {
 		this(new DataSourceFactory(options).create(), new ReportCodec(options), options.get("reportTable").value()
-				.orElse("document_report"));
+				.orElse("documents"));
 	}
 
 	private MySQLReport(final DataSource ds, final SQLCodec<ExtractionStatus> codec, final String table) {

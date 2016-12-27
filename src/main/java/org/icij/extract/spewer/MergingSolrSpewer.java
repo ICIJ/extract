@@ -10,6 +10,7 @@ import org.apache.solr.common.SolrInputDocument;
 import org.apache.tika.metadata.Metadata;
 import org.icij.extract.document.Document;
 import org.icij.task.Options;
+import org.icij.task.annotation.Option;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -24,6 +25,8 @@ import java.util.stream.Collectors;
  * This functionality allows documents with file-digest-type IDs to hold multiple paths, reflecting the multiple
  * duplicate copies that may exist on disk.
  */
+@Option(name = "retriesOnConflict", description = "The number of times to retry adding a document when a " +
+		"conflict error is returned by the index, after merging in existing fields.", parameter = "number")
 public class MergingSolrSpewer extends SolrSpewer {
 
 	private int retries = 30;
@@ -34,7 +37,7 @@ public class MergingSolrSpewer extends SolrSpewer {
 
 	public MergingSolrSpewer configure(final Options<String> options) {
 		super.configure(options);
-		options.get("retries-on-conflict").parse().asInteger().ifPresent(this::setRetries);
+		options.get("retriesOnConflict").parse().asInteger().ifPresent(this::setRetries);
 
 		return this;
 	}

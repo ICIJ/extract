@@ -1,6 +1,7 @@
 package org.icij.extract.spewer;
 
 import org.icij.task.Options;
+import org.icij.task.annotation.Option;
 
 import java.util.Locale;
 import java.util.regex.Pattern;
@@ -11,6 +12,15 @@ import java.util.regex.Pattern;
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
  */
+@Option(name = "idField", description = "Index field for an automatically generated identifier. The ID " +
+		"for the same file is guaranteed not to change if the path doesn't change. Defaults to \"id\".", code = "i",
+		parameter = "name")
+@Option(name = "textField", description = "Field name for extracted text.", code = "t", parameter = "name")
+@Option(name = "pathField", description = "Field name for the file path.", parameter = "name", code = "p")
+@Option(name = "parentPathField", description = "Field name for the parent directory path.", parameter = "name")
+@Option(name = "baseTypeField", description = "Field name for the base content-type.", parameter = "name")
+@Option(name = "versionField", description = "Index field name for the version.", parameter = "name")
+@Option(name = "metadataPrefix", description = "Prefix for metadata fields added to the index.", parameter = "name")
 public class FieldNames {
 
 	private static final Pattern fieldName = Pattern.compile("[^A-Za-z0-9_]");
@@ -32,13 +42,13 @@ public class FieldNames {
 	private String metadataFieldPrefix = DEFAULT_METADATA_FIELD_PREFIX;
 
 	public FieldNames configure(final Options<String> options) {
-		options.get("text-field").value().ifPresent(this::forText);
-		options.get("path-field").value().ifPresent(this::forPath);
-		options.get("parent-path-field").value().ifPresent(this::forParentPath);
-		options.get("base-type-field").value().ifPresent(this::forBaseType);
-		options.get("version-field").value().ifPresent(this::forVersion);
-		options.get("id-field").value().ifPresent(this::forId);
-		options.get("metadata-prefix").value().ifPresent(this::forMetadataPrefix);
+		options.get("textField").value().ifPresent(this::forText);
+		options.get("pathField").value().ifPresent(this::forPath);
+		options.get("parentPathField").value().ifPresent(this::forParentPath);
+		options.get("baseTypeField").value().ifPresent(this::forBaseType);
+		options.get("versionField").value().ifPresent(this::forVersion);
+		options.get("idField").value().ifPresent(this::forId);
+		options.get("metadataPrefix").value().ifPresent(this::forMetadataPrefix);
 
 		return this;
 	}

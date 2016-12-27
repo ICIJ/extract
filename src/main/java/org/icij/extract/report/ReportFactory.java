@@ -4,6 +4,8 @@ import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 
 import org.icij.task.Options;
+import org.icij.task.annotation.Option;
+import org.icij.task.annotation.OptionsClass;
 
 /**
  * Factory methods for creating {@link Report} objects.
@@ -11,6 +13,10 @@ import org.icij.task.Options;
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
  */
+@Option(name = "reportType", description = "Set the report backend type. Either \"redis\" or \"mysql\".",
+		parameter = "type", code = "r")
+@OptionsClass(RedisReport.class)
+@OptionsClass(MySQLReport.class)
 public class ReportFactory {
 
 	private ReportType type = null;
@@ -23,7 +29,7 @@ public class ReportFactory {
 	 * @param options options for creating the queue
 	 */
 	public ReportFactory(final Options<String> options) {
-		type = options.get("report-type").parse().asEnum(ReportType::parse).orElse(ReportType.HASH);
+		type = options.get("reportType").parse().asEnum(ReportType::parse).orElse(ReportType.HASH);
 		this.options = options;
 	}
 

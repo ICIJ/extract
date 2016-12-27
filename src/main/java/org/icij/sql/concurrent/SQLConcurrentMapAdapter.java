@@ -20,6 +20,8 @@ public interface SQLConcurrentMapAdapter<K, V> {
 
 	V putIfAbsent(final Connection c, final K key, final V value) throws SQLException;
 
+	boolean fastPut(final Connection c, final K key, final V value) throws SQLException;
+
 	void putAll(final Connection c, final Map<? extends K, ? extends V> m) throws SQLException;
 
 	boolean containsValue(final Connection c, final Object o) throws SQLException;

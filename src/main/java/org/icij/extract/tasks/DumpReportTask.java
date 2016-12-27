@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import org.icij.task.MonitorableTask;
 import org.icij.task.annotation.Option;
+import org.icij.task.annotation.OptionsClass;
 import org.icij.task.annotation.Task;
 
 /**
@@ -27,14 +28,8 @@ import org.icij.task.annotation.Task;
  */
 @Task("Dump the report for debugging. The name option is respected. If no destination path is given then the" +
 		" dump is written to standard output.")
-@Option(name = "report-type", description = "Set the report backend type. For now, the only valid value is \"redis\"" +
-		".", parameter = "type", code = "r")
-@Option(name = "report-name", description = "The name of the report, the default of which is type-dependent.",
-		parameter = "name")
-@Option(name = "redis-address", description = "Set the Redis backend address. Defaults to 127.0.0.1:6379.", parameter
-		= "address")
-@Option(name = "redis-timeout", description = "The client timeout for Redis operations.", parameter = "timeout")
-@Option(name = "report-status", description = "Only match reports with the given status.", parameter = "status")
+@OptionsClass(ReportFactory.class)
+@Option(name = "reportStatus", description = "Only match reports with the given status.", parameter = "status")
 public class DumpReportTask extends MonitorableTask<Void> {
 
 	@Override
@@ -54,7 +49,7 @@ public class DumpReportTask extends MonitorableTask<Void> {
 
 	@Override
 	public Void run() throws Exception {
-		final Optional<ExtractionStatus> result = options.get("report-status").value(ExtractionStatus::parse);
+		final Optional<ExtractionStatus> result = options.get("reportStatus").value(ExtractionStatus::parse);
 
 		try (final OutputStream output = new BufferedOutputStream(new CloseShieldOutputStream(System.out));
 		     final Report report = new ReportFactory(options).createShared()) {

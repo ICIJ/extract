@@ -1,6 +1,8 @@
 package org.icij.extract.queue;
 
 import org.icij.extract.document.Document;
+import org.icij.task.Options;
+import org.icij.task.annotation.Option;
 
 import java.util.concurrent.ArrayBlockingQueue;
 
@@ -10,9 +12,15 @@ import java.util.concurrent.ArrayBlockingQueue;
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
  */
+@Option(name = "queueBuffer", description = "The size of the internal file path buffer used by the queue.",
+		parameter = "size")
 public class ArrayDocumentQueue extends ArrayBlockingQueue<Document> implements DocumentQueue {
 
 	private static final long serialVersionUID = -7491630465350342533L;
+
+	ArrayDocumentQueue(final Options<String> options) {
+		this(options.get("queueBuffer").parse().asInteger().orElse(1024));
+	}
 
 	/**
 	 * Instantiate a new {@code ArrayPathQueue} with the given capacity.

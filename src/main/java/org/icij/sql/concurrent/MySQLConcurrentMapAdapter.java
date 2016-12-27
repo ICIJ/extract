@@ -4,9 +4,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
+
+import static org.apache.commons.lang.StringEscapeUtils.escapeSql;
 
 public class MySQLConcurrentMapAdapter<K, V> implements SQLConcurrentMapAdapter<K, V> {
 
@@ -14,31 +15,24 @@ public class MySQLConcurrentMapAdapter<K, V> implements SQLConcurrentMapAdapter<
 	private final SQLCodec<V> codec;
 
 	public MySQLConcurrentMapAdapter(final SQLCodec<V> codec, final String table) {
-		this.table = table;
+		this.table = escapeSql(table);
 		this.codec = codec;
 	}
 
 	private int executeUpdate(final Connection c, final Object key, final V value) throws SQLException {
 		final Map<String, Object> map = codec.encodeValue(value);
 		final Set<String> keys = map.keySet();
-		final String[] placeholders = new String[keys.size()];
+		final String placeholders = String.join(",", keys.stream().map((k)-> escapeSql(k) + "=?")
+				.toArray(String[]::new));
 
-		Arrays.fill(placeholders, "?=?");
-
-		try (final PreparedStatement q = c.prepareStatement("UPDATE ? SET ?=?, " + String.join(",", placeholders) +
-				" WHERE ?=?")) {
+		try (final PreparedStatement q = c.prepareStatement("UPDATE " + table + " SET " +
+				placeholders + " WHERE " + escapeSql(codec.getUniqueKey()) + "=?")) {
 			int i = 1;
 
-			q.setString(i++, table);
-			q.setString(i++, codec.getUniqueKey());
-			q.setString(i++, codec.getUniqueKeyValue(key));
-
 			for (String k: keys) {
-				q.setString(i++, k);
 				q.setObject(i++, map.get(k));
 			}
 
-			q.setString(i++, codec.getUniqueKey());
 			q.setString(i, codec.getUniqueKeyValue(key));
 
 			return q.executeUpdate();
@@ -48,20 +42,15 @@ public class MySQLConcurrentMapAdapter<K, V> implements SQLConcurrentMapAdapter<
 	private int executeInsert(final Connection c, final Object key, final V value) throws SQLException {
 		final Map<String, Object> map = codec.encodeValue(value);
 		final Set<String> keys = map.keySet();
-		final String[] placeholders = new String[keys.size()];
+		final String placeholders = String.join(",", keys.stream().map((k)-> escapeSql(k) + "=?")
+				.toArray(String[]::new));
 
-		Arrays.fill(placeholders, "?=?");
-
-		try (final PreparedStatement q = c.prepareStatement("INSERT ? SET ?=?, " + String.join(",", placeholders) +
-				";")) {
+		try (final PreparedStatement q = c.prepareStatement("INSERT " + table + " SET " +
+				escapeSql(codec.getUniqueKey()) + "=?, " + placeholders + ";")) {
 			int i = 1;
 
-			q.setString(i++, table);
-			q.setString(i++, codec.getUniqueKey());
 			q.setString(i++, codec.getUniqueKeyValue(key));
-
 			for (String k: keys) {
-				q.setString(i++, k);
 				q.setObject(i++, map.get(k));
 			}
 
@@ -69,11 +58,35 @@ public class MySQLConcurrentMapAdapter<K, V> implements SQLConcurrentMapAdapter<
 		}
 	}
 
+	private int executeInsertUpdate(final Connection c, final Object key, final V value) throws SQLException {
+		final Map<String, Object> map = codec.encodeValue(value);
+		final Set<String> keys = map.keySet();
+		final String placeholders = String.join(",", keys.stream().map((k)-> escapeSql(k) + "=?")
+				.toArray(String[]::new));
+
+		try (final PreparedStatement q = c.prepareStatement("INSERT " + table + " SET " +
+				escapeSql(codec.getUniqueKey()) + "=?, " + placeholders +
+				" ON DUPLICATE KEY UPDATE " + placeholders + ";")) {
+			int i = 1;
+			final int l = keys.size();
+
+			q.setString(i++, codec.getUniqueKeyValue(key));
+
+			for (String k : keys) {
+				q.setObject(i, map.get(k));
+				q.setObject(l + i, map.get(k));
+				i++;
+			}
+
+			return q.executeUpdate();
+		}
+	}
+
+
 	private V selectForUpdate(final Connection c, final Object key) throws SQLException {
-		try (final PreparedStatement q = c.prepareStatement("SELECT * FROM ? WHERE ?=? LIMIT 1 FOR UPDATE;")) {
-			q.setString(1, table);
-			q.setString(2, codec.getUniqueKey());
-			q.setString(3, codec.getUniqueKeyValue(key));
+		try (final PreparedStatement q = c.prepareStatement("SELECT * FROM " + table + " WHERE " +
+				escapeSql(codec.getUniqueKey()) + "=? LIMIT 1 FOR UPDATE;")) {
+			q.setString(1, codec.getUniqueKeyValue(key));
 
 			try (final ResultSet rs = q.executeQuery()) {
 				if (!rs.next()) {
@@ -113,9 +126,7 @@ public class MySQLConcurrentMapAdapter<K, V> implements SQLConcurrentMapAdapter<
 
 	@Override
 	public int clear(final Connection c) throws SQLException {
-		try (final PreparedStatement q = c.prepareStatement("DELETE FROM ?;")) {
-			q.setString(1, table);
-
+		try (final PreparedStatement q = c.prepareStatement("DELETE FROM " + table + ";")) {
 			return q.executeUpdate();
 		}
 	}
@@ -128,7 +139,10 @@ public class MySQLConcurrentMapAdapter<K, V> implements SQLConcurrentMapAdapter<
 			return 0;
 		}
 
-		try (final PreparedStatement q = c.prepareStatement("DELETE FROM ? WHERE ?=?;")) {
+		try (final PreparedStatement q = c.prepareStatement("DELETE FROM " + table + " WHERE " +
+				codec.getUniqueKey() + "=?;")) {
+			q.setString(1, codec.getUniqueKeyValue(key));
+
 			int result = q.executeUpdate();
 
 			c.commit();
@@ -142,10 +156,9 @@ public class MySQLConcurrentMapAdapter<K, V> implements SQLConcurrentMapAdapter<
 
 		final V oldValue = selectForUpdate(c, key);
 
-		try (final PreparedStatement q = c.prepareStatement("DELETE FROM ? WHERE ?=?;")) {
-			q.setString(1, table);
-			q.setString(2, codec.getUniqueKey());
-			q.setString(3, codec.getUniqueKeyValue(key));
+		try (final PreparedStatement q = c.prepareStatement("DELETE FROM " + table + " WHERE " +
+				escapeSql(codec.getUniqueKey()) + "=?;")) {
+			q.setString(1, codec.getUniqueKeyValue(key));
 			q.executeUpdate();
 
 			c.commit();
@@ -183,42 +196,40 @@ public class MySQLConcurrentMapAdapter<K, V> implements SQLConcurrentMapAdapter<
 	}
 
 	@Override
-	public int size(final Connection c) throws SQLException {
-		try (final PreparedStatement q = c.prepareStatement("SELECT COUNT(*) FROM ?;")) {
-			q.setString(1, table);
+	public boolean fastPut(final Connection c, final K key, final V value) throws SQLException {
+		return executeInsertUpdate(c, key, value) > 0;
+	}
 
-			try (final ResultSet rs = q.executeQuery()) {
-				rs.next();
-				return rs.getInt(0);
-			}
+	@Override
+	public int size(final Connection c) throws SQLException {
+		try (final ResultSet rs = c.prepareStatement("SELECT COUNT(*) FROM " + table + ";").executeQuery()) {
+			rs.next();
+			return rs.getInt(0);
 		}
 	}
 
 	@Override
 	public void putAll(final Connection c, final Map<? extends K, ? extends V> m) throws SQLException {
 		Map<String, Object> map = codec.encodeValue(m.entrySet().iterator().next().getValue());
-		final String[] placeholders = new String[map.size()];
+		final Set<String> keys = map.keySet();
+		final String placeholders = String.join(",", keys.stream().map((k)-> escapeSql(k) + "=?")
+				.toArray(String[]::new));
 
-		Arrays.fill(placeholders, "?=?");
-
-		try (final PreparedStatement q = c.prepareStatement("INSERT ? SET ?=?, " + String.join(",", placeholders) +
-				" ON DUPLICATE KEY UPDATE " + String.join(",", placeholders) + ";")) {
+		try (final PreparedStatement q = c.prepareStatement("INSERT " + table + " SET " +
+				escapeSql(codec.getUniqueKey()) + "=?, " +
+				placeholders +
+				" ON DUPLICATE KEY UPDATE " + placeholders + ";")) {
 			for (Map.Entry<? extends K, ? extends V> e : m.entrySet()) {
-
-				q.setString(1, table);
-
-				int i = 2;
-				final int l = placeholders.length;
+				int i = 1;
+				final int l = keys.size();
 				map = codec.encodeValue(e.getValue());
 
-				for (String k : map.keySet()) {
-					q.setString(i++, codec.getUniqueKey());
-					q.setString(i++, codec.getUniqueKeyValue(e.getKey()));
+				q.setString(i++, codec.getUniqueKeyValue(e.getKey()));
 
-					q.setString(i, k);
-					q.setObject(i + 1, map.get(k));
-					q.setString(l + i, k);
-					q.setObject(l + i + 1, map.get(k));
+				for (String k : keys) {
+					q.setObject(i, map.get(k));
+					q.setObject(l + i, map.get(k));
+					i++;
 				}
 
 				q.addBatch();
@@ -230,10 +241,9 @@ public class MySQLConcurrentMapAdapter<K, V> implements SQLConcurrentMapAdapter<
 
 	@Override
 	public boolean containsKey(final Connection c, final Object key) throws SQLException {
-		try (final PreparedStatement q = c.prepareStatement("SELECT EXISTS(SELECT * FROM ? WHERE ?=?);")) {
-			q.setString(1, table);
-			q.setString(2, codec.getUniqueKey());
-			q.setString(3, codec.getUniqueKeyValue(key));
+		try (final PreparedStatement q = c.prepareStatement("SELECT EXISTS(SELECT * FROM " + table +
+				" WHERE " + escapeSql(codec.getUniqueKey()) + "=?);")) {
+			q.setString(1, codec.getUniqueKeyValue(key));
 
 			try (final ResultSet rs = q.executeQuery()) {
 				rs.next();
@@ -245,17 +255,12 @@ public class MySQLConcurrentMapAdapter<K, V> implements SQLConcurrentMapAdapter<
 	@Override
 	public boolean containsValue(final Connection c, final Object value) throws SQLException {
 		final Map<String, Object> map = codec.encodeValue(value);
-		final String[] placeholders = new String[map.size()];
 
-		Arrays.fill(placeholders, "?=?");
-
-		try (final PreparedStatement q = c.prepareStatement("SELECT EXISTS(SELECT * FROM ? WHERE " +
-				String.join(" AND ", placeholders) + ");")) {
-			q.setString(1, table);
-
-			int i = 2;
+		try (final PreparedStatement q = c.prepareStatement("SELECT EXISTS(SELECT * FROM " + table + " WHERE " +
+				String.join(" AND ", map.keySet().stream().map((k)-> escapeSql(k) + "=?").toArray(String[]::new)) +
+				");")) {
+			int i = 1;
 			for (String k: map.keySet()) {
-				q.setString(i++, k);
 				q.setObject(i++, map.get(k));
 			}
 
@@ -268,22 +273,17 @@ public class MySQLConcurrentMapAdapter<K, V> implements SQLConcurrentMapAdapter<
 
 	@Override
 	public boolean isEmpty(final Connection c) throws SQLException {
-		try (final PreparedStatement q = c.prepareStatement("SELECT EXISTS(SELECT * FROM ?);")) {
-			q.setString(1, table);
-
-			try (final ResultSet rs = q.executeQuery()) {
-				rs.next();
-				return rs.getBoolean(0);
-			}
+		try (final ResultSet rs = c.prepareStatement("SELECT EXISTS(SELECT * FROM " + table + ");").executeQuery()) {
+			rs.next();
+			return rs.getBoolean(0);
 		}
 	}
 
 	@Override
 	public V get(final Connection c, final Object key) throws SQLException {
-		try (final PreparedStatement q = c.prepareStatement("SELECT * FROM ? WHERE ?=?;")) {
-			q.setString(1, table);
-			q.setString(2, codec.getUniqueKey());
-			q.setString(3, codec.getUniqueKeyValue(key));
+		try (final PreparedStatement q = c.prepareStatement("SELECT * FROM " + table + " WHERE " + escapeSql(codec
+				.getUniqueKey()) + "=?;")) {
+			q.setString(1, codec.getUniqueKeyValue(key));
 
 			try (final ResultSet rs = q.executeQuery()) {
 				if (!rs.next()) {
