@@ -67,8 +67,10 @@ public class MySQLReport extends SQLConcurrentMap<Document, ExtractionStatus> im
 	}
 
 	MySQLReport(final Options<String> options) {
-		this(new DataSourceFactory(options).create("reportPool"), new ReportCodec(options), options.get("reportTable")
-				.value().orElse("documents"));
+
+		// Two connections should be enough for most use-cases (one to check and one to save).
+		this(new DataSourceFactory(options).withMaximumPoolSize(2).create("reportPool"), new ReportCodec(options),
+				options.get("reportTable").value().orElse("documents"));
 	}
 
 	private MySQLReport(final DataSource ds, final SQLCodec<ExtractionStatus> codec, final String table) {
