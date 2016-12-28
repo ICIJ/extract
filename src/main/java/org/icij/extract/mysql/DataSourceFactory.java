@@ -6,11 +6,9 @@ import org.icij.task.annotation.Option;
 
 import javax.sql.DataSource;
 import com.mysql.cj.jdbc.MysqlDataSource;
-import org.usrz.libs.crypto.pem.PEMProvider;
 
 import java.nio.file.Path;
 import java.security.KeyStore;
-import java.security.Security;
 import java.util.Locale;
 import java.util.Properties;
 
@@ -20,16 +18,17 @@ import java.util.Properties;
 @Option(name = "mysqlDatabase", description = "The MySQL database to user.", parameter = "database")
 @Option(name = "mysqlPort", description = "The MySQL server port number.", parameter = "port")
 @Option(name = "mysqlCACertificate", description = "A CA certificate for the MySQL server.", parameter = "path")
+@Option(name = "mysqlCACertificatePassword", description = "The password for the CA certificate trust store.",
+		parameter = "password")
 public class DataSourceFactory {
 
 	private String user = null;
 	private String password = null;
 	private String serverName = null;
 	private String databaseName = null;
-	private int port = 3306;
+	private int port = 0;
 	private Path caCertificate = null;
-
-	private boolean addedPEMProvider = false;
+	private String caPassword = null;
 
 	public DataSourceFactory(final Options<String> options) {
 		withOptions(options);
@@ -42,6 +41,7 @@ public class DataSourceFactory {
 		options.get("mysqlDatabase").value().ifPresent(this::withDatabaseName);
 		options.get("mysqlPort").parse().asInteger().ifPresent(this::withPort);
 		options.get("mysqlCACertificate").parse().asPath().ifPresent(this::withCACertificate);
+		options.get("mysqlCACertificatePassword").value().ifPresent(this::withCACertificatePassword);
 		return this;
 	}
 
@@ -75,6 +75,11 @@ public class DataSourceFactory {
 		return this;
 	}
 
+	public DataSourceFactory withCACertificatePassword(final String password) {
+		this.caPassword = password;
+		return this;
+	}
+
 	public DataSource create() {
 		final MysqlDataSource ds = new MysqlDataSource();
 
@@ -87,9 +92,6 @@ public class DataSourceFactory {
 				keyStoreType = KeyStore.getDefaultType();
 			} else if (keyStoreType.equals("P12")) {
 				keyStoreType = "PKCS12";
-			} else if (keyStoreType.equals("PEM") && !addedPEMProvider) {
-				addedPEMProvider = true;
-				Security.addProvider(new PEMProvider());
 			}
 
 			properties.setProperty("verifyServerCertificate", "true");
@@ -98,6 +100,12 @@ public class DataSourceFactory {
 			properties.setProperty("trustCertificateKeyStoreType", keyStoreType);
 			properties.setProperty("trustCertificateKeyStoreUrl", "file://" + caCertificate.toString());
 
+			if (null != caPassword) {
+				properties.setProperty("trustCertificateKeyStorePassword", caPassword);
+			} else if (keyStoreType.equals("JKS")) {
+				properties.setProperty("trustCertificateKeyStorePassword", "changeit");
+			}
+
 			ds.initializeProperties(properties);
 		}
 
@@ -105,7 +113,10 @@ public class DataSourceFactory {
 		ds.setPassword(password);
 		ds.setServerName(serverName);
 		ds.setDatabaseName(null == databaseName ? "extract" : databaseName);
-		ds.setPort(port);
+
+		if (port > 0) {
+			ds.setPort(port);
+		}
 
 		return ds;
 	}
