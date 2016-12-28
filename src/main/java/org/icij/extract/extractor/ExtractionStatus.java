@@ -1,5 +1,7 @@
 package org.icij.extract.extractor;
 
+import org.icij.extract.spewer.SpewerException;
+
 import java.util.Map;
 import java.util.HashMap;
 
@@ -29,11 +31,7 @@ public enum ExtractionStatus {
 	}
 
 	public static ExtractionStatus parse(final Number value) {
-		if (null != value) {
-			return parse(value.intValue());
-		}
-
-		return null;
+		return parse(value.intValue());
 	}
 
 	public static ExtractionStatus parse(final Integer value) {
@@ -41,11 +39,7 @@ public enum ExtractionStatus {
 	}
 
 	public static ExtractionStatus parse(final String value) {
-		if (null != value) {
-			return parse(Integer.valueOf(value));
-		}
-
-		return null;
+		return parse(Integer.valueOf(value));
 	}
 
 	ExtractionStatus(final int code) {

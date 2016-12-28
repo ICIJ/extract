@@ -62,7 +62,16 @@ public class MySQLReport extends SQLConcurrentMap<Document, ExtractionStatus> im
 
 		@Override
 		public ExtractionStatus decodeValue(final ResultSet rs) throws SQLException {
-			return ExtractionStatus.parse(rs.getString(statusKey));
+			final String status = rs.getString(statusKey);
+
+			// Assume that the status is stored as an ENUM in the table, so decode as the ExtractionStatus name
+			// rather than integer value. This is different to Redis codec, where integer values are stored to save
+			// memory. MySQL converts ENUM strings to integers internally, so no such manual device is needed there.
+			if (null != status) {
+				return ExtractionStatus.valueOf(status);
+			}
+
+			return null;
 		}
 	}
 
