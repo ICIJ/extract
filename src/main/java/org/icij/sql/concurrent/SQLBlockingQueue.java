@@ -8,7 +8,7 @@ import javax.sql.DataSource;
 
 public class SQLBlockingQueue<E> extends AbstractBlockingQueue<E> {
 
-	private final DataSource ds;
+	protected final DataSource ds;
 	private final SQLBlockingQueueAdapter<E> adapter;
 
 	public SQLBlockingQueue(final DataSource ds, final Lock lock, final SQLBlockingQueueAdapter<E> adapter) {

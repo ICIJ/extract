@@ -9,7 +9,7 @@ import java.util.Set;
 
 public class SQLConcurrentMap<K, V> extends AbstractConcurrentMap<K, V> {
 
-	private final DataSource ds;
+	protected final DataSource ds;
 	private final SQLConcurrentMapAdapter<K, V> adapter;
 
 	public SQLConcurrentMap(final DataSource ds, final SQLConcurrentMapAdapter<K, V> adapter) {

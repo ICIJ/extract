@@ -11,6 +11,8 @@ import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
 
 import javax.sql.DataSource;
+import java.io.Closeable;
+import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
@@ -65,8 +67,8 @@ public class MySQLReport extends SQLConcurrentMap<Document, ExtractionStatus> im
 	}
 
 	MySQLReport(final Options<String> options) {
-		this(new DataSourceFactory(options).create(), new ReportCodec(options), options.get("reportTable").value()
-				.orElse("documents"));
+		this(new DataSourceFactory(options).create("reportPool"), new ReportCodec(options), options.get("reportTable")
+				.value().orElse("documents"));
 	}
 
 	private MySQLReport(final DataSource ds, final SQLCodec<ExtractionStatus> codec, final String table) {
@@ -74,7 +76,9 @@ public class MySQLReport extends SQLConcurrentMap<Document, ExtractionStatus> im
 	}
 
 	@Override
-	public void close() {
-
+	public void close() throws IOException {
+		if (ds instanceof Closeable) {
+			((Closeable) ds).close();
+		}
 	}
 }

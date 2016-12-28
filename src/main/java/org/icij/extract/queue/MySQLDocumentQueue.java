@@ -12,6 +12,8 @@ import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
 
 import javax.sql.DataSource;
+import java.io.Closeable;
+import java.io.IOException;
 import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -88,8 +90,10 @@ public class MySQLDocumentQueue extends SQLBlockingQueue<Document> implements Do
 	}
 
 	MySQLDocumentQueue(final DocumentFactory factory, final Options<String> options) {
-		this(new DataSourceFactory(options).create(), new DocumentQueueCodec(factory, options),
-				options.get("queueTable").value().orElse("documents"));
+
+		// The queue should never need more than two connections per process: one to add and one to poll.
+		this(new DataSourceFactory(options).withMaximumPoolSize(2).create("queuePool"),
+				new DocumentQueueCodec(factory, options), options.get("queueTable").value().orElse("documents"));
 	}
 
 	private MySQLDocumentQueue(final DataSource ds, final SQLQueueCodec<Document> codec, final String table) {
@@ -97,7 +101,9 @@ public class MySQLDocumentQueue extends SQLBlockingQueue<Document> implements Do
 	}
 
 	@Override
-	public void close() {
-
+	public void close() throws IOException {
+		if (ds instanceof Closeable) {
+			((Closeable) ds).close();
+		}
 	}
 }
