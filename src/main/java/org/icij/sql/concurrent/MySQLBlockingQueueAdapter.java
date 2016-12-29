@@ -68,13 +68,12 @@ public class MySQLBlockingQueueAdapter<T> implements SQLBlockingQueueAdapter<T> 
 
 	@Override
 	public T poll(final Connection c) throws SQLException {
+		final T o;
 		c.setAutoCommit(false);
 
 		try (final PreparedStatement q = c.prepareStatement("SELECT * FROM " + table + " WHERE " + escapeSql(codec
 				.getStatusKey()) + "=? LIMIT 1 FOR UPDATE;")) {
 			q.setString(1, codec.getWaitingStatus());
-
-			final T o;
 
 			try (final ResultSet rs = q.executeQuery()) {
 				if (rs.next()) {
@@ -83,21 +82,24 @@ public class MySQLBlockingQueueAdapter<T> implements SQLBlockingQueueAdapter<T> 
 					return null;
 				}
 			}
-
-			try (final PreparedStatement qu = c.prepareStatement("UPDATE " + table + " SET " + escapeSql(codec
-					.getStatusKey()) + "=? WHERE " + escapeSql(codec.getUniqueKey()) + "=?")) {
-				qu.setString(1, codec.getProcessedStatus());
-				qu.setString(2, codec.getUniqueKeyValue(o));
-
-				qu.executeUpdate();
-			}
-
-			c.commit();
-			return o;
 		} catch (SQLException e) {
 			c.rollback();
 			throw e;
 		}
+
+		try (final PreparedStatement qu = c.prepareStatement("UPDATE " + table + " SET " + escapeSql(codec
+				.getStatusKey()) + "=? WHERE " + escapeSql(codec.getUniqueKey()) + "=?")) {
+			qu.setString(1, codec.getProcessedStatus());
+			qu.setString(2, codec.getUniqueKeyValue(o));
+
+			qu.executeUpdate();
+		} catch (SQLException e) {
+			c.rollback();
+			throw e;
+		}
+
+		c.commit();
+		return o;
 	}
 
 	@Override

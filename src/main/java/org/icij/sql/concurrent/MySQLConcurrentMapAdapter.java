@@ -100,13 +100,19 @@ public class MySQLConcurrentMapAdapter<K, V> implements SQLConcurrentMapAdapter<
 
 	@Override
 	public int replace(final Connection c, final K key, final V oldValue, final V newValue) throws SQLException {
+		final int result;
 		c.setAutoCommit(false);
 
-		if (!oldValue.equals(selectForUpdate(c, key))) {
-			return 0;
-		}
+		try {
+			if (!oldValue.equals(selectForUpdate(c, key))) {
+				return 0;
+			}
 
-		final int result = executeUpdate(c, key, newValue);
+			result = executeUpdate(c, key, newValue);
+		} catch (SQLException e) {
+			c.rollback();
+			throw e;
+		}
 
 		c.commit();
 		return result;
@@ -114,13 +120,18 @@ public class MySQLConcurrentMapAdapter<K, V> implements SQLConcurrentMapAdapter<
 
 	@Override
 	public V replace(final Connection c, final K key, final V value) throws SQLException {
+		final V oldValue;
 		c.setAutoCommit(false);
 
-		final V oldValue = selectForUpdate(c, key);
+		try {
+			oldValue = selectForUpdate(c, key);
+			executeUpdate(c, key, value);
+		} catch (SQLException e) {
+			c.rollback();
+			throw e;
+		}
 
-		executeUpdate(c, key, value);
 		c.commit();
-
 		return oldValue;
 	}
 
@@ -133,49 +144,78 @@ public class MySQLConcurrentMapAdapter<K, V> implements SQLConcurrentMapAdapter<
 
 	@Override
 	public int remove(final Connection c, final Object key, final Object value) throws SQLException {
+		final int result;
 		c.setAutoCommit(false);
 
-		if (!value.equals(selectForUpdate(c, key))) {
-			return 0;
+		try {
+			if (!value.equals(selectForUpdate(c, key))) {
+				c.rollback();
+				return 0;
+			}
+		} catch (SQLException e) {
+			c.rollback();
+			throw e;
 		}
 
 		try (final PreparedStatement q = c.prepareStatement("DELETE FROM " + table + " WHERE " +
 				codec.getUniqueKey() + "=?;")) {
 			q.setString(1, codec.getUniqueKeyValue(key));
-
-			int result = q.executeUpdate();
-
-			c.commit();
-			return result;
+			result = q.executeUpdate();
+		} catch (SQLException e) {
+			c.rollback();
+			throw e;
 		}
+
+		c.commit();
+		return result;
 	}
 
 	@Override
 	public V remove(final Connection c, final Object key) throws SQLException {
+		final V oldValue;
 		c.setAutoCommit(false);
 
-		final V oldValue = selectForUpdate(c, key);
+		try {
+			oldValue = selectForUpdate(c, key);
+		} catch (SQLException e) {
+			c.rollback();
+			throw e;
+		}
 
 		try (final PreparedStatement q = c.prepareStatement("DELETE FROM " + table + " WHERE " +
 				escapeSql(codec.getUniqueKey()) + "=?;")) {
 			q.setString(1, codec.getUniqueKeyValue(key));
 			q.executeUpdate();
-
-			c.commit();
-			return oldValue;
+		} catch (SQLException e) {
+			c.rollback();
+			throw e;
 		}
+
+		c.commit();
+		return oldValue;
 	}
 
 	@Override
 	public V put(final Connection c, final K key, final V value) throws SQLException {
+		final V oldValue;
 		c.setAutoCommit(false);
 
-		final V oldValue = selectForUpdate(c, key);
+		try {
+			oldValue = selectForUpdate(c, key);
+		} catch (SQLException e) {
+			c.rollback();
+			throw e;
+		}
 
-		if (null == oldValue) {
-			executeUpdate(c, key, value);
-		} else {
-			executeInsert(c, key, value);
+		try {
+			if (null == oldValue) {
+				executeUpdate(c, key, value);
+			} else {
+				executeInsert(c, key, value);
+			}
+		} catch (SQLException e) {
+			c.rollback();
+			throw e;
 		}
 
 		c.commit();
@@ -184,14 +224,26 @@ public class MySQLConcurrentMapAdapter<K, V> implements SQLConcurrentMapAdapter<
 
 	@Override
 	public V putIfAbsent(final Connection c, final K key, final V value) throws SQLException {
+		final V oldValue;
 		c.setAutoCommit(false);
 
-		final V oldValue = selectForUpdate(c, key);
-
-		if (null == oldValue) {
-			executeInsert(c, key, value);
+		try {
+			oldValue = selectForUpdate(c, key);
+		} catch (SQLException e) {
+			c.rollback();
+			throw e;
 		}
 
+		try {
+			if (null == oldValue) {
+				executeInsert(c, key, value);
+			}
+		} catch (SQLException e) {
+			c.rollback();
+			throw e;
+		}
+
+		c.commit();
 		return oldValue;
 	}
 

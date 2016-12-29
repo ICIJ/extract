@@ -100,6 +100,7 @@ public class DataSourceFactory {
 		config.addDataSourceProperty("cachePrepStmts", "true");
 		config.addDataSourceProperty("prepStmtCacheSize", "250");
 		config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+		config.addDataSourceProperty("autoCommit", true);
 
 		if (null != caCertificate) {
 			String keyStoreType = FilenameUtils.getExtension(caCertificate.getFileName().toString()
