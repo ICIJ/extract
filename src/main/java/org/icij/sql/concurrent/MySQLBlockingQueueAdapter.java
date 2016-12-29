@@ -23,8 +23,8 @@ public class MySQLBlockingQueueAdapter<T> implements SQLBlockingQueueAdapter<T> 
 	@Override
 	public int remove(final Connection c, final Object o) throws SQLException {
 		try (final PreparedStatement q = c.prepareStatement("DELETE FROM " + table + " WHERE " +
-				escapeSql(codec.getUniqueKey()) + "=? " + "AND " + escapeSql(codec.getStatusKey()) + "=?;")) {
-			q.setString(1, codec.getUniqueKeyValue(o));
+				escapeSql(codec.getKeyName()) + "=? " + "AND " + escapeSql(codec.getStatusKey()) + "=?;")) {
+			q.setString(1, codec.encodeKey(o));
 			q.setString(2, codec.getWaitingStatus());
 			return q.executeUpdate();
 		}
@@ -42,8 +42,8 @@ public class MySQLBlockingQueueAdapter<T> implements SQLBlockingQueueAdapter<T> 
 	@Override
 	public boolean contains(final Connection c, final Object o) throws SQLException {
 		try (final PreparedStatement q = c.prepareStatement("SELECT EXISTS(SELECT * FROM " + table + " WHERE " +
-				escapeSql(codec.getUniqueKey()) + "=? AND " + escapeSql(codec.getStatusKey()) + "=?);")) {
-			q.setString(1, codec.getUniqueKeyValue(o));
+				escapeSql(codec.getKeyName()) + "=? AND " + escapeSql(codec.getStatusKey()) + "=?);")) {
+			q.setString(1, codec.encodeKey(o));
 			q.setString(2, codec.getWaitingStatus());
 
 			try (final ResultSet rs = q.executeQuery()) {
@@ -88,9 +88,9 @@ public class MySQLBlockingQueueAdapter<T> implements SQLBlockingQueueAdapter<T> 
 		}
 
 		try (final PreparedStatement qu = c.prepareStatement("UPDATE " + table + " SET " + escapeSql(codec
-				.getStatusKey()) + "=? WHERE " + escapeSql(codec.getUniqueKey()) + "=?")) {
+				.getStatusKey()) + "=? WHERE " + escapeSql(codec.getKeyName()) + "=?")) {
 			qu.setString(1, codec.getProcessedStatus());
-			qu.setString(2, codec.getUniqueKeyValue(o));
+			qu.setString(2, codec.encodeKey(o));
 
 			qu.executeUpdate();
 		} catch (SQLException e) {

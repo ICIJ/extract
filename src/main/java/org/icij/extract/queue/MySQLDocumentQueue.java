@@ -14,6 +14,7 @@ import org.icij.task.annotation.OptionsClass;
 import javax.sql.DataSource;
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -21,7 +22,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Option(name = "queueTable", description = "The queue table Defaults to \"document_queue\".", parameter = "name")
-@Option(name = "queuePathKey", description = "The table key for storing the document path.", parameter = "name")
+@Option(name = "queueIdKey", description = "For queues that provide an ID, use this option to specify the key.",
+		parameter = "name")
+@Option(name = "queuePathKey", description = "The table key for storing the document path. Must be unique in the " +
+		"table. Defaults to \"path\".", parameter = "name")
 @Option(name = "queueStatusKey", description = "The table key for storing the queue status.", parameter = "name")
 @Option(name = "queueWaitStatus", description = "The status value for waiting documents.", parameter = "value")
 @Option(name = "queueProcessedStatus", description = "The status value for non-waiting documents.", parameter = "value")
@@ -31,6 +35,7 @@ public class MySQLDocumentQueue extends SQLBlockingQueue<Document> implements Do
 	private static class DocumentQueueCodec implements SQLQueueCodec<Document> {
 
 		private final DocumentFactory factory;
+		private final String idKey;
 		private final String pathKey;
 		private final String statusKey;
 		private final String waitingStatus;
@@ -38,6 +43,7 @@ public class MySQLDocumentQueue extends SQLBlockingQueue<Document> implements Do
 
 		DocumentQueueCodec(final DocumentFactory factory, final Options<String> options) {
 			this.factory = factory;
+			this.idKey = options.get("queueIdKey").value().orElse(null);
 			this.pathKey = options.get("queuePathKey").value().orElse("path");
 			this.statusKey = options.get("queueStatusKey").value().orElse("queue_status");
 			this.waitingStatus = options.get("queueWaitStatus").value().orElse("waiting");
@@ -45,12 +51,20 @@ public class MySQLDocumentQueue extends SQLBlockingQueue<Document> implements Do
 		}
 
 		@Override
-		public String getUniqueKey() {
+		public String getKeyName() {
+			if (null != idKey) {
+				return idKey;
+			}
+
 			return pathKey;
 		}
 
 		@Override
-		public String getUniqueKeyValue(final Object o) {
+		public String encodeKey(final Object o) {
+			if (null != idKey) {
+				return ((Document) o).getId();
+			}
+
 			return ((Document) o).getPath().toString();
 		}
 
@@ -71,7 +85,13 @@ public class MySQLDocumentQueue extends SQLBlockingQueue<Document> implements Do
 
 		@Override
 		public Document decodeValue(final ResultSet rs) throws SQLException {
-			return factory.create(Paths.get(rs.getString(pathKey)));
+			final Path path = Paths.get(rs.getString(pathKey));
+
+			if (null != idKey) {
+				return factory.create(rs.getString(idKey), path);
+			}
+
+			return factory.create(path);
 		}
 
 		@Override
@@ -81,6 +101,10 @@ public class MySQLDocumentQueue extends SQLBlockingQueue<Document> implements Do
 			}
 
 			final Map<String, Object> map = new HashMap<>();
+
+			if (null != idKey) {
+				map.put(idKey, ((Document) o).getId());
+			}
 
 			map.put(pathKey, ((Document) o).getPath().toString());
 			map.put(statusKey, waitingStatus);

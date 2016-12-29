@@ -19,6 +19,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Option(name = "reportTable", description = "The report table. Defaults to \"document_report\".", parameter = "name")
+@Option(name = "reportIdKey", description = "For reports tables that have an ID column, specify the key. This will " +
+		"then be used as the unique key.", parameter = "name")
 @Option(name = "reportPathKey", description = "The report table key for storing the document path.", parameter = "name")
 @Option(name = "reportStatusKey", description = "The table key for storing the report status.", parameter = "name")
 @OptionsClass(DataSourceFactory.class)
@@ -26,23 +28,33 @@ public class MySQLReport extends SQLConcurrentMap<Document, ExtractionStatus> im
 
 	private static class ReportCodec implements SQLCodec<ExtractionStatus> {
 
+		private final String idKey;
 		private final String pathKey;
 		private final String statusKey;
 
 		ReportCodec(final Options<String> options) {
+			this.idKey = options.get("reportIdKey").value().orElse(null);
 			this.pathKey = options.get("reportPathKey").value().orElse("path");
 			this.statusKey = options.get("reportStatusKey").value().orElse("extraction_status");
 		}
 
 		@Override
-		public String getUniqueKey() {
+		public String getKeyName() {
+			if (null != idKey) {
+				return idKey;
+			}
+
 			return pathKey;
 		}
 
 		@Override
-		public String getUniqueKeyValue(final Object o) {
+		public String encodeKey(final Object o) {
 			if (!(o instanceof Document)) {
 				throw new IllegalArgumentException();
+			}
+
+			if (null != idKey) {
+				return ((Document) o).getId();
 			}
 
 			return ((Document) o).getPath().toString();
