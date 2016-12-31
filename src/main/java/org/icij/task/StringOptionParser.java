@@ -2,6 +2,7 @@ package org.icij.task;
 
 import org.icij.time.HumanDuration;
 
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -26,6 +27,11 @@ public class StringOptionParser implements OptionParser<String> {
 	@Override
 	public Optional<Path> asPath() {
 		return option.value(Paths::get);
+	}
+
+	@Override
+	public Optional<URI> asURI() {
+		return option.value(URI::create);
 	}
 
 	@Override

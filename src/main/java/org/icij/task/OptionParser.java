@@ -1,5 +1,6 @@
 package org.icij.task;
 
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -11,6 +12,8 @@ public interface OptionParser<V> {
 	Optional<Duration> asDuration();
 
 	Optional<Path> asPath();
+
+	Optional<URI> asURI();
 
 	Optional<Integer> asInteger();
 
