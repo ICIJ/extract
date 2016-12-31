@@ -27,7 +27,7 @@ import java.util.Map;
 @Option(name = "queuePathKey", description = "The table key for storing the document path. Must be unique in the " +
 		"table. Defaults to \"path\".", parameter = "name")
 @Option(name = "queueStatusKey", description = "The table key for storing the queue status.", parameter = "name")
-@Option(name = "queueWaitStatus", description = "The status value for waiting documents.", parameter = "value")
+@Option(name = "queueWaitingStatus", description = "The status value for waiting documents.", parameter = "value")
 @Option(name = "queueProcessedStatus", description = "The status value for non-waiting documents.", parameter = "value")
 @OptionsClass(DataSourceFactory.class)
 public class MySQLDocumentQueue extends SQLBlockingQueue<Document> implements DocumentQueue {
@@ -46,7 +46,7 @@ public class MySQLDocumentQueue extends SQLBlockingQueue<Document> implements Do
 			this.idKey = options.get("queueIdKey").value().orElse(null);
 			this.pathKey = options.get("queuePathKey").value().orElse("path");
 			this.statusKey = options.get("queueStatusKey").value().orElse("queue_status");
-			this.waitingStatus = options.get("queueWaitStatus").value().orElse("waiting");
+			this.waitingStatus = options.get("queueWaitingStatus").value().orElse("waiting");
 			this.processedStatus = options.get("queueProcessedStatus").value().orElse("processed");
 		}
 

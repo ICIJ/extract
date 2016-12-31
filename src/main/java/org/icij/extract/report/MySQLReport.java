@@ -23,6 +23,10 @@ import java.util.Map;
 		"then be used as the unique key.", parameter = "name")
 @Option(name = "reportPathKey", description = "The report table key for storing the document path.", parameter = "name")
 @Option(name = "reportStatusKey", description = "The table key for storing the report status.", parameter = "name")
+@Option(name = "reportSuccessStatus", description = "The status for a successfully extracted file.", parameter =
+		"value")
+@Option(name = "reportFailureStatus", description = "A general failure status value to use instead of the more " +
+		"specific values.", parameter = "value")
 @OptionsClass(DataSourceFactory.class)
 public class MySQLReport extends SQLConcurrentMap<Document, ExtractionStatus> implements Report {
 
@@ -31,11 +35,15 @@ public class MySQLReport extends SQLConcurrentMap<Document, ExtractionStatus> im
 		private final String idKey;
 		private final String pathKey;
 		private final String statusKey;
+		private final String successStatus;
+		private final String failureStatus;
 
 		ReportCodec(final Options<String> options) {
 			this.idKey = options.get("reportIdKey").value().orElse(null);
 			this.pathKey = options.get("reportPathKey").value().orElse("path");
 			this.statusKey = options.get("reportStatusKey").value().orElse("extraction_status");
+			this.successStatus = options.get("reportSuccessStatus").value().orElse(null);
+			this.failureStatus = options.get("reportFailureStatus").value().orElse(null);
 		}
 
 		@Override
@@ -62,13 +70,17 @@ public class MySQLReport extends SQLConcurrentMap<Document, ExtractionStatus> im
 
 		@Override
 		public Map<String, Object> encodeValue(final Object o) {
-			if (!(o instanceof ExtractionStatus)) {
-				throw new IllegalArgumentException();
-			}
-
+			final ExtractionStatus status = (ExtractionStatus) o;
 			final Map<String, Object> map = new HashMap<>();
 
-			map.put(statusKey, o.toString());
+			if (status == ExtractionStatus.SUCCEEDED && successStatus != null) {
+				map.put(statusKey, successStatus);
+			} else if (failureStatus != null && status.getCode() > 0) {
+				map.put(statusKey, failureStatus);
+			} else {
+				map.put(statusKey, status.toString());
+			}
+
 			return map;
 		}
 
