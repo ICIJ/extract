@@ -1,18 +1,30 @@
 package org.icij.extract.cli;
 
 import me.tongfei.progressbar.ProgressBar;
-import org.apache.commons.cli.*;
+
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.UnrecognizedOptionException;
 
 import org.icij.events.Monitorable;
 import org.icij.events.listeners.ConsoleProgressListener;
+
+import org.icij.extract.tasks.*;
 import org.icij.extract.cli.tasks.HelpTask;
 import org.icij.extract.cli.tasks.VersionTask;
-import org.icij.extract.tasks.*;
+
+import org.icij.task.Option;
+import org.icij.task.Options;
 import org.icij.task.DefaultTask;
 import org.icij.task.DefaultTaskFactory;
+import org.icij.task.StringOptionParser;
 import org.icij.task.transformers.CommonsTransformer;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Arrays;
+import java.util.Properties;
 
 /**
  * The main class for running the commandline application.
@@ -77,22 +89,53 @@ public class Main {
 			return;
 		}
 
-		final Options options = new CommonsTransformer().apply(task.options());
+		final Options<String> options = task.options();
+		final Option<String> propertiesOpt = options.add("options", StringOptionParser::new);
+
+		final org.apache.commons.cli.Options cliOptions = new CommonsTransformer()
+				.apply(options);
 		final CommandLineParser parser = new DefaultParser();
 		final CommandLine line;
 		final ProgressBar progressBar;
 
 		try {
-			line = parser.parse(options, Arrays.copyOfRange(args, 1, args.length));
+			line = parser.parse(cliOptions, Arrays.copyOfRange(args, 1, args.length));
 		} catch (UnrecognizedOptionException e) {
 			System.err.println(e.getMessage());
 			System.exit(1);
 			return;
 		}
 
+		// Optionally load parameters from a properties file.
+		options.get(propertiesOpt).parse().asPath().ifPresent((path -> {
+			final Properties properties = new Properties();
+
+			try {
+				properties.load(Files.newBufferedReader(path));
+			} catch (IOException e) {
+				System.err.println(e.getMessage());
+				System.exit(1);
+				return;
+			}
+
+			for (String key: properties.stringPropertyNames()) {
+				final Option<String> o = options.get(key);
+
+				if (null == o) {
+					System.err.println(String.format("The option \"%s\" does not exist.", key));
+					System.exit(1);
+					return;
+				}
+
+				// CLI parameters take precedence.
+				if (!o.value().isPresent()) {
+					o.update(properties.getProperty(key));
+				}
+			}
+		}));
+
 		if (task instanceof Monitorable) {
 			progressBar = new ProgressBar(command, 0);
-
 			((Monitorable) task).addListener(new ConsoleProgressListener(progressBar));
 			progressBar.start();
 		} else {

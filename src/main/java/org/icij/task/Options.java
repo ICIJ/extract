@@ -13,6 +13,10 @@ public class Options<T> implements Iterable<Option<T>> {
 		return map.get(name);
 	}
 
+	public Option<T> get(final Option<T> option) {
+		return map.get(option.name());
+	}
+
 	public Options<T> add(final Option<T> option) {
 		map.put(option.name(), option);
 		return this;

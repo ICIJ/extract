@@ -14,7 +14,7 @@ public class StringOptionParser implements OptionParser<String> {
 
 	private final Option<String> option;
 
-	StringOptionParser(final Option<String> option) {
+	public StringOptionParser(final Option<String> option) {
 		this.option = option;
 	}
 

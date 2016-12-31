@@ -3,10 +3,13 @@ package org.icij.extract.cli.tasks;
 import javax.imageio.ImageIO;
 
 import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Options;
 import org.apache.commons.io.FileUtils;
+
 import org.icij.extract.cli.Main;
+
+import org.icij.task.Options;
 import org.icij.task.DefaultTask;
+import org.icij.task.StringOptionParser;
 import org.icij.task.transformers.CommonsTransformer;
 
 import java.util.Arrays;
@@ -22,10 +25,15 @@ public class HelpTask extends DefaultTask<Void> {
 	public Void run(final String[] args) throws Exception {
 		final String command = args[0];
 		final DefaultTask<Object> task = Main.taskFactory.getTask(command);
-		final Options options = new CommonsTransformer().apply(task.options());
+		final Options<String> options = task.options();
 		final HelpFormatter formatter = new HelpFormatter();
 
-		formatter.printHelp(String.format("extract %s", command), "\n" + task.description() + "\n\n", options, footer);
+		options.add("options", StringOptionParser::new)
+				.describe("Load options from a Java properties file.")
+				.parameter("path");
+
+		formatter.printHelp(String.format("extract %s", command), "\n" + task.description() + "\n\n",
+				new CommonsTransformer().apply(options), footer);
 		return null;
 	}
 
@@ -48,7 +56,7 @@ public class HelpTask extends DefaultTask<Void> {
 		formatter.printHelp(String.format("\033[1mextract\033[0m [command] [options]%n" +
 				"%s\033[1mextract\033[0m help%n" +
 				"%s\033[1mextract\033[0m version", formatter.getSyntaxPrefix(), formatter
-				.getSyntaxPrefix()), header, new Options(), footer, false);
+				.getSyntaxPrefix()), header, new org.apache.commons.cli.Options(), footer, false);
 		return null;
 	}
 }
