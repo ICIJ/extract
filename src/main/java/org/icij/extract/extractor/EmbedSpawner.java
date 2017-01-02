@@ -85,7 +85,8 @@ public class EmbedSpawner extends EmbedParser {
 			try {
 				delegateParsing(input, teeHandler, metadata);
 			} catch (Exception e) {
-				logger.error(String.format("Unable to parse embedded document in document: \"%s\".", rootDocument), e);
+				logger.error(String.format("Unable to parse embedded document: \"%s\" (in \"%s\").",
+						metadata.get(Metadata.RESOURCE_NAME_KEY), rootDocument), e);
 			} finally {
 				documentStack.removeLast();
 				writer.flush();

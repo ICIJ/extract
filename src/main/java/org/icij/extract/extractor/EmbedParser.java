@@ -74,9 +74,11 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 			// Use the delegate parser to parse this entry.
 			DELEGATING_PARSER.parse(newStream, handler, metadata, context);
 		} catch (EncryptedDocumentException e) {
-			logger.error(String.format("Encrypted document embedded in document: \"%s\".", rootDocument), e);
+			logger.error(String.format("Encrypted document embedded in document: \"%s\" (in \"%s\").",
+					metadata.get(Metadata.RESOURCE_NAME_KEY), rootDocument), e);
 		} catch (TikaException e) {
-			logger.error(String.format("Unable to parse embedded document in document: \"%s\".", rootDocument), e);
+			logger.error(String.format("Unable to parse embedded document: \"%s\" (in \"%s\").",
+					metadata.get(Metadata.RESOURCE_NAME_KEY), rootDocument), e);
 		}
 	}
 
