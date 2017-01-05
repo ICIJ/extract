@@ -43,11 +43,10 @@ public class PrintStreamSpewer extends Spewer {
 
 		// Write out child documents, if any.
 		for (EmbeddedDocument embed: document.getEmbeds()) {
-			Reader embedReader = embed.getReader();
-
-			stream.println("### ATTACHMENT ###");
-			write(embed, embedReader);
-			embedReader.close();
+			try (final Reader embedReader = embed.getReader()) {
+				stream.println("### ATTACHMENT ###");
+				write(embed, embedReader);
+			}
 		}
 	}
 

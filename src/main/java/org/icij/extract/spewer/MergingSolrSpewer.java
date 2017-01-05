@@ -52,15 +52,15 @@ public class MergingSolrSpewer extends SolrSpewer {
 		return write(document, inputDocument, retries);
 	}
 
-	private UpdateResponse write(final Document document, final SolrInputDocument inputDocument, int retries) throws
-			IOException, SolrServerException {
+	private UpdateResponse write(final Document document, final SolrInputDocument inputDocument, final int retries)
+			throws IOException, SolrServerException {
 		merge(document, inputDocument);
 
 		try {
 			return super.write(document, inputDocument);
 		} catch (SolrException e) {
 			if (retries > 0 && e.code() == 409) {
-				return write(document, inputDocument, --retries);
+				return write(document, inputDocument, retries - 1);
 			}
 
 			throw e;

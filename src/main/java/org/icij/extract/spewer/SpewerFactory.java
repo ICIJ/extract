@@ -6,7 +6,6 @@ import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.icij.extract.OutputType;
 import org.icij.extract.extractor.Extractor;
-import org.icij.extract.spewer.*;
 import org.icij.net.http.PinnedHttpClientBuilder;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
@@ -49,6 +48,8 @@ public abstract class SpewerFactory {
 
 		if (OutputType.SOLR == outputType) {
 			spewer = createSolrSpewer(options, fields);
+		} else if (OutputType.REST == outputType) {
+			spewer = createRESTSpewer(options, fields);
 		} else if (OutputType.FILE == outputType) {
 			spewer = new FileSpewer(fields);
 		} else {
@@ -57,6 +58,18 @@ public abstract class SpewerFactory {
 
 		spewer.configure(options);
 		return spewer;
+	}
+
+	private static CloseableHttpClient createHttpClient(final Options<String> options) {
+		return PinnedHttpClientBuilder.createWithDefaults()
+				.setVerifyHostname(options.get("indexVerifyHost").value().orElse(null))
+				.pinCertificate(options.get("indexServerCertificate").value().orElse(null))
+				.build();
+	}
+
+	private static RESTSpewer createRESTSpewer(final Options<String> options, final FieldNames fields) {
+		return new RESTSpewer(fields, createHttpClient(options), options.get("indexAddress").parse().asURI()
+				.orElseThrow(IllegalArgumentException::new));
 	}
 
 	/**
@@ -69,14 +82,10 @@ public abstract class SpewerFactory {
 		final Extractor.EmbedHandling handling = options.get("embedHandling").parse().asEnum(Extractor
 				.EmbedHandling::parse).orElse(Extractor.EmbedHandling.getDefault());
 
-		// Calling #close on the SolrSpewer later on automatically closes these clients.
-		final CloseableHttpClient httpClient = PinnedHttpClientBuilder.createWithDefaults()
-				.setVerifyHostname(options.get("indexVerifyHost").value().orElse(null))
-				.pinCertificate(options.get("indexServerCertificate").value().orElse(null))
-				.build();
+		// Calling #close on the SolrSpewer later on automatically closes the HTTP client.
 		final SolrClient solrClient = new HttpSolrClient.Builder(options.get("indexAddress").value().orElse
 				("http://127.0.0.1:8983/solr/"))
-				.withHttpClient(httpClient)
+				.withHttpClient(createHttpClient(options))
 				.build();
 
 		if (Extractor.EmbedHandling.SPAWN == handling) {

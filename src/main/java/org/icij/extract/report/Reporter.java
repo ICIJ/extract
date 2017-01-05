@@ -3,10 +3,7 @@ package org.icij.extract.report;
 import org.icij.extract.document.Document;
 import org.icij.extract.extractor.ExtractionStatus;
 
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 
@@ -33,7 +30,12 @@ public class Reporter implements AutoCloseable {
 	 */
 	public Reporter(final Report report) {
 		this.report = report;
-		report.journalableExceptions().ifPresent((classes)-> classes.forEach(this::journalableException));
+
+		final Collection<Class<? extends Exception>> journalableExceptions = report.journalableExceptions();
+
+		if (null != journalableExceptions) {
+			journalableExceptions.forEach(this::journalableException);
+		}
 	}
 
 	/**
@@ -56,7 +58,7 @@ public class Reporter implements AutoCloseable {
 		try {
 			report.fastPut(document, result);
 		} catch (Exception e) {
-			if (journalableTypes.contains(e.getClass())) {
+			if (null != journalableTypes && journalableTypes.contains(e.getClass())) {
 				journal.put(document, result);
 			}
 

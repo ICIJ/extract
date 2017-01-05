@@ -4,7 +4,6 @@ import org.icij.extract.document.Document;
 import org.icij.extract.extractor.ExtractionStatus;
 
 import java.util.Collection;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentMap;
 
 /**
@@ -32,7 +31,7 @@ public interface Report extends ConcurrentMap<Document, ExtractionStatus>, AutoC
 	 *
 	 * @return a collection of exception classes
 	 */
-	default Optional<Collection<Class<? extends Exception>>> journalableExceptions() {
-		return Optional.empty();
+	default Collection<Class<? extends Exception>> journalableExceptions() {
+		return null;
 	}
 }

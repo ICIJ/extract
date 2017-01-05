@@ -10,7 +10,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Optional;
 
 import org.icij.task.Options;
 
@@ -73,8 +72,8 @@ public class RedisReport extends RedissonMap<Document, ExtractionStatus> impleme
 	 *
 	 * @return a collection with only one object, the {@link RedisOutOfMemoryException} class
 	 */
-	public Optional<Collection<Class<? extends Exception>>> journalableExceptions() {
-		return Optional.of(Collections.singletonList(RedisOutOfMemoryException.class));
+	public Collection<Class<? extends Exception>> journalableExceptions() {
+		return Collections.singletonList(RedisOutOfMemoryException.class);
 	}
 
 	@Override

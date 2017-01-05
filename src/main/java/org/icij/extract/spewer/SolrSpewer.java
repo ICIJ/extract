@@ -211,10 +211,11 @@ public class SolrSpewer extends Spewer {
 
 		// Add embedded documents as child documents.
 		for (EmbeddedDocument embed : document.getEmbeds()) {
-			inputDocument.addChildDocument(prepareDocument(embed, embed.getReader()));
+			try (final Reader embedReader = embed.getReader()) {
+				inputDocument.addChildDocument(prepareDocument(embed, embedReader));
+			}
 		}
 
-		reader.close();
 		return inputDocument;
 	}
 
