@@ -6,9 +6,7 @@ import java.util.Map;
 
 public interface SQLCodec<T> {
 
-	String getKeyName();
-
-	String encodeKey(final Object o);
+	Map<String, Object> encodeKey(final Object o);
 
 	/**
 	 * Decode a result set into an instance.

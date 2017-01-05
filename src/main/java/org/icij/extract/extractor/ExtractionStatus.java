@@ -1,7 +1,5 @@
 package org.icij.extract.extractor;
 
-import org.icij.extract.spewer.SpewerException;
-
 import java.util.Map;
 import java.util.HashMap;
 

@@ -19,8 +19,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Option(name = "reportTable", description = "The report table. Defaults to \"document_report\".", parameter = "name")
-@Option(name = "reportIdKey", description = "For reports tables that have an ID column, specify the key. This will " +
-		"then be used as the unique key.", parameter = "name")
+@Option(name = "reportIdKey", description = "For reports tables that have an ID column, specify the column name. This" +
+		" will then be used as the unique key.", parameter = "name")
+@Option(name = "reportForeignIdKey", description = "For reports that have a foreign ID column, specify the column " +
+		"name.", parameter = "name")
 @Option(name = "reportPathKey", description = "The report table key for storing the document path.", parameter = "name")
 @Option(name = "reportStatusKey", description = "The table key for storing the report status.", parameter = "name")
 @Option(name = "reportSuccessStatus", description = "The status for a successfully extracted file.", parameter =
@@ -33,6 +35,7 @@ public class MySQLReport extends SQLConcurrentMap<Document, ExtractionStatus> im
 	private static class ReportCodec implements SQLCodec<ExtractionStatus> {
 
 		private final String idKey;
+		private final String foreignIdKey;
 		private final String pathKey;
 		private final String statusKey;
 		private final String successStatus;
@@ -40,6 +43,7 @@ public class MySQLReport extends SQLConcurrentMap<Document, ExtractionStatus> im
 
 		ReportCodec(final Options<String> options) {
 			this.idKey = options.get("reportIdKey").value().orElse(null);
+			this.foreignIdKey = options.get("reportForeignIdKey").value().orElse(null);
 			this.pathKey = options.get("reportPathKey").value().orElse("path");
 			this.statusKey = options.get("reportStatusKey").value().orElse("extraction_status");
 			this.successStatus = options.get("reportSuccessStatus").value().orElse(null);
@@ -47,25 +51,20 @@ public class MySQLReport extends SQLConcurrentMap<Document, ExtractionStatus> im
 		}
 
 		@Override
-		public String getKeyName() {
-			if (null != idKey) {
-				return idKey;
-			}
-
-			return pathKey;
-		}
-
-		@Override
-		public String encodeKey(final Object o) {
-			if (!(o instanceof Document)) {
-				throw new IllegalArgumentException();
-			}
+		public Map<String, Object> encodeKey(final Object o) {
+			final Document document = (Document) o;
+			final Map<String, Object> map = new HashMap<>();
 
 			if (null != idKey) {
-				return ((Document) o).getId();
+				map.put(idKey, document.getId());
 			}
 
-			return ((Document) o).getPath().toString();
+			if (null != foreignIdKey) {
+				map.put(foreignIdKey, document.getForeignId());
+			}
+
+			map.put(pathKey, document.getPath().toString());
+			return map;
 		}
 
 		@Override
@@ -91,11 +90,25 @@ public class MySQLReport extends SQLConcurrentMap<Document, ExtractionStatus> im
 			// Assume that the status is stored as an ENUM in the table, so decode as the ExtractionStatus name
 			// rather than integer value. This is different to Redis codec, where integer values are stored to save
 			// memory. MySQL converts ENUM strings to integers internally, so no such manual device is needed there.
-			if (null != status) {
-				return ExtractionStatus.valueOf(status);
+			if (null == status) {
+				return null;
 			}
 
-			return null;
+			if (null != successStatus && status.equals(successStatus)) {
+				return ExtractionStatus.SUCCEEDED;
+			}
+
+			if (null != failureStatus && status.equals(failureStatus)) {
+				return ExtractionStatus.UNKNOWN_ERROR;
+			}
+
+			// Return null if the value can't be decoded into an enum. This allows arbitrary values to be stored in
+			// the status column.
+			try {
+				return ExtractionStatus.valueOf(status);
+			} catch (IllegalArgumentException e) {
+				return null;
+			}
 		}
 	}
 

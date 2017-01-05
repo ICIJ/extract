@@ -24,6 +24,8 @@ import java.util.Map;
 @Option(name = "queueTable", description = "The queue table Defaults to \"document_queue\".", parameter = "name")
 @Option(name = "queueIdKey", description = "For queues that provide an ID, use this option to specify the key.",
 		parameter = "name")
+@Option(name = "queueForeignIdKey", description = "For queues that have a foreign ID column, specify the column name.",
+		parameter = "name")
 @Option(name = "queuePathKey", description = "The table key for storing the document path. Must be unique in the " +
 		"table. Defaults to \"path\".", parameter = "name")
 @Option(name = "queueStatusKey", description = "The table key for storing the queue status.", parameter = "name")
@@ -36,6 +38,7 @@ public class MySQLDocumentQueue extends SQLBlockingQueue<Document> implements Do
 
 		private final DocumentFactory factory;
 		private final String idKey;
+		private final String foreignIdKey;
 		private final String pathKey;
 		private final String statusKey;
 		private final String waitingStatus;
@@ -44,6 +47,7 @@ public class MySQLDocumentQueue extends SQLBlockingQueue<Document> implements Do
 		DocumentQueueCodec(final DocumentFactory factory, final Options<String> options) {
 			this.factory = factory;
 			this.idKey = options.get("queueIdKey").value().orElse(null);
+			this.foreignIdKey = options.get("queueForeignIdKey").value().orElse(null);
 			this.pathKey = options.get("queuePathKey").value().orElse("path");
 			this.statusKey = options.get("queueStatusKey").value().orElse("queue_status");
 			this.waitingStatus = options.get("queueWaitingStatus").value().orElse("waiting");
@@ -51,21 +55,21 @@ public class MySQLDocumentQueue extends SQLBlockingQueue<Document> implements Do
 		}
 
 		@Override
-		public String getKeyName() {
+		public Map<String, Object> encodeKey(final Object o) {
+			final Document document = (Document) o;
+			final Map<String, Object> map = new HashMap<>();
+
 			if (null != idKey) {
-				return idKey;
+				map.put(idKey, document.getId());
+			} else {
+				map.put(pathKey, document.getPath().toString());
 			}
 
-			return pathKey;
-		}
-
-		@Override
-		public String encodeKey(final Object o) {
-			if (null != idKey) {
-				return ((Document) o).getId();
+			if (null != foreignIdKey) {
+				map.put(foreignIdKey, document.getForeignId());
 			}
 
-			return ((Document) o).getPath().toString();
+			return map;
 		}
 
 		@Override
@@ -86,27 +90,35 @@ public class MySQLDocumentQueue extends SQLBlockingQueue<Document> implements Do
 		@Override
 		public Document decodeValue(final ResultSet rs) throws SQLException {
 			final Path path = Paths.get(rs.getString(pathKey));
+			final Document document;
 
 			if (null != idKey) {
-				return factory.create(rs.getString(idKey), path);
+				document = factory.create(rs.getString(idKey), path);
+			} else {
+				document = factory.create(path);
 			}
 
-			return factory.create(path);
+			if (null != foreignIdKey) {
+				document.setForeignId(rs.getString(foreignIdKey));
+			}
+
+			return document;
 		}
 
 		@Override
 		public Map<String, Object> encodeValue(final Object o) {
-			if (!(o instanceof Document)) {
-				throw new IllegalArgumentException();
-			}
-
+			final Document document = (Document) o;
 			final Map<String, Object> map = new HashMap<>();
 
 			if (null != idKey) {
-				map.put(idKey, ((Document) o).getId());
+				map.put(idKey, document.getId());
 			}
 
-			map.put(pathKey, ((Document) o).getPath().toString());
+			if (null != foreignIdKey) {
+				map.put(foreignIdKey, document.getForeignId());
+			}
+
+			map.put(pathKey, document.getPath().toString());
 			map.put(statusKey, waitingStatus);
 
 			return map;

@@ -15,6 +15,7 @@ public class Document {
 
 	private final Path path;
 	private Supplier<String> id;
+	private String foreignId = null;
 	private final Metadata metadata;
 
 	private Identifier identifier;
@@ -140,6 +141,14 @@ public class Document {
 
 	public void setReader(final ReaderGenerator readerGenerator) {
 		this.readerGenerator = readerGenerator;
+	}
+
+	public void setForeignId(final String foreignId) {
+		this.foreignId = foreignId;
+	}
+
+	public String getForeignId() {
+		return foreignId;
 	}
 
 	public synchronized Reader getReader() throws IOException {
