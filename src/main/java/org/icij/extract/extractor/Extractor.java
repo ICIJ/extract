@@ -54,9 +54,10 @@ import org.xml.sax.ContentHandler;
 @Option(name = "outputFormat", description = "Set the output format. Either \"text\" or \"HTML\". " +
 		"Defaults to text output.", parameter = "type")
 @Option(name = "embedHandling", description = "Set the embed handling mode. Either \"ignore\", " +
-		"\"extract\" or \"embed\". When set to extract, embeds are parsed and the output is in-lined into the main " +
-		"output. In embed mode, embeds are not parsed but are in-lined as a data URI representation of the raw embed " +
-		"data. The latter mode only applies when the output format is set to HTML. Defaults to extracting.",
+		"\"concatenate\", \"spawn\" or \"embed\". When set to extract, embeds are parsed and the output is in-lined " +
+		"into the main output. In embed mode, embeds are not parsed but are in-lined as a data URI representation of " +
+		"the raw embed data. The latter mode only applies when the output format is set to HTML. " +
+		"Defaults to concatenating.",
 		parameter = "type")
 @Option(name = "ocrLanguage", description = "Set the languages used by Tesseract. Multiple  languages may be " +
 		"specified, separated by plus characters. Tesseract uses 3-character ISO 639-2 language codes.", parameter =
