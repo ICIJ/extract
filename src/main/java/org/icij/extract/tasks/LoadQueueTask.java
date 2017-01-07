@@ -31,7 +31,7 @@ import org.icij.task.annotation.Task;
 		"input.")
 @OptionsClass(DocumentQueueFactory.class)
 @Option(name = "format", description = "The dump file format. Defaults to JSON.", parameter = "csv|json")
-@Option(name = "path-field", description = "The name of CSV field to parse the path from.", parameter = "name")
+@Option(name = "pathField", description = "The name of CSV field to parse the path from.", parameter = "name")
 public class LoadQueueTask extends DefaultTask<Void> {
 
 	@Override
@@ -105,7 +105,7 @@ public class LoadQueueTask extends DefaultTask<Void> {
 	 */
 	private void loadFromCSV(final DocumentFactory factory, final DocumentQueue queue, final InputStream input) throws
 			IOException {
-		final String pathField = options.get("path-field").value().orElse("path");
+		final String pathField = options.get("pathField").value().orElse("path");
 
 		for (CSVRecord record : CSVFormat.RFC4180.withHeader().parse(new InputStreamReader(input))) {
 			queue.add(factory.create(Paths.get(record.get(pathField))));

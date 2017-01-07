@@ -21,22 +21,22 @@ import org.icij.task.annotation.Task;
  * @since 1.0.0-beta
  */
 @Task("Send a hard or soft commit message to the index.")
-@Option(name = "index-type", description = "Specify the index type. For now, the only valid value is " +
+@Option(name = "indexType", description = "Specify the index type. For now, the only valid value is " +
 		"\"solr\" (the default).", parameter = "type")
-@Option(name = "soft-commit", description = "Performs a soft commit. Makes index changes visible while " +
+@Option(name = "softCommit", description = "Performs a soft commit. Makes index changes visible while " +
 		"neither fsync-ing index files nor writing a new index descriptor. This could lead to data loss if Solr is " +
 		"terminated unexpectedly.")
 @Option(name = "address", description = "Index core API endpoint address.", code = "s", parameter = "url")
-@Option(name = "server-certificate", description = "The index server's public certificate, used for " +
+@Option(name = "serverCertificate", description = "The index server's public certificate, used for " +
 		"certificate pinning. Supported formats are PEM, DER, PKCS #12 and JKS.", parameter = "path")
-@Option(name = "verify-host", description = "Verify the index server's public certificate against the " +
+@Option(name = "verifyHost", description = "Verify the index server's public certificate against the " +
 		"specified host. Use the wildcard \"*\" to disable verification.", parameter = "hostname")
 public class CommitTask extends DefaultTask<Integer> {
 
 	@Override
 	public Integer run() throws Exception {
-		final IndexType indexType = options.get("index-type").value(IndexType::parse).orElse(IndexType.SOLR);
-		final boolean softCommit = options.get("soft-commit").parse().asBoolean().orElse(false);
+		final IndexType indexType = options.get("indexType").value(IndexType::parse).orElse(IndexType.SOLR);
+		final boolean softCommit = options.get("softCommit").parse().asBoolean().orElse(false);
 
 		if (IndexType.SOLR == indexType) {
 			return commitSolr(softCommit).getQTime();
@@ -53,8 +53,8 @@ public class CommitTask extends DefaultTask<Integer> {
 	 */
 	private UpdateResponse commitSolr(final boolean softCommit) {
 		try (final CloseableHttpClient httpClient = PinnedHttpClientBuilder.createWithDefaults()
-				.setVerifyHostname(options.get("verify-host").value().orElse(null))
-				.pinCertificate(options.get("server-certificate").value().orElse(null))
+				.setVerifyHostname(options.get("verifyHost").value().orElse(null))
+				.pinCertificate(options.get("serverCertificate").value().orElse(null))
 				.build();
 		     final SolrClient client = new HttpSolrClient.Builder(options.get("address").value().orElse
 				     ("http://127.0.0.1:8983/solr/"))

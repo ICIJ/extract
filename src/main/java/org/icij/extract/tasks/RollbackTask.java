@@ -21,18 +21,18 @@ import org.icij.task.annotation.Task;
  * @since 1.0.0-beta
  */
 @Task("Send a rollback message to the index.")
-@Option(name = "index-type", description = "Specify the index type. For now, the only valid value is " +
+@Option(name = "indexType", description = "Specify the index type. For now, the only valid value is " +
 		"\"solr\" (the default).", parameter = "type")
 @Option(name = "address", description = "Index core API endpoint address.", code = "s", parameter = "url")
-@Option(name = "server-certificate", description = "The index server's public certificate, used for " +
+@Option(name = "serverCertificate", description = "The index server's public certificate, used for " +
 		"certificate pinning. Supported formats are PEM, DER, PKCS #12 and JKS.", parameter = "path")
-@Option(name = "verify-host", description = "Verify the index server's public certificate against the " +
+@Option(name = "verifyHost", description = "Verify the index server's public certificate against the " +
 		"specified host. Use the wildcard \"*\" to disable verification.", parameter = "hostname")
 public class RollbackTask extends DefaultTask<Integer> {
 
 	@Override
 	public Integer run() throws Exception {
-		final IndexType indexType = options.get("index-type").value(IndexType::parse).orElse(IndexType.SOLR);
+		final IndexType indexType = options.get("indexType").value(IndexType::parse).orElse(IndexType.SOLR);
 
 		if (IndexType.SOLR == indexType) {
 			return rollbackSolr().getQTime();
@@ -48,8 +48,8 @@ public class RollbackTask extends DefaultTask<Integer> {
 	 */
 	private UpdateResponse rollbackSolr() {
 		try (final CloseableHttpClient httpClient = PinnedHttpClientBuilder.createWithDefaults()
-				.setVerifyHostname(options.get("verify-host").value().orElse(null))
-				.pinCertificate(options.get("server-certificate").value().orElse(null))
+				.setVerifyHostname(options.get("verifyHost").value().orElse(null))
+				.pinCertificate(options.get("serverCertificate").value().orElse(null))
 				.build();
 		     final SolrClient client = new HttpSolrClient.Builder(options.get("address").value().orElse
 				     ("http://127.0.0.1:8983/solr/"))
