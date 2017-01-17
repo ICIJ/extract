@@ -19,7 +19,7 @@ public class SpewerException extends IOException {
 		super(message);
 	}
 
-	public SpewerException(String message, Throwable cause) {
+	SpewerException(String message, Throwable cause) {
 		super(message, cause);
 	}
 }

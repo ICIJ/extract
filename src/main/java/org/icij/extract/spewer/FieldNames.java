@@ -20,7 +20,10 @@ import java.util.regex.Pattern;
 @Option(name = "parentPathField", description = "Field name for the parent directory path.", parameter = "name")
 @Option(name = "baseTypeField", description = "Field name for the base content-type.", parameter = "name")
 @Option(name = "versionField", description = "Index field name for the version.", parameter = "name")
+@Option(name = "tagPrefix", description = "Prefix for tag fields added to the index.", parameter = "name")
 @Option(name = "metadataPrefix", description = "Prefix for metadata fields added to the index.", parameter = "name")
+@Option(name = "metadataISODatePostfix", description = "Postfix for 'fixed' ISO 8601 metadata fields.", parameter =
+		"name")
 public class FieldNames {
 
 	private static final Pattern fieldName = Pattern.compile("[^A-Za-z0-9_]");
@@ -32,6 +35,8 @@ public class FieldNames {
 	public static final String DEFAULT_PARENT_PATH_FIELD = "extract_parent_paths";
 	public static final String DEFAULT_VERSION_FIELD = "_version_";
 	public static final String DEFAULT_METADATA_FIELD_PREFIX = "tika_metadata_";
+	public static final String DEFAULT_TAG_FIELD_PREFIX = "tag_";
+	public static final String DEFAULT_METADATA_ISO_DATE_POSTFIX = "_iso8601";
 
 	private String textField = DEFAULT_TEXT_FIELD;
 	private String pathField = DEFAULT_PATH_FIELD;
@@ -39,7 +44,9 @@ public class FieldNames {
 	private String idField = DEFAULT_ID_FIELD;
 	private String baseTypeField = DEFAULT_BASE_TYPE_FIELD;
 	private String versionField = DEFAULT_VERSION_FIELD;
+	private String tagFieldPrefix = DEFAULT_TAG_FIELD_PREFIX;
 	private String metadataFieldPrefix = DEFAULT_METADATA_FIELD_PREFIX;
+	private String metadataISODatePostfix = DEFAULT_METADATA_ISO_DATE_POSTFIX;
 
 	public FieldNames configure(final Options<String> options) {
 		options.get("textField").value().ifPresent(this::forText);
@@ -48,7 +55,9 @@ public class FieldNames {
 		options.get("baseTypeField").value().ifPresent(this::forBaseType);
 		options.get("versionField").value().ifPresent(this::forVersion);
 		options.get("idField").value().ifPresent(this::forId);
+		options.get("tagPrefix").value().ifPresent(this::forTagPrefix);
 		options.get("metadataPrefix").value().ifPresent(this::forMetadataPrefix);
+		options.get("metadataISODatePostfix").value().ifPresent(this::forMetadataISODatePostfix);
 
 		return this;
 	}
@@ -115,7 +124,19 @@ public class FieldNames {
 		return normalizedName;
 	}
 
-	String forTagPrefix() {
-		return "tag_";
+	private void forMetadataISODatePostfix(final String metadataISODatePostfix) {
+		this.metadataISODatePostfix = metadataISODatePostfix;
+	}
+
+	String forMetadataISODate(final String name) {
+		return forMetadata(name) + metadataISODatePostfix;
+	}
+
+	private void forTagPrefix(final String tagFieldPrefix) {
+		this.tagFieldPrefix = tagFieldPrefix;
+	}
+
+	String forTag(final String name) {
+		return tagFieldPrefix + name;
 	}
 }

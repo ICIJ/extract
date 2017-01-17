@@ -64,9 +64,8 @@ public class PrintStreamSpewer extends Spewer {
 			stream.println(fields.forParentPath() + ": " + document.getPath().getParent().toString());
 		}
 
-		for (String name : metadata.names()) {
-			stream.println(fields.forMetadata(name) + ": " + String.join(", ", metadata.getValues(name)));
-		}
+		applyMetadata(metadata, (name, value)-> stream.println(fields.forMetadata(name) + ": " + value),
+				(name, values)-> stream.println(fields.forMetadata(name) + ": " + String.join(", ", values)));
 
 		// Add an extra newline to signify the end of the metadata.
 		stream.println();

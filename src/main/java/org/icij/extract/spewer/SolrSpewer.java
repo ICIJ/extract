@@ -1,17 +1,16 @@
 package org.icij.extract.spewer;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import java.io.Reader;
 import java.io.IOException;
 
-import java.util.stream.Stream;
-
 import org.apache.tika.metadata.Metadata;
-import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.mime.MediaType;
 
 import org.apache.solr.common.SolrInputDocument;
@@ -45,10 +44,6 @@ import org.slf4j.LoggerFactory;
 		"duration")
 @Option(name = "atomicWrites", description = "Make atomic updates to the index. If your schema contains " +
 		"fields that are not included in the payload, this prevents their values, if any, from being erased.")
-@Option(name = "fixDates", description = "Fix invalid dates. Tika's image metadata extractor will " +
-		"generate non-ISO compliant dates if the the timezone is not available in the source metadata. When this " +
-		"option is on \"Z\" is appended to non-compliant dates, making them compatible with the Solr date field type." +
-		" On by default.")
 public class SolrSpewer extends Spewer {
 	private static final Logger logger = LoggerFactory.getLogger(SolrSpewer.class);
 
@@ -60,7 +55,6 @@ public class SolrSpewer extends Spewer {
 	private int commitThreshold = 0;
 	private Duration commitWithin = null;
 	private boolean atomicWrites = false;
-	private boolean fixDates = true;
 
 	public SolrSpewer(final SolrClient client, final FieldNames fields) {
 		super(fields);
@@ -71,7 +65,6 @@ public class SolrSpewer extends Spewer {
 		super.configure(options);
 
 		options.get("atomicWrites").parse().asBoolean().ifPresent(this::atomicWrites);
-		options.get("fixDates").parse().asBoolean().ifPresent(this::fixDates);
 		options.get("commitInterval").parse().asInteger().ifPresent(this::setCommitThreshold);
 		options.get("commitWithin").parse().asDuration().ifPresent(this::setCommitWithin);
 
@@ -102,14 +95,6 @@ public class SolrSpewer extends Spewer {
 
 	public boolean atomicWrites() {
 		return atomicWrites;
-	}
-
-	public void fixDates(final boolean fixDates) {
-		this.fixDates = fixDates;
-	}
-
-	public boolean fixDates() {
-		return fixDates;
 	}
 
 	@Override
@@ -176,7 +161,7 @@ public class SolrSpewer extends Spewer {
 		}
 
 		// Set tags supplied by the caller.
-		tags.forEach((key, value)-> setFieldValue(inputDocument, fields.forTagPrefix() + key, value));
+		tags.forEach((key, value)-> setFieldValue(inputDocument, fields.forTag(key), value));
 
 		// Set the ID. Must never be written atomically.
 		if (null != fields.forId() && null != document.getId()) {
@@ -251,53 +236,9 @@ public class SolrSpewer extends Spewer {
 		}
 	}
 
-	private static final List<String> dateFieldNames = Arrays.asList(
-		"dcterms:created",
-		"dcterms:modified",
-		"meta:save-date",
-		"meta:creation-date",
-		Metadata.MODIFIED,
-		Metadata.DATE.getName(),
-		Metadata.LAST_MODIFIED.getName(),
-		Metadata.LAST_SAVED.getName(),
-		Metadata.CREATION_DATE.getName());
-
-	private void setMetadataFieldValues(final Metadata metadata, final SolrInputDocument document) {
-		for (String name : metadata.names()) {
-			final String normalizedName = fields.forMetadata(name);
-
-			if (metadata.isMultiValued(name) &&
-
-					// Bad HTML files can have many titles. Ignore all but the first.
-					!name.equals(TikaCoreProperties.TITLE.getName())) {
-				String[] values = metadata.getValues(name);
-				Stream<String> stream = Arrays.stream(values);
-
-				// Remove empty values.
-				stream = stream.filter(value -> null != value && !value.isEmpty());
-
-				// Remove duplicate content types (Tika seems to add these sometimes, especially for RTF files) and
-				// titles.
-				if (name.equals(Metadata.CONTENT_TYPE) && values.length > 1) {
-					stream = stream.distinct();
-				}
-
-				values = stream.toArray(String[]::new);
-				if (values.length > 0) {
-					setFieldValue(document, normalizedName, values);
-				}
-			} else {
-				String value = metadata.get(name);
-
-				if (null != value && fixDates && dateFieldNames.contains(name) && !value.endsWith("Z")) {
-					value = value + "Z";
-				}
-
-				if (null != value && !value.isEmpty()) {
-					setFieldValue(document, normalizedName, value);
-				}
-			}
-		}
+	private void setMetadataFieldValues(final Metadata metadata, final SolrInputDocument document) throws SpewerException {
+		applyMetadata(metadata, (name, value)-> setFieldValue(document, name, value), (name, values)-> setFieldValue
+				(document, name, values));
 	}
 
 	/**
@@ -309,7 +250,7 @@ public class SolrSpewer extends Spewer {
 	 */
 	void setFieldValue(final SolrInputDocument document, final String name, final String value) {
 		if (atomicWrites) {
-			final Map<String, Object> atomic = new HashMap<>();
+			final Map<String, String> atomic = new HashMap<>();
 			atomic.put("set", value);
 			document.setField(name, atomic);
 		} else {

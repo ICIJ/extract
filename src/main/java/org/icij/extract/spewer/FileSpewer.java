@@ -141,20 +141,14 @@ public class FileSpewer extends Spewer {
 			jsonGenerator.useDefaultPrettyPrinter();
 			jsonGenerator.writeStartObject();
 
-			for (String name : metadata.names()) {
-				final String normalizedName = fields.forMetadata(name);
+			applyMetadata(metadata, jsonGenerator::writeStringField, (name, values)-> {
+				jsonGenerator.writeArrayFieldStart(name);
+				jsonGenerator.writeStartArray();
 
-				if (metadata.isMultiValued(name)) {
-					jsonGenerator.writeArrayFieldStart(normalizedName);
-					jsonGenerator.writeStartArray();
-
-					for (String value: metadata.getValues(name)) {
-						jsonGenerator.writeString(value);
-					}
-				} else {
-					jsonGenerator.writeStringField(normalizedName, metadata.get(name));
+				for (String value: values) {
+					jsonGenerator.writeString(value);
 				}
-			}
+			});
 
 			jsonGenerator.writeEndObject();
 			jsonGenerator.writeRaw('\n');
