@@ -2,12 +2,13 @@ package org.icij.extract.document;
 
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
+import org.apache.tika.metadata.TikaMetadataKeys;
 
 import javax.xml.bind.DatatypeConverter;
-import java.nio.charset.StandardCharsets;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Locale;
+import static java.util.Locale.ENGLISH;
 
 public class TikaDigestIdentifier implements Identifier {
 
@@ -28,10 +29,14 @@ public class TikaDigestIdentifier implements Identifier {
 			throw new RuntimeException("Unexpected null hash. Check that the correct algorithm is specified.");
 		}
 
-		if (!(document instanceof EmbeddedDocument)) {
-			return hash;
+		if (document instanceof EmbeddedDocument) {
+			return generateEmbedded((EmbeddedDocument) document, hash);
 		}
 
+		return hash;
+	}
+
+	private String generateEmbedded(final EmbeddedDocument embed, final String hash) {
 		final MessageDigest digest;
 
 		try {
@@ -40,9 +45,16 @@ public class TikaDigestIdentifier implements Identifier {
 			throw new RuntimeException(e);
 		}
 
-		digest.update(((EmbeddedDocument) document).getParent().getId().getBytes(StandardCharsets.UTF_8));
-		digest.update(hash.getBytes(StandardCharsets.UTF_8));
+		// Embedded documents in different files or the same file could have the same hash. Add the parent path to the
+		// value to be digested, the embedded relationship ID, and the actual hash.
+		final String embeddedRelationshipId = embed.getMetadata().get(TikaMetadataKeys.EMBEDDED_RELATIONSHIP_ID);
 
-		return DatatypeConverter.printHexBinary(digest.digest()).toLowerCase(Locale.ROOT);
+		digest.update(hash.getBytes(UTF_8));
+		digest.update(embed.getParent().getId().getBytes(UTF_8));
+		if (null != embeddedRelationshipId) {
+			digest.update(embeddedRelationshipId.getBytes(UTF_8));
+		}
+
+		return DatatypeConverter.printHexBinary(digest.digest()).toLowerCase(ENGLISH);
 	}
 }
