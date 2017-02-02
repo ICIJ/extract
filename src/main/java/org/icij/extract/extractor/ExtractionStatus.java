@@ -16,7 +16,7 @@ public enum ExtractionStatus {
 	NOT_PARSED(4),
 	EXCLUDED(5),
 	UNKNOWN_ERROR(9),
-	NOT_SAVED(10),;
+	NOT_SAVED(10);
 
 	private final int code;
 
