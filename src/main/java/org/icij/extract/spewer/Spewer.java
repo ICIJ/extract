@@ -128,8 +128,8 @@ public abstract class Spewer implements AutoCloseable {
 		output.flush();
 	}
 
-	void applyMetadata(final Metadata metadata, final MetadataValueConsumer single, final MetadataValuesConsumer
-			multiple) throws SpewerException {
+	void applyMetadata(final Metadata metadata, final PairConsumer single, final PairArrayConsumer multiple) throws
+			SpewerException {
 		try {
 			for (String name : metadata.names()) {
 				boolean isMultivalued = metadata.isMultiValued(name);
@@ -150,7 +150,7 @@ public abstract class Spewer implements AutoCloseable {
 		}
 	}
 
-	private void applyMetadata(final Metadata metadata, final String name, final MetadataValuesConsumer consumer) throws
+	private void applyMetadata(final Metadata metadata, final String name, final PairArrayConsumer consumer) throws
 			IOException {
 		String[] values = metadata.getValues(name);
 		Stream<String> stream = Arrays.stream(values);
@@ -169,9 +169,9 @@ public abstract class Spewer implements AutoCloseable {
 		}
 	}
 
-	private void applyMetadata(final Metadata metadata, final String name, final MetadataValueConsumer consumer) throws
+	private void applyMetadata(final Metadata metadata, final String name, final PairConsumer consumer) throws
 			IOException {
-		String value = metadata.get(name);
+		final String value = metadata.get(name);
 
 		if (null == value || value.isEmpty()) {
 			return;
@@ -236,13 +236,13 @@ public abstract class Spewer implements AutoCloseable {
 			DateTimeFormatter.ISO_DATE);
 
 	@FunctionalInterface
-	interface MetadataValueConsumer {
+	interface PairConsumer {
 
 		void accept(final String name, final String value) throws IOException;
 	}
 
 	@FunctionalInterface
-	interface MetadataValuesConsumer {
+	interface PairArrayConsumer {
 
 		void accept(final String name, final String[] values) throws IOException;
 	}
