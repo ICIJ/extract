@@ -11,7 +11,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.JsonSerializer;
 
-import org.icij.events.Notifiable;
+import org.icij.kaxxa.events.Notifiable;
 
 /**
  * Serializes a {@link DocumentQueue} to JSON.

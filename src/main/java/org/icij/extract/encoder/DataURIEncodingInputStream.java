@@ -21,7 +21,7 @@ import org.apache.tika.detect.AutoDetectReader;
 import org.apache.tika.exception.TikaException;
 
 import org.apache.commons.codec.binary.Base64InputStream;
-import org.icij.io.URLEncodingInputStream;
+import org.icij.kaxxa.io.URLEncodingInputStream;
 
 /**
  * An {@link InputStream} that encodes arbitrary binary data from an input stream in data URI format.

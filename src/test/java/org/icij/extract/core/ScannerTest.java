@@ -6,7 +6,7 @@ import java.util.TimerTask;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import org.icij.concurrent.BooleanSealableLatch;
+import org.icij.kaxxa.concurrent.BooleanSealableLatch;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.queue.ArrayDocumentQueue;

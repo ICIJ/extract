@@ -1,7 +1,7 @@
 package org.icij.extract.queue;
 
-import org.icij.concurrent.SealableLatch;
-import org.icij.executor.ExecutorProxy;
+import org.icij.kaxxa.concurrent.SealableLatch;
+import org.icij.kaxxa.concurrent.ExecutorProxy;
 
 import java.time.Duration;
 import java.util.concurrent.*;

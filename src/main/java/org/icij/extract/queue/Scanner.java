@@ -1,11 +1,15 @@
 package org.icij.extract.queue;
 
-import org.icij.events.Notifiable;
-import org.icij.executor.ExecutorProxy;
-import org.icij.concurrent.*;
+import org.icij.kaxxa.concurrent.SealableLatch;
+
+import org.icij.kaxxa.events.Notifiable;
+import org.icij.kaxxa.concurrent.ExecutorProxy;
 import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
-import org.icij.io.file.matcher.*;
+
+import org.icij.kaxxa.io.file.DosHiddenFileMatcher;
+import org.icij.kaxxa.io.file.PosixHiddenFileMatcher;
+import org.icij.kaxxa.io.file.SystemFileMatcher;
 
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;

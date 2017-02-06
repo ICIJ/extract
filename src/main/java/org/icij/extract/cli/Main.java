@@ -7,8 +7,8 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.UnrecognizedOptionException;
 
-import org.icij.events.Monitorable;
-import org.icij.events.listeners.ConsoleProgressListener;
+import org.icij.kaxxa.events.Monitorable;
+import org.icij.kaxxa.events.listeners.ConsoleProgressListener;
 
 import org.icij.extract.tasks.*;
 import org.icij.extract.cli.tasks.HelpTask;

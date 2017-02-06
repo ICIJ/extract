@@ -1,9 +1,9 @@
 package org.icij.task;
 
-import org.icij.events.Listener;
-import org.icij.events.Monitor;
-import org.icij.events.Monitorable;
-import org.icij.events.DefaultMonitor;
+import org.icij.kaxxa.events.Listener;
+import org.icij.kaxxa.events.Monitor;
+import org.icij.kaxxa.events.Monitorable;
+import org.icij.kaxxa.events.DefaultMonitor;
 
 public abstract class MonitorableTask<R> extends DefaultTask<R> implements Monitorable {
 

@@ -1,7 +1,8 @@
 package org.icij.extract.core;
 
-import org.icij.concurrent.BooleanSealableLatch;
-import org.icij.concurrent.SealableLatch;
+import org.icij.kaxxa.concurrent.BooleanSealableLatch;
+import org.icij.kaxxa.concurrent.SealableLatch;
+
 import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
@@ -11,7 +12,6 @@ import org.icij.extract.queue.DocumentQueueDrainer;
 import org.icij.time.HumanDuration;
 import org.junit.*;
 
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.Consumer;

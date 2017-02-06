@@ -14,7 +14,9 @@ import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
-import java.io.*;
+import java.io.Writer;
+import java.io.InputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -85,6 +87,9 @@ public class EmbedSpawner extends EmbedParser {
 			try {
 				delegateParsing(input, teeHandler, metadata);
 			} catch (Exception e) {
+
+				// Note that even on exception, the document is intentionally NOT removed from the parent.
+				// TODO: add the exception to the document metadata using Tika's standard key.
 				logger.error(String.format("Unable to parse embedded document: \"%s\" (in \"%s\").",
 						metadata.get(Metadata.RESOURCE_NAME_KEY), rootDocument), e);
 			} finally {

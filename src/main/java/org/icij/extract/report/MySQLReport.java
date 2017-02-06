@@ -3,9 +3,11 @@ package org.icij.extract.report;
 import org.icij.extract.document.Document;
 import org.icij.extract.extractor.ExtractionStatus;
 import org.icij.extract.mysql.DataSourceFactory;
-import org.icij.sql.concurrent.MySQLConcurrentMapAdapter;
-import org.icij.sql.concurrent.SQLCodec;
-import org.icij.sql.concurrent.SQLConcurrentMap;
+
+import org.icij.kaxxa.sql.concurrent.MySQLConcurrentMapAdapter;
+import org.icij.kaxxa.sql.concurrent.SQLCodec;
+import org.icij.kaxxa.sql.concurrent.SQLConcurrentMap;
+
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;

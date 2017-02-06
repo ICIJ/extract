@@ -20,7 +20,7 @@ import org.xml.sax.helpers.AttributesImpl;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
-import org.icij.io.replacer.TokenReplacingReader;
+import org.icij.kaxxa.io.TokenReplacingReader;
 
 import static org.apache.tika.sax.XHTMLContentHandler.XHTML;
 

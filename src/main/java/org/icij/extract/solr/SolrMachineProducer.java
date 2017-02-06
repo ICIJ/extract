@@ -16,7 +16,7 @@ import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.StreamingResponseCallback;
 import org.apache.solr.client.solrj.SolrServerException;
 
-import org.icij.events.Notifiable;
+import org.icij.kaxxa.events.Notifiable;
 import org.icij.extract.spewer.FieldNames;
 
 import org.slf4j.Logger;

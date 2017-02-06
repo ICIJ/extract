@@ -1,6 +1,6 @@
 package org.icij.extract.tasks;
 
-import org.icij.concurrent.BooleanSealableLatch;
+import org.icij.kaxxa.concurrent.BooleanSealableLatch;
 
 import java.nio.file.Path;
 import java.util.List;

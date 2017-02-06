@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.solr.common.SolrDocument;
 
-import org.icij.events.Notifiable;
+import org.icij.kaxxa.events.Notifiable;
 import org.icij.extract.spewer.FieldNames;
 
 public abstract class SolrMachineConsumer implements Consumer<SolrDocument> {

@@ -3,10 +3,12 @@ package org.icij.extract.queue;
 import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.mysql.DataSourceFactory;
-import org.icij.sql.concurrent.MySQLBlockingQueueAdapter;
-import org.icij.sql.concurrent.MySQLLock;
-import org.icij.sql.concurrent.SQLBlockingQueue;
-import org.icij.sql.concurrent.SQLQueueCodec;
+
+import org.icij.kaxxa.sql.concurrent.MySQLBlockingQueueAdapter;
+import org.icij.kaxxa.sql.concurrent.MySQLLock;
+import org.icij.kaxxa.sql.concurrent.SQLBlockingQueue;
+import org.icij.kaxxa.sql.concurrent.SQLQueueCodec;
+
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;

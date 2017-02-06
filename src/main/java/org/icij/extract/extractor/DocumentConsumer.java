@@ -7,8 +7,8 @@ import java.util.concurrent.RejectedExecutionException;
 
 import java.util.function.Consumer;
 
-import org.icij.executor.BlockingThreadPoolExecutor;
-import org.icij.executor.ExecutorProxy;
+import org.icij.kaxxa.concurrent.BlockingThreadPoolExecutor;
+import org.icij.kaxxa.concurrent.ExecutorProxy;
 
 import org.icij.extract.document.Document;
 import org.icij.extract.report.Reporter;
