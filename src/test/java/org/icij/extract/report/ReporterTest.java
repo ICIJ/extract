@@ -1,4 +1,4 @@
-package org.icij.extract.core;
+package org.icij.extract.report;
 
 import java.nio.file.Paths;
 

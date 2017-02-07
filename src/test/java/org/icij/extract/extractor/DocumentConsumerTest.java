@@ -1,4 +1,4 @@
-package org.icij.extract.core;
+package org.icij.extract.extractor;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -10,9 +10,6 @@ import java.util.concurrent.TimeUnit;
 import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
-import org.icij.extract.extractor.DocumentConsumer;
-import org.icij.extract.extractor.ExtractionStatus;
-import org.icij.extract.extractor.Extractor;
 import org.icij.extract.report.HashMapReport;
 import org.icij.extract.report.Reporter;
 import org.icij.extract.spewer.FieldNames;
@@ -36,16 +33,15 @@ public class DocumentConsumerTest {
 		final ByteArrayOutputStream output = new ByteArrayOutputStream();
 		final PrintStream print = new PrintStream(output);
 		final Spewer spewer = new PrintStreamSpewer(print, new FieldNames());
-
 		final DocumentConsumer consumer = new DocumentConsumer(spewer, extractor, 1);
-
 		final Document document = getFile();
 
+		spewer.outputMetadata(false);
 		consumer.accept(document);
 		consumer.shutdown();
 		Assert.assertTrue(consumer.awaitTermination(1, TimeUnit.MINUTES));
 
-		Assert.assertEquals("This is a test.\n\n", output.toString());
+		Assert.assertEquals("This is a test.", output.toString().trim());
 	}
 
 	@Test
@@ -62,6 +58,7 @@ public class DocumentConsumerTest {
 
 		// Assert that the extraction result is reported.
 		Assert.assertNull(reporter.result(document));
+		spewer.outputMetadata(false);
 		consumer.accept(document);
 		consumer.shutdown();
 		Assert.assertTrue(consumer.awaitTermination(1, TimeUnit.MINUTES));

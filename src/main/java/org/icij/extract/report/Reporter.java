@@ -3,7 +3,11 @@ package org.icij.extract.report;
 import org.icij.extract.document.Document;
 import org.icij.extract.extractor.ExtractionStatus;
 
-import java.util.*;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 
@@ -14,9 +18,9 @@ import java.util.concurrent.Semaphore;
  */
 public class Reporter implements AutoCloseable {
 
-	private Set<Class<? extends Exception>> journalableTypes = null;
-	private Map<Document, ExtractionStatus> journal = null;
-	private Semaphore flushing = null;
+	private Set<Class<? extends Exception>> journalableTypes = new HashSet<>();
+	private Map<Document, ExtractionStatus> journal = new ConcurrentHashMap<>();
+	private Semaphore flushing = new Semaphore(1);
 
 	/**
 	 * The report to save results to or check.
@@ -58,14 +62,14 @@ public class Reporter implements AutoCloseable {
 		try {
 			report.fastPut(document, result);
 		} catch (Exception e) {
-			if (null != journalableTypes && journalableTypes.contains(e.getClass())) {
+			if (journalableTypes.contains(e.getClass())) {
 				journal.put(document, result);
 			}
 
 			throw e;
 		}
 
-		if (null != flushing && flushing.tryAcquire()) {
+		if (flushing.tryAcquire()) {
 			try {
 				flushJournal();
 			} finally {
@@ -117,12 +121,6 @@ public class Reporter implements AutoCloseable {
 	 * @param e the class of exception that is temporary
 	 */
 	private synchronized void journalableException(final Class<? extends Exception> e) {
-		if (null == journalableTypes) {
-			journalableTypes = new HashSet<>();
-			journal = new ConcurrentHashMap<>();
-			flushing = new Semaphore(1);
-		}
-
 		journalableTypes.add(e);
 	}
 

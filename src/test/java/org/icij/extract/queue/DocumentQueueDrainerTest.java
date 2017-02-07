@@ -1,4 +1,4 @@
-package org.icij.extract.core;
+package org.icij.extract.queue;
 
 import org.icij.kaxxa.concurrent.BooleanSealableLatch;
 import org.icij.kaxxa.concurrent.SealableLatch;

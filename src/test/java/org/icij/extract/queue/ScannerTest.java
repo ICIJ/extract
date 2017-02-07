@@ -1,4 +1,4 @@
-package org.icij.extract.core;
+package org.icij.extract.queue;
 
 import java.nio.file.*;
 import java.util.Timer;
@@ -75,10 +75,6 @@ public class ScannerTest {
 
 		Assert.assertTrue(Files.exists(garbage));
 		Assert.assertFalse(queue.contains(factory.create(garbage)));
-		for (Object path : queue.toArray()) {
-			System.out.println("PATH: " + path.toString());
-		}
-
 		Assert.assertTrue(queue.contains(factory.create(root.resolve("text/plain.txt"))));
 	}
 
