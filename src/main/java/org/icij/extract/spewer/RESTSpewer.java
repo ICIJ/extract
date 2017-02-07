@@ -40,11 +40,7 @@ public class RESTSpewer extends Spewer {
 		params.add(new BasicNameValuePair(fields.forText(), toString(reader)));
 
 		if (outputMetadata) {
-			final Metadata metadata = document.getMetadata();
-
-			for (String name : metadata.names()) {
-				params.add(new BasicNameValuePair(fields.forMetadata(name), metadata.get(name)));
-			}
+			parametrizeMetadata(document.getMetadata(), params);
 		}
 
 		put.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
@@ -56,12 +52,7 @@ public class RESTSpewer extends Spewer {
 		final HttpPut put = new HttpPut(uri.resolve(document.getId()));
 		final List<NameValuePair> params = new ArrayList<>();
 
-		final Metadata metadata = document.getMetadata();
-
-		for (String name : metadata.names()) {
-			params.add(new BasicNameValuePair(fields.forMetadata(name), metadata.get(name)));
-		}
-
+		parametrizeMetadata(document.getMetadata(), params);
 		put.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
 		put(put);
 	}
@@ -69,6 +60,14 @@ public class RESTSpewer extends Spewer {
 	@Override
 	public void close() throws IOException {
 		client.close();
+	}
+
+	private void parametrizeMetadata(final Metadata metadata, final List<NameValuePair> params) throws SpewerException {
+		applyMetadata(metadata, (name, value)-> params.add(new BasicNameValuePair(name, value)), (name, values)-> {
+			for (String value: values) {
+				params.add(new BasicNameValuePair(name, value));
+			}
+		});
 	}
 
 	private void put(final HttpPut put) throws IOException {
