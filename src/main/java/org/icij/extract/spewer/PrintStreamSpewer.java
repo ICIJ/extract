@@ -44,7 +44,6 @@ public class PrintStreamSpewer extends Spewer {
 		// Write out child documents, if any.
 		for (EmbeddedDocument embed: document.getEmbeds()) {
 			try (final Reader embedReader = embed.getReader()) {
-				stream.println("### ATTACHMENT ###");
 				write(embed, embedReader);
 			}
 		}
@@ -64,8 +63,8 @@ public class PrintStreamSpewer extends Spewer {
 			stream.println(fields.forParentPath() + ": " + document.getPath().getParent().toString());
 		}
 
-		applyMetadata(metadata, (name, value)-> stream.println(fields.forMetadata(name) + ": " + value),
-				(name, values)-> stream.println(fields.forMetadata(name) + ": " + String.join(", ", values)));
+		applyMetadata(metadata, (name, value)-> stream.println(name + ": " + value),
+				(name, values)-> stream.println(name + ": " + String.join(", ", values)));
 
 		// Add an extra newline to signify the end of the metadata.
 		stream.println();
