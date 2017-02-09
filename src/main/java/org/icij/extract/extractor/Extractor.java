@@ -10,6 +10,7 @@ import java.util.*;
 import java.io.IOException;
 import java.util.function.Function;
 
+import org.apache.commons.io.TaggedIOException;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
@@ -38,7 +39,6 @@ import org.icij.extract.parser.*;
 import org.icij.extract.report.Reporter;
 import org.icij.extract.sax.HTML5Serializer;
 import org.icij.extract.spewer.Spewer;
-import org.icij.extract.spewer.SpewerException;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 import org.slf4j.Logger;
@@ -305,7 +305,7 @@ public class Extractor {
 		try {
 			extract(document, spewer);
 		} catch (Exception e) {
-			status = status(e, document);
+			status = status(e, document, spewer);
 		}
 
 		reporter.save(document, status);
@@ -320,9 +320,9 @@ public class Extractor {
 	 * @param document the document involved in the exception
 	 * @return the resulting status
 	 */
-	private ExtractionStatus status(final Exception e, final Document document) {
-		if (e instanceof SpewerException) {
-			logger.error(String.format("The extraction result could not be outputted: \"%s\".", document), e);
+	private ExtractionStatus status(final Exception e, final Document document, final Spewer spewer) {
+		if (TaggedIOException.isTaggedWith(e, spewer)) {
+			logger.error(String.format("The extraction result could not be outputted: \"%s\".", document), e.getCause());
 			return ExtractionStatus.NOT_SAVED;
 		}
 

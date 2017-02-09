@@ -1,11 +1,6 @@
 package org.icij.extract.spewer;
 
-import java.io.Reader;
-import java.io.Writer;
-import java.io.IOException;
-import java.io.StringWriter;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
+import java.io.*;
 
 import java.util.*;
 
@@ -13,6 +8,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Stream;
 
+import org.apache.commons.io.TaggedIOException;
 import org.apache.tika.metadata.*;
 import org.icij.extract.document.Document;
 import org.icij.extract.parser.ParsingReader;
@@ -34,8 +30,9 @@ import org.icij.task.annotation.Option;
 		parameter = "name")
 @Option(name = "isoDates", description = "Attempt to parse dates and convert them to ISO 8601 UTC format. On by " +
 		"default.")
-public abstract class Spewer implements AutoCloseable {
+public abstract class Spewer implements AutoCloseable, Serializable {
 
+	private static final long serialVersionUID = 5169670165236652447L;
 	boolean outputMetadata = true;
 	private boolean isoDates = true;
 
@@ -129,7 +126,7 @@ public abstract class Spewer implements AutoCloseable {
 	}
 
 	void applyMetadata(final Metadata metadata, final PairConsumer single, final PairArrayConsumer multiple) throws
-			SpewerException {
+			IOException {
 		try {
 			for (String name : metadata.names()) {
 				boolean isMultivalued = metadata.isMultiValued(name);
@@ -146,7 +143,7 @@ public abstract class Spewer implements AutoCloseable {
 				}
 			}
 		} catch (IOException e) {
-			throw new SpewerException("Error while writing metadata.", e);
+			throw new TaggedIOException(e, this);
 		}
 	}
 
@@ -188,8 +185,8 @@ public abstract class Spewer implements AutoCloseable {
 			if (null != isoDate) {
 				consumer.accept(fields.forMetadataISODate(name), isoDate.toInstant().toString());
 			} else {
-				throw new SpewerException(String.format("Unable to parse date \"%s\" from field \"%s\" for ISO 8601 " +
-						"formatting.", value, name));
+				throw new TaggedIOException(new IOException(String.format("Unable to parse date \"%s\" from field " +
+						"\"%s\" for ISO 8601 formatting.", value, name)), this);
 			}
 		}
 	}

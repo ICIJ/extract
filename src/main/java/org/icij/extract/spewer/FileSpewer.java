@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import org.apache.commons.io.TaggedIOException;
 import org.apache.commons.io.output.TaggedOutputStream;
 
 import org.apache.tika.metadata.Metadata;
@@ -31,11 +32,12 @@ import org.slf4j.Logger;
 		"current directory.", parameter = "path")
 @Option(name = "outputFormat", description = "Set the output format. Either \"text\" or \"HTML\". " +
 		"Defaults to text output.", parameter = "type")
-public class FileSpewer extends Spewer {
+public class FileSpewer extends Spewer implements Serializable {
 
 	private static final Logger logger = LoggerFactory.getLogger(FileSpewer.class);
 
 	private static final String DEFAULT_EXTENSION = "txt";
+	private static final long serialVersionUID = -6541331052292803766L;
 
 	private Path outputDirectory = Paths.get(".");
 	private String outputExtension = DEFAULT_EXTENSION;
@@ -104,8 +106,8 @@ public class FileSpewer extends Spewer {
 
 			// The {@link File#mkdirs} method will return false if the path already exists.
 			if (!madeDirs && !outputFileParent.isDirectory()) {
-				throw new SpewerException(String.format("Unable to make directories for file: \"%s\".",
-						contentsOutputPath));
+				throw new TaggedIOException(new IOException(String.format("Unable to make directories for file: \"%s\".",
+						contentsOutputPath)), this);
 			}
 		}
 
@@ -117,7 +119,8 @@ public class FileSpewer extends Spewer {
 			copy(reader, tagged);
 		} catch (IOException e) {
 			if (null != tagged && tagged.isCauseOf(e)) {
-				throw new SpewerException(String.format("Error writing output to file: \"%s\".", contentsOutputPath), e);
+				throw new TaggedIOException(new IOException(String.format("Error writing output to file: \"%s\".",
+						contentsOutputPath), e), this);
 			} else {
 				throw e;
 			}
@@ -153,7 +156,7 @@ public class FileSpewer extends Spewer {
 			jsonGenerator.writeEndObject();
 			jsonGenerator.writeRaw('\n');
 		} catch (IOException e) {
-			throw new SpewerException("Unable to output JSON.", e);
+			throw new TaggedIOException(new IOException("Unable to output JSON."), this);
 		}
 	}
 

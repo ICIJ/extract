@@ -1,5 +1,6 @@
 package org.icij.extract.spewer;
 
+import org.apache.commons.io.TaggedIOException;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -13,13 +14,15 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.io.Serializable;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
-public class RESTSpewer extends Spewer {
+public class RESTSpewer extends Spewer implements Serializable {
 	private static final Logger logger = LoggerFactory.getLogger(RESTSpewer.class);
+	private static final long serialVersionUID = -1551290699012748766L;
 
 	private final CloseableHttpClient client;
 	private final URI uri;
@@ -62,7 +65,7 @@ public class RESTSpewer extends Spewer {
 		client.close();
 	}
 
-	private void parametrizeMetadata(final Metadata metadata, final List<NameValuePair> params) throws SpewerException {
+	private void parametrizeMetadata(final Metadata metadata, final List<NameValuePair> params) throws IOException {
 		applyMetadata(metadata, (name, value)-> params.add(new BasicNameValuePair(name, value)), (name, values)-> {
 			for (String value: values) {
 				params.add(new BasicNameValuePair(name, value));
@@ -77,7 +80,7 @@ public class RESTSpewer extends Spewer {
 			final int code = response.getStatusLine().getStatusCode();
 
 			if (code < 200 || code >= 300) {
-				throw new SpewerException(String.format("Unexpected response code: %d", code));
+				throw new TaggedIOException(new IOException(String.format("Unexpected response code: %d", code)), this);
 			}
 		}
 	}

@@ -1,5 +1,6 @@
 package org.icij.extract.spewer;
 
+import java.io.Serializable;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
@@ -10,6 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.io.Reader;
 import java.io.IOException;
 
+import org.apache.commons.io.TaggedIOException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.mime.MediaType;
 
@@ -44,8 +46,9 @@ import org.slf4j.LoggerFactory;
 		"duration")
 @Option(name = "atomicWrites", description = "Make atomic updates to the index. If your schema contains " +
 		"fields that are not included in the payload, this prevents their values, if any, from being erased.")
-public class SolrSpewer extends Spewer {
+public class SolrSpewer extends Spewer implements Serializable {
 	private static final Logger logger = LoggerFactory.getLogger(SolrSpewer.class);
+	private static final long serialVersionUID = -8455227685165065698L;
 
 	protected final SolrClient client;
 
@@ -119,14 +122,14 @@ public class SolrSpewer extends Spewer {
 		try {
 			response = write(document, inputDocument);
 		} catch (SolrServerException e) {
-			throw new SpewerException(String.format("Unable to add document to Solr: \"%s\". " +
-					"There was server-side error.", document), e);
+			throw new TaggedIOException(new IOException(String.format("Unable to add document to Solr: \"%s\". " +
+					"There was server-side error.", document), e), this);
 		} catch (SolrException e) {
-			throw new SpewerException(String.format("Unable to add document to Solr: \"%s\". " +
-					"HTTP error %d was returned.", document, e.code()), e);
+			throw new TaggedIOException(new IOException(String.format("Unable to add document to Solr: \"%s\". " +
+					"HTTP error %d was returned.", document, e.code()), e), this);
 		} catch (IOException e) {
-			throw new SpewerException(String.format("Unable to add document to Solr: \"%s\". " +
-					"There was an error communicating with the server.", document), e);
+			throw new TaggedIOException(new IOException(String.format("Unable to add document to Solr: \"%s\". " +
+					"There was an error communicating with the server.", document), e), this);
 		}
 
 		logger.info(String.format("Document added to Solr in %dms: \"%s\".", response.getElapsedTime(), document));
@@ -236,7 +239,7 @@ public class SolrSpewer extends Spewer {
 		}
 	}
 
-	private void setMetadataFieldValues(final Metadata metadata, final SolrInputDocument document) throws SpewerException {
+	private void setMetadataFieldValues(final Metadata metadata, final SolrInputDocument document) throws IOException {
 		applyMetadata(metadata, (name, value)-> setFieldValue(document, name, value), (name, values)-> setFieldValue
 				(document, name, values));
 	}

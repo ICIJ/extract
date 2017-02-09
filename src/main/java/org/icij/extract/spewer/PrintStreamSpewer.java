@@ -3,7 +3,9 @@ package org.icij.extract.spewer;
 import java.io.Reader;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.Serializable;
 
+import org.apache.commons.io.TaggedIOException;
 import org.apache.tika.metadata.Metadata;
 
 import org.icij.extract.document.Document;
@@ -15,8 +17,9 @@ import org.icij.extract.parser.ParsingReader;
  *
  * @since 1.0.0-beta
  */
-public class PrintStreamSpewer extends Spewer {
+public class PrintStreamSpewer extends Spewer implements Serializable {
 
+	private static final long serialVersionUID = -1952187923616552629L;
 	private final PrintStream stream;
 
 	public PrintStreamSpewer(final PrintStream stream, final FieldNames fields) {
@@ -38,7 +41,7 @@ public class PrintStreamSpewer extends Spewer {
 		stream.println();
 
 		if (stream.checkError()) {
-			throw new SpewerException(String.format("Error writing to print stream: \"%s\".", document));
+			throw new TaggedIOException(new IOException("Error writing to print stream."), this);
 		}
 
 		// Write out child documents, if any.
