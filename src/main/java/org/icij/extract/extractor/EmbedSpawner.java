@@ -1,12 +1,14 @@
 package org.icij.extract.extractor;
 
 import org.apache.tika.io.TemporaryResources;
+import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.EmbeddedContentHandler;
 import org.apache.tika.sax.TeeContentHandler;
+import org.apache.tika.utils.ExceptionUtils;
 import org.icij.extract.document.Document;
 import org.icij.extract.document.EmbeddedDocument;
 import org.slf4j.Logger;
@@ -14,41 +16,33 @@ import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
-import java.io.Writer;
-import java.io.InputStream;
-import java.io.IOException;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.LinkedList;
 import java.util.function.Function;
-
 
 public class EmbedSpawner extends EmbedParser {
 
 	private static final Logger logger = LoggerFactory.getLogger(EmbedParser.class);
 
 	private final TemporaryResources tmp;
+	private final Path output;
 	private ContentHandler originalHandler = null;
 	private final Function<Writer, ContentHandler> handlerFunction;
-	private LinkedList<Document> documentStack = new LinkedList<>();
+	private LinkedList<Document> stack = new LinkedList<>();
 
-	EmbedSpawner(final Document rootDocument, final ParseContext context, final TemporaryResources tmp, final
-	Function<Writer, ContentHandler> handlerFunction) {
-		super(rootDocument, context);
+	EmbedSpawner(final Document root, final TemporaryResources tmp, final ParseContext context, final Path output,
+	             final Function<Writer, ContentHandler> handlerFunction) {
+		super(root, context);
 		this.tmp = tmp;
+		this.output = output;
 		this.handlerFunction = handlerFunction;
-		documentStack.add(rootDocument);
+		stack.add(root);
 	}
-
-	// TODO: if an output directory is given, 1) copy the file to a file on disk 2) parse that file to the output
-	// stream (handler) using the delegating parser. Output filename doesn't matter since the parser will use the
-	// RESOURCE_NAME_KEY from metadata to detect.
-
-	// Use temporary resources to copy formatted output from the content handler to a temporary file.
-	// Call setReader on the embed object with a plain reader for this temp file
-	// When all parsing finishes, close temporary resources
-	// Note that getPath should still return
 
 	@Override
 	public void parseEmbedded(final InputStream input, final ContentHandler handler, final Metadata metadata,
@@ -74,28 +68,62 @@ public class EmbedSpawner extends EmbedParser {
 				.get(TikaCoreProperties.EMBEDDED_RESOURCE_TYPE))) {
 			delegateParsing(input, embedHandler, metadata);
 		} else {
-			final Path tmpPath = tmp.createTempFile();
+			final Path parsedOutputPath = tmp.createTempFile();
+			final String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
 
-			final Writer writer = Files.newBufferedWriter(tmpPath, StandardCharsets.UTF_8);
+			final Writer writer = Files.newBufferedWriter(parsedOutputPath, StandardCharsets.UTF_8);
 			final ContentHandler teeHandler = new TeeContentHandler(embedHandler, handlerFunction.apply(writer));
 
-			final EmbeddedDocument embed = documentStack.getLast().addEmbed(metadata);
-			documentStack.add(embed);
+			final EmbeddedDocument embed = stack.getLast().addEmbed(metadata);
+			stack.add(embed);
 
-			embed.setReader(() -> Files.newBufferedReader(tmpPath, StandardCharsets.UTF_8));
+			// Use temporary resources to copy formatted output from the content handler to a temporary file.
+			// Call setReader on the embed object with a plain reader for this temp file.
+			// When all parsing finishes, close temporary resources.
+			// Note that getPath should still return the path to the original file.
+			embed.setReader(() -> Files.newBufferedReader(parsedOutputPath, StandardCharsets.UTF_8));
+
+			final Path embedFilePath;
+
+			// Spool the file to disk, if needed, so that it can be copied. This needs to be done before parsing starts.
+			if (null != output) {
+				embedFilePath = TikaInputStream.get(input, tmp).getPath();
+			} else {
+				embedFilePath = null;
+			}
 
 			try {
 				delegateParsing(input, teeHandler, metadata);
 			} catch (Exception e) {
 
 				// Note that even on exception, the document is intentionally NOT removed from the parent.
-				// TODO: add the exception to the document metadata using Tika's standard key.
-				logger.error(String.format("Unable to parse embedded document: \"%s\" (in \"%s\").",
-						metadata.get(Metadata.RESOURCE_NAME_KEY), rootDocument), e);
+				logger.error("Unable to parse embedded document: \"{}\" (in \"{}\").", name, root, e);
+
+				// TODO: Change to TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM in Tika 1.15.
+				metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_WARNING, ExceptionUtils.getFilteredStackTrace(e));
 			} finally {
-				documentStack.removeLast();
+				stack.removeLast();
 				writer.flush();
 				writer.close();
+			}
+
+			// Write the embed file to the given output directory.
+			if (null != embedFilePath) {
+				long copied;
+
+				try (final OutputStream copy = Files.newOutputStream(output.resolve(embed.getId()), StandardOpenOption
+						.CREATE_NEW)) {
+					copied = Files.copy(embedFilePath, copy);
+				} catch (FileAlreadyExistsException e) {
+					copied = -1;
+				}
+
+				if (0 == copied) {
+					logger.warn("No bytes copied for embedded document \"{}\" in \"{}\". "
+							+ "This could indicate a downstream error.", name, root);
+				} else if (-1 == copied) {
+					logger.info("Temporary file for document \"{}\" in \"{}\" already exists.", name, root);
+				}
 			}
 		}
 

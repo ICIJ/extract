@@ -37,12 +37,12 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 	private static final Logger logger = LoggerFactory.getLogger(EmbedParser.class);
     private static final Parser DELEGATING_PARSER = new DelegatingParser();
 
-	final Document rootDocument;
+	final Document root;
 	protected final ParseContext context;
 
-	EmbedParser(final Document rootDocument, final ParseContext context) {
+	EmbedParser(final Document root, final ParseContext context) {
 		super(context);
-		this.rootDocument = rootDocument;
+		this.root = root;
 		this.context = context;
 	}
 
@@ -74,11 +74,11 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 			// Use the delegate parser to parse this entry.
 			DELEGATING_PARSER.parse(newStream, handler, metadata, context);
 		} catch (EncryptedDocumentException e) {
-			logger.error(String.format("Encrypted document embedded in document: \"%s\" (in \"%s\").",
-					metadata.get(Metadata.RESOURCE_NAME_KEY), rootDocument), e);
+			logger.error("Encrypted document embedded in document: \"{}\" (in \"{}\").",
+					metadata.get(Metadata.RESOURCE_NAME_KEY), root, e);
 		} catch (TikaException e) {
-			logger.error(String.format("Unable to parse embedded document: \"%s\" (in \"%s\").",
-					metadata.get(Metadata.RESOURCE_NAME_KEY), rootDocument), e);
+			logger.error("Unable to parse embedded document: \"{}\" (in \"{}\").",
+					metadata.get(Metadata.RESOURCE_NAME_KEY), root, e);
 		}
 	}
 

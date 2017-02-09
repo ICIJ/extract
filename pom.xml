@@ -33,7 +33,6 @@
 	</properties>
 
 	<dependencies>
-
 		<dependency>
 			<groupId>org.icij.kaxxa</groupId>
 			<artifactId>kaxxa-concurrent</artifactId>
@@ -166,12 +165,6 @@
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-jdk14</artifactId>
 			<version>1.7.22</version>
-		</dependency>
-
-		<dependency>
-			<groupId>me.tongfei</groupId>
-			<artifactId>progressbar</artifactId>
-			<version>0.5.1</version>
 		</dependency>
 
 		<!-- EXCLUDED DEPENDENCY (excluded from JAR because it is test scope) -->

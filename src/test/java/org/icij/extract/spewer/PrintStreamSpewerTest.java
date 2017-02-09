@@ -6,7 +6,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.PrintStream;
 
-import java.nio.file.Paths;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -15,9 +14,7 @@ import org.apache.tika.exception.TikaException;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.parser.ParsingReader;
-import org.icij.extract.spewer.FieldNames;
-import org.icij.extract.spewer.PrintStreamSpewer;
-import org.icij.extract.spewer.Spewer;
+
 import org.junit.Test;
 import org.junit.Assert;
 
@@ -37,7 +34,7 @@ public class PrintStreamSpewerTest {
 		final ParsingReader reader = new ParsingReader(inputStream, name);
 
 		spewer.outputMetadata(false);
-		spewer.write(factory.create(Paths.get(name)), reader);
+		spewer.write(factory.create(name), reader);
 
 		Assert.assertEquals("$\n\n", outputStream.toString(StandardCharsets.UTF_8.name()));
 		Assert.assertArrayEquals(new byte[] {0x24, 0x0A}, Arrays.copyOfRange(outputStream.toByteArray(), 0, 2));
@@ -55,7 +52,7 @@ public class PrintStreamSpewerTest {
 		final ParsingReader reader = new ParsingReader(inputStream, name);
 
 		spewer.outputMetadata(false);
-		spewer.write(factory.create(Paths.get(name)), reader);
+		spewer.write(factory.create(name), reader);
 
 		Assert.assertEquals("$\n\n", outputStream.toString(StandardCharsets.UTF_8.name()));
 		Assert.assertArrayEquals(new byte[] {0x24, 0x0A}, Arrays.copyOfRange(outputStream.toByteArray(), 0, 2));
@@ -73,7 +70,7 @@ public class PrintStreamSpewerTest {
 		final ParsingReader reader = new ParsingReader(inputStream, name);
 
 		spewer.outputMetadata(false);
-		spewer.write(factory.create(Paths.get(name)), reader);
+		spewer.write(factory.create(name), reader);
 
 		Assert.assertEquals("$\n\n", outputStream.toString(StandardCharsets.UTF_8.name()));
 		Assert.assertArrayEquals(new byte[] {0x24, 0x0A}, Arrays.copyOfRange(outputStream.toByteArray(), 0, 2));
@@ -95,7 +92,7 @@ public class PrintStreamSpewerTest {
 
 		spewer.outputMetadata(false);
 		spewer.setOutputEncoding(StandardCharsets.UTF_16LE);
-		spewer.write(factory.create(Paths.get("test-file")), reader);
+		spewer.write(factory.create("test-file"), reader);
 
 		Assert.assertArrayEquals(new byte[] {0x24, 0x00, 0x0A, 0x00}, Arrays.copyOfRange(outputStream.toByteArray(),
 				0, 4));
@@ -117,7 +114,7 @@ public class PrintStreamSpewerTest {
 
 		spewer.outputMetadata(false);
 		spewer.setOutputEncoding(StandardCharsets.UTF_16BE);
-		spewer.write(factory.create(Paths.get("test-file")), reader);
+		spewer.write(factory.create("test-file"), reader);
 
 		Assert.assertArrayEquals(new byte[] {0x00, 0x24, 0x00, 0x0A}, Arrays.copyOfRange(outputStream.toByteArray(),
 				0, 4));

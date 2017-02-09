@@ -16,16 +16,11 @@
  */
 package org.icij.extract.parser;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.PipedReader;
-import java.io.PipedWriter;
-import java.io.Reader;
-import java.io.Writer;
+import java.io.*;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 
+import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.AutoDetectParser;
@@ -213,13 +208,11 @@ public class ParsingReader extends Reader {
 	public void close() throws IOException {
 		final TemporaryResources tmp = context.get(TemporaryResources.class);
 
-		if (null != tmp) {
-			try {
+		try {
+			if (null != tmp) {
 				tmp.close();
-			} finally {
-				reader.close();
 			}
-		} else {
+		} finally {
 			reader.close();
 		}
 	}

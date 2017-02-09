@@ -3,5 +3,5 @@ package org.icij.extract.document;
 @FunctionalInterface
 public interface Identifier {
 
-	String generate(final Document document);
+	String generate(final Document document) throws Exception;
 }

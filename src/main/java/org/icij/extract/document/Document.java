@@ -77,9 +77,14 @@ public class Document {
 		this.identifier = identifier;
 
 		// Create a supplier that will cache the result of the generator after the first invocation.
-		// This is not thread-safe but could be made so if required.
 		this.id = ()-> {
-			final String id = identifier.generate(this);
+			final String id;
+
+			try {
+				id = identifier.generate(this);
+			} catch (Exception e) {
+				throw new RuntimeException("Unable to generate document ID.", e);
+			}
 
 			this.id = ()-> id;
 			return id;

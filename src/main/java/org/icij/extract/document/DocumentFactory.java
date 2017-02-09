@@ -33,7 +33,7 @@ public class DocumentFactory {
 
 	public DocumentFactory configure(final Options<String> options) {
 		final String algorithm = options.get("idDigestMethod").value().orElse("SHA-256");
-		final Charset encoding = options.get("charset").parse().asCharset().orElse(StandardCharsets.UTF_8);
+		final Charset charset = options.get("charset").parse().asCharset().orElse(StandardCharsets.UTF_8);
 		final Optional<String> method = options.get("idMethod").value();
 
 		if (method.isPresent()) {
@@ -42,16 +42,16 @@ public class DocumentFactory {
 					this.identifier = new PathIdentifier();
 					break;
 				case "path-digest":
-					this.identifier = new PathDigestIdentifier(algorithm, encoding);
+					this.identifier = new PathDigestIdentifier(algorithm, charset);
 					break;
 				case "tika-digest":
-					this.identifier = new TikaDigestIdentifier(algorithm);
+					this.identifier = new DigestIdentifier(algorithm, charset);
 					break;
 				default:
 					throw new IllegalArgumentException(String.format("\"%s\" is not a valid identifier.", method.get()));
 			}
 		} else {
-			identifier = new TikaDigestIdentifier(algorithm);
+			identifier = new DigestIdentifier(algorithm, charset);
 		}
 
 		return this;
@@ -76,6 +76,10 @@ public class DocumentFactory {
 
 	public Document create(final Path path) {
 		return new Document(identifier, path);
+	}
+
+	public Document create(final String path) {
+		return create(Paths.get(path));
 	}
 
 	public Document create(final Path path, final Metadata metadata) {

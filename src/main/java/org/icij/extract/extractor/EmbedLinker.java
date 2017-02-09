@@ -134,11 +134,11 @@ public class EmbedLinker implements EmbeddedDocumentExtractor {
 		}
 
 		if (copied > 0) {
-			logger.info(String.format("Copied %d bytes from embedded document \"%s\" in \"%s\" to file.",
-					copied, name, parent));
+			logger.info("Copied {} bytes from embedded document \"{}\" in \"{}\" to file.",
+					copied, name, parent);
 		} else {
-			logger.warn(String.format("No bytes copied for embedded document \"%s\" in \"%s\". "
-					+ "This could indicate a downstream error.", name, parent));
+			logger.warn("No bytes copied for embedded document \"{}\" in \"{}\". "
+					+ "This could indicate a downstream error.", name, parent);
 		}
 
 		return embed;
@@ -157,8 +157,8 @@ public class EmbedLinker implements EmbeddedDocumentExtractor {
 			try (final InputStream contents = new DocumentInputStream((DocumentEntry) entry)) {
 				destination.createDocument(entry.getName(), contents);
 			} catch (IOException e) {
-				logger.error(String.format("Unable to save embedded document \"%s\" in document: \"%s\".",
-						entry.getName(), parent), e);
+				logger.error("Unable to save embedded document \"{}\" in document: \"{}\".",
+						entry.getName(), parent, e);
 			}
 		}
 	}

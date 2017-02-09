@@ -3,6 +3,7 @@ package org.icij.extract.extractor;
 import java.io.FileNotFoundException;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.*;
 
@@ -57,8 +58,9 @@ import org.xml.sax.ContentHandler;
 		"\"concatenate\", \"spawn\" or \"embed\". When set to extract, embeds are parsed and the output is in-lined " +
 		"into the main output. In embed mode, embeds are not parsed but are in-lined as a data URI representation of " +
 		"the raw embed data. The latter mode only applies when the output format is set to HTML. " +
-		"Defaults to concatenating.",
-		parameter = "type")
+		"Defaults to concatenating.", parameter = "type")
+@Option(name = "embedOutput", description = "Path to a directory for outputting attachments en masse.",
+		parameter = "path")
 @Option(name = "ocrLanguage", description = "Set the languages used by Tesseract. Multiple  languages may be " +
 		"specified, separated by plus characters. Tesseract uses 3-character ISO 639-2 language codes.", parameter =
 		"language")
@@ -100,6 +102,7 @@ public class Extractor {
 
 	private OutputFormat outputFormat = OutputFormat.TEXT;
 	private EmbedHandling embedHandling = EmbedHandling.getDefault();
+	private Path embedOutput = null;
 
 	/**
 	 * Create a new extractor, which will OCR images by default if Tesseract is available locally, extract inline
@@ -130,6 +133,7 @@ public class Extractor {
 	public Extractor configure(final Options<String> options) {
 		options.get("outputFormat").parse().asEnum(OutputFormat::parse).ifPresent(this::setOutputFormat);
 		options.get("embedHandling").parse().asEnum(EmbedHandling::parse).ifPresent(this::setEmbedHandling);
+		options.get("embedOutput").parse().asPath().ifPresent(this::setEmbedOutputPath);
 		options.get("ocrLanguage").value().ifPresent(this::setOcrLanguage);
 		options.get("ocrTimeout").parse().asDuration().ifPresent(this::setOcrTimeout);
 
@@ -181,6 +185,24 @@ public class Extractor {
 	 */
 	public EmbedHandling getEmbedHandling() {
 		return embedHandling;
+	}
+
+	/**
+	 * Set the output directory path for embed files.
+	 *
+	 * @param embedOutput the embed output path
+	 */
+	public void setEmbedOutputPath(final Path embedOutput) {
+		this.embedOutput = embedOutput;
+	}
+
+	/**
+	 * Get the output directory path for embed files.
+	 *
+	 * @return the embed output path.
+	 */
+	public Path getEmbedOutputPath() {
+		return embedOutput;
 	}
 
 	/**
@@ -402,10 +424,9 @@ public class Extractor {
 				final TemporaryResources tmp = new TemporaryResources();
 
 				context.set(Parser.class, parser);
-				context.set(EmbeddedDocumentExtractor.class, new EmbedSpawner(document, context, tmp, handler));
-
-				// Will be closed by the ParsingReader.
 				context.set(TemporaryResources.class, tmp);
+				context.set(EmbeddedDocumentExtractor.class, new EmbedSpawner(document, tmp, context, embedOutput,
+						handler));
 			} else if (EmbedHandling.CONCATENATE == embedHandling) {
 				context.set(Parser.class, parser);
 				context.set(EmbeddedDocumentExtractor.class, new EmbedParser(document, context));

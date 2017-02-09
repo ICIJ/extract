@@ -7,14 +7,10 @@ import java.io.StringWriter;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 
-import java.time.Instant;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.*;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 
 import org.apache.tika.metadata.*;
@@ -63,6 +59,10 @@ public abstract class Spewer implements AutoCloseable {
 	public abstract void write(final Document document, final Reader reader) throws IOException;
 
 	public abstract void writeMetadata(final Document document) throws IOException;
+
+	public FieldNames getFields() {
+		return fields;
+	}
 
 	public void setOutputEncoding(final Charset outputEncoding) {
 		this.outputEncoding = outputEncoding;
@@ -180,60 +180,49 @@ public abstract class Spewer implements AutoCloseable {
 		consumer.accept(fields.forMetadata(name), value);
 
 		// Add a separate field containing the ISO 8601 date.
-		if (isoDates && dateFieldNames.contains(name)) {
-			final String isoDate;
+		final Property property = isDate(name);
 
-			try {
-				isoDate = ensureISODate(value);
-			} catch (DateTimeParseException e) {
-				throw new SpewerException(String.format("Unable to parse date \"%s\" from field \"%s\" for " +
-						"ISO 8601 formatting.", name, value), e);
+		if (isoDates && null != property) {
+			final Date isoDate = metadata.getDate(property);
+
+			if (null != isoDate) {
+				consumer.accept(fields.forMetadataISODate(name), isoDate.toInstant().toString());
+			} else {
+				throw new SpewerException(String.format("Unable to parse date \"%s\" from field \"%s\" for ISO 8601 " +
+						"formatting.", value, name));
 			}
-
-			consumer.accept(fields.forMetadataISODate(name), isoDate);
 		}
 	}
 
-	private String ensureISODate(final String value) throws DateTimeParseException {
-		Instant instant = null;
+	private Property isDate(final String name) {
+		Property property = null;
 
-		for (DateTimeFormatter format: dateFormats) {
-			try {
-				instant = format.parse(value, Instant::from);
-			} catch (DateTimeParseException e) {
-				continue;
+		for (Property dateProperty : dateProperties) {
+			if (dateProperty.getName().equals(name)) {
+				property = dateProperty;
+				break;
 			}
-
-			break;
 		}
 
-		if (null == instant) {
-			throw new DateTimeParseException("Unable to parse date to ISO 8601 format.", value, 0);
-		}
-
-		return instant.toString();
+		return property;
 	}
 
-	private static final List<String> dateFieldNames = Arrays.asList(
-			DublinCore.DATE.getName(),
-			DublinCore.CREATED.getName(),
-			DublinCore.MODIFIED.getName(),
-			Office.CREATION_DATE.getName(),
-			Office.SAVE_DATE.getName(),
-			MSOffice.CREATION_DATE.getName(),
-			MSOffice.LAST_SAVED.getName(),
-			PDF.DOC_INFO_CREATED.getName(),
-			PDF.DOC_INFO_MODIFICATION_DATE.getName(),
-			Metadata.DATE.getName(),
-			Metadata.MODIFIED,
-			Metadata.LAST_MODIFIED.getName());
-
-	private static final List<DateTimeFormatter> dateFormats = Arrays.asList(
-			DateTimeFormatter.ISO_INSTANT,
-			DateTimeFormatter.ISO_OFFSET_DATE_TIME,
-			DateTimeFormatter.ISO_LOCAL_DATE_TIME,
-			DateTimeFormatter.RFC_1123_DATE_TIME,
-			DateTimeFormatter.ISO_DATE);
+	private static final List<Property> dateProperties = Arrays.asList(
+			DublinCore.DATE,
+			DublinCore.CREATED,
+			DublinCore.MODIFIED,
+			Office.CREATION_DATE,
+			Office.SAVE_DATE,
+			Office.PRINT_DATE,
+			MSOffice.CREATION_DATE,
+			MSOffice.LAST_SAVED,
+			MSOffice.LAST_PRINTED,
+			PDF.DOC_INFO_CREATED,
+			PDF.DOC_INFO_MODIFICATION_DATE,
+			TIFF.ORIGINAL_DATE,
+			Metadata.DATE,
+			//Metadata.MODIFIED,
+			HttpHeaders.LAST_MODIFIED);
 
 	@FunctionalInterface
 	interface PairConsumer {
