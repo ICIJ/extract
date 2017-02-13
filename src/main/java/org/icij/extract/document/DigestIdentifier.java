@@ -46,6 +46,6 @@ public class DigestIdentifier extends AbstractIdentifier {
 			digest.update(name.getBytes(charset));
 		}
 
-		return DatatypeConverter.printHexBinary(digest.digest());
+		return DatatypeConverter.printHexBinary(digest.digest()).toLowerCase(ENGLISH);
 	}
 }
