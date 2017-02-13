@@ -42,12 +42,13 @@ public class DocumentConsumer extends ExecutorProxy implements Consumer<Document
 	private Reporter reporter = null;
 
 	/**
-	 * Returns the default thread pool size, which is equivalent to the number of available processors.
+	 * Returns the default thread pool size, which is equivalent to the number of available processors minus 1, or 1
+	 * - whichever is greater.
 	 *
 	 * @return the default pool size
 	 */
 	public static int defaultPoolSize() {
-		return Runtime.getRuntime().availableProcessors();
+		return Math.max(1, Runtime.getRuntime().availableProcessors() - 1);
 	}
 
 	/**
