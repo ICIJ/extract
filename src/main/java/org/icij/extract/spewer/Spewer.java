@@ -218,7 +218,7 @@ public abstract class Spewer implements AutoCloseable, Serializable {
 			PDF.DOC_INFO_MODIFICATION_DATE,
 			TIFF.ORIGINAL_DATE,
 			Metadata.DATE,
-			//Metadata.MODIFIED,
+			Property.externalDate(Metadata.MODIFIED),
 			HttpHeaders.LAST_MODIFIED);
 
 	@FunctionalInterface
