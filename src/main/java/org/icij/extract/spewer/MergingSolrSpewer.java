@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 		"conflict error is returned by the index, after merging in existing fields.", parameter = "number")
 public class MergingSolrSpewer extends SolrSpewer {
 
+	private static final long serialVersionUID = -7084864083664544361L;
 	private int retries = 100;
 
 	public MergingSolrSpewer(final SolrClient client, final FieldNames fields) {
