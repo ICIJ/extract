@@ -18,6 +18,11 @@ public class EmbeddedDocument extends Document {
 		this.parent = parent;
 	}
 
+	@Override
+	String generateId() throws Exception {
+		return getIdentifier().generateForEmbed(this);
+	}
+
 	Document getParent() {
 		return parent;
 	}

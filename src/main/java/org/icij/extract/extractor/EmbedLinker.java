@@ -7,6 +7,7 @@ import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.icij.extract.document.Document;
 import org.icij.extract.document.EmbeddedDocument;
+import org.icij.extract.document.PathIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
@@ -110,7 +111,7 @@ public class EmbedLinker implements EmbeddedDocumentExtractor {
 
 		// Add the embedded document to the parent with a key (which is the temporary path) so that it can be looked
 		// up later.
-		final EmbeddedDocument embed = parent.addEmbed(path.toString(), (document)-> name, path, metadata);
+		final EmbeddedDocument embed = parent.addEmbed(path.toString(), new PathIdentifier(), path, metadata);
 
 		if ((input instanceof TikaInputStream) && ((TikaInputStream) input).getOpenContainer() != null && (
 				(TikaInputStream) input).getOpenContainer() instanceof DirectoryEntry) {

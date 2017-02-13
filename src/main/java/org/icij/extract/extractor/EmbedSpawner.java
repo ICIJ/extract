@@ -99,10 +99,9 @@ public class EmbedSpawner extends EmbedParser {
 			name = String.format("untitled_%d", ++untitled);
 		}
 
+		// Trigger spooling of the file to disk so that it can be copied.
+		// This needs to be done before parsing starts.
 		if (null != output) {
-
-			// Trigger spooling of the file to disk so that it can be copied.
-			// This needs to be done before parsing starts.
 			TikaInputStream.get(input, tmp).getFile();
 		}
 
@@ -127,9 +126,9 @@ public class EmbedSpawner extends EmbedParser {
 	}
 
 	private void writeEmbed(final InputStream input, final EmbeddedDocument embed, final String name) throws IOException {
-		long copied;
-		Path source;
+		final Path source;
 
+		final Metadata metadata = embed.getMetadata();
 		final TikaInputStream tis = TikaInputStream.get(input, tmp);
 		final Object container = tis.getOpenContainer();
 
@@ -148,30 +147,28 @@ public class EmbedSpawner extends EmbedParser {
 			source = tis.getPath();
 		}
 
-		try (final OutputStream copy = Files.newOutputStream(output.resolve(embed.getId()),
-				StandardOpenOption.CREATE_NEW)) {
-			copied = Files.copy(source, copy);
-		} catch (FileAlreadyExistsException e) {
-			copied = -1;
+		// Set the content-length as it isn't (always?) set by Tika for embeds.
+		if (null == metadata.get(Metadata.CONTENT_LENGTH)) {
+			metadata.set(Metadata.CONTENT_LENGTH, Long.toString(Files.size(source)));
 		}
 
-		if (0 == copied) {
-			logger.warn("No bytes copied for embedded document \"{}\" in \"{}\". "
-					+ "This could indicate a downstream error.", name, root);
-		} else if (-1 == copied) {
+		// To prevent massive duplication and because the disk is only a storage for underlying date, save using the
+		// straight hash as a filename.
+		try (final OutputStream copy = Files.newOutputStream(output.resolve(embed.getHash()),
+				StandardOpenOption.CREATE_NEW)) {
+			Files.copy(source, copy);
+		} catch (FileAlreadyExistsException e) {
 			logger.info("Temporary file for document \"{}\" in \"{}\" already exists.", name, root);
 		}
 	}
 
 	private void saveEntries(final DirectoryEntry source, final DirectoryEntry destination) throws IOException {
 		for (Entry entry : source) {
-			if (entry instanceof DirectoryEntry) {
 
-				// Recursively save sub-entries.
+			// Recursively save sub-entries or copy the entry.
+			if (entry instanceof DirectoryEntry) {
 				saveEntries((DirectoryEntry) entry, destination.createDirectory(entry.getName()));
 			} else {
-
-				// Copy the entry.
 				try (final InputStream contents = new DocumentInputStream((DocumentEntry) entry)) {
 					destination.createDocument(entry.getName(), contents);
 				}

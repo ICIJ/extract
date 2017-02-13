@@ -81,7 +81,7 @@ public class Document {
 			final String id;
 
 			try {
-				id = identifier.generate(this);
+				id = this.generateId();
 			} catch (Exception e) {
 				throw new RuntimeException("Unable to generate document ID.", e);
 			}
@@ -98,8 +98,20 @@ public class Document {
 		this(identifier, path, new Metadata());
 	}
 
+	String generateId() throws Exception {
+		return identifier.generate(this);
+	}
+
 	public String getId() {
 		return id.get();
+	}
+
+	public String getHash() {
+		try {
+			return identifier.hash(this);
+		} catch (Exception e) {
+			throw new RuntimeException("Unable to generate file hash for document.", e);
+		}
 	}
 
 	Identifier getIdentifier() {
