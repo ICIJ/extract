@@ -66,7 +66,8 @@ public class RESTSpewer extends Spewer implements Serializable {
 	}
 
 	private void parametrizeMetadata(final Metadata metadata, final List<NameValuePair> params) throws IOException {
-		applyMetadata(metadata, (name, value)-> params.add(new BasicNameValuePair(name, value)), (name, values)-> {
+		new MetadataTransformer(metadata, fields).transform((name, value)-> params.add(new BasicNameValuePair(name, value)),
+				(name, values)-> {
 			for (String value: values) {
 				params.add(new BasicNameValuePair(name, value));
 			}

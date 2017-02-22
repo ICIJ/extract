@@ -36,11 +36,10 @@ public class FileSpewer extends Spewer implements Serializable {
 
 	private static final Logger logger = LoggerFactory.getLogger(FileSpewer.class);
 
-	private static final String DEFAULT_EXTENSION = "txt";
 	private static final long serialVersionUID = -6541331052292803766L;
 
 	private Path outputDirectory = Paths.get(".");
-	private String outputExtension = DEFAULT_EXTENSION;
+	private String outputExtension = "txt";
 
 	public FileSpewer(final FieldNames fields) {
 		super(fields);
@@ -54,7 +53,7 @@ public class FileSpewer extends Spewer implements Serializable {
 				.asEnum(Extractor.OutputFormat::parse).orElse(null);
 
 		if (null != outputFormat && outputFormat.equals(Extractor.OutputFormat.HTML)) {
-			setOutputExtension("html");
+			outputExtension = "html";
 		}
 
 		options.get("outputDirectory").parse().asPath().ifPresent(this::setOutputDirectory);
@@ -71,14 +70,6 @@ public class FileSpewer extends Spewer implements Serializable {
 
 	public String getOutputExtension() {
 		return outputExtension;
-	}
-
-	public void setOutputExtension(final String outputExtension) {
-		if (null == outputExtension || outputExtension.trim().isEmpty()) {
-			this.outputExtension = null;
-		} else {
-			this.outputExtension = outputExtension.trim();
-		}
 	}
 
 	@Override
@@ -144,7 +135,7 @@ public class FileSpewer extends Spewer implements Serializable {
 			jsonGenerator.useDefaultPrettyPrinter();
 			jsonGenerator.writeStartObject();
 
-			applyMetadata(metadata, jsonGenerator::writeStringField, (name, values)-> {
+			new MetadataTransformer(metadata, fields).transform(jsonGenerator::writeStringField, (name, values)-> {
 				jsonGenerator.writeArrayFieldStart(name);
 				jsonGenerator.writeStartArray();
 

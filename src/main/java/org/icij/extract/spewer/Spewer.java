@@ -1,15 +1,19 @@
 package org.icij.extract.spewer;
 
-import java.io.*;
+import java.io.Reader;
+import java.io.Writer;
+import java.io.Serializable;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.OutputStream;
+import java.io.StringWriter;
 
-import java.util.*;
+import java.util.Map;
+import java.util.HashMap;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.stream.Stream;
 
-import org.apache.commons.io.TaggedIOException;
-import org.apache.tika.metadata.*;
 import org.icij.extract.document.Document;
 import org.icij.extract.parser.ParsingReader;
 import org.icij.task.Options;
@@ -28,13 +32,11 @@ import org.icij.task.annotation.Option;
 		parameter = "name-value-pair")
 @Option(name = "charset", description = "Set the output encoding for text and document attributes. Defaults to UTF-8.",
 		parameter = "name")
-@Option(name = "isoDates", description = "Attempt to parse dates and convert them to ISO 8601 UTC format. On by " +
-		"default.")
 public abstract class Spewer implements AutoCloseable, Serializable {
 
 	private static final long serialVersionUID = 5169670165236652447L;
+
 	boolean outputMetadata = true;
-	private boolean isoDates = true;
 
 	private Charset outputEncoding = StandardCharsets.UTF_8;
 	final Map<String, String> tags = new HashMap<>();
@@ -46,7 +48,6 @@ public abstract class Spewer implements AutoCloseable, Serializable {
 
 	public Spewer configure(final Options<String> options) {
 		options.get("outputMetadata").parse().asBoolean().ifPresent(this::outputMetadata);
-		options.get("isoDates").parse().asBoolean().ifPresent(this::isoDates);
 		options.get("charset").value(Charset::forName).ifPresent(this::setOutputEncoding);
 		options.get("tag").values().forEach(this::setTag);
 
@@ -77,14 +78,6 @@ public abstract class Spewer implements AutoCloseable, Serializable {
 		return outputMetadata;
 	}
 
-	public void isoDates(final boolean isoDates) {
-		this.isoDates = isoDates;
-	}
-
-	public boolean isoDates() {
-		return isoDates;
-	}
-
 	public void setTags(final Map<String, String> tags) {
 		tags.forEach(this::setTag);
 	}
@@ -103,13 +96,6 @@ public abstract class Spewer implements AutoCloseable, Serializable {
 		}
 	}
 
-	public static String toString(final Reader reader) throws IOException {
-		final StringWriter writer = new StringWriter(4096);
-
-		copy(reader, writer);
-		return writer.toString();
-	}
-
 	protected void copy(final Reader input, final OutputStream output) throws IOException {
 		copy(input, new OutputStreamWriter(output, outputEncoding));
 	}
@@ -125,111 +111,10 @@ public abstract class Spewer implements AutoCloseable, Serializable {
 		output.flush();
 	}
 
-	void applyMetadata(final Metadata metadata, final PairConsumer single, final PairArrayConsumer multiple) throws
-			IOException {
-		try {
-			for (String name : metadata.names()) {
-				boolean isMultivalued = metadata.isMultiValued(name);
+	public static String toString(final Reader reader) throws IOException {
+		final StringWriter writer = new StringWriter(4096);
 
-				// Bad HTML files can have many titles. Ignore all but the first.
-				if (isMultivalued && (name.equals(TikaCoreProperties.TITLE.getName()) || name.equals(Metadata.TITLE))) {
-					isMultivalued = false;
-				}
-
-				if (isMultivalued) {
-					applyMetadata(metadata, name, multiple);
-				} else {
-					applyMetadata(metadata, name, single);
-				}
-			}
-		} catch (IOException e) {
-			throw new TaggedIOException(e, this);
-		}
-	}
-
-	private void applyMetadata(final Metadata metadata, final String name, final PairArrayConsumer consumer) throws
-			IOException {
-		String[] values = metadata.getValues(name);
-		Stream<String> stream = Arrays.stream(values);
-
-		// Remove empty values.
-		stream = stream.filter(value -> null != value && !value.isEmpty());
-
-		// Remove duplicate content types (Tika seems to add these sometimes, especially for RTF files)..
-		if (values.length > 1 && name.equals(Metadata.CONTENT_TYPE)) {
-			stream = stream.distinct();
-		}
-
-		values = stream.toArray(String[]::new);
-		if (values.length > 0) {
-			consumer.accept(fields.forMetadata(name), values);
-		}
-	}
-
-	private void applyMetadata(final Metadata metadata, final String name, final PairConsumer consumer) throws
-			IOException {
-		final String value = metadata.get(name);
-
-		if (null == value || value.isEmpty()) {
-			return;
-		}
-
-		consumer.accept(fields.forMetadata(name), value);
-
-		// Add a separate field containing the ISO 8601 date.
-		final Property property = isDate(name);
-
-		if (isoDates && null != property) {
-			final Date isoDate = metadata.getDate(property);
-
-			if (null != isoDate) {
-				consumer.accept(fields.forMetadataISODate(name), isoDate.toInstant().toString());
-			} else {
-				throw new TaggedIOException(new IOException(String.format("Unable to parse date \"%s\" from field " +
-						"\"%s\" for ISO 8601 formatting.", value, name)), this);
-			}
-		}
-	}
-
-	private Property isDate(final String name) {
-		Property property = null;
-
-		for (Property dateProperty : dateProperties) {
-			if (dateProperty.getName().equals(name)) {
-				property = dateProperty;
-				break;
-			}
-		}
-
-		return property;
-	}
-
-	private static final List<Property> dateProperties = Arrays.asList(
-			DublinCore.DATE,
-			DublinCore.CREATED,
-			DublinCore.MODIFIED,
-			Office.CREATION_DATE,
-			Office.SAVE_DATE,
-			Office.PRINT_DATE,
-			MSOffice.CREATION_DATE,
-			MSOffice.LAST_SAVED,
-			MSOffice.LAST_PRINTED,
-			PDF.DOC_INFO_CREATED,
-			PDF.DOC_INFO_MODIFICATION_DATE,
-			TIFF.ORIGINAL_DATE,
-			Metadata.DATE,
-			Property.externalDate(Metadata.MODIFIED),
-			HttpHeaders.LAST_MODIFIED);
-
-	@FunctionalInterface
-	interface PairConsumer {
-
-		void accept(final String name, final String value) throws IOException;
-	}
-
-	@FunctionalInterface
-	interface PairArrayConsumer {
-
-		void accept(final String name, final String[] values) throws IOException;
+		copy(reader, writer);
+		return writer.toString();
 	}
 }

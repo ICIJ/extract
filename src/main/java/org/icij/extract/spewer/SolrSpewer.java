@@ -240,8 +240,8 @@ public class SolrSpewer extends Spewer implements Serializable {
 	}
 
 	private void setMetadataFieldValues(final Metadata metadata, final SolrInputDocument document) throws IOException {
-		applyMetadata(metadata, (name, value)-> setFieldValue(document, name, value), (name, values)-> setFieldValue
-				(document, name, values));
+		new MetadataTransformer(metadata, fields).transform((name, value)-> setFieldValue(document, name, value),
+				(name, values)-> setFieldValue(document, name, values));
 	}
 
 	/**

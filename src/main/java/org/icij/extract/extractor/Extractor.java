@@ -38,6 +38,7 @@ import org.icij.extract.document.Document;
 import org.icij.extract.parser.*;
 import org.icij.extract.report.Reporter;
 import org.icij.extract.sax.HTML5Serializer;
+import org.icij.extract.spewer.MetadataTransformer;
 import org.icij.extract.spewer.Spewer;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
@@ -306,9 +307,38 @@ public class Extractor {
 			extract(document, spewer);
 		} catch (Exception e) {
 			status = status(e, document, spewer);
+			log(e, status, document);
 		}
 
 		reporter.save(document, status);
+	}
+
+	private void log(final Exception e, final ExtractionStatus status, final Document document) {
+		switch (status) {
+			case NOT_SAVED:
+				logger.error(String.format("The extraction result could not be outputted: \"%s\".", document),
+						e.getCause());
+				break;
+			case NOT_FOUND:
+				logger.error(String.format("File not found: \"%s\". Skipping.", document), e);
+				break;
+			case EXCLUDED:
+				logger.warn(String.format("The document was not parsed because all of the parsers that handle it " +
+						"were excluded: \"%s\".", document));
+				break;
+			case NOT_DECRYPTED:
+				logger.warn(String.format("Skipping encrypted file: \"%s\".", document), e);
+				break;
+			case NOT_PARSED:
+				logger.error(String.format("The document could not be parsed: \"%s\".", document), e);
+				break;
+			case NOT_READ:
+				logger.error(String.format("The document stream could not be read: \"%s\".", document), e);
+				break;
+			default:
+				logger.error(String.format("Unknown exception during extraction or output: \"%s\".", document), e);
+				break;
+		}
 	}
 
 	/**
@@ -322,30 +352,28 @@ public class Extractor {
 	 */
 	private ExtractionStatus status(final Exception e, final Document document, final Spewer spewer) {
 		if (TaggedIOException.isTaggedWith(e, spewer)) {
-			logger.error(String.format("The extraction result could not be outputted: \"%s\".", document), e.getCause());
 			return ExtractionStatus.NOT_SAVED;
 		}
 
+		if (TaggedIOException.isTaggedWith(e, MetadataTransformer.class)) {
+			return ExtractionStatus.NOT_PARSED;
+		}
+
 		if (e instanceof FileNotFoundException) {
-			logger.error(String.format("File not found: \"%s\". Skipping.", document), e);
 			return ExtractionStatus.NOT_FOUND;
 		}
 
 		if (!(e instanceof IOException)) {
-			logger.error(String.format("Unknown exception during extraction or output: \"%s\".", document), e);
 			return ExtractionStatus.UNKNOWN_ERROR;
 		}
 
 		final Throwable cause = e.getCause();
 
 		if (cause instanceof ExcludedMediaTypeException) {
-			logger.warn(String.format("The document was not parsed because all of the parsers that handle it " +
-					"were excluded: \"%s\".", document));
 			return ExtractionStatus.EXCLUDED;
 		}
 
 		if (cause instanceof EncryptedDocumentException) {
-			logger.warn(String.format("Skipping encrypted file: \"%s\".", document), e);
 			return ExtractionStatus.NOT_DECRYPTED;
 		}
 
@@ -353,11 +381,9 @@ public class Extractor {
 		// This helps us differentiate input stream exceptions from output stream exceptions.
 		// https://issues.apache.org/jira/browse/TIKA-198
 		if (cause instanceof TikaException) {
-			logger.error(String.format("The document could not be parsed: \"%s\".", document), e);
 			return ExtractionStatus.NOT_PARSED;
 		}
 
-		logger.error(String.format("The document stream could not be read: \"%s\".", document), e);
 		return ExtractionStatus.NOT_READ;
 	}
 

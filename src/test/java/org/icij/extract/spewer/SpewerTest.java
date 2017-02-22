@@ -1,6 +1,5 @@
 package org.icij.extract.spewer;
 
-import org.apache.james.mime4j.dom.field.FieldName;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.Office;
 import org.icij.extract.document.Document;
@@ -22,6 +21,7 @@ public class SpewerTest {
 
 	private class SpewerStub extends Spewer {
 
+		private static final long serialVersionUID = 6023532612678893344L;
 		final Map<String, String> metadata = new HashMap<>();
 
 		SpewerStub() {
@@ -36,7 +36,7 @@ public class SpewerTest {
 		public void writeMetadata(final Document document) throws IOException {
 			final Metadata metadata = document.getMetadata();
 
-			applyMetadata(metadata, this.metadata::put,
+			new MetadataTransformer(metadata, fields).transform(this.metadata::put,
 					(name, values)-> Stream.of(values).forEach(value -> this.metadata.put(name, value)));
 		}
 
@@ -62,11 +62,6 @@ public class SpewerTest {
 	@Test
 	public void testDefaultIsToOutputMetadata() {
 		Assert.assertTrue(new SpewerStub().outputMetadata());
-	}
-
-	@Test
-	public void testDefaultIsToOutputISODates() {
-		Assert.assertTrue(new SpewerStub().isoDates());
 	}
 
 	@Test
