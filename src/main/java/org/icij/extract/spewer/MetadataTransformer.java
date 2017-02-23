@@ -55,7 +55,7 @@ public class MetadataTransformer implements Serializable {
 	void transform(final ValueConsumer single, final ValueArrayConsumer multiple) throws IOException {
 		try {
 			for (String name : metadata.names()) {
-				if (metadata.isMultiValued(name)) {
+				if (isMultiValued(name)) {
 					transform(name, multiple);
 				} else {
 					transform(name, single);
@@ -64,6 +64,13 @@ public class MetadataTransformer implements Serializable {
 		} catch (IOException e) {
 			throw new TaggedIOException(e, getClass());
 		}
+	}
+
+	private boolean isMultiValued(final String name) {
+
+		// The title field should not be considered multivalued until TIKA-2274 is resolved.
+		//noinspection deprecation
+		return metadata.isMultiValued(name) && !name.equals(Metadata.TITLE);
 	}
 
 	private void transform(final String name, final ValueArrayConsumer consumer) throws IOException {
