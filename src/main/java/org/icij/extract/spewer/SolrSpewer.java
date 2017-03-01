@@ -116,7 +116,7 @@ public class SolrSpewer extends Spewer implements Serializable {
 
 	@Override
 	public void write(final Document document, final Reader reader) throws IOException {
-		final SolrInputDocument inputDocument = prepareDocument(document, reader);
+		final SolrInputDocument inputDocument = prepareDocument(document, reader, 0);
 		final UpdateResponse response;
 
 		try {
@@ -155,7 +155,8 @@ public class SolrSpewer extends Spewer implements Serializable {
 		return client.add(inputDocument);
 	}
 
-	private SolrInputDocument prepareDocument(final Document document, final Reader reader) throws IOException {
+	private SolrInputDocument prepareDocument(final Document document, final Reader reader, final int level) throws
+			IOException {
 		final SolrInputDocument inputDocument = new SolrInputDocument();
 
 		// Set extracted metadata fields supplied by Tika.
@@ -197,10 +198,18 @@ public class SolrSpewer extends Spewer implements Serializable {
 		// Finally, set the text field containing the actual extracted text.
 		setFieldValue(inputDocument, fields.forText(), toString(reader));
 
+		// Set the level in the hierarchy.
+		setFieldValue(inputDocument, fields.forLevel(), Integer.toString(level));
+
 		// Add embedded documents as child documents.
 		for (EmbeddedDocument embed : document.getEmbeds()) {
 			try (final Reader embedReader = embed.getReader()) {
-				inputDocument.addChildDocument(prepareDocument(embed, embedReader));
+				final SolrInputDocument childDocument = prepareDocument(embed, embedReader, level + 1);
+
+				// Set the ID of the parent on the child before adding to the parent.
+				// We do this because Solr flattens the hierarchy (see org.apache.solr.update.AddUpdateCommand#flatten).
+				setFieldValue(childDocument, fields.forParentId(), document.getId());
+				inputDocument.addChildDocument(childDocument);
 			}
 		}
 

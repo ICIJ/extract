@@ -18,6 +18,8 @@ import java.util.regex.Pattern;
 @Option(name = "textField", description = "Field name for extracted text.", code = "t", parameter = "name")
 @Option(name = "pathField", description = "Field name for the file path.", parameter = "name", code = "p")
 @Option(name = "parentPathField", description = "Field name for the parent directory path.", parameter = "name")
+@Option(name = "parentField", description = "Field name for the parent ID on child documents.", parameter = "name")
+@Option(name = "levelField", description = "Field name for the hierarchy level field.", parameter = "name")
 @Option(name = "baseTypeField", description = "Field name for the base content-type.", parameter = "name")
 @Option(name = "versionField", description = "Index field name for the version.", parameter = "name")
 @Option(name = "tagPrefix", description = "Prefix for tag fields added to the index.", parameter = "name")
@@ -33,6 +35,8 @@ public class FieldNames {
 	public static final String DEFAULT_PATH_FIELD = "extract_paths";
 	public static final String DEFAULT_BASE_TYPE_FIELD = "extract_base_type";
 	public static final String DEFAULT_PARENT_PATH_FIELD = "extract_parent_paths";
+	public static final String DEFAULT_PARENT_ID_FIELD = "extract_parent_id";
+	public static final String DEFAULT_LEVEL_FIELD = "extract_level";
 	public static final String DEFAULT_VERSION_FIELD = "_version_";
 	public static final String DEFAULT_METADATA_FIELD_PREFIX = "tika_metadata_";
 	public static final String DEFAULT_TAG_FIELD_PREFIX = "tag_";
@@ -44,6 +48,8 @@ public class FieldNames {
 	private String idField = DEFAULT_ID_FIELD;
 	private String baseTypeField = DEFAULT_BASE_TYPE_FIELD;
 	private String versionField = DEFAULT_VERSION_FIELD;
+	private String parentIdField = DEFAULT_PARENT_ID_FIELD;
+	private String levelField = DEFAULT_LEVEL_FIELD;
 	private String tagFieldPrefix = DEFAULT_TAG_FIELD_PREFIX;
 	private String metadataFieldPrefix = DEFAULT_METADATA_FIELD_PREFIX;
 	private String metadataISODatePostfix = DEFAULT_METADATA_ISO_DATE_POSTFIX;
@@ -52,6 +58,8 @@ public class FieldNames {
 		options.get("textField").value().ifPresent(this::forText);
 		options.get("pathField").value().ifPresent(this::forPath);
 		options.get("parentPathField").value().ifPresent(this::forParentPath);
+		options.get("parentField").value().ifPresent(this::forParentId);
+		options.get("levelField").value().ifPresent(this::forLevel);
 		options.get("baseTypeField").value().ifPresent(this::forBaseType);
 		options.get("versionField").value().ifPresent(this::forVersion);
 		options.get("idField").value().ifPresent(this::forId);
@@ -84,6 +92,22 @@ public class FieldNames {
 
 	String forParentPath() {
 		return parentPathField;
+	}
+
+	private void forParentId(final String parentIdField) {
+		this.parentIdField = parentIdField;
+	}
+
+	String forParentId() {
+		return parentIdField;
+	}
+
+	private void forLevel(final String levelField) {
+		this.levelField = levelField;
+	}
+
+	String forLevel() {
+		return levelField;
 	}
 
 	private void forBaseType(final String baseTypeField) {
