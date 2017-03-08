@@ -100,13 +100,18 @@ public class EmbedSpawner extends EmbedParser {
 		}
 
 		// Trigger spooling of the file to disk so that it can be copied.
-		// This needs to be done before parsing starts.
+		// This needs to be done before parsing starts and the same TIS object must be passed to writeEmbed,
+		// otherwise it will be spooled twice.
+		final TikaInputStream tis = TikaInputStream.get(input, tmp);
 		if (null != output) {
-			TikaInputStream.get(input, tmp).getFile();
+			tis.getPath();
 		}
 
 		try {
-			delegateParsing(input, teeHandler, metadata);
+
+			// Pass the same TIS, otherwise the EmbedParser will attempt to spool the input again and fail, because it's
+			// already been consumed.
+			delegateParsing(tis, teeHandler, metadata);
 		} catch (Exception e) {
 
 			// Note that even on exception, the document is intentionally NOT removed from the parent.
@@ -121,15 +126,14 @@ public class EmbedSpawner extends EmbedParser {
 
 		// Write the embed file to the given output directory.
 		if (null != output) {
-			writeEmbed(input, embed, name);
+			writeEmbed(tis, embed, name);
 		}
 	}
 
-	private void writeEmbed(final InputStream input, final EmbeddedDocument embed, final String name) throws IOException {
+	private void writeEmbed(final TikaInputStream tis, final EmbeddedDocument embed, final String name) throws IOException {
 		final Path source;
 
 		final Metadata metadata = embed.getMetadata();
-		final TikaInputStream tis = TikaInputStream.get(input, tmp);
 		final Object container = tis.getOpenContainer();
 
 		// If the input is a container, write it to a temporary file so that it can then be copied atomically.
@@ -154,7 +158,7 @@ public class EmbedSpawner extends EmbedParser {
 
 		// To prevent massive duplication and because the disk is only a storage for underlying date, save using the
 		// straight hash as a filename.
-		try (final OutputStream copy = Files.newOutputStream(output.resolve(embed.getHash()),
+		try (final OutputStream copy = Files.newOutputStream(output.resolve(embed.getHash() + "_" + name),
 				StandardOpenOption.CREATE_NEW)) {
 			Files.copy(source, copy);
 		} catch (FileAlreadyExistsException e) {
