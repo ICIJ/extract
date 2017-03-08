@@ -16,12 +16,7 @@ import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.metadata.Metadata;
-import org.apache.tika.parser.Parser;
-import org.apache.tika.parser.ParseContext;
-import org.apache.tika.parser.AutoDetectParser;
-import org.apache.tika.parser.CompositeParser;
-import org.apache.tika.parser.DigestingParser;
-import org.apache.tika.parser.EmptyParser;
+import org.apache.tika.parser.*;
 import org.apache.tika.parser.html.HtmlMapper;
 import org.apache.tika.parser.html.DefaultHtmlMapper;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
@@ -36,6 +31,7 @@ import org.apache.tika.sax.ExpandedTitleContentHandler;
 import org.apache.tika.sax.WriteOutContentHandler;
 import org.icij.extract.document.Document;
 import org.icij.extract.parser.*;
+import org.icij.extract.parser.ParsingReader;
 import org.icij.extract.report.Reporter;
 import org.icij.extract.sax.HTML5Serializer;
 import org.icij.extract.spewer.MetadataTransformer;
@@ -95,11 +91,12 @@ public class Extractor {
 	private boolean ocrDisabled = false;
 	private DigestAlgorithm[] digestAlgorithms = null;
 
-	private final TikaConfig config = TikaConfig.getDefaultConfig();
+	private Parser defaultParser = TikaConfig.getDefaultConfig().getParser();
 	private final TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
 	private final PDFParserConfig pdfConfig = new PDFParserConfig();
 
 	private final Set<MediaType> excludedTypes = new HashSet<>();
+	private final Collection<Class<? extends Parser>> excludedParsers = new HashSet<>();
 
 	private OutputFormat outputFormat = OutputFormat.TEXT;
 	private EmbedHandling embedHandling = EmbedHandling.getDefault();
@@ -306,7 +303,7 @@ public class Extractor {
 		try {
 			extract(document, spewer);
 		} catch (Exception e) {
-			status = status(e, document, spewer);
+			status = status(e, spewer);
 			log(e, status, document);
 		}
 
@@ -321,10 +318,6 @@ public class Extractor {
 				break;
 			case NOT_FOUND:
 				logger.error(String.format("File not found: \"%s\". Skipping.", document), e);
-				break;
-			case EXCLUDED:
-				logger.warn(String.format("The document was not parsed because all of the parsers that handle it " +
-						"were excluded: \"%s\".", document));
 				break;
 			case NOT_DECRYPTED:
 				logger.warn(String.format("Skipping encrypted file: \"%s\".", document), e);
@@ -347,10 +340,9 @@ public class Extractor {
 	 * Logs an appropriate message depending on the exception.
 	 *
 	 * @param e the exception to convert and log
-	 * @param document the document involved in the exception
 	 * @return the resulting status
 	 */
-	private ExtractionStatus status(final Exception e, final Document document, final Spewer spewer) {
+	private ExtractionStatus status(final Exception e, final Spewer spewer) {
 		if (TaggedIOException.isTaggedWith(e, spewer)) {
 			return ExtractionStatus.NOT_SAVED;
 		}
@@ -368,10 +360,6 @@ public class Extractor {
 		}
 
 		final Throwable cause = e.getCause();
-
-		if (cause instanceof ExcludedMediaTypeException) {
-			return ExtractionStatus.EXCLUDED;
-		}
 
 		if (cause instanceof EncryptedDocumentException) {
 			return ExtractionStatus.NOT_DECRYPTED;
@@ -396,7 +384,7 @@ public class Extractor {
 	protected Reader extract(final Document document, final TikaInputStream input) throws IOException {
 		final Metadata metadata = document.getMetadata();
 		final ParseContext context = new ParseContext();
-		final AutoDetectParser autoDetectParser = new AutoDetectParser(config);
+		final AutoDetectParser autoDetectParser = new AutoDetectParser(defaultParser);
 		final Parser parser;
 
 		if (null != digestAlgorithms && 0 != digestAlgorithms.length) {
@@ -411,7 +399,7 @@ public class Extractor {
 		}
 
 		context.set(PDFParserConfig.class, pdfConfig);
-		autoDetectParser.setFallback(new ErrorParser(autoDetectParser, excludedTypes));
+		autoDetectParser.setFallback(ErrorParser.INSTANCE);
 
 		// Only include "safe" tags in the HTML output from Tika's HTML parser.
 		// This excludes script tags and objects.
@@ -471,22 +459,13 @@ public class Extractor {
 		return reader;
 	}
 
-	private void excludeParser(final Class exclude) {
-		final CompositeParser composite = (CompositeParser) config.getParser();
-		final Map<MediaType, Parser> parsers = composite.getParsers();
-		final Iterator<Map.Entry<MediaType, Parser>> iterator = parsers.entrySet().iterator();
-		final ParseContext context = new ParseContext();
+	private void excludeParser(final Class<? extends Parser> exclude) {
+		if (defaultParser instanceof CompositeParser) {
+			final CompositeParser composite = (CompositeParser) defaultParser;
+			final List<Parser> parsers = composite.getAllComponentParsers();
 
-		while (iterator.hasNext()) {
-			Map.Entry<MediaType, Parser> pair = iterator.next();
-			Parser parser = pair.getValue();
-
-			if (exclude == parser.getClass()) {
-				iterator.remove();
-				excludedTypes.addAll(parser.getSupportedTypes(context));
-			}
+			excludedParsers.add(exclude);
+			defaultParser = new CompositeParser(composite.getMediaTypeRegistry(), parsers, excludedParsers);
 		}
-
-		composite.setParsers(parsers);
 	}
 }

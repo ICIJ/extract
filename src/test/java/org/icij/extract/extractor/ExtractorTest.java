@@ -3,8 +3,6 @@ package org.icij.extract.extractor;
 import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
-import org.icij.extract.extractor.Extractor;
-import org.icij.extract.parser.ExcludedMediaTypeException;
 import org.icij.extract.spewer.Spewer;
 import org.icij.extract.test.*;
 
@@ -57,7 +55,7 @@ public class ExtractorTest {
 
 		thrown.expect(IOException.class);
 		thrown.expectMessage("");
-		thrown.expectCause(new CauseMatcher(ExcludedMediaTypeException.class, "Excluded media type: image/tiff"));
+		thrown.expectCause(new CauseMatcher(TikaException.class, "Parse error"));
 
 		final int read;
 
