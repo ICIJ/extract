@@ -81,6 +81,19 @@
 			<version>1.14</version>
 		</dependency>
 
+		<!-- Tess4J -->
+		<dependency>
+			<groupId>net.sourceforge.tess4j</groupId>
+			<artifactId>tess4j</artifactId>
+			<version>3.3.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>net.java.dev.jna</groupId>
+			<artifactId>jna</artifactId>
+			<version>4.2.2</version>
+		</dependency>
+
 		<!-- Optional PDFBox dependency for parsing JBIG2 format images in PDF files. -->
 		<dependency>
 			<groupId>com.levigo.jbig2</groupId>
@@ -304,15 +317,15 @@
 							<outputDirectory>${project.build.directory}/classes</outputDirectory>
 						</configuration>
 					</execution>
-					<execution>
-						<id>purge-local-dependencies</id>
-						<phase>clean</phase>
-						<goals>
-							<goal>purge-local-repository</goal>
-						</goals>
-						<configuration>
-						</configuration>
-					</execution>
+					<!--<execution>-->
+						<!--<id>purge-local-dependencies</id>-->
+						<!--<phase>clean</phase>-->
+						<!--<goals>-->
+							<!--<goal>purge-local-repository</goal>-->
+						<!--</goals>-->
+						<!--<configuration>-->
+						<!--</configuration>-->
+					<!--</execution>-->
 				</executions>
 			</plugin>
 

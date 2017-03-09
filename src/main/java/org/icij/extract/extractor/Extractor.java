@@ -36,6 +36,7 @@ import org.apache.tika.sax.ExpandedTitleContentHandler;
 import org.apache.tika.sax.WriteOutContentHandler;
 import org.icij.extract.document.Document;
 import org.icij.extract.parser.*;
+import org.icij.extract.parser.ocr.Tess4JParserConfig;
 import org.icij.extract.report.Reporter;
 import org.icij.extract.sax.HTML5Serializer;
 import org.icij.extract.spewer.MetadataTransformer;
@@ -96,7 +97,7 @@ public class Extractor {
 	private DigestAlgorithm[] digestAlgorithms = null;
 
 	private final TikaConfig config = TikaConfig.getDefaultConfig();
-	private final TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
+	private final Tess4JParserConfig ocrConfig = new Tess4JParserConfig();
 	private final PDFParserConfig pdfConfig = new PDFParserConfig();
 
 	private final Set<MediaType> excludedTypes = new HashSet<>();
@@ -125,7 +126,7 @@ public class Extractor {
 
 		// Set a long OCR timeout by default, because Tika's is too short.
 		setOcrTimeout(Duration.ofDays(1));
-		ocrConfig.setEnableImageProcessing(0); // See TIKA-2167. Image processing causes OCR to fail.
+		//ocrConfig.setEnableImageProcessing(0); // See TIKA-2167. Image processing causes OCR to fail.
 
 		// English and Spanish text recognition.
 		ocrConfig.setLanguage("eng+spa");
@@ -407,7 +408,7 @@ public class Extractor {
 		}
 
 		if (!ocrDisabled) {
-			context.set(TesseractOCRConfig.class, ocrConfig);
+			context.set(Tess4JParserConfig.class, ocrConfig);
 		}
 
 		context.set(PDFParserConfig.class, pdfConfig);
