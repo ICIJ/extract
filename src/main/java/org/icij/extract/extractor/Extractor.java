@@ -52,10 +52,10 @@ import org.xml.sax.ContentHandler;
 @Option(name = "outputFormat", description = "Set the output format. Either \"text\" or \"HTML\". " +
 		"Defaults to text output.", parameter = "type")
 @Option(name = "embedHandling", description = "Set the embed handling mode. Either \"ignore\", " +
-		"\"concatenate\", \"spawn\" or \"embed\". When set to extract, embeds are parsed and the output is in-lined " +
-		"into the main output. In embed mode, embeds are not parsed but are in-lined as a data URI representation of " +
-		"the raw embed data. The latter mode only applies when the output format is set to HTML. " +
-		"Defaults to concatenating.", parameter = "type")
+		"\"concatenate\", \"spawn\" or \"embed\". When set to concatenate, embeds are parsed and the output is " +
+		"in-lined into the main output. In embed mode, embeds are not parsed but are in-lined as a data URI" +
+		"representation of the raw embed data. This mode only applies when the output format is set to HTML. " +
+		"Defaults to spawning, which spawns new documents for each embedded document encountered.", parameter = "type")
 @Option(name = "embedOutput", description = "Path to a directory for outputting attachments en masse.",
 		parameter = "path")
 @Option(name = "ocrLanguage", description = "Set the languages used by Tesseract. Multiple  languages may be " +
