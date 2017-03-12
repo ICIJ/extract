@@ -158,7 +158,7 @@ public class EmbedSpawner extends EmbedParser {
 
 		// To prevent massive duplication and because the disk is only a storage for underlying date, save using the
 		// straight hash as a filename.
-		try (final OutputStream copy = Files.newOutputStream(output.resolve(embed.getHash() + "_" + name),
+		try (final OutputStream copy = Files.newOutputStream(output.resolve(embed.getHash()),
 				StandardOpenOption.CREATE_NEW)) {
 			Files.copy(source, copy);
 		} catch (FileAlreadyExistsException e) {
