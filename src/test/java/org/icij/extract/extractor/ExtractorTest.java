@@ -52,21 +52,12 @@ public class ExtractorTest {
 		extractor.disableOcr();
 
 		final Document document = factory.create(getClass().getResource("/documents/ocr/simple.tiff"));
+		final Reader reader = extractor.extract(document);
 
-		thrown.expect(IOException.class);
-		thrown.expectMessage("");
-		thrown.expectCause(new CauseMatcher(TikaException.class, "Parse error"));
+		final int read = reader.read();
 
-		final int read;
-
-		try (Reader reader = extractor.extract(document)) {
-			read = reader.read();
-		} catch (IOException e) {
-			Assert.assertEquals("image/tiff", document.getMetadata().get(Metadata.CONTENT_TYPE));
-			throw e;
-		}
-
-		Assert.fail(String.format("Read \"%d\" while expecting exception.", read));
+		Assert.assertEquals("image/tiff", document.getMetadata().get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals(-1, read);
 	}
 
 	@Test
@@ -111,7 +102,7 @@ public class ExtractorTest {
 
 		thrown.expect(IOException.class);
 		thrown.expectMessage("");
-		thrown.expectCause(new CauseMatcher(TikaException.class, "Unsupported media type: application/octet-stream"));
+		thrown.expectCause(new CauseMatcher(TikaException.class, "Parse error"));
 
 		final int read;
 
