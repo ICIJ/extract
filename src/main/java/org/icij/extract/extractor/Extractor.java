@@ -23,7 +23,6 @@ import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.ocr.TesseractOCRParser;
 import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
-import org.apache.tika.mime.MediaType;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.parser.utils.CommonsDigester;
 import org.apache.tika.parser.utils.CommonsDigester.DigestAlgorithm;
@@ -95,7 +94,6 @@ public class Extractor {
 	private final TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
 	private final PDFParserConfig pdfConfig = new PDFParserConfig();
 
-	private final Set<MediaType> excludedTypes = new HashSet<>();
 	private final Collection<Class<? extends Parser>> excludedParsers = new HashSet<>();
 
 	private OutputFormat outputFormat = OutputFormat.TEXT;
@@ -139,7 +137,7 @@ public class Extractor {
 				(DigestAlgorithm::valueOf);
 
 		if (!digestAlgorithms.isEmpty()) {
-			this.digestAlgorithms = digestAlgorithms.toArray(new DigestAlgorithm[digestAlgorithms.size()]);
+			setDigestAlgorithms(digestAlgorithms.toArray(new DigestAlgorithm[digestAlgorithms.size()]));
 		}
 
 		if (options.get("ocr").parse().isOff()) {
