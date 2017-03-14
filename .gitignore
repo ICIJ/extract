@@ -1,5 +1,5 @@
+/*.iml
 /target/
-/findbugs/
 /.idea/
 /tesseract_opencl_profile_devices.dat
 /kernel-*.bin

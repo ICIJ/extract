@@ -6,20 +6,26 @@ import org.apache.tika.metadata.*;
 import java.io.IOException;
 import java.io.Serializable;
 
-import java.util.Map;
-import java.util.HashMap;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Date;
+import java.util.*;
 import java.util.stream.Stream;
 
 public class MetadataTransformer implements Serializable {
 
 	private static final Map<String, Property> dateProperties = new HashMap<>();
 	@SuppressWarnings("deprecation")
-	private static final List<String> deduplicateProperties = Arrays.asList(Metadata.CONTENT_TYPE,
-			TikaCoreProperties.TITLE.getName(),
-			Metadata.TITLE);
+	private static final List<String> deduplicateProperties = Arrays.asList(
+
+			// Deduplicate content types (Tika seems to add these sometimes, especially for RTF files).
+			Metadata.CONTENT_TYPE.toLowerCase(Locale.ENGLISH),
+
+			// Deduplicate titles (appear in bad HTML files).
+			TikaCoreProperties.TITLE.getName().toLowerCase(Locale.ENGLISH),
+			Metadata.TITLE.toLowerCase(Locale.ENGLISH),
+
+			// Deduplicate these properties contained in some MSHTML documents.
+			"originator",
+			"generator",
+			"progid");
 
 	private static final long serialVersionUID = -6643888792096975746L;
 
@@ -46,6 +52,7 @@ public class MetadataTransformer implements Serializable {
 
 	private final Metadata metadata;
 	private final FieldNames fields;
+	private final Map<String, String> fieldMap = new HashMap<>();
 
 	MetadataTransformer(final Metadata metadata, final FieldNames fields) {
 		this.metadata = metadata;
@@ -53,12 +60,39 @@ public class MetadataTransformer implements Serializable {
 	}
 
 	void transform(final ValueConsumer single, final ValueArrayConsumer multiple) throws IOException {
+		final Map<String, String[]> normalised = new HashMap<>();
+
+		// Loop over the names twice, first to normalise the names so that "GENERATOR" and "Generator" get normalised
+		// to "generator", and the values are concatenated into an array instead of one value overriding the other in
+		// the consumer.
+		for (String name : metadata.names()) {
+			String[] values = metadata.getValues(name);
+
+			if (0 == values.length) {
+				continue;
+			}
+
+			// The title field should not be considered multivalued until TIKA-2274 is resolved.
+			//noinspection deprecation
+			if (values.length > 1 && name.equals(Metadata.TITLE)) {
+				values = Arrays.copyOfRange(values, 0, 1);
+			}
+
+			// Keep a mapping of the old name around, to enable a reverse lookup later.
+			final String normalisedName = fields.forMetadata(name);
+
+			fieldMap.putIfAbsent(normalisedName, name);
+			normalised.merge(normalisedName, values, this::concat);
+		}
+
 		try {
-			for (String name : metadata.names()) {
-				if (isMultiValued(name)) {
-					transform(name, multiple);
+			for (Map.Entry<String, String[]> entry: normalised.entrySet()) {
+				final String[] values = entry.getValue();
+
+				if (values.length > 1) {
+					transform(entry.getKey(), values, multiple);
 				} else {
-					transform(name, single);
+					transform(entry.getKey(), values[0], single);
 				}
 			}
 		} catch (IOException e) {
@@ -66,43 +100,49 @@ public class MetadataTransformer implements Serializable {
 		}
 	}
 
-	private boolean isMultiValued(final String name) {
+	private String[] concat(final String[] a, final String[] b) {
+		final String[] n;
 
-		// The title field should not be considered multivalued until TIKA-2274 is resolved.
-		//noinspection deprecation
-		return metadata.isMultiValued(name) && !name.equals(Metadata.TITLE);
+		n = new String[a.length + b.length];
+
+		System.arraycopy(a, 0, n, 0, a.length);
+		System.arraycopy(b, 0, n, a.length, b.length);
+
+		return n;
 	}
 
-	private void transform(final String name, final ValueArrayConsumer consumer) throws IOException {
-		String[] values = metadata.getValues(name);
+	private void transform(final String normalisedName, String[] values, final ValueArrayConsumer consumer) throws
+			IOException {
 		Stream<String> stream = Arrays.stream(values);
 
 		// Remove empty values.
 		stream = stream.filter(value -> null != value && !value.isEmpty());
 
-		// Remove duplicate:
-		// 1) content types (Tika seems to add these sometimes, especially for RTF files);
-		// 2) titles (appear in bad HTML files).
-		if (values.length > 1 && deduplicateProperties.contains(name)) {
+		// Remove duplicates.
+		// Normalised to lowercase so that "GENERATOR" matches "Generator" (these inconsistent names can come from
+		// HTML documents).
+		if (values.length > 1 && deduplicateProperties.contains(fieldMap.get(normalisedName)
+				.toLowerCase(Locale.ENGLISH))) {
 			stream = stream.distinct();
 		}
 
 		values = stream.toArray(String[]::new);
 		if (values.length > 0) {
-			consumer.accept(fields.forMetadata(name), values);
+			consumer.accept(normalisedName, values);
 		}
 	}
 
-	private void transform(final String name, final ValueConsumer consumer) throws IOException {
-		final String value = metadata.get(name);
-
+	private void transform(final String normalisedName, final String value, final ValueConsumer consumer) throws
+			IOException {
 		if (null == value || value.isEmpty()) {
 			return;
 		}
 
-		consumer.accept(fields.forMetadata(name), value);
+		consumer.accept(normalisedName, value);
 
 		// Add a separate field containing the ISO 8601 date.
+		final String name = fieldMap.get(normalisedName);
+
 		if (dateProperties.containsKey(name)) {
 			transformDate(name, consumer);
 		}

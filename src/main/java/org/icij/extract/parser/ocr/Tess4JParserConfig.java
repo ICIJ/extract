@@ -1,245 +1,182 @@
 package org.icij.extract.parser.ocr;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.Serializable;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Locale;
-import java.util.Properties;
-
 import net.sourceforge.tess4j.ITessAPI;
 
+import java.io.File;
+import java.io.Serializable;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.stream.Stream;
 
 /**
- * Tess4J Tika Parser Configuration
+ * Configuration options and defaults for the Tess4J parser.
  *
- * Created by julien on 2/15/17.
+ * On instantiation, the constructor will search for training data in system-default paths.
  */
 public class Tess4JParserConfig implements Serializable {
 
-    private static final long serialVersionUID = -3693268974548732L;
+	private static final long serialVersionUID = -3693268974548732L;
 
+	private String dataPath;
+	private String language = "eng";
+	private int pageSegMode = ITessAPI.TessPageSegMode.PSM_AUTO_OSD;
+	private int ocrEngineMode = ITessAPI.TessOcrEngineMode.OEM_DEFAULT;
+	private int minFileSizeToOcr = 0;
+	private int maxFileSizeToOcr = Integer.MAX_VALUE;
+	private int timeout = 120;
 
-    // Path to the 'tessdata' folder, which contains language files and config files.
-    private String tessdataPath = Paths.get(this.getClass().getPackage().getName().replace(".", "/"), "tessdata").toString();
+	/**
+	 * Instantiate a new configuration object.
+	 *
+	 * This triggers a search of local paths for Tesseract training data.
+	 */
+	public Tess4JParserConfig() {
+		Stream.of("/usr/share/tesseract-ocr/tessdata", "/usr/local/share/tessdata")
+				.map(Paths::get)
+				.filter(Files::isDirectory)
+				.findAny().ifPresent(path -> setDataPath(path.getParent().toAbsolutePath().toString() + "/"));
+	}
 
-//    Paths.get(
-//            System.getProperty("user.dir"), "src", "main", "resources",
-//            Paths.get(this.getClass().getPackage().getName().replace(".", "/"), "tessdata").toString()
-//        ).toString();;
+	/**
+	 * Get the path to the Tesseract training data.
+	 *
+	 * @return the path to the training data files
+	 */
+	public String getDataPath() {
+		return dataPath;
+	}
 
-    // Language dictionary to be used.
-    private String language = "eng";
+	/**
+	 * Set the path to the Tesseract data or 'tessdata' directory, which contains training data files.
+	 *
+	 * In some cases (such as on Windows), this folder is found in the Tesseract installation, but in other cases
+	 * (such as when Tesseract is built from source), it may be located elsewhere.
+	 *
+	 * @param dataPath the path to the training data files
+	 */
+	public void setDataPath(final String dataPath) {
+		if (!dataPath.isEmpty() && !dataPath.endsWith(File.separator)) {
+			this.dataPath = dataPath + File.separator;
+		} else {
+			this.dataPath = dataPath;
+		}
+	}
 
-    // Tesseract page segmentation mode.
-    private int pageSegMode = ITessAPI.TessPageSegMode.PSM_AUTO_OSD;
+	/**
+	 * Get the Tesseract language training data to be used.
+	 *
+	 * @return the language codes, separated by plus characters
+	 */
+	public String getLanguage() {
+		return language;
+	}
 
-    // Tesseract engine mode
-    private int ocrEngineMode = ITessAPI.TessOcrEngineMode.OEM_DEFAULT;;
+	/**
+	 * Set the Tesseract language training data to be used. The default is "eng".
+	 *
+	 * Multiple languages may be specified, separated by plus characters.
+	 *
+	 * @param language the language to set
+	 */
+	public void setLanguage(final String language) {
+		this.language = language;
+	}
 
-    // Minimum file size to submit file to ocr.
-    private int minFileSizeToOcr = 0;
+	/**
+	 * Get the Tesseract page segmentation mode.
+	 *
+	 * @return the page segmentation mode
+	 */
+	public int getPageSegMode() {
+		return pageSegMode;
+	}
 
-    // Maximum file size to submit file to ocr.
-    private int maxFileSizeToOcr = Integer.MAX_VALUE;
+	/**
+	 * Set the Tesseract page segmentation mode.
+	 *
+	 * The default is 1: automatic page segmentation with OSD (Orientation and Script Detection).
+	 *
+	 * @param pageSegMode the page segmentation mode
+	 */
+	public void setPageSegMode(final int pageSegMode) {
+		this.pageSegMode = pageSegMode;
+	}
 
-    // Maximum time (seconds) to wait for the ocring process termination
-    private int timeout = 120;
+	/**
+	 * Get the minimum size of a file that will be submitted to OCR.
+	 *
+	 * @return the minimum file size in bytes
+	 */
+	public int getMinFileSizeToOcr() {
+		return minFileSizeToOcr;
+	}
 
+	/**
+	 * Set the minimum file size to submit to OCR.
+	 *
+	 * The default is 0.
+	 *
+	 * @param minFileSizeToOcr the minimum file size in bytes
+	 */
+	public void setMinFileSizeToOcr(final int minFileSizeToOcr) {
+		this.minFileSizeToOcr = minFileSizeToOcr;
+	}
 
-    /**
-     * Default contructor
-     */
-    public Tess4JParserConfig() {
-        Path propertiesPath = Paths.get(this.getClass().getPackage().getName().replace(".", "/"), "Tess4JParserConfig.properties");
-        init( this.getClass().getResourceAsStream( propertiesPath.toString()) );
-    }
+	/**
+	 * Get the maximum size of a file that will be submitted to OCR.
+	 *
+	 * @return the maximum file size in bytes
+	 */
+	public int getMaxFileSizeToOcr() {
+		return maxFileSizeToOcr;
+	}
 
-//    /**
-//     * Loads properties from InputStream and then tries to close InputStream.
-//     * If there is an IOException, this silently swallows the exception
-//     * and goes back to the default.
-//     *
-//     * @param is
-//     */
-//    public Tess4JParserConfig(InputStream is) {
-//        init(is);
-//    }
+	/**
+	 * Set maximum file size to submit to OCR.
+	 *
+	 * The default is Integer.MAX_VALUE.
+	 *
+	 * @param maxFileSizeToOcr the maximum file size in bytes
+	 */
+	public void setMaxFileSizeToOcr(final int maxFileSizeToOcr) {
+		this.maxFileSizeToOcr = maxFileSizeToOcr;
+	}
 
+	/**
+	 * Set maximum time (seconds) to wait for the OCR process to terminate.
+	 *
+	 * The default value is 120s.
+	 *
+	 * @param timeout timeout in seconds
+	 */
+	public void setTimeout(final int timeout) {
+		this.timeout = timeout;
+	}
 
-    private void init(InputStream is) {
-        if (is == null) {
-            return;
-        }
-        Properties props = new Properties();
-        try {
-            props.load(is);
-        } catch (IOException e) {
-            /*NOOP*/
-        } finally {
-            try {
-                is.close();
-            } catch (IOException e) {
-                /*NOOP*/
-            }
-        }
-//        setTessdataPath    (getProp(props, "tessdataPath",            getTessdataPath()));
-//        setLanguage        (Language.parse(getProp(props, "language", getLanguage().iso6392Code())).orElse(Language.ENGLISH));
-//        setPageSegMode     (getProp(props, "pageSegMode",             getPageSegMode()));
-//        setMinFileSizeToOcr(getProp(props, "minFileSizeToOcr",        getMinFileSizeToOcr()));
-//        setMaxFileSizeToOcr(getProp(props, "maxFileSizeToOcr",        getMaxFileSizeToOcr()));
-//        setTimeout         (getProp(props, "timeout",                 getTimeout()));
-    }
+	/**
+	 * Get the timeout in seconds before Tesseract will be forced to stop OCR.
+	 *
+	 * @return timeout in seconds
+	 */
+	public int getTimeout() {
+		return timeout;
+	}
 
+	/**
+	 * Get the OCR engine mode.
+	 *
+	 * @return the OCR engine mode
+	 */
+	public int getOcrEngineMode() {
+		return ocrEngineMode;
+	}
 
-    /**
-     * @see #setTessdataPath(String tessdataPath)
-     */
-    public String getTessdataPath() {
-        return tessdataPath;
-    }
-
-    /**
-     * Set the path to the 'tessdata' folder, which contains language files and config files. In some cases (such
-     * as on Windows), this folder is found in the Tesseract installation, but in other cases
-     * (such as when Tesseract is built from source), it may be located elsewhere.
-     */
-    public void setTessdataPath(String tessdataPath) {
-        if (!tessdataPath.isEmpty() && !tessdataPath.endsWith(File.separator))
-            tessdataPath += File.separator;
-
-        this.tessdataPath = tessdataPath;
-    }
-
-    /**
-     * @see #setLanguage(String language)
-     */
-    public String getLanguage() {
-        return language;
-    }
-
-    /**
-     * Set tesseract language dictionary to be used. Default is "eng".
-     * Multiple languages may be specified, separated by plus characters.
-     */
-    public void setLanguage(String language) {
-        this.language = language;
-    }
-
-    /**
-     * @see #setPageSegMode(int pageSegMode)
-     */
-    public int getPageSegMode() {
-        return pageSegMode;
-    }
-
-    /**
-     * Set tesseract page segmentation mode.
-     * Default is 1 = Automatic page segmentation with OSD (Orientation and Script Detection)
-     */
-    public void setPageSegMode(int pageSegMode) {
-        this.pageSegMode = pageSegMode;
-    }
-
-    /**
-     * @see #setMinFileSizeToOcr(int minFileSizeToOcr)
-     */
-    public int getMinFileSizeToOcr() {
-        return minFileSizeToOcr;
-    }
-
-    /**
-     * Set minimum file size to submit file to ocr.
-     * Default is 0.
-     */
-    public void setMinFileSizeToOcr(int minFileSizeToOcr) {
-        this.minFileSizeToOcr = minFileSizeToOcr;
-    }
-
-    /**
-     * @see #setMaxFileSizeToOcr(int maxFileSizeToOcr)
-     */
-    public int getMaxFileSizeToOcr() {
-        return maxFileSizeToOcr;
-    }
-
-    /**
-     * Set maximum file size to submit file to ocr.
-     * Default is Integer.MAX_VALUE.
-     */
-    public void setMaxFileSizeToOcr(int maxFileSizeToOcr) {
-        this.maxFileSizeToOcr = maxFileSizeToOcr;
-    }
-
-    /**
-     * Set maximum time (seconds) to wait for the ocring process to terminate.
-     * Default value is 120s.
-     */
-    public void setTimeout(int timeout) {
-        this.timeout = timeout;
-    }
-
-    /**
-     * @see #setTimeout(int timeout)
-     */
-    public int getTimeout() {
-        return timeout;
-    }
-
-    /**
-     * @see #setOcrEngineMode(int)
-     */
-    public int getOcrEngineMode() {
-        return ocrEngineMode;
-    }
-
-    /**
-     * Set Ocr engine mode
-     *
-     * @param ocrEngineMode
-     */
-    public void setOcrEngineMode(int ocrEngineMode) {
-        this.ocrEngineMode = ocrEngineMode;
-    }
-
-
-    /**
-     * Get property from the properties file passed in.
-     *
-     * @param properties     properties file to read from.
-     * @param property       the property to fetch.
-     * @param defaultMissing default parameter to use.
-     * @return the value.
-     */
-    private int getProp(Properties properties, String property, int defaultMissing) {
-        String p = properties.getProperty(property);
-        if (p == null || p.isEmpty()) {
-            return defaultMissing;
-        }
-        try {
-            return Integer.parseInt(p);
-        } catch (Throwable ex) {
-            throw new RuntimeException(
-                    String.format(
-                            Locale.ROOT,
-                            "Cannot parse Tess4JParserConfig variable %s, invalid integer value",
-                            property),
-                    ex);
-        }
-    }
-
-    /**
-     * Get property from the properties file passed in.
-     *
-     * @param properties     properties file to read from.
-     * @param property       the property to fetch.
-     * @param defaultMissing default parameter to use.
-     * @return the value.
-     */
-    private String getProp(Properties properties, String property, String defaultMissing) {
-        return properties.getProperty(property, defaultMissing);
-    }
-
+	/**
+	 * Set the OCR engine mode.
+	 *
+	 * @param ocrEngineMode the OCR engine mode
+	 */
+	public void setOcrEngineMode(final int ocrEngineMode) {
+		this.ocrEngineMode = ocrEngineMode;
+	}
 }

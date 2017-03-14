@@ -14,7 +14,6 @@ public enum ExtractionStatus {
 	NOT_READ(2),
 	NOT_DECRYPTED(3),
 	NOT_PARSED(4),
-	EXCLUDED(5),
 	UNKNOWN_ERROR(9),
 	NOT_SAVED(10);
 

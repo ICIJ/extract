@@ -1,7 +1,6 @@
 package org.icij.extract.document;
 
 import org.apache.tika.metadata.Metadata;
-import org.apache.tika.metadata.TikaCoreProperties;
 
 import javax.xml.bind.DatatypeConverter;
 

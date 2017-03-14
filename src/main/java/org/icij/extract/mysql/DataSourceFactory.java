@@ -28,7 +28,7 @@ public class DataSourceFactory {
 	private String serverName = null;
 	private String databaseName = null;
 	private int port = 0;
-	private boolean useSSL = true;
+	private boolean useSSL = false;
 	private boolean requireSSL = false;
 	private Path caCertificate = null;
 	private String caPassword = null;
