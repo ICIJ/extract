@@ -113,7 +113,7 @@ public class SpewTask extends DefaultTask<Long> {
 			// Only a short timeout is needed when awaiting termination, because the call to parse the result of each
 			// job is blocking and by the time `awaitTermination` is reached the jobs would have finished.
 			scanner.shutdown();
-			scanner.awaitTermination(5, TimeUnit.SECONDS);
+			scanner.awaitTermination(1, TimeUnit.MINUTES);
 		} else {
 
 			// Start draining in a background thread.
@@ -127,11 +127,11 @@ public class SpewTask extends DefaultTask<Long> {
 
 		// Shut down the drainer. Use a short timeout because all jobs should have finished.
 		drainer.shutdown();
-		drainer.awaitTermination(5, TimeUnit.SECONDS);
+		drainer.awaitTermination(1, TimeUnit.MINUTES);
 
 		// Use a long timeout because some files might still be processing.
 		consumer.shutdown();
-		consumer.awaitTermination(1, TimeUnit.DAYS);
+		consumer.awaitTermination(7, TimeUnit.DAYS);
 
 		return drained;
 	}
