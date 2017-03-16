@@ -3,6 +3,7 @@ package org.icij.extract.report;
 import org.icij.extract.document.Document;
 import org.icij.extract.extractor.ExtractionStatus;
 
+import java.io.Closeable;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentMap;
 
@@ -12,7 +13,7 @@ import java.util.concurrent.ConcurrentMap;
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
  */
-public interface Report extends ConcurrentMap<Document, ExtractionStatus>, AutoCloseable {
+public interface Report extends ConcurrentMap<Document, ExtractionStatus>, Closeable {
 
 	/**
 	 *  Allow implementations to define a faster method for putting values into the map that doesn't require the

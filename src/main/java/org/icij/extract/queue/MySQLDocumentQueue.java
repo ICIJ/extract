@@ -4,9 +4,7 @@ import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.mysql.DataSourceFactory;
 
-import org.icij.kaxxa.sql.concurrent.MySQLBlockingQueueAdapter;
-import org.icij.kaxxa.sql.concurrent.MySQLLock;
-import org.icij.kaxxa.sql.concurrent.SQLBlockingQueue;
+import org.icij.kaxxa.sql.concurrent.MySQLBlockingQueue;
 import org.icij.kaxxa.sql.concurrent.SQLQueueCodec;
 
 import org.icij.task.Options;
@@ -34,7 +32,7 @@ import java.util.Map;
 @Option(name = "queueWaitingStatus", description = "The status value for waiting documents.", parameter = "value")
 @Option(name = "queueProcessedStatus", description = "The status value for non-waiting documents.", parameter = "value")
 @OptionsClass(DataSourceFactory.class)
-public class MySQLDocumentQueue extends SQLBlockingQueue<Document> implements DocumentQueue {
+public class MySQLDocumentQueue extends MySQLBlockingQueue<Document> implements DocumentQueue {
 
 	private static class DocumentQueueCodec implements SQLQueueCodec<Document> {
 
@@ -46,7 +44,7 @@ public class MySQLDocumentQueue extends SQLBlockingQueue<Document> implements Do
 		private final String waitingStatus;
 		private final String processedStatus;
 
-		DocumentQueueCodec(final DocumentFactory factory, final Options<String> options) {
+		public DocumentQueueCodec(final DocumentFactory factory, final Options<String> options) {
 			this.factory = factory;
 			this.idKey = options.get("queueIdKey").value().orElse(null);
 			this.foreignIdKey = options.get("queueForeignIdKey").value().orElse(null);
@@ -127,21 +125,21 @@ public class MySQLDocumentQueue extends SQLBlockingQueue<Document> implements Do
 		}
 	}
 
-	MySQLDocumentQueue(final DocumentFactory factory, final Options<String> options) {
+	public MySQLDocumentQueue(final DocumentFactory factory, final Options<String> options) {
 
 		// The queue should never need more than two connections per process: one to add and one to poll.
 		this(new DataSourceFactory(options).withMaximumPoolSize(2).create("queuePool"),
 				new DocumentQueueCodec(factory, options), options.get("queueTable").value().orElse("documents"));
 	}
 
-	private MySQLDocumentQueue(final DataSource ds, final SQLQueueCodec<Document> codec, final String table) {
-		super(ds, new MySQLLock(ds, table), new MySQLBlockingQueueAdapter<>(codec, table));
+	public MySQLDocumentQueue(final DataSource dataSource, final SQLQueueCodec<Document> codec, final String table) {
+		super(dataSource, codec, table);
 	}
 
 	@Override
 	public void close() throws IOException {
-		if (ds instanceof Closeable) {
-			((Closeable) ds).close();
+		if (dataSource instanceof Closeable) {
+			((Closeable) dataSource).close();
 		}
 	}
 }

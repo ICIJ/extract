@@ -4,9 +4,8 @@ import org.icij.extract.document.Document;
 import org.icij.extract.extractor.ExtractionStatus;
 import org.icij.extract.mysql.DataSourceFactory;
 
-import org.icij.kaxxa.sql.concurrent.MySQLConcurrentMapAdapter;
+import org.icij.kaxxa.sql.concurrent.MySQLConcurrentMap;
 import org.icij.kaxxa.sql.concurrent.SQLCodec;
-import org.icij.kaxxa.sql.concurrent.SQLConcurrentMap;
 
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
@@ -32,7 +31,7 @@ import java.util.Map;
 @Option(name = "reportFailureStatus", description = "A general failure status value to use instead of the more " +
 		"specific values.", parameter = "value")
 @OptionsClass(DataSourceFactory.class)
-public class MySQLReport extends SQLConcurrentMap<Document, ExtractionStatus> implements Report {
+public class MySQLReport extends MySQLConcurrentMap<Document, ExtractionStatus> implements Report {
 
 	private static class ReportCodec implements SQLCodec<ExtractionStatus> {
 
@@ -121,14 +120,14 @@ public class MySQLReport extends SQLConcurrentMap<Document, ExtractionStatus> im
 				options.get("reportTable").value().orElse("documents"));
 	}
 
-	private MySQLReport(final DataSource ds, final SQLCodec<ExtractionStatus> codec, final String table) {
-		super(ds, new MySQLConcurrentMapAdapter<>(codec, table));
+	private MySQLReport(final DataSource dataSource, final SQLCodec<ExtractionStatus> codec, final String table) {
+		super(dataSource, codec, table);
 	}
 
 	@Override
 	public void close() throws IOException {
-		if (ds instanceof Closeable) {
-			((Closeable) ds).close();
+		if (dataSource instanceof Closeable) {
+			((Closeable) dataSource).close();
 		}
 	}
 }
