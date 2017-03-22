@@ -9,28 +9,23 @@ import java.nio.charset.StandardCharsets;
 public abstract class AbstractIdentifier implements Identifier {
 
 	private final String key;
+
 	final String algorithm;
 	final Charset charset;
 
-	AbstractIdentifier(final String algorithm, final Charset charset) {
+	public AbstractIdentifier(final String algorithm, final Charset charset) {
 		key = TikaCoreProperties.TIKA_META_PREFIX + "digest" + Metadata.NAMESPACE_PREFIX_DELIMITER + algorithm
 				.replace("-", "");
 		this.algorithm = algorithm;
 		this.charset = charset;
 	}
 
-	AbstractIdentifier() {
+	public AbstractIdentifier() {
 		this("SHA256", StandardCharsets.US_ASCII);
 	}
 
 	@Override
 	public String hash(final Document document) {
-		final String hash = document.getMetadata().get(key);
-
-		if (null == hash) {
-			throw new RuntimeException("Unexpected null hash. Check that the correct algorithm is specified.");
-		}
-
-		return hash;
+		return document.getMetadata().get(key);
 	}
 }

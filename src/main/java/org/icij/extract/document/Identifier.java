@@ -34,7 +34,6 @@ public interface Identifier {
 	 *
 	 * @param document the document for which to return a file hash digest
 	 * @return the hash
-	 * @throws Exception if there's an error generating or retrieving the hash
 	 */
-	String hash(final Document document) throws Exception;
+	String hash(final Document document);
 }

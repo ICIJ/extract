@@ -10,6 +10,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -55,10 +56,7 @@ public class DocumentFactory {
 	}
 
 	public DocumentFactory withIdentifier(final Identifier identifier) {
-		if (null == identifier) {
-			throw new IllegalArgumentException("Identifier generator must not be null.");
-		}
-
+		Objects.requireNonNull(identifier, "Identifier generator must not be null.");
 		this.identifier = identifier;
 		return this;
 	}

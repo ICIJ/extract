@@ -496,7 +496,7 @@ public class Scanner extends ExecutorProxy {
 		}
 
 		@Override
-		public FileVisitResult visitFileFailed(Path file, IOException e) throws IOException {
+		public FileVisitResult visitFileFailed(final Path file, final IOException e) throws IOException {
 
 			// If the file or directory was going to be excluded anyway, suppress the exception.
 			// Don't re-throw the error. Scanning must be robust. Just log it.

@@ -107,11 +107,7 @@ public class Document {
 	}
 
 	public String getHash() {
-		try {
-			return identifier.hash(this);
-		} catch (Exception e) {
-			throw new RuntimeException("Unable to generate file hash for document.", e);
-		}
+		return identifier.hash(this);
 	}
 
 	Identifier getIdentifier() {
@@ -186,7 +182,6 @@ public class Document {
 		// if, for example, the PathIdentifier is used.
 		final String id = getId();
 		return null != id && id.equals(((Document) other).getId());
-
 	}
 
 	@Override
