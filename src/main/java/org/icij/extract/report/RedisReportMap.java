@@ -3,7 +3,6 @@ package org.icij.extract.report;
 import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.redis.*;
-import org.icij.extract.extractor.ExtractionStatus;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -24,7 +23,7 @@ import org.redisson.command.CommandSyncService;
 import org.redisson.connection.ConnectionManager;
 
 /**
- * A {@link Report} using Redis as a backend.
+ * A {@link ReportMap} using Redis as a backend.
  *
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
@@ -34,7 +33,7 @@ import org.redisson.connection.ConnectionManager;
 @Option(name = "charset", description = "Set the output encoding for text and document attributes. Defaults to UTF-8.",
 		parameter = "name")
 @OptionsClass(ConnectionManager.class)
-public class RedisReport extends RedissonMap<Document, ExtractionStatus> implements Report {
+public class RedisReportMap extends RedissonMap<Document, Report> implements ReportMap {
 
 	/**
 	 * The default name for a report in Redis.
@@ -48,7 +47,7 @@ public class RedisReport extends RedissonMap<Document, ExtractionStatus> impleme
 	 *
 	 * @param options options for connecting to Redis
 	 */
-	RedisReport(final DocumentFactory factory, final Options<String> options) {
+	RedisReportMap(final DocumentFactory factory, final Options<String> options) {
 		this(factory, new ConnectionManagerFactory().withOptions(options).create(),
 				options.get("reportName").value().orElse(DEFAULT_NAME),
 				options.get("charset").parse().asCharset().orElse(StandardCharsets.UTF_8));
@@ -60,8 +59,8 @@ public class RedisReport extends RedissonMap<Document, ExtractionStatus> impleme
 	 * @param connectionManager instantiated using {@link ConnectionManagerFactory}
 	 * @param name the name of the report
 	 */
-	private RedisReport(final DocumentFactory factory, final ConnectionManager connectionManager, final String name,
-	                   final Charset charset) {
+	private RedisReportMap(final DocumentFactory factory, final ConnectionManager connectionManager, final String name,
+	                       final Charset charset) {
 		super(new ReportCodec(factory, charset), new CommandSyncService(connectionManager), null == name ?
 				DEFAULT_NAME : name);
 		this.connectionManager = connectionManager;

@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit;
 import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
-import org.icij.extract.report.HashMapReport;
+import org.icij.extract.report.HashMapReportMap;
 import org.icij.extract.report.Reporter;
 import org.icij.extract.spewer.FieldNames;
 import org.icij.extract.spewer.PrintStreamSpewer;
@@ -48,7 +48,7 @@ public class DocumentConsumerTest {
 	public void testSetReporter() throws Throwable {
 		final Spewer spewer = new PrintStreamSpewer(new PrintStream(new ByteArrayOutputStream()), new FieldNames());
 		final DocumentConsumer consumer = new DocumentConsumer(spewer, new Extractor(), 1);
-		final Reporter reporter = new Reporter(new HashMapReport());
+		final Reporter reporter = new Reporter(new HashMapReportMap());
 		final Document document = getFile();
 
 		// Assert that no reporter is set by default.
@@ -57,11 +57,11 @@ public class DocumentConsumerTest {
 		Assert.assertEquals(reporter, consumer.getReporter());
 
 		// Assert that the extraction result is reported.
-		Assert.assertNull(reporter.result(document));
+		Assert.assertNull(reporter.report(document));
 		spewer.outputMetadata(false);
 		consumer.accept(document);
 		consumer.shutdown();
 		Assert.assertTrue(consumer.awaitTermination(1, TimeUnit.MINUTES));
-		Assert.assertEquals(ExtractionStatus.SUCCEEDED, reporter.result(document));
+		Assert.assertEquals(ExtractionStatus.SUCCESS, reporter.report(document).getStatus());
 	}
 }

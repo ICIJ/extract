@@ -6,9 +6,6 @@ import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.extractor.ExtractionStatus;
-import org.icij.extract.report.HashMapReport;
-import org.icij.extract.report.Report;
-import org.icij.extract.report.Reporter;
 import org.junit.Test;
 import org.junit.Assert;
 
@@ -18,8 +15,8 @@ public class ReporterTest {
 
 		private boolean closed = false;
 
-		ReporterStub(final Report report) {
-			super(report);
+		ReporterStub(final ReportMap reportMap) {
+			super(reportMap);
 		}
 
 		boolean isClosed() {
@@ -40,20 +37,20 @@ public class ReporterTest {
 		final Document a = factory.create(Paths.get("/path/to/a"));
 		final Document b = factory.create(Paths.get("/path/to/b"));
 
-		final Report report = new HashMapReport();
-		final Reporter reporter = new Reporter(report);
+		final ReportMap reportMap = new HashMapReportMap();
+		final Reporter reporter = new Reporter(reportMap);
 
-		reporter.save(a, ExtractionStatus.SUCCEEDED);
-		Assert.assertTrue(reporter.check(a, ExtractionStatus.SUCCEEDED));
-		reporter.save(b, ExtractionStatus.NOT_FOUND);
-		Assert.assertTrue(reporter.check(b, ExtractionStatus.NOT_FOUND));
-		Assert.assertFalse(reporter.check(b, ExtractionStatus.SUCCEEDED));
+		reporter.save(a, ExtractionStatus.SUCCESS);
+		Assert.assertTrue(reporter.check(a, ExtractionStatus.SUCCESS));
+		reporter.save(b, ExtractionStatus.FAILURE_NOT_FOUND);
+		Assert.assertTrue(reporter.check(b, ExtractionStatus.FAILURE_NOT_FOUND));
+		Assert.assertFalse(reporter.check(b, ExtractionStatus.SUCCESS));
 	}
 
 	@Test
 	public void testCloseClosesReport() throws Throwable {
-		final Report report = new HashMapReport();
-		final ReporterStub reporter = new ReporterStub(report);
+		final ReportMap reportMap = new HashMapReportMap();
+		final ReporterStub reporter = new ReporterStub(reportMap);
 
 		Assert.assertFalse(reporter.isClosed());
 		reporter.close();
@@ -62,10 +59,10 @@ public class ReporterTest {
 
 	@Test
 	public void testReporterIsAutoCloseable() throws Throwable {
-		final Report report = new HashMapReport();
+		final ReportMap reportMap = new HashMapReportMap();
 		ReporterStub reporter;
 
-		try (final ReporterStub _reporter = new ReporterStub(report)) {
+		try (final ReporterStub _reporter = new ReporterStub(reportMap)) {
 			Assert.assertFalse(_reporter.isClosed());
 			reporter = _reporter;
 		}

@@ -1,10 +1,10 @@
 package org.icij.extract.tasks;
 
 import org.apache.commons.io.output.CloseShieldOutputStream;
-import org.icij.extract.report.Report;
+import org.icij.extract.report.ReportMap;
 import org.icij.extract.extractor.ExtractionStatus;
 import org.icij.extract.json.ReportSerializer;
-import org.icij.extract.report.ReportFactory;
+import org.icij.extract.report.ReportMapFactory;
 
 import java.io.*;
 
@@ -28,7 +28,7 @@ import org.icij.task.annotation.Task;
  */
 @Task("Dump the report for debugging. The name option is respected. If no destination path is given then the" +
 		" dump is written to standard output.")
-@OptionsClass(ReportFactory.class)
+@OptionsClass(ReportMapFactory.class)
 @Option(name = "reportStatus", description = "Only match reports with the given status.", parameter = "status")
 public class DumpReportTask extends MonitorableTask<Void> {
 
@@ -37,9 +37,9 @@ public class DumpReportTask extends MonitorableTask<Void> {
 		final Optional<ExtractionStatus> result = options.get("report-status").value(ExtractionStatus::parse);
 
 		try (final OutputStream output = new BufferedOutputStream(new FileOutputStream(arguments[0]));
-		     final Report report = new ReportFactory(options).createShared()) {
-			monitor.hintRemaining(report.size());
-			dump(report, output, result.orElse(null));
+		     final ReportMap reportMap = new ReportMapFactory(options).createShared()) {
+			monitor.hintRemaining(reportMap.size());
+			dump(reportMap, output, result.orElse(null));
 		} catch (FileNotFoundException e) {
 			throw new RuntimeException(String.format("Unable to open \"%s\" for writing.", arguments[0]), e);
 		}
@@ -52,9 +52,9 @@ public class DumpReportTask extends MonitorableTask<Void> {
 		final Optional<ExtractionStatus> result = options.get("reportStatus").value(ExtractionStatus::parse);
 
 		try (final OutputStream output = new BufferedOutputStream(new CloseShieldOutputStream(System.out));
-		     final Report report = new ReportFactory(options).createShared()) {
-			monitor.hintRemaining(report.size());
-			dump(report, output, result.orElse(null));
+		     final ReportMap reportMap = new ReportMapFactory(options).createShared()) {
+			monitor.hintRemaining(reportMap.size());
+			dump(reportMap, output, result.orElse(null));
 		}
 
 		return null;
@@ -63,22 +63,22 @@ public class DumpReportTask extends MonitorableTask<Void> {
 	/**
 	 * Dump the report as JSON to the given output stream.
 	 *
-	 * @param report the report to dump
+	 * @param reportMap the report to dump
 	 * @param output the stream to dump to
 	 * @param match only dump matching results
 	 */
-	private void dump(final Report report, final OutputStream output, final ExtractionStatus match) throws
+	private void dump(final ReportMap reportMap, final OutputStream output, final ExtractionStatus match) throws
 			IOException {
 		final ObjectMapper mapper = new ObjectMapper();
 		final SimpleModule module = new SimpleModule();
 
-		module.addSerializer(Report.class, new ReportSerializer(monitor, match));
+		module.addSerializer(ReportMap.class, new ReportSerializer(monitor, match));
 		mapper.registerModule(module);
 
 		try (final JsonGenerator jsonGenerator = new JsonFactory().setCodec(mapper).createGenerator(output,
 				JsonEncoding.UTF8)) {
 			jsonGenerator.useDefaultPrettyPrinter();
-			jsonGenerator.writeObject(report);
+			jsonGenerator.writeObject(reportMap);
 			jsonGenerator.writeRaw('\n');
 		}
 	}

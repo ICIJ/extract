@@ -8,18 +8,18 @@ import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
 
 /**
- * Factory methods for creating {@link Report} objects.
+ * Factory methods for creating {@link ReportMap} objects.
  *
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
  */
 @Option(name = "reportType", description = "Set the report backend type. Either \"redis\" or \"mysql\".",
 		parameter = "type", code = "r")
-@OptionsClass(RedisReport.class)
-@OptionsClass(MySQLReport.class)
-public class ReportFactory {
+@OptionsClass(RedisReportMap.class)
+@OptionsClass(MySQLReportMap.class)
+public class ReportMapFactory {
 
-	private ReportType type = null;
+	private ReportMapType type = null;
 	private Options<String> options = null;
 	private DocumentFactory factory = null;
 
@@ -28,8 +28,8 @@ public class ReportFactory {
 	 *
 	 * @param options options for creating the queue
 	 */
-	public ReportFactory(final Options<String> options) {
-		type = options.get("reportType").parse().asEnum(ReportType::parse).orElse(ReportType.HASH);
+	public ReportMapFactory(final Options<String> options) {
+		type = options.get("reportType").parse().asEnum(ReportMapType::parse).orElse(ReportMapType.HASH);
 		this.options = options;
 	}
 
@@ -41,41 +41,41 @@ public class ReportFactory {
 	 * @param factory the factory to use
 	 * @return chainable factory
 	 */
-	public ReportFactory withDocumentFactory(final DocumentFactory factory) {
+	public ReportMapFactory withDocumentFactory(final DocumentFactory factory) {
 		this.factory = factory;
 		return this;
 	}
 
 	/**
-	 * Create a new report from the given arguments.
+	 * Create a new report map from the given arguments.
 	 *
 	 * @return a new report or {@code null} if no type is specified
 	 */
-	public Report create() {
-		if (ReportType.HASH == type) {
-			return new HashMapReport();
+	public ReportMap create() {
+		if (ReportMapType.HASH == type) {
+			return new HashMapReportMap();
 		}
 
 		return createShared();
 	}
 
 	/**
-	 * Create a new Redis-backed report from commandline parameters.
+	 * Create a new shared report map from options.
 	 *
-	 * @return a new Redis-backed report
+	 * @return a new server-backed report
 	 * @throws IllegalArgumentException if the given options do not contain a valid shared report type
 	 */
-	public Report createShared() throws IllegalArgumentException {
+	public ReportMap createShared() throws IllegalArgumentException {
 		if (null == factory) {
 			factory = new DocumentFactory().configure(options);
 		}
 
-		if (ReportType.REDIS == type) {
-			return new RedisReport(factory, options);
+		if (ReportMapType.REDIS == type) {
+			return new RedisReportMap(factory, options);
 		}
 
-		if (ReportType.MYSQL == type) {
-			return new MySQLReport(options);
+		if (ReportMapType.MYSQL == type) {
+			return new MySQLReportMap(options);
 		}
 
 		throw new IllegalArgumentException(String.format("\"%s\" is not a valid shared report type.", type));

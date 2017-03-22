@@ -2,7 +2,6 @@ package org.icij.extract.queue;
 
 import org.icij.extract.document.Document;
 
-import java.io.Closeable;
 import java.util.concurrent.BlockingQueue;
 
 /**
@@ -10,6 +9,6 @@ import java.util.concurrent.BlockingQueue;
  *
  * @since 2.0.0
  */
-public interface DocumentQueue extends BlockingQueue<Document>, Closeable {
+public interface DocumentQueue extends BlockingQueue<Document>, AutoCloseable {
 
 }

@@ -12,30 +12,30 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 
 /**
- * Records the extraction result of a file to the given {@link Report}.
+ * Records the extraction result of a file to the given {@link ReportMap}.
  *
  * @since 1.0.0-beta
  */
 public class Reporter implements AutoCloseable {
 
 	private Set<Class<? extends Exception>> journalableTypes = new HashSet<>();
-	private Map<Document, ExtractionStatus> journal = new ConcurrentHashMap<>();
+	private Map<Document, Report> journal = new ConcurrentHashMap<>();
 	private Semaphore flushing = new Semaphore(1);
 
 	/**
 	 * The report to save results to or check.
 	 */
-	protected final Report report;
+	protected final ReportMap reportMap;
 
 	/**
-	 * Create a new reporter that will record results to the given {@link Report}.
+	 * Create a new reporter that will record results to the given {@link ReportMap}.
 	 *
-	 * @param report the report map
+	 * @param reportMap the report map
 	 */
-	public Reporter(final Report report) {
-		this.report = report;
+	public Reporter(final ReportMap reportMap) {
+		this.reportMap = reportMap;
 
-		final Collection<Class<? extends Exception>> journalableExceptions = report.journalableExceptions();
+		final Collection<Class<? extends Exception>> journalableExceptions = reportMap.journalableExceptions();
 
 		if (null != journalableExceptions) {
 			journalableExceptions.forEach(this::journalableException);
@@ -46,24 +46,24 @@ public class Reporter implements AutoCloseable {
 	 * Check the extraction result of a given document.
 	 *
 	 * @param document the document to check
-	 * @return The extraction result or {@code null} if no result was recorded for the file.
+	 * @return The extraction report or {@code null} if no result was recorded for the file.
 	 */
-	public ExtractionStatus result(final Document document) {
-		return report.get(document);
+	public Report report(final Document document) {
+		return reportMap.get(document);
 	}
 
 	/**
-	 * Save the extraction for the given document.
+	 * Save the extraction report for the given document.
 	 *
 	 * @param document the document
-	 * @param result the extraction result
+	 * @param report the extraction report
 	 */
-	public void save(final Document document, final ExtractionStatus result) {
+	public void save(final Document document, final Report report) {
 		try {
-			report.fastPut(document, result);
+			reportMap.fastPut(document, report);
 		} catch (Exception e) {
 			if (journalableTypes.contains(e.getClass())) {
-				journal.put(document, result);
+				journal.put(document, report);
 			}
 
 			throw e;
@@ -79,6 +79,27 @@ public class Reporter implements AutoCloseable {
 	}
 
 	/**
+	 * Save the extraction status and optional exception for the given document.
+	 *
+	 * @param document the document
+	 * @param status the extraction status
+	 * @param exception any exception caught during extraction
+	 */
+	public void save(final Document document, final ExtractionStatus status, final Exception exception) {
+		save(document, new Report(status, exception));
+	}
+
+	/**
+	 * Save the extraction status for the given document.
+	 *
+	 * @param document the document
+	 * @param status the extraction status
+	 */
+	public void save(final Document document, final ExtractionStatus status) {
+		save(document, new Report(status));
+	}
+
+	/**
 	 * Check an extraction result.
 	 *
 	 * @param document the document to check
@@ -86,9 +107,9 @@ public class Reporter implements AutoCloseable {
 	 * @return {@code true} if the results match or {@code false} if there is no match or no recorded result.
 	 */
 	public boolean check(final Document document, final ExtractionStatus result) {
-		final ExtractionStatus status = result(document);
+		final Report report = report(document);
 
-		return null != status && status.equals(result);
+		return null != report && report.getStatus().equals(result);
 	}
 
 	/**
@@ -98,7 +119,7 @@ public class Reporter implements AutoCloseable {
 	 * @return {@code true} if the document should be skipped.
 	 */
 	public boolean skip(final Document document) {
-		return check(document, ExtractionStatus.SUCCEEDED);
+		return check(document, ExtractionStatus.SUCCESS);
 	}
 
 	@Override
@@ -111,11 +132,11 @@ public class Reporter implements AutoCloseable {
 			flushing.release();
 		}
 
-		report.close();
+		reportMap.close();
 	}
 
 	/**
-	 * Add a class of {@link Exception} that when caught during {@link #save(Document, ExtractionStatus)}, would add
+	 * Add a class of {@link Exception} that when caught during {@link #save(Document, Report)}, would add
 	 * the arguments to journal which is flushed when the next operation succeeds.
 	 *
 	 * @param e the class of exception that is temporary
@@ -128,12 +149,12 @@ public class Reporter implements AutoCloseable {
 	 * Flush the journal of failed status to the report.
 	 */
 	private void flushJournal() {
-		final Iterator<Map.Entry<Document, ExtractionStatus>> iterator = journal.entrySet().iterator();
+		final Iterator<Map.Entry<Document, Report>> iterator = journal.entrySet().iterator();
 
 		while (iterator.hasNext()) {
-			final Map.Entry<Document, ExtractionStatus> entry = iterator.next();
+			final Map.Entry<Document, Report> entry = iterator.next();
 
-			report.fastPut(entry.getKey(), entry.getValue());
+			reportMap.fastPut(entry.getKey(), entry.getValue());
 			iterator.remove();
 		}
 	}

@@ -280,50 +280,50 @@ public class Extractor {
 	 * {@link Reporter#skip(Document)}.
 	 *
 	 * If the document is not skipped, then the result of the extraction is passed to the reporter in a call to
-	 * {@link Reporter#save(Document, ExtractionStatus)}.
+	 * {@link Reporter#save(Document, ExtractionStatus, Exception)}.
 	 *
 	 * @param document document to extract from
 	 * @param spewer endpoint to write to
 	 * @param reporter used to check whether the document should be skipped and save extraction status
 	 */
 	public void extract(final Document document, final Spewer spewer, final Reporter reporter) {
-		if (null == reporter) {
-			throw new IllegalArgumentException("The reporter must not be null.");
-		}
+		Objects.requireNonNull(reporter);
 
 		if (reporter.skip(document)) {
 			logger.info(String.format("File already extracted; skipping: \"%s\".", document));
 			return;
 		}
 
-		ExtractionStatus status = ExtractionStatus.SUCCEEDED;
+		ExtractionStatus status = ExtractionStatus.SUCCESS;
+		Exception exception = null;
 
 		try {
 			extract(document, spewer);
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			status = status(e, spewer);
 			log(e, status, document);
+			exception = e;
 		}
 
-		reporter.save(document, status);
+		reporter.save(document, status, exception);
 	}
 
 	private void log(final Exception e, final ExtractionStatus status, final Document document) {
 		switch (status) {
-			case NOT_SAVED:
+			case FAILURE_NOT_SAVED:
 				logger.error(String.format("The extraction result could not be outputted: \"%s\".", document),
 						e.getCause());
 				break;
-			case NOT_FOUND:
-				logger.error(String.format("File not found: \"%s\". Skipping.", document), e);
+			case FAILURE_NOT_FOUND:
+				logger.error(String.format("File not found: \"%s\".", document), e);
 				break;
-			case NOT_DECRYPTED:
+			case FAILURE_NOT_DECRYPTED:
 				logger.warn(String.format("Skipping encrypted file: \"%s\".", document), e);
 				break;
-			case NOT_PARSED:
+			case FAILURE_NOT_PARSED:
 				logger.error(String.format("The document could not be parsed: \"%s\".", document), e);
 				break;
-			case NOT_READ:
+			case FAILURE_UNREADABLE:
 				logger.error(String.format("The document stream could not be read: \"%s\".", document), e);
 				break;
 			default:
@@ -342,35 +342,35 @@ public class Extractor {
 	 */
 	private ExtractionStatus status(final Exception e, final Spewer spewer) {
 		if (TaggedIOException.isTaggedWith(e, spewer)) {
-			return ExtractionStatus.NOT_SAVED;
+			return ExtractionStatus.FAILURE_NOT_SAVED;
 		}
 
 		if (TaggedIOException.isTaggedWith(e, MetadataTransformer.class)) {
-			return ExtractionStatus.NOT_PARSED;
+			return ExtractionStatus.FAILURE_NOT_PARSED;
 		}
 
 		if (e instanceof FileNotFoundException) {
-			return ExtractionStatus.NOT_FOUND;
+			return ExtractionStatus.FAILURE_NOT_FOUND;
 		}
 
 		if (!(e instanceof IOException)) {
-			return ExtractionStatus.UNKNOWN_ERROR;
+			return ExtractionStatus.FAILURE_UNKNOWN;
 		}
 
 		final Throwable cause = e.getCause();
 
 		if (cause instanceof EncryptedDocumentException) {
-			return ExtractionStatus.NOT_DECRYPTED;
+			return ExtractionStatus.FAILURE_NOT_DECRYPTED;
 		}
 
 		// TIKA-198: IOExceptions thrown by parsers will be wrapped in a TikaException.
 		// This helps us differentiate input stream exceptions from output stream exceptions.
 		// https://issues.apache.org/jira/browse/TIKA-198
 		if (cause instanceof TikaException) {
-			return ExtractionStatus.NOT_PARSED;
+			return ExtractionStatus.FAILURE_NOT_PARSED;
 		}
 
-		return ExtractionStatus.NOT_READ;
+		return ExtractionStatus.FAILURE_UNREADABLE;
 	}
 
 	/**

@@ -16,8 +16,8 @@ import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.extractor.DocumentConsumer;
 import org.icij.extract.extractor.Extractor;
 import org.icij.extract.queue.*;
-import org.icij.extract.report.Report;
-import org.icij.extract.report.ReportFactory;
+import org.icij.extract.report.ReportMap;
+import org.icij.extract.report.ReportMapFactory;
 import org.icij.extract.report.Reporter;
 import org.icij.extract.spewer.FieldNames;
 import org.icij.extract.spewer.Spewer;
@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  */
 @Task("Extract from files.")
 @OptionsClass(DocumentQueueFactory.class)
-@OptionsClass(ReportFactory.class)
+@OptionsClass(ReportMapFactory.class)
 @OptionsClass(Scanner.class)
 @OptionsClass(SpewerFactory.class)
 @OptionsClass(Extractor.class)
@@ -66,7 +66,7 @@ public class SpewTask extends DefaultTask<Long> {
 
 		final DocumentFactory factory = new DocumentFactory().configure(options);
 
-		try (final Report report = new ReportFactory(options)
+		try (final ReportMap reportMap = new ReportMapFactory(options)
 				.withDocumentFactory(factory)
 				.create();
 		     final Spewer spewer = SpewerFactory.createSpewer(options);
@@ -74,7 +74,7 @@ public class SpewTask extends DefaultTask<Long> {
 				     .withDocumentFactory(factory)
 				     .create()) {
 
-			return spew(factory, report, spewer, queue, paths);
+			return spew(factory, reportMap, spewer, queue, paths);
 		}
 	}
 
@@ -83,7 +83,7 @@ public class SpewTask extends DefaultTask<Long> {
 		return run(null);
 	}
 
-	private Long spew(final DocumentFactory factory, final Report report, final Spewer spewer, final DocumentQueue
+	private Long spew(final DocumentFactory factory, final ReportMap reportMap, final Spewer spewer, final DocumentQueue
 			queue, final String[] paths) throws Exception {
 		final int parallelism = options.get("jobs").parse().asInteger().orElse(DocumentConsumer.defaultPoolSize());
 		logger.info(String.format("Processing up to %d file(s) in parallel.", parallelism));
@@ -92,8 +92,8 @@ public class SpewTask extends DefaultTask<Long> {
 		final DocumentConsumer consumer = new DocumentConsumer(spewer, extractor, parallelism);
 		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer).configure(options);
 
-		if (null != report) {
-			consumer.setReporter(new Reporter(report));
+		if (null != reportMap) {
+			consumer.setReporter(new Reporter(reportMap));
 		}
 
 		final Future<Long> draining;

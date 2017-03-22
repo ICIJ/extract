@@ -9,13 +9,13 @@ import java.util.HashMap;
  * @since 1.0.0-beta
  */
 public enum ExtractionStatus {
-	SUCCEEDED(0),
-	NOT_FOUND(1),
-	NOT_READ(2),
-	NOT_DECRYPTED(3),
-	NOT_PARSED(4),
-	UNKNOWN_ERROR(9),
-	NOT_SAVED(10);
+	SUCCESS(0),
+	FAILURE_NOT_FOUND(1),
+	FAILURE_UNREADABLE(2),
+	FAILURE_NOT_DECRYPTED(3),
+	FAILURE_NOT_PARSED(4),
+	FAILURE_UNKNOWN(9),
+	FAILURE_NOT_SAVED(10);
 
 	private final int code;
 

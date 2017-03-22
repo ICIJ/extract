@@ -1,38 +1,29 @@
 package org.icij.extract.report;
 
-import org.icij.extract.document.Document;
 import org.icij.extract.extractor.ExtractionStatus;
 
-import java.io.Closeable;
-import java.util.Collection;
-import java.util.concurrent.ConcurrentMap;
+import java.util.Optional;
 
-/**
- * The interface for a report.
- *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
- */
-public interface Report extends ConcurrentMap<Document, ExtractionStatus>, Closeable {
+public class Report {
 
-	/**
-	 *  Allow implementations to define a faster method for putting values into the map that doesn't require the
-	 *  previous value to be returned. This can reduce the processing time for kinds of maps and/or reduce the
-	 *  RTT (round-trip time) for distributed maps.
-	 *
-	 * @param key the document to set the status of
-	 * @param value the new status
-	 * @return true if the field was new when the value was set; false if it was updated
-	 */
-	boolean fastPut(final Document key, final ExtractionStatus value);
+	private final ExtractionStatus status;
+	private final Exception exception;
 
-	/**
-	 * Allow implementations to define a list of exception classes that when caught, would indicate to the caller
-	 * that arguments should be journaled and flushed later.
-	 *
-	 * @return a collection of exception classes
-	 */
-	default Collection<Class<? extends Exception>> journalableExceptions() {
-		return null;
+	public Report(final ExtractionStatus status, final Exception exception) {
+		this.status = status;
+		this.exception = exception;
+	}
+
+	public Report(final ExtractionStatus status) {
+		this.status = status;
+		this.exception = null;
+	}
+
+	public ExtractionStatus getStatus() {
+		return status;
+	}
+
+	public Optional<Exception> getException() {
+		return Optional.ofNullable(exception);
 	}
 }

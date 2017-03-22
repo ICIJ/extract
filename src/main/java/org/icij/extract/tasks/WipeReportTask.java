@@ -1,9 +1,8 @@
 package org.icij.extract.tasks;
 
-import org.icij.extract.report.Report;
-import org.icij.extract.report.ReportFactory;
+import org.icij.extract.report.ReportMap;
+import org.icij.extract.report.ReportMapFactory;
 import org.icij.task.DefaultTask;
-import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
 import org.icij.task.annotation.Task;
 
@@ -14,16 +13,16 @@ import org.icij.task.annotation.Task;
  * @since 1.0.0-beta
  */
 @Task("Wipe a report.")
-@OptionsClass(ReportFactory.class)
+@OptionsClass(ReportMapFactory.class)
 public class WipeReportTask extends DefaultTask<Integer> {
 
 	@Override
 	public Integer run() throws Exception {
 		final int cleared;
 
-		try (final Report report = new ReportFactory(options).createShared()) {
-			cleared = report.size();
-			report.clear();
+		try (final ReportMap reportMap = new ReportMapFactory(options).createShared()) {
+			cleared = reportMap.size();
+			reportMap.clear();
 		} catch (Exception e) {
 			throw new RuntimeException("Unexpected exception while wiping report.", e);
 		}
