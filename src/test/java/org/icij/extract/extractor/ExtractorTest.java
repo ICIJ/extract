@@ -1,5 +1,6 @@
 package org.icij.extract.extractor;
 
+import org.apache.tika.io.TemporaryResources;
 import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
@@ -38,7 +39,7 @@ public class ExtractorTest {
 
 		String text;
 
-		try (Reader reader = extractor.extract(document)) {
+		try (final TemporaryResources tmp = new TemporaryResources(); Reader reader = extractor.extract(document, tmp)) {
 			text = Spewer.toString(reader);
 		}
 
@@ -52,9 +53,12 @@ public class ExtractorTest {
 		extractor.disableOcr();
 
 		final Document document = factory.create(getClass().getResource("/documents/ocr/simple.tiff"));
-		final Reader reader = extractor.extract(document);
+		final TemporaryResources tmp = new TemporaryResources();
+		final Reader reader = extractor.extract(document, tmp);
 
 		final int read = reader.read();
+
+		tmp.close();
 
 		Assert.assertEquals("image/tiff", document.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals(-1, read);
@@ -63,13 +67,14 @@ public class ExtractorTest {
 	@Test
 	public void testFileNotFound() throws Throwable {
 		final Extractor extractor = new Extractor();
-
 		final Document document = factory.create(Paths.get("nothing"));
 
 		thrown.expect(NoSuchFileException.class);
 		thrown.expectMessage("nothing");
 
-		extractor.extract(document);
+		try (TemporaryResources tmp = new TemporaryResources()) {
+			extractor.extract(document, tmp);
+		}
 	}
 
 	@Test
@@ -84,7 +89,8 @@ public class ExtractorTest {
 
 		final int read;
 
-		try (Reader reader = extractor.extract(document)) {
+		try (final TemporaryResources tmp = new TemporaryResources(); Reader reader = extractor.extract(document,
+				tmp)) {
 			read = reader.read();
 		} catch (IOException e) {
 			Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
@@ -106,7 +112,8 @@ public class ExtractorTest {
 
 		final int read;
 
-		try (Reader reader = extractor.extract(document)) {
+		try (final TemporaryResources tmp = new TemporaryResources(); Reader reader = extractor.extract(document,
+				tmp)) {
 			read = reader.read();
 		} catch (IOException e) {
 			Assert.assertEquals("application/octet-stream", document.getMetadata().get(Metadata.CONTENT_TYPE));
@@ -123,7 +130,8 @@ public class ExtractorTest {
 		final Document document = factory.create(getClass().getResource("/documents/ocr/embedded.pdf"));
 		String text;
 
-		try (Reader reader = extractor.extract(document)) {
+		try (final TemporaryResources tmp = new TemporaryResources(); Reader reader = extractor.extract(document,
+				tmp)) {
 			text = Spewer.toString(reader);
 		}
 
@@ -143,7 +151,8 @@ public class ExtractorTest {
 
 		String text;
 
-		try (Reader reader = extractor.extract(document)) {
+		try (final TemporaryResources tmp = new TemporaryResources(); Reader reader = extractor.extract(document,
+				tmp)) {
 			text = Spewer.toString(reader);
 		}
 
@@ -160,7 +169,8 @@ public class ExtractorTest {
 
 		String text;
 
-		try (Reader reader = extractor.extract(document)) {
+		try (final TemporaryResources tmp = new TemporaryResources(); Reader reader = extractor.extract(document,
+				tmp)) {
 			text = Spewer.toString(reader);
 		}
 
@@ -178,7 +188,8 @@ public class ExtractorTest {
 
 		String text;
 
-		try (Reader reader = extractor.extract(document)) {
+		try (final TemporaryResources tmp = new TemporaryResources(); Reader reader = extractor.extract(document,
+				tmp)) {
 			text = Spewer.toString(reader);
 		}
 
@@ -196,7 +207,8 @@ public class ExtractorTest {
 
 		String text;
 
-		try (Reader reader = extractor.extract(document)) {
+		try (final TemporaryResources tmp = new TemporaryResources(); Reader reader = extractor.extract(document,
+				tmp)) {
 			text = Spewer.toString(reader);
 		}
 
@@ -212,14 +224,15 @@ public class ExtractorTest {
 		extractor.setOutputFormat(Extractor.OutputFormat.HTML);
 		Assert.assertEquals(extractor.getOutputFormat(), Extractor.OutputFormat.HTML);
 
-		extractor.setEmbedHandling(Extractor.EmbedHandling.EMBED);
-		Assert.assertEquals(extractor.getEmbedHandling(), Extractor.EmbedHandling.EMBED);
+		//extractor.setEmbedHandling(Extractor.EmbedHandling.EMBED);
+		//Assert.assertEquals(extractor.getEmbedHandling(), Extractor.EmbedHandling.EMBED);
 
 		final Document document = factory.create(getClass().getResource("/documents/ocr/embedded.pdf"));
 
 		String text;
 
-		try (Reader reader = extractor.extract(document)) {
+		try (final TemporaryResources tmp = new TemporaryResources(); Reader reader = extractor.extract(document,
+				tmp)) {
 			text = Spewer.toString(reader);
 		}
 
