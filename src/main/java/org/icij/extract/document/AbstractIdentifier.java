@@ -26,6 +26,11 @@ public abstract class AbstractIdentifier implements Identifier {
 
 	@Override
 	public String hash(final Document document) {
-		return document.getMetadata().get(key);
+		return retrieveHash(document.getMetadata());
+	}
+
+	@Override
+	public String retrieveHash(final Metadata metadata) {
+		return metadata.get(key);
 	}
 }

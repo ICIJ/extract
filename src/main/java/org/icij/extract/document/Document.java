@@ -5,10 +5,7 @@ import org.apache.tika.metadata.Metadata;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Supplier;
 
 public class Document {
@@ -35,13 +32,8 @@ public class Document {
 	 * @param metadata document metadata
 	 */
 	public Document(final String id, final Identifier identifier, final Path path, final Metadata metadata) {
-		if (null == identifier) {
-			throw new IllegalArgumentException("The identifier generator must not be null.");
-		}
-
-		if (null == path) {
-			throw new IllegalArgumentException("The path must not be null.");
-		}
+		Objects.requireNonNull(identifier, "The identifier generator must not be null.");
+		Objects.requireNonNull(path, "The path must not be null.");
 
 		this.metadata = metadata;
 		this.path = path;
@@ -64,13 +56,8 @@ public class Document {
 	 * @param metadata document metadata
 	 */
 	public Document(final Identifier identifier, final Path path, final Metadata metadata) {
-		if (null == identifier) {
-			throw new IllegalArgumentException("The identifier generator must not be null.");
-		}
-
-		if (null == path) {
-			throw new IllegalArgumentException("The path must not be null.");
-		}
+		Objects.requireNonNull(identifier, "The identifier generator must not be null.");
+		Objects.requireNonNull(path, "The path must not be null.");
 
 		this.metadata = metadata;
 		this.path = path;
@@ -107,7 +94,7 @@ public class Document {
 	}
 
 	public String getHash() {
-		return identifier.hash(this);
+		return identifier.retrieveHash(getMetadata());
 	}
 
 	Identifier getIdentifier() {

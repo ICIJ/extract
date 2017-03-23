@@ -1,5 +1,7 @@
 package org.icij.extract.document;
 
+import org.apache.tika.metadata.Metadata;
+
 /**
  * An {@linkplain Identifier} holds logic for generating both unique identifiers for documents as well as digest
  * hashes of the the underlying file data.
@@ -34,6 +36,15 @@ public interface Identifier {
 	 *
 	 * @param document the document for which to return a file hash digest
 	 * @return the hash
+	 * @throws Exception if there's an error generating the hash
 	 */
-	String hash(final Document document);
+	String hash(final Document document) throws Exception;
+
+	/**
+	 * Retrieve a hash digest of the document's underlying file data.
+	 *
+	 * @param metadata the document's metadata
+	 * @return the hash
+	 */
+	String retrieveHash(final Metadata metadata);
 }
