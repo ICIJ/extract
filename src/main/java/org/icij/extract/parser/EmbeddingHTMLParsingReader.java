@@ -25,6 +25,17 @@ import org.icij.kaxxa.io.TokenReplacingReader;
 import static org.apache.tika.sax.XHTMLContentHandler.XHTML;
 
 /**
+ * Example:
+ *
+ * <code>
+ *     			final String uuid = UUID.randomUUID().toString();
+ *     			final String open = uuid + "/";
+ *     			final String close = "/" + uuid;
+ *     			context.set(Parser.class, EmptyParser.INSTANCE);
+ *     			context.set(EmbeddedDocumentExtractor.class, new EmbedLinker(document, tmp, open, close));
+ *     			reader = new EmbeddingHTMLParsingReader(document, open, close, parser, input, metadata, context);
+ * </code>
+ *
  * @since 1.0.0-beta
  */
 public class EmbeddingHTMLParsingReader extends ParsingReader {
@@ -54,9 +65,8 @@ public class EmbeddingHTMLParsingReader extends ParsingReader {
 
 	@Override
 	public void close() throws IOException {
-
-		// Closes the underlying reader.
-		replacer.close();
+		replacer.close(); // Closes the underlying reader.
+		super.close();
 	}
 
 	private static class SubstitutingContentHandler extends ContentHandlerDecorator {

@@ -20,8 +20,6 @@ import java.io.*;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 
-import org.apache.tika.extractor.EmbeddedDocumentExtractor;
-import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
@@ -85,7 +83,7 @@ public class ParsingReader extends Reader {
 	/**
 	 * An exception (if any) thrown by the parsing thread.
 	 */
-	protected transient Throwable throwable;
+	private transient Throwable throwable;
 
 	/**
 	 * Utility method that returns a {@link Metadata} instance for a document with the given name.
@@ -151,10 +149,10 @@ public class ParsingReader extends Reader {
 		final PipedReader pipedReader = new PipedReader();
 
 		this.parser = parser;
-		this.reader = new BufferedReader(pipedReader);
+		reader = new BufferedReader(pipedReader);
 
 		try {
-			this.writer = new PipedWriter(pipedReader);
+			writer = new PipedWriter(pipedReader);
 		} catch (IOException e) {
 			throw new IllegalStateException(e); // Should never happen.
 		}
@@ -206,15 +204,7 @@ public class ParsingReader extends Reader {
 	 */
 	@Override
 	public void close() throws IOException {
-		final TemporaryResources tmp = context.get(TemporaryResources.class);
-
-		try {
-			if (null != tmp) {
-				tmp.close();
-			}
-		} finally {
-			reader.close();
-		}
+		reader.close();
 	}
 
 	/**

@@ -29,7 +29,6 @@ import org.apache.tika.parser.utils.CommonsDigester.DigestAlgorithm;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
 import org.apache.tika.sax.WriteOutContentHandler;
 import org.icij.extract.document.Document;
-import org.icij.extract.parser.*;
 import org.icij.extract.parser.ParsingReader;
 import org.icij.extract.report.Reporter;
 import org.icij.extract.sax.HTML5Serializer;
@@ -51,9 +50,8 @@ import org.xml.sax.ContentHandler;
 @Option(name = "outputFormat", description = "Set the output format. Either \"text\" or \"HTML\". " +
 		"Defaults to text output.", parameter = "type")
 @Option(name = "embedHandling", description = "Set the embed handling mode. Either \"ignore\", " +
-		"\"concatenate\", \"spawn\" or \"embed\". When set to concatenate, embeds are parsed and the output is " +
-		"in-lined into the main output. In embed mode, embeds are not parsed but are in-lined as a data URI" +
-		"representation of the raw embed data. This mode only applies when the output format is set to HTML. " +
+		"\"concatenate\" or \"spawn\". When set to concatenate, embeds are parsed and the output is " +
+		"in-lined into the main output." +
 		"Defaults to spawning, which spawns new documents for each embedded document encountered.", parameter = "type")
 @Option(name = "embedOutput", description = "Path to a directory for outputting attachments en masse.",
 		parameter = "path")
@@ -74,7 +72,7 @@ public class Extractor {
 	}
 
 	public enum EmbedHandling {
-		EMBED, CONCATENATE, SPAWN, IGNORE;
+		CONCATENATE, SPAWN, IGNORE;
 
 		public static EmbedHandling parse(final String outputFormat) {
 			return valueOf(outputFormat.toUpperCase(Locale.ROOT));
@@ -88,7 +86,7 @@ public class Extractor {
 	private static final Logger logger = LoggerFactory.getLogger(Extractor.class);
 
 	private boolean ocrDisabled = false;
-	private DigestAlgorithm[] digestAlgorithms = null;
+	private DigestingParser.Digester digester = null;
 
 	private Parser defaultParser = TikaConfig.getDefaultConfig().getParser();
 	private final TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
@@ -107,8 +105,7 @@ public class Extractor {
 	public Extractor() {
 
 		// Calculate the SHA256 digest by default.
-		digestAlgorithms = new DigestAlgorithm[1];
-		digestAlgorithms[0] = DigestAlgorithm.SHA256;
+		setDigestAlgorithms(DigestAlgorithm.SHA256);
 
 		// Run OCR on images contained within PDFs and not on pages.
 		pdfConfig.setExtractInlineImages(true);
@@ -229,7 +226,7 @@ public class Extractor {
 	}
 
 	public void setDigestAlgorithms(final DigestAlgorithm... digestAlgorithms) {
-		this.digestAlgorithms = digestAlgorithms;
+		digester = new CommonsDigester(20 * 1024 * 1024, digestAlgorithms);
 	}
 
 	/**
@@ -253,23 +250,23 @@ public class Extractor {
 	 * @param document the file to extract from
 	 * @return A {@link Reader} that can be used to read extracted text on demand.
 	 */
-	public Reader extract(final Document document) throws IOException {
+	public Reader extract(final Document document, final TemporaryResources tmp) throws IOException {
 
 		// Use the the TikaInputStream.parse method that accepts a file, because this sets metadata properties like the
 		// resource name and size.
-		return extract(document, TikaInputStream.get(document.getPath(), document.getMetadata()));
+		return extract(document, TikaInputStream.get(document.getPath(), document.getMetadata()), tmp);
 	}
 
 	/**
-	 * Extract and spew content from a document. Internally, as with {@link #extract(Document)}, this method creates a
-	 * {@link TikaInputStream} from the path of the given document.
+	 * Extract and spew content from a document. Internally, as with {@link #extract(Document, TemporaryResources)},
+	 * this method creates a {@link TikaInputStream} from the path of the given document.
 	 *
 	 * @param document document to extract from
 	 * @param spewer endpoint to write to
 	 * @throws IOException if there was an error reading or writing the document
 	 */
 	public void extract(final Document document, final Spewer spewer) throws IOException {
-		try (final Reader reader = extract(document)) {
+		try (final TemporaryResources tmp = new TemporaryResources(); final Reader reader = extract(document, tmp)) {
 			spewer.write(document, reader);
 		}
 	}
@@ -374,22 +371,20 @@ public class Extractor {
 	}
 
 	/**
-	 * Extract from the given {@link TikaInputStream}, populating the given metadata object.
+	 * Create a pull-parser from the given {@link TikaInputStream}.
 	 *
 	 * @param input the stream to extract from
 	 * @param document file that is being extracted from
+	 * @return A pull-parsing reader.
 	 */
-	protected Reader extract(final Document document, final TikaInputStream input) throws IOException {
+	protected Reader extract(final Document document, final TikaInputStream input, final TemporaryResources tmp)
+			throws IOException {
 		final Metadata metadata = document.getMetadata();
 		final ParseContext context = new ParseContext();
-		final AutoDetectParser autoDetectParser = new AutoDetectParser(defaultParser);
-		final Parser parser;
+		final AutoDetectParser parser = new AutoDetectParser(defaultParser);
 
-		if (null != digestAlgorithms && 0 != digestAlgorithms.length) {
-			parser = new DigestingParser(autoDetectParser, new CommonsDigester(20 * 1024 * 1024,
-					digestAlgorithms));
-		} else {
-			parser = autoDetectParser;
+		if (null != digester) {
+			digester.digest(input, metadata, context);
 		}
 
 		if (!ocrDisabled) {
@@ -397,61 +392,41 @@ public class Extractor {
 		}
 
 		context.set(PDFParserConfig.class, pdfConfig);
-		autoDetectParser.setFallback(ErrorParser.INSTANCE);
+		parser.setFallback(ErrorParser.INSTANCE);
 
 		// Only include "safe" tags in the HTML output from Tika's HTML parser.
 		// This excludes script tags and objects.
-		if (OutputFormat.HTML == outputFormat) {
-			context.set(HtmlMapper.class, DefaultHtmlMapper.INSTANCE);
-		}
+		context.set(HtmlMapper.class, DefaultHtmlMapper.INSTANCE);
 
 		final Reader reader;
+		final Function<Writer, ContentHandler> handler;
 
-		if (OutputFormat.HTML == outputFormat && EmbedHandling.EMBED == embedHandling) {
-			final TemporaryResources tmp = new TemporaryResources();
-			final String uuid = UUID.randomUUID().toString();
-			final String open = uuid + "/";
-			final String close = "/" + uuid;
-
-			context.set(Parser.class, EmptyParser.INSTANCE);
-			context.set(EmbeddedDocumentExtractor.class, new EmbedLinker(document, tmp, open, close));
-			context.set(TemporaryResources.class, tmp);
-
-			// ParsingReader#close() method will get the TemporaryResources object from the context and close it.
-			reader = new EmbeddingHTMLParsingReader(document, open, close, parser, input, metadata, context);
+		if (OutputFormat.HTML == outputFormat) {
+			handler = (writer) -> new ExpandedTitleContentHandler(new HTML5Serializer(writer));
 		} else {
-			final Function<Writer, ContentHandler> handler;
 
-			if (OutputFormat.HTML == outputFormat) {
-				handler = (writer) -> new ExpandedTitleContentHandler(new HTML5Serializer(writer));
-			} else {
+			// The default BodyContentHandler is used when constructing the ParsingReader for text output, but
+			// because only the body of embeds is pushed to the content handler further down the line, we can't
+			// expect a body tag.
+			handler = WriteOutContentHandler::new;
+		}
 
-				// The default BodyContentHandler is used when constructing the ParsingReader for text output, but
-				// because only the body of embeds is pushed to the content handler further down the line, we can't
-				// expect a body tag.
-				handler = WriteOutContentHandler::new;
-			}
+		if (EmbedHandling.SPAWN == embedHandling) {
+			context.set(Parser.class, parser);
+			context.set(EmbeddedDocumentExtractor.class, new EmbedSpawner(document, tmp, context, embedOutput,
+					handler));
+		} else if (EmbedHandling.CONCATENATE == embedHandling) {
+			context.set(Parser.class, parser);
+			context.set(EmbeddedDocumentExtractor.class, new EmbedParser(document, context));
+		} else {
+			context.set(Parser.class, EmptyParser.INSTANCE);
+			context.set(EmbeddedDocumentExtractor.class, new EmbedBlocker());
+		}
 
-			if (EmbedHandling.SPAWN == embedHandling) {
-				final TemporaryResources tmp = new TemporaryResources();
-
-				context.set(Parser.class, parser);
-				context.set(TemporaryResources.class, tmp);
-				context.set(EmbeddedDocumentExtractor.class, new EmbedSpawner(document, tmp, context, embedOutput,
-						handler));
-			} else if (EmbedHandling.CONCATENATE == embedHandling) {
-				context.set(Parser.class, parser);
-				context.set(EmbeddedDocumentExtractor.class, new EmbedParser(document, context));
-			} else {
-				context.set(Parser.class, EmptyParser.INSTANCE);
-				context.set(EmbeddedDocumentExtractor.class, new EmbedBlocker());
-			}
-
-			if (OutputFormat.HTML == outputFormat) {
-				reader = new ParsingReader(parser, input, metadata, context, handler);
-			} else {
-				reader = new ParsingReader(parser, input, metadata, context);
-			}
+		if (OutputFormat.HTML == outputFormat) {
+			reader = new ParsingReader(parser, input, metadata, context, handler);
+		} else {
+			reader = new ParsingReader(parser, input, metadata, context);
 		}
 
 		return reader;
