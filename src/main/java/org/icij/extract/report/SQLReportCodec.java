@@ -83,7 +83,7 @@ class SQLReportCodec implements SQLCodec<Report> {
 	@Override
 	public Report decodeValue(final ResultSet rs) throws SQLException {
 		final String status = rs.getString(statusKey);
-		Exception exception;
+		Exception exception = null;
 
 		final byte[] exceptionBytes = rs.getBytes(exceptionKey);
 
