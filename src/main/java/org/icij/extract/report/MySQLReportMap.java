@@ -3,7 +3,6 @@ package org.icij.extract.report;
 import org.icij.extract.document.Document;
 import org.icij.extract.mysql.DataSourceFactory;
 
-import org.icij.extract.queue.SQLDocumentQueueCodec;
 import org.icij.kaxxa.sql.concurrent.MySQLConcurrentMap;
 import org.icij.kaxxa.sql.concurrent.SQLCodec;
 
@@ -17,7 +16,7 @@ import java.io.IOException;
 
 @Option(name = "reportTable", description = "The report table. Defaults to \"document_report\".", parameter = "name")
 @OptionsClass(DataSourceFactory.class)
-@OptionsClass(SQLDocumentQueueCodec.class)
+@OptionsClass(SQLReportCodec.class)
 public class MySQLReportMap extends MySQLConcurrentMap<Document, Report> implements ReportMap {
 
 	public MySQLReportMap(final Options<String> options) {
