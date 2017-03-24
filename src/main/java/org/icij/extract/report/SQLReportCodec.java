@@ -85,10 +85,14 @@ class SQLReportCodec implements SQLCodec<Report> {
 		final String status = rs.getString(statusKey);
 		Exception exception;
 
-		try (final ObjectInputStream si = new ObjectInputStream(new ByteArrayInputStream(rs.getBytes(exceptionKey)))) {
-			exception = (Exception) si.readObject();
-		} catch (final IOException | ClassNotFoundException e) {
-			exception = null;
+		final byte[] exceptionBytes = rs.getBytes(exceptionKey);
+
+		if (null != exceptionBytes && exceptionBytes.length > 0) {
+			try (final ObjectInputStream si = new ObjectInputStream(new ByteArrayInputStream(exceptionBytes))) {
+				exception = (Exception) si.readObject();
+			} catch (final IOException | ClassNotFoundException e) {
+				exception = null;
+			}
 		}
 
 		// Assume that the status is stored as an ENUM in the table, so decode as the ExtractionStatus name
