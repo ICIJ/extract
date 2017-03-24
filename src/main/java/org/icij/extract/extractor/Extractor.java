@@ -381,10 +381,13 @@ public class Extractor {
 			throws IOException {
 		final Metadata metadata = document.getMetadata();
 		final ParseContext context = new ParseContext();
-		final AutoDetectParser parser = new AutoDetectParser(defaultParser);
+		final AutoDetectParser autoDetectParser = new AutoDetectParser(defaultParser);
+		final Parser parser;
 
 		if (null != digester) {
-			digester.digest(input, metadata, context);
+			parser = new DigestingParser(autoDetectParser, digester);
+		} else {
+			parser = autoDetectParser;
 		}
 
 		if (!ocrDisabled) {
@@ -392,7 +395,7 @@ public class Extractor {
 		}
 
 		context.set(PDFParserConfig.class, pdfConfig);
-		parser.setFallback(ErrorParser.INSTANCE);
+		autoDetectParser.setFallback(ErrorParser.INSTANCE);
 
 		// Only include "safe" tags in the HTML output from Tika's HTML parser.
 		// This excludes script tags and objects.
