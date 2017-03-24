@@ -20,7 +20,8 @@ import java.util.Map;
 		"name.", parameter = "name")
 @Option(name = "reportPathKey", description = "The report table key for storing the document path.", parameter = "name")
 @Option(name = "reportStatusKey", description = "The table key for storing the report status.", parameter = "name")
-@Option(name = "exceptionKey", description = "The table key for storing processing exceptions.", parameter = "name")
+@Option(name = "reportExceptionKey", description = "The table key for storing processing exceptions.", parameter =
+		"name")
 @Option(name = "reportSuccessStatus", description = "The status for a successfully extracted file.", parameter =
 		"value")
 @Option(name = "reportFailureStatus", description = "A general failure status value to use instead of the more " +
