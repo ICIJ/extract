@@ -6,9 +6,7 @@ import org.icij.kaxxa.sql.concurrent.SQLCodec;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
+import java.io.*;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
@@ -75,6 +73,18 @@ class SQLReportCodec implements SQLCodec<Report> {
 			map.put(statusKey, failureStatus);
 		} else {
 			map.put(statusKey, status.toString());
+		}
+
+		if (null != exceptionKey && report.getException().isPresent()) {
+			try (final ByteArrayOutputStream bo = new ByteArrayOutputStream(1024);
+			     final ObjectOutputStream so = new ObjectOutputStream(bo)) {
+
+				so.writeObject(report.getException());
+				so.flush();
+				map.put(exceptionKey, bo.toString());
+			} catch (final IOException ignored) {
+
+			}
 		}
 
 		return map;
