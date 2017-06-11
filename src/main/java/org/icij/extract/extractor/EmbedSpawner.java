@@ -8,7 +8,6 @@ import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.EmbeddedContentHandler;
-import org.apache.tika.sax.TeeContentHandler;
 import org.apache.tika.utils.ExceptionUtils;
 import org.icij.extract.document.Document;
 import org.icij.extract.document.EmbeddedDocument;
@@ -32,9 +31,8 @@ public class EmbedSpawner extends EmbedParser {
 
 	private final TemporaryResources tmp;
 	private final Path output;
-	private ContentHandler originalHandler = null;
 	private final Function<Writer, ContentHandler> handlerFunction;
-	private LinkedList<Document> stack = new LinkedList<>();
+	private LinkedList<Document> documentStack = new LinkedList<>();
 	private int untitled = 0;
 
 	EmbedSpawner(final Document root, final TemporaryResources tmp, final ParseContext context, final Path output,
@@ -43,51 +41,43 @@ public class EmbedSpawner extends EmbedParser {
 		this.tmp = tmp;
 		this.output = output;
 		this.handlerFunction = handlerFunction;
-		stack.add(root);
+		documentStack.add(root);
 	}
 
 	@Override
 	public void parseEmbedded(final InputStream input, final ContentHandler handler, final Metadata metadata,
 	                          final boolean outputHtml) throws SAXException, IOException {
 
-		// Need to keep track of and use the original handler, since a modified one is passed to the parser.
-		if (null == originalHandler) {
-			originalHandler = handler;
-		}
-
-		// Use a different handler for receiving SAX events from the embedded document. The allows the main content
-		// handler that receives the entire concatenated content to receive only the body of the embed, while the
-		// handler that writes to the temporary file will receive the entire document.
-		final ContentHandler embedHandler = new EmbeddedContentHandler(new BodyContentHandler(originalHandler));
-
-		if (outputHtml) {
-			writeStart(originalHandler, metadata);
-		}
-
 		// There's no need to spawn inline embeds, like images in PDFs. These should be concatenated to the main
 		// document as usual.
 		if (TikaCoreProperties.EmbeddedResourceType.INLINE.toString().equals(metadata
 				.get(TikaCoreProperties.EMBEDDED_RESOURCE_TYPE))) {
-			delegateParsing(input, embedHandler, metadata);
-		} else {
-			spawnEmbedded(input, embedHandler, metadata);
-		}
+			final ContentHandler embedHandler = new EmbeddedContentHandler(new BodyContentHandler(handler));
 
-		if (outputHtml) {
-			writeEnd(originalHandler);
+			if (outputHtml) {
+				writeStart(handler, metadata);
+			}
+
+			delegateParsing(input, embedHandler, metadata);
+
+			if (outputHtml) {
+				writeEnd(handler);
+			}
+		} else {
+			spawnEmbedded(input, metadata);
 		}
 	}
 
-	private void spawnEmbedded(final InputStream input, final ContentHandler handler, final Metadata metadata) throws
+	private void spawnEmbedded(final InputStream input, final Metadata metadata) throws
 			IOException {
 		final Path parsedOutputPath = tmp.createTempFile();
 		String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
 
 		final Writer writer = Files.newBufferedWriter(parsedOutputPath, StandardCharsets.UTF_8);
-		final ContentHandler teeHandler = new TeeContentHandler(handler, handlerFunction.apply(writer));
+		final ContentHandler embedHandler = handlerFunction.apply(writer);
 
-		final EmbeddedDocument embed = stack.getLast().addEmbed(metadata);
-		stack.add(embed);
+		final EmbeddedDocument embed = documentStack.getLast().addEmbed(metadata);
+		documentStack.add(embed);
 
 		// Use temporary resources to copy formatted output from the content handler to a temporary file.
 		// Call setReader on the embed object with a plain reader for this temp file.
@@ -111,7 +101,7 @@ public class EmbedSpawner extends EmbedParser {
 
 			// Pass the same TIS, otherwise the EmbedParser will attempt to spool the input again and fail, because it's
 			// already been consumed.
-			delegateParsing(tis, teeHandler, metadata);
+			delegateParsing(tis, embedHandler, metadata);
 		} catch (Exception e) {
 
 			// Note that even on exception, the document is intentionally NOT removed from the parent.
@@ -120,7 +110,8 @@ public class EmbedSpawner extends EmbedParser {
 			// TODO: Change to TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM in Tika 1.15.
 			metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_WARNING, ExceptionUtils.getFilteredStackTrace(e));
 		} finally {
-			stack.removeLast();
+			documentStack.removeLast();
+			writer.flush();
 			writer.close();
 		}
 
