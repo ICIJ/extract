@@ -4,6 +4,7 @@ import java.io.*;
 
 import org.apache.tika.extractor.ParsingEmbeddedDocumentExtractor;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.DelegatingParser;
 import org.apache.tika.parser.ParseContext;
@@ -15,6 +16,7 @@ import org.apache.tika.sax.EmbeddedContentHandler;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.exception.EncryptedDocumentException;
 
+import org.apache.tika.utils.ExceptionUtils;
 import org.icij.extract.document.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,11 +76,15 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 			// Use the delegate parser to parse this entry.
 			DELEGATING_PARSER.parse(newStream, handler, metadata, context);
 		} catch (EncryptedDocumentException e) {
-			logger.error("Encrypted document embedded in document: \"{}\" (in \"{}\").",
-					metadata.get(Metadata.RESOURCE_NAME_KEY), root, e);
+			logger.error("Unable to decrypt encrypted document embedded in document: \"{}\" ({}) (in \"{}\").",
+					metadata.get(Metadata.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root, e);
+			metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM,
+					ExceptionUtils.getFilteredStackTrace(e));
 		} catch (TikaException e) {
-			logger.error("Unable to parse embedded document: \"{}\" (in \"{}\").",
-					metadata.get(Metadata.RESOURCE_NAME_KEY), root, e);
+			logger.error("Unable to parse embedded document: \"{}\" ({}) (in \"{}\").",
+					metadata.get(Metadata.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root, e);
+			metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM,
+					ExceptionUtils.getFilteredStackTrace(e));
 		}
 	}
 

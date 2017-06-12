@@ -105,13 +105,12 @@ public class EmbedSpawner extends EmbedParser {
 		} catch (Exception e) {
 
 			// Note that even on exception, the document is intentionally NOT removed from the parent.
-			logger.error("Unable to parse embedded document: \"{}\" (in \"{}\").", name, root, e);
-
-			// TODO: Change to TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM in Tika 1.15.
-			metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_WARNING, ExceptionUtils.getFilteredStackTrace(e));
+			logger.error("Unable to parse embedded document: \"{}\" ({}) (in \"{}\").",
+					name, metadata.get(Metadata.CONTENT_TYPE), root, e);
+			metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM,
+					ExceptionUtils.getFilteredStackTrace(e));
 		} finally {
 			documentStack.removeLast();
-			writer.flush();
 			writer.close();
 		}
 
