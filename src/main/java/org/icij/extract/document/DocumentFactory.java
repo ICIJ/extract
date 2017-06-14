@@ -77,6 +77,10 @@ public class DocumentFactory {
 		return create(Paths.get(path));
 	}
 
+	public Document create(final String id, final String path) {
+		return create(id, Paths.get(path));
+	}
+
 	public Document create(final Path path, final Metadata metadata) {
 		return new Document(identifier, path, metadata);
 	}

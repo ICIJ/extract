@@ -24,7 +24,7 @@ import java.util.Map;
 		"value")
 @Option(name = "reportFailureStatus", description = "A general failure status value to use instead of the more " +
 		"specific values.", parameter = "value")
-class SQLReportCodec implements SQLCodec<Report> {
+public class SQLReportCodec implements SQLCodec<Report> {
 
 	private final String idKey;
 	private final String foreignIdKey;
@@ -42,6 +42,16 @@ class SQLReportCodec implements SQLCodec<Report> {
 		this.exceptionKey = options.get("reportExceptionKey").value().orElse("exception");
 		this.successStatus = options.get("reportSuccessStatus").value().orElse(null);
 		this.failureStatus = options.get("reportFailureStatus").value().orElse(null);
+	}
+
+	SQLReportCodec() {
+		this.idKey = null;
+		this.foreignIdKey = null;
+		this.pathKey = "path";
+		this.statusKey = "extraction_status";
+		this.exceptionKey = "exception";
+		this.successStatus = null;
+		this.failureStatus = null;
 	}
 
 	@Override
@@ -79,9 +89,9 @@ class SQLReportCodec implements SQLCodec<Report> {
 			try (final ByteArrayOutputStream bo = new ByteArrayOutputStream(1024);
 			     final ObjectOutputStream so = new ObjectOutputStream(bo)) {
 
-				so.writeObject(report.getException());
+				so.writeObject(report.getException().get());
 				so.flush();
-				map.put(exceptionKey, bo.toString());
+				map.put(exceptionKey, bo.toString("UTF-8"));
 			} catch (final IOException ignored) {
 
 			}
