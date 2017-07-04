@@ -17,6 +17,7 @@ import org.icij.task.annotation.OptionsClass;
 		parameter = "type", code = "r")
 @OptionsClass(RedisReportMap.class)
 @OptionsClass(MySQLReportMap.class)
+@OptionsClass(DocumentFactory.class)
 public class ReportMapFactory {
 
 	private ReportMapType type = null;
@@ -75,7 +76,7 @@ public class ReportMapFactory {
 		}
 
 		if (ReportMapType.MYSQL == type) {
-			return new MySQLReportMap(options);
+			return new MySQLReportMap(factory, options);
 		}
 
 		throw new IllegalArgumentException(String.format("\"%s\" is not a valid shared report type.", type));

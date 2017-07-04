@@ -1,12 +1,15 @@
 package org.icij.extract.report;
 
 import org.icij.extract.document.Document;
+import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.extractor.ExtractionStatus;
-import org.icij.kaxxa.sql.concurrent.SQLCodec;
+import org.icij.kaxxa.sql.SQLMapCodec;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 
 import java.io.*;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
@@ -24,8 +27,9 @@ import java.util.Map;
 		"value")
 @Option(name = "reportFailureStatus", description = "A general failure status value to use instead of the more " +
 		"specific values.", parameter = "value")
-public class SQLReportCodec implements SQLCodec<Report> {
+public class SQLReportCodec implements SQLMapCodec<Document, Report> {
 
+	private final DocumentFactory factory;
 	private final String idKey;
 	private final String foreignIdKey;
 	private final String pathKey;
@@ -34,7 +38,8 @@ public class SQLReportCodec implements SQLCodec<Report> {
 	private final String successStatus;
 	private final String failureStatus;
 
-	SQLReportCodec(final Options<String> options) {
+	SQLReportCodec(final DocumentFactory factory, final Options<String> options) {
+		this.factory = factory;
 		this.idKey = options.get("reportIdKey").value().orElse(null);
 		this.foreignIdKey = options.get("reportForeignIdKey").value().orElse(null);
 		this.pathKey = options.get("reportPathKey").value().orElse("path");
@@ -44,7 +49,8 @@ public class SQLReportCodec implements SQLCodec<Report> {
 		this.failureStatus = options.get("reportFailureStatus").value().orElse(null);
 	}
 
-	SQLReportCodec() {
+	SQLReportCodec(final DocumentFactory factory) {
+		this.factory = factory;
 		this.idKey = null;
 		this.foreignIdKey = null;
 		this.pathKey = "path";
@@ -72,6 +78,24 @@ public class SQLReportCodec implements SQLCodec<Report> {
 	}
 
 	@Override
+	public Document decodeKey(final ResultSet rs) throws SQLException {
+		final Path path = Paths.get(rs.getString(pathKey));
+		final Document document;
+
+		if (null != idKey) {
+			document = factory.create(rs.getString(idKey), path);
+		} else {
+			document = factory.create(path);
+		}
+
+		if (null != foreignIdKey) {
+			document.setForeignId(rs.getString(foreignIdKey));
+		}
+
+		return document;
+	}
+
+	@Override
 	public Map<String, Object> encodeValue(final Object o) {
 		final Report report = (Report) o;
 		final ExtractionStatus status = report.getStatus();
@@ -85,34 +109,48 @@ public class SQLReportCodec implements SQLCodec<Report> {
 			map.put(statusKey, status.toString());
 		}
 
-		if (null != exceptionKey && report.getException().isPresent()) {
-			try (final ByteArrayOutputStream bo = new ByteArrayOutputStream(1024);
-			     final ObjectOutputStream so = new ObjectOutputStream(bo)) {
+		// Either encode the exception or put an explicit null, so if an old value is already set in the database then
+		// this will reset it.
+		if (null != exceptionKey) {
+			if (report.getException().isPresent()) {
 
-				so.writeObject(report.getException().get());
-				so.flush();
-				map.put(exceptionKey, bo.toString("UTF-8"));
-			} catch (final IOException ignored) {
-
+				// Put a ByteArrayInputStream, which forces the call to q.setObject() to use the BLOB type.
+				map.put(exceptionKey, new ByteArrayInputStream(encodeException(report.getException().get())));
+			} else {
+				map.put(exceptionKey, null);
 			}
 		}
 
 		return map;
 	}
 
+	private byte[] encodeException(final Exception exception) {
+		try (final ByteArrayOutputStream bo = new ByteArrayOutputStream(1024);
+		     final ObjectOutputStream so = new ObjectOutputStream(bo)) {
+
+			so.writeObject(exception);
+			so.flush();
+			return bo.toByteArray();
+		} catch (final IOException e) {
+			throw new IllegalArgumentException("Unable to encode exception object.", e);
+		}
+	}
+
 	@Override
 	public Report decodeValue(final ResultSet rs) throws SQLException {
 		final String status = rs.getString(statusKey);
-		Exception exception = null;
+		final Exception exception;
 
 		final byte[] exceptionBytes = rs.getBytes(exceptionKey);
 
 		if (null != exceptionBytes && exceptionBytes.length > 0) {
 			try (final ObjectInputStream si = new ObjectInputStream(new ByteArrayInputStream(exceptionBytes))) {
 				exception = (Exception) si.readObject();
-			} catch (final IOException | ClassNotFoundException e) {
-				exception = null;
+			} catch (final IOException | ClassNotFoundException | ClassCastException e) {
+				throw new IllegalArgumentException("Unable to decode exception bytes.", e);
 			}
+		} else {
+			exception = null;
 		}
 
 		// Assume that the status is stored as an ENUM in the table, so decode as the ExtractionStatus name

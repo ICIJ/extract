@@ -5,7 +5,7 @@ import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.mysql.DataSourceFactory;
 
 import org.icij.kaxxa.sql.concurrent.MySQLBlockingQueue;
-import org.icij.kaxxa.sql.concurrent.SQLQueueCodec;
+import org.icij.kaxxa.sql.SQLQueueCodec;
 
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
@@ -33,8 +33,8 @@ public class MySQLDocumentQueue extends MySQLBlockingQueue<Document> implements 
 
 	@Override
 	public void close() throws IOException {
-		if (dataSource instanceof Closeable) {
-			((Closeable) dataSource).close();
+		if (source instanceof Closeable) {
+			((Closeable) source).close();
 		}
 	}
 }

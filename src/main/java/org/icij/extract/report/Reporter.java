@@ -25,7 +25,7 @@ public class Reporter implements AutoCloseable {
 	/**
 	 * The report to save results to or check.
 	 */
-	protected final ReportMap reportMap;
+	private final ReportMap reportMap;
 
 	/**
 	 * Create a new reporter that will record results to the given {@link ReportMap}.

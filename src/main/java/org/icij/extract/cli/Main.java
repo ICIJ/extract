@@ -43,6 +43,8 @@ public class Main {
 	 * @param args the commandline arguments
 	 */
 	public static void main(final String[] args) {
+		// System.setProperty("java.util.logging.config.file", "logging.properties");
+
 		taskFactory.addTask("clean-report", CleanReportTask.class);
 		taskFactory.addTask("commit", CommitTask.class);
 		taskFactory.addTask("copy", CopyTask.class);
@@ -51,6 +53,7 @@ public class Main {
 		taskFactory.addTask("dump-report", DumpReportTask.class);
 		taskFactory.addTask("load-queue", LoadQueueTask.class);
 		taskFactory.addTask("load-report", LoadReportTask.class);
+		taskFactory.addTask("view-report", ViewReportTask.class);
 		taskFactory.addTask("queue", QueueTask.class);
 		taskFactory.addTask("rehash", RehashTask.class);
 		taskFactory.addTask("rollback", RollbackTask.class);

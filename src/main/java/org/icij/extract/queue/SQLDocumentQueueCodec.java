@@ -2,7 +2,7 @@ package org.icij.extract.queue;
 
 import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
-import org.icij.kaxxa.sql.concurrent.SQLQueueCodec;
+import org.icij.kaxxa.sql.SQLQueueCodec;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 

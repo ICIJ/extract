@@ -4,7 +4,7 @@ import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.extractor.ExtractionStatus;
-import org.icij.kaxxa.sql.concurrent.SQLCodec;
+import org.icij.kaxxa.sql.SQLMapCodec;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -17,7 +17,7 @@ public class SQLReportCodecTest {
 
 	@Test
 	public void testEncodeKey() throws Throwable {
-		final SQLCodec<Report> codec = new SQLReportCodec();
+		final SQLMapCodec<Document, Report> codec = new SQLReportCodec(documentFactory);
 		final Document document = documentFactory.create("a", "path/to/file");
 
 		final Map<String, Object> map = codec.encodeKey(document);
@@ -28,7 +28,7 @@ public class SQLReportCodecTest {
 	@Test
 	public void testEncodeValue() throws Throwable {
 		final Report report = new Report(ExtractionStatus.FAILURE_NOT_PARSED, new IOException("Failed to parse."));
-		final SQLCodec<Report> codec = new SQLReportCodec();
+		final SQLMapCodec<Document, Report> codec = new SQLReportCodec(documentFactory);
 
 		final Map<String, Object> map = codec.encodeValue(report);
 

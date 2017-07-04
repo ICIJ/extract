@@ -36,7 +36,11 @@ public enum ExtractionStatus {
 	}
 
 	public static ExtractionStatus parse(final String value) {
-		return parse(Integer.valueOf(value));
+		try {
+			return parse(Integer.valueOf(value));
+		} catch (final NumberFormatException e) {
+			return valueOf(value);
+		}
 	}
 
 	ExtractionStatus(final int code) {
