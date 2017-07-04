@@ -36,8 +36,11 @@ public class ViewReportTask extends DefaultTask<Void> {
 
 				System.out.println("Status:");
 				System.out.println(report.getStatus());
-				System.out.println("Exception:");
-				System.out.println(report.getException());
+
+				report.getException().ifPresent(e -> {
+					System.out.println("Exception:");
+					e.printStackTrace(System.out);
+				});
 			}
 		} catch (Exception e) {
 			throw new RuntimeException("Unexpected exception while viewing report.", e);

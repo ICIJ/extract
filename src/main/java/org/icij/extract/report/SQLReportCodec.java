@@ -113,27 +113,13 @@ public class SQLReportCodec implements SQLMapCodec<Document, Report> {
 		// this will reset it.
 		if (null != exceptionKey) {
 			if (report.getException().isPresent()) {
-
-				// Put a ByteArrayInputStream, which forces the call to q.setObject() to use the BLOB type.
-				map.put(exceptionKey, new ByteArrayInputStream(encodeException(report.getException().get())));
+				map.put(exceptionKey, report.getException().get());
 			} else {
 				map.put(exceptionKey, null);
 			}
 		}
 
 		return map;
-	}
-
-	private byte[] encodeException(final Exception exception) {
-		try (final ByteArrayOutputStream bo = new ByteArrayOutputStream(1024);
-		     final ObjectOutputStream so = new ObjectOutputStream(bo)) {
-
-			so.writeObject(exception);
-			so.flush();
-			return bo.toByteArray();
-		} catch (final IOException e) {
-			throw new IllegalArgumentException("Unable to encode exception object.", e);
-		}
 	}
 
 	@Override
