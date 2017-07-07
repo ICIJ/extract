@@ -143,6 +143,11 @@ public class Document {
 		this.readerGenerator = readerGenerator;
 	}
 
+	public void clearReader() {
+		this.reader = null;
+		this.readerGenerator = null;
+	}
+
 	public void setForeignId(final String foreignId) {
 		this.foreignId = foreignId;
 	}

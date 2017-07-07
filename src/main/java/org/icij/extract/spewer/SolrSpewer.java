@@ -206,6 +206,9 @@ public class SolrSpewer extends Spewer implements Serializable {
 			try (final Reader embedReader = embed.getReader()) {
 				final SolrInputDocument childDocument = prepareDocument(embed, embedReader, level + 1);
 
+				// Free up memory.
+				embed.clearReader();
+
 				// Set the ID of the parent on the child before adding to the parent.
 				// We do this because Solr flattens the hierarchy (see org.apache.solr.update.AddUpdateCommand#flatten).
 				setFieldValue(childDocument, fields.forParentId(), document.getId());

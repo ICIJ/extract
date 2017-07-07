@@ -24,22 +24,24 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.LinkedList;
 import java.util.function.Function;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 public class EmbedSpawner extends EmbedParser {
 
 	private static final Logger logger = LoggerFactory.getLogger(EmbedParser.class);
 
 	private final TemporaryResources tmp;
-	private final Path output;
+	private final Path outputPath;
 	private final Function<Writer, ContentHandler> handlerFunction;
 	private LinkedList<Document> documentStack = new LinkedList<>();
 	private int untitled = 0;
 
-	EmbedSpawner(final Document root, final TemporaryResources tmp, final ParseContext context, final Path output,
+	EmbedSpawner(final Document root, final TemporaryResources tmp, final ParseContext context, final Path outputPath,
 	             final Function<Writer, ContentHandler> handlerFunction) {
 		super(root, context);
 		this.tmp = tmp;
-		this.output = output;
+		this.outputPath = outputPath;
 		this.handlerFunction = handlerFunction;
 		documentStack.add(root);
 	}
@@ -70,21 +72,24 @@ public class EmbedSpawner extends EmbedParser {
 
 	private void spawnEmbedded(final InputStream input, final Metadata metadata) throws
 			IOException {
-		final Path parsedOutputPath = tmp.createTempFile();
-		String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
+		final ByteArrayOutputStream output = new ByteArrayOutputStream(8192);
 
-		final Writer writer = Files.newBufferedWriter(parsedOutputPath, StandardCharsets.UTF_8);
+		// Create a Writer that will receive the parser outputPath for the embed file, for later retrieval.
+		final Writer writer = new BufferedWriter(new OutputStreamWriter(new GZIPOutputStream(output, true),
+				StandardCharsets.UTF_8));
+
 		final ContentHandler embedHandler = handlerFunction.apply(writer);
-
 		final EmbeddedDocument embed = documentStack.getLast().addEmbed(metadata);
 		documentStack.add(embed);
 
-		// Use temporary resources to copy formatted output from the content handler to a temporary file.
+		// Use temporary resources to copy formatted outputPath from the content handler to a temporary file.
 		// Call setReader on the embed object with a plain reader for this temp file.
 		// When all parsing finishes, close temporary resources.
 		// Note that getPath should still return the path to the original file.
-		embed.setReader(() -> Files.newBufferedReader(parsedOutputPath, StandardCharsets.UTF_8));
+		embed.setReader(() -> new BufferedReader(new InputStreamReader(new GZIPInputStream(new ByteArrayInputStream(output
+					.toByteArray())))));
 
+		String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
 		if (null == name || name.isEmpty()) {
 			name = String.format("untitled_%d", ++untitled);
 		}
@@ -93,7 +98,7 @@ public class EmbedSpawner extends EmbedParser {
 		// This needs to be done before parsing starts and the same TIS object must be passed to writeEmbed,
 		// otherwise it will be spooled twice.
 		final TikaInputStream tis = TikaInputStream.get(input, tmp);
-		if (null != output) {
+		if (null != this.outputPath) {
 			tis.getPath();
 		}
 
@@ -114,8 +119,8 @@ public class EmbedSpawner extends EmbedParser {
 			writer.close();
 		}
 
-		// Write the embed file to the given output directory.
-		if (null != output) {
+		// Write the embed file to the given outputPath directory.
+		if (null != this.outputPath) {
 			writeEmbed(tis, embed, name);
 		}
 	}
@@ -148,7 +153,7 @@ public class EmbedSpawner extends EmbedParser {
 
 		// To prevent massive duplication and because the disk is only a storage for underlying date, save using the
 		// straight hash as a filename.
-		try (final OutputStream copy = Files.newOutputStream(output.resolve(embed.getHash()),
+		try (final OutputStream copy = Files.newOutputStream(outputPath.resolve(embed.getHash()),
 				StandardOpenOption.CREATE_NEW)) {
 			Files.copy(source, copy);
 		} catch (FileAlreadyExistsException e) {
