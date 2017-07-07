@@ -1,14 +1,17 @@
 package org.icij.extract.mysql;
 
+import com.mysql.cj.jdbc.MysqlDataSource;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.apache.commons.io.FilenameUtils;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 
+import javax.sql.DataSource;
 import java.nio.file.Path;
 import java.security.KeyStore;
 import java.util.Locale;
+import java.util.Properties;
 
 @Option(name = "mysqlUser", description = "The MySQL database user to authenticate as.", parameter = "username")
 @Option(name = "mysqlPassword", description = "The MySQL user password.", parameter = "password")
@@ -33,6 +36,8 @@ public class DataSourceFactory {
 	private Path caCertificate = null;
 	private String caPassword = null;
 	private int maximumPoolSize = 0;
+
+	private DataSource singleton = null;
 
 	public DataSourceFactory(final Options<String> options) {
 		withOptions(options);
@@ -99,25 +104,64 @@ public class DataSourceFactory {
 		return this;
 	}
 
-	public HikariDataSource create(final String poolName) {
+	public DataSource create(final String name) {
+		return maximumPoolSize > 1 ? createPooled(name) : createSingle();
+	}
+
+	public DataSource create() {
+		return create(null);
+	}
+
+	public DataSource get() {
+		return null == singleton ? singleton = create() : singleton;
+	}
+
+	private DataSource createSingle()  {
+		final MysqlDataSource dataSource = new MysqlDataSource();
+
+		dataSource.setURL(createURL());
+		dataSource.setUser(null == user ? "extract" : user);
+		dataSource.setPassword(password);
+
+		dataSource.initializeProperties(createProperties());
+
+		return dataSource;
+	}
+
+	private DataSource createPooled(final String poolName) {
 		final HikariConfig config = new HikariConfig();
 
-		config.setJdbcUrl("jdbc:mysql://" + (null == serverName ? "localhost" : serverName) + ":" +
-				(port > 0 ? port : 3306) + "/" + (null	== databaseName ? "extract" : databaseName));
+		config.setJdbcUrl(createURL());
 		config.setUsername(null == user ? "extract" : user);
 		config.setPassword(password);
-		config.setPoolName(poolName);
 
-		if (maximumPoolSize > 0) {
-			config.setMaximumPoolSize(maximumPoolSize);
+		config.setMaximumPoolSize(maximumPoolSize);
+
+		if (null != poolName) {
+			config.setPoolName(poolName);
 		}
 
-		config.addDataSourceProperty("cachePrepStmts", true);
-		config.addDataSourceProperty("prepStmtCacheSize", 250);
-		config.addDataSourceProperty("prepStmtCacheSqlLimit", 2048);
-		config.addDataSourceProperty("autoCommit", true);
-		config.addDataSourceProperty("useSSL", useSSL);
-		config.addDataSourceProperty("requireSSL", requireSSL);
+		config.setDataSourceProperties(createProperties());
+
+		return new HikariDataSource(config);
+	}
+
+	private String createURL() {
+		return "jdbc:mysql://" + (null == serverName ? "localhost" : serverName) + ":" +
+				(port > 0 ? port : 3306) + "/" + (null	== databaseName ? "extract" : databaseName);
+	}
+
+	private Properties createProperties() {
+		final Properties properties = new Properties();
+
+		properties.put("cachePrepStmts", true);
+		properties.put("prepStmtCacheSize", 250);
+		properties.put("prepStmtCacheSqlLimit", 2048);
+		properties.put("autoCommit", true);
+		properties.put("useSSL", useSSL);
+		properties.put("requireSSL", requireSSL);
+		properties.put("socketTimeout", 20000);
+		properties.put("connectTimeout", 20000);
 
 		if (null != caCertificate) {
 			String keyStoreType = FilenameUtils.getExtension(caCertificate.getFileName().toString()
@@ -129,17 +173,17 @@ public class DataSourceFactory {
 				keyStoreType = "PKCS12";
 			}
 
-			config.addDataSourceProperty("verifyServerCertificate", true);
-			config.addDataSourceProperty("trustCertificateKeyStoreType", keyStoreType);
-			config.addDataSourceProperty("trustCertificateKeyStoreUrl", "file://" + caCertificate.toString());
+			properties.put("verifyServerCertificate", true);
+			properties.put("trustCertificateKeyStoreType", keyStoreType);
+			properties.put("trustCertificateKeyStoreUrl", "file://" + caCertificate.toString());
 
 			if (null != caPassword) {
-				config.addDataSourceProperty("trustCertificateKeyStorePassword", caPassword);
+				properties.put("trustCertificateKeyStorePassword", caPassword);
 			} else if (keyStoreType.equals("JKS")) {
-				config.addDataSourceProperty("trustCertificateKeyStorePassword", "changeit");
+				properties.put("trustCertificateKeyStorePassword", "changeit");
 			}
 		}
 
-		return new HikariDataSource(config);
+		return properties;
 	}
 }

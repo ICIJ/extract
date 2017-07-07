@@ -3,6 +3,7 @@ package org.icij.extract.report;
 import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 
+import org.icij.extract.mysql.DataSourceFactory;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
@@ -15,14 +16,16 @@ import org.icij.task.annotation.OptionsClass;
  */
 @Option(name = "reportType", description = "Set the report backend type. Either \"redis\" or \"mysql\".",
 		parameter = "type", code = "r")
+@OptionsClass(DocumentFactory.class)
+@OptionsClass(DataSourceFactory.class)
 @OptionsClass(RedisReportMap.class)
 @OptionsClass(MySQLReportMap.class)
-@OptionsClass(DocumentFactory.class)
 public class ReportMapFactory {
 
 	private ReportMapType type = null;
 	private Options<String> options = null;
-	private DocumentFactory factory = null;
+	private DocumentFactory documentFactory = null;
+	private DataSourceFactory dataSourceFactory = null;
 
 	/**
 	 * Prefers an in-local-memory map by default.
@@ -35,15 +38,28 @@ public class ReportMapFactory {
 	}
 
 	/**
-	 * Set the factory used for creating {@link Document} objects from the report.
+	 * Set the documentFactory used for creating {@link Document} objects from the report.
 	 *
 	 * If none is set, a default instance will be created using the given options.
 	 *
-	 * @param factory the factory to use
-	 * @return chainable factory
+	 * @param factory the documentFactory to use
+	 * @return chainable documentFactory
 	 */
 	public ReportMapFactory withDocumentFactory(final DocumentFactory factory) {
-		this.factory = factory;
+		this.documentFactory = factory;
+		return this;
+	}
+
+	/**
+	 * Set the data source factory for SQL-backed reports.
+	 *
+	 * If none is set, a default instance will be created using the given options.
+	 *
+	 * @param dataSourceFactory the data source factory to use
+	 * @return chainable documentFactory
+	 */
+	public ReportMapFactory withDataSourceFactory(final DataSourceFactory dataSourceFactory) {
+		this.dataSourceFactory = dataSourceFactory;
 		return this;
 	}
 
@@ -67,16 +83,20 @@ public class ReportMapFactory {
 	 * @throws IllegalArgumentException if the given options do not contain a valid shared report type
 	 */
 	public ReportMap createShared() throws IllegalArgumentException {
-		if (null == factory) {
-			factory = new DocumentFactory().configure(options);
+		if (null == documentFactory) {
+			documentFactory = new DocumentFactory().configure(options);
 		}
 
 		if (ReportMapType.REDIS == type) {
-			return new RedisReportMap(factory, options);
+			return new RedisReportMap(documentFactory, options);
 		}
 
 		if (ReportMapType.MYSQL == type) {
-			return new MySQLReportMap(factory, options);
+			if (null == dataSourceFactory) {
+				dataSourceFactory = new DataSourceFactory(options);
+			}
+
+			return new MySQLReportMap(dataSourceFactory.get(), documentFactory, options);
 		}
 
 		throw new IllegalArgumentException(String.format("\"%s\" is not a valid shared report type.", type));

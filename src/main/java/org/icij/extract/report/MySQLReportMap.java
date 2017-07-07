@@ -2,7 +2,6 @@ package org.icij.extract.report;
 
 import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
-import org.icij.extract.mysql.DataSourceFactory;
 
 import org.icij.kaxxa.sql.concurrent.MySQLConcurrentMap;
 import org.icij.kaxxa.sql.SQLMapCodec;
@@ -16,15 +15,12 @@ import java.io.Closeable;
 import java.io.IOException;
 
 @Option(name = "reportTable", description = "The report table. Defaults to \"document_report\".", parameter = "name")
-@OptionsClass(DataSourceFactory.class)
 @OptionsClass(SQLReportCodec.class)
 public class MySQLReportMap extends MySQLConcurrentMap<Document, Report> implements ReportMap {
 
-	public MySQLReportMap(final DocumentFactory factory, final Options<String> options) {
-
-		// Two connections should be enough for most use-cases (one to check and one to save).
-		this(new DataSourceFactory(options).withMaximumPoolSize(2).create("reportPool"), new SQLReportCodec(factory,
-						options), options.get("reportTable").value().orElse("documents"));
+	public MySQLReportMap(final DataSource dataSource, final DocumentFactory factory, final Options<String> options) {
+		this(dataSource, new SQLReportCodec(factory, options),
+				options.get("reportTable").value().orElse("documents"));
 	}
 
 	public MySQLReportMap(final DataSource dataSource, final SQLMapCodec<Document, Report> codec, final String table) {

@@ -3,6 +3,7 @@ package org.icij.extract.queue;
 import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 
+import org.icij.extract.mysql.DataSourceFactory;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
@@ -16,6 +17,7 @@ import org.icij.task.annotation.OptionsClass;
 @Option(name = "queueType", description = "Set the queue backend type. Valid values \"redis\" and \"mysql\".",
 		parameter = "type",	code = "q")
 @OptionsClass(DocumentFactory.class)
+@OptionsClass(DataSourceFactory.class)
 @OptionsClass(ArrayDocumentQueue.class)
 @OptionsClass(RedisDocumentQueue.class)
 @OptionsClass(MySQLDocumentQueue.class)
@@ -23,7 +25,8 @@ public class DocumentQueueFactory {
 
 	private DocumentQueueType type = null;
 	private Options<String> options = null;
-	private DocumentFactory factory = null;
+	private DocumentFactory documentFactory = null;
+	private DataSourceFactory dataSourceFactory = null;
 
 	/**
 	 * Prefers an in-local-memory queue by default.
@@ -36,15 +39,28 @@ public class DocumentQueueFactory {
 	}
 
 	/**
-	 * Set the factory used for creating {@link Document} objects from the queue.
+	 * Set the documentFactory used for creating {@link Document} objects from the queue.
 	 *
 	 * If none is set, a default instance will be created using the given options.
 	 *
-	 * @param factory the factory to use
-	 * @return chainable factory
+	 * @param factory the documentFactory to use
+	 * @return chainable documentFactory
 	 */
 	public DocumentQueueFactory withDocumentFactory(final DocumentFactory factory) {
-		this.factory = factory;
+		this.documentFactory = factory;
+		return this;
+	}
+
+	/**
+	 * Set the data source factory for SQL-backed queues.
+	 *
+	 * If none is set, a default instance will be created using the given options.
+	 *
+	 * @param dataSourceFactory the data source factory to use
+	 * @return chainable documentFactory
+	 */
+	public DocumentQueueFactory withDataSource(final DataSourceFactory dataSourceFactory) {
+		this.dataSourceFactory = dataSourceFactory;
 		return this;
 	}
 
@@ -69,16 +85,20 @@ public class DocumentQueueFactory {
 	 * @throws IllegalArgumentException if the given options do not contain a valid shared queue type
 	 */
 	public DocumentQueue createShared() throws IllegalArgumentException {
-		if (null == factory) {
-			factory = new DocumentFactory().configure(options);
+		if (null == documentFactory) {
+			documentFactory = new DocumentFactory().configure(options);
 		}
 
 		if (DocumentQueueType.REDIS == type) {
-			return new RedisDocumentQueue(factory, options);
+			return new RedisDocumentQueue(documentFactory, options);
 		}
 
 		if (DocumentQueueType.MYSQL == type) {
-			return new MySQLDocumentQueue(factory, options);
+			if (null == dataSourceFactory) {
+				dataSourceFactory = new DataSourceFactory(options);
+			}
+
+			return new MySQLDocumentQueue(dataSourceFactory.get(), documentFactory, options);
 		}
 
 		throw new IllegalArgumentException(String.format("\"%s\" is not a valid shared queue type.", type));

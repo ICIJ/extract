@@ -32,6 +32,14 @@ public class DocumentFactory {
 
 	private Identifier identifier = null;
 
+	public DocumentFactory(final Options<String> options) {
+		configure(options);
+	}
+
+	public DocumentFactory() {
+
+	}
+
 	public DocumentFactory configure(final Options<String> options) {
 		final String algorithm = options.get("idDigestMethod").value().orElse("SHA-256");
 		final Charset charset = options.get("charset").parse().asCharset().orElse(StandardCharsets.UTF_8);

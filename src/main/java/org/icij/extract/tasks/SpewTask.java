@@ -1,5 +1,6 @@
 package org.icij.extract.tasks;
 
+import org.icij.extract.mysql.DataSourceFactory;
 import org.icij.kaxxa.concurrent.BooleanSealableLatch;
 
 import java.nio.file.Path;
@@ -36,6 +37,7 @@ import org.slf4j.LoggerFactory;
  * @since 1.0.0-beta
  */
 @Task("Extract from files.")
+@OptionsClass(DataSourceFactory.class)
 @OptionsClass(DocumentQueueFactory.class)
 @OptionsClass(ReportMapFactory.class)
 @OptionsClass(Scanner.class)
@@ -64,17 +66,21 @@ public class SpewTask extends DefaultTask<Long> {
 	public Long run(final String[] paths) throws Exception {
 		checkMemory();
 
-		final DocumentFactory factory = new DocumentFactory().configure(options);
+		final int parallelism = options.get("jobs").parse().asInteger().orElse(DocumentConsumer.defaultPoolSize());
+		final DocumentFactory documentFactory = new DocumentFactory(options);
+		final DataSourceFactory dataSourceFactory = new DataSourceFactory(options);
+
+		dataSourceFactory.withMaximumPoolSize(parallelism);
 
 		try (final ReportMap reportMap = new ReportMapFactory(options)
-				.withDocumentFactory(factory)
+				.withDocumentFactory(documentFactory)
 				.create();
-		     final Spewer spewer = SpewerFactory.createSpewer(options);
 		     final DocumentQueue queue = new DocumentQueueFactory(options)
-				     .withDocumentFactory(factory)
-				     .create()) {
+				     .withDocumentFactory(documentFactory)
+				     .create();
+		     final Spewer spewer = SpewerFactory.createSpewer(options)) {
 
-			return spew(factory, reportMap, spewer, queue, paths);
+			return spew(documentFactory, reportMap, spewer, queue, paths, parallelism);
 		}
 	}
 
@@ -84,8 +90,7 @@ public class SpewTask extends DefaultTask<Long> {
 	}
 
 	private Long spew(final DocumentFactory factory, final ReportMap reportMap, final Spewer spewer, final DocumentQueue
-			queue, final String[] paths) throws Exception {
-		final int parallelism = options.get("jobs").parse().asInteger().orElse(DocumentConsumer.defaultPoolSize());
+			queue, final String[] paths, final int parallelism) throws Exception {
 		logger.info(String.format("Processing up to %d file(s) in parallel.", parallelism));
 
 		final Extractor extractor = new Extractor().configure(options);
