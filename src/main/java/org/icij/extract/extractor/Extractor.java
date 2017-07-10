@@ -14,7 +14,6 @@ import org.apache.commons.io.TaggedIOException;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
-import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.*;
 import org.apache.tika.parser.html.HtmlMapper;
@@ -250,15 +249,15 @@ public class Extractor {
 	 * @param document the file to extract from
 	 * @return A {@link Reader} that can be used to read extracted text on demand.
 	 */
-	public Reader extract(final Document document, final TemporaryResources tmp) throws IOException {
+	public Reader extract(final Document document) throws IOException {
 
 		// Use the the TikaInputStream.parse method that accepts a file, because this sets metadata properties like the
 		// resource name and size.
-		return extract(document, TikaInputStream.get(document.getPath(), document.getMetadata()), tmp);
+		return extract(document, TikaInputStream.get(document.getPath(), document.getMetadata()));
 	}
 
 	/**
-	 * Extract and spew content from a document. Internally, as with {@link #extract(Document, TemporaryResources)},
+	 * Extract and spew content from a document. Internally, as with {@link #extract(Document)},
 	 * this method creates a {@link TikaInputStream} from the path of the given document.
 	 *
 	 * @param document document to extract from
@@ -266,7 +265,7 @@ public class Extractor {
 	 * @throws IOException if there was an error reading or writing the document
 	 */
 	public void extract(final Document document, final Spewer spewer) throws IOException {
-		try (final TemporaryResources tmp = new TemporaryResources(); final Reader reader = extract(document, tmp)) {
+		try (final Reader reader = extract(document)) {
 			spewer.write(document, reader);
 		}
 	}
@@ -377,8 +376,7 @@ public class Extractor {
 	 * @param document file that is being extracted from
 	 * @return A pull-parsing reader.
 	 */
-	protected Reader extract(final Document document, final TikaInputStream input, final TemporaryResources tmp)
-			throws IOException {
+	protected Reader extract(final Document document, final TikaInputStream input) throws IOException {
 		final Metadata metadata = document.getMetadata();
 		final ParseContext context = new ParseContext();
 		final AutoDetectParser autoDetectParser = new AutoDetectParser(defaultParser);
@@ -416,8 +414,7 @@ public class Extractor {
 
 		if (EmbedHandling.SPAWN == embedHandling) {
 			context.set(Parser.class, parser);
-			context.set(EmbeddedDocumentExtractor.class, new EmbedSpawner(document, tmp, context, embedOutput,
-					handler));
+			context.set(EmbeddedDocumentExtractor.class, new EmbedSpawner(document, context, embedOutput, handler));
 		} else if (EmbedHandling.CONCATENATE == embedHandling) {
 			context.set(Parser.class, parser);
 			context.set(EmbeddedDocumentExtractor.class, new EmbedParser(document, context));

@@ -31,16 +31,14 @@ public class EmbedSpawner extends EmbedParser {
 
 	private static final Logger logger = LoggerFactory.getLogger(EmbedParser.class);
 
-	private final TemporaryResources tmp;
 	private final Path outputPath;
 	private final Function<Writer, ContentHandler> handlerFunction;
 	private LinkedList<Document> documentStack = new LinkedList<>();
 	private int untitled = 0;
 
-	EmbedSpawner(final Document root, final TemporaryResources tmp, final ParseContext context, final Path outputPath,
+	EmbedSpawner(final Document root, final ParseContext context, final Path outputPath,
 	             final Function<Writer, ContentHandler> handlerFunction) {
 		super(root, context);
-		this.tmp = tmp;
 		this.outputPath = outputPath;
 		this.handlerFunction = handlerFunction;
 		documentStack.add(root);
@@ -66,12 +64,14 @@ public class EmbedSpawner extends EmbedParser {
 				writeEnd(handler);
 			}
 		} else {
-			spawnEmbedded(input, metadata);
+			try (final TemporaryResources tmp = new TemporaryResources()) {
+				spawnEmbedded(input, metadata, tmp);
+			}
 		}
 	}
 
-	private void spawnEmbedded(final InputStream input, final Metadata metadata) throws
-			IOException {
+	private void spawnEmbedded(final InputStream input, final Metadata metadata, final TemporaryResources tmp)
+			throws IOException {
 		final ByteArrayOutputStream output = new ByteArrayOutputStream(8192);
 
 		// Create a Writer that will receive the parser outputPath for the embed file, for later retrieval.
@@ -107,7 +107,7 @@ public class EmbedSpawner extends EmbedParser {
 			// Pass the same TIS, otherwise the EmbedParser will attempt to spool the input again and fail, because it's
 			// already been consumed.
 			delegateParsing(tis, embedHandler, metadata);
-		} catch (Exception e) {
+		} catch (final Exception e) {
 
 			// Note that even on exception, the document is intentionally NOT removed from the parent.
 			logger.error("Unable to parse embedded document: \"{}\" ({}) (in \"{}\").",
@@ -134,13 +134,14 @@ public class EmbedSpawner extends EmbedParser {
 		// If the input is a container, write it to a temporary file so that it can then be copied atomically.
 		// This happens with, for example, an Outlook Message that is an attachment of another Outlook Message.
 		if (container instanceof DirectoryEntry) {
-			final POIFSFileSystem fs = new POIFSFileSystem();
+			try (final TemporaryResources tmp = new TemporaryResources();
+			     final POIFSFileSystem fs = new POIFSFileSystem()) {
+				source = tmp.createTempFile();
+				saveEntries((DirectoryEntry) container, fs.getRoot());
 
-			source = tmp.createTempFile();
-			saveEntries((DirectoryEntry) container, fs.getRoot());
-
-			try (final OutputStream output = Files.newOutputStream(source)) {
-				fs.writeFilesystem(output);
+				try (final OutputStream output = Files.newOutputStream(source)) {
+					fs.writeFilesystem(output);
+				}
 			}
 		} else {
 			source = tis.getPath();
