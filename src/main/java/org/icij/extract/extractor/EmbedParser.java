@@ -66,6 +66,7 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 			throws IOException, SAXException {
 		try (final TemporaryResources tmp = new TemporaryResources()) {
 			final TikaInputStream newStream = TikaInputStream.get(new CloseShieldInputStream(input), tmp);
+
 			if (input instanceof TikaInputStream) {
 				final Object container = ((TikaInputStream) input).getOpenContainer();
 				if (container != null) {
@@ -75,12 +76,12 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 
 			// Use the delegate parser to parse this entry.
 			DELEGATING_PARSER.parse(newStream, handler, metadata, context);
-		} catch (EncryptedDocumentException e) {
+		} catch (final EncryptedDocumentException e) {
 			logger.error("Unable to decrypt encrypted document embedded in document: \"{}\" ({}) (in \"{}\").",
 					metadata.get(Metadata.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root, e);
 			metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM,
 					ExceptionUtils.getFilteredStackTrace(e));
-		} catch (TikaException e) {
+		} catch (final TikaException e) {
 			logger.error("Unable to parse embedded document: \"{}\" ({}) (in \"{}\").",
 					metadata.get(Metadata.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root, e);
 			metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM,
