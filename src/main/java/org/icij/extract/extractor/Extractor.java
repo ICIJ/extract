@@ -301,6 +301,11 @@ public class Extractor {
 			exception = e;
 		}
 
+		// For tagged IO exceptions, discard the tag, which is either unwanted or not serializable.
+		if (null != exception && (exception instanceof TaggedIOException)) {
+			exception = ((TaggedIOException) exception).getCause();
+		}
+
 		reporter.save(document, status, exception);
 	}
 
