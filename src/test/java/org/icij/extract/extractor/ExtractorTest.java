@@ -1,6 +1,5 @@
 package org.icij.extract.extractor;
 
-import org.apache.tika.io.TemporaryResources;
 import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
@@ -39,7 +38,7 @@ public class ExtractorTest {
 
 		String text;
 
-		try (final TemporaryResources tmp = new TemporaryResources(); Reader reader = extractor.extract(document, tmp)) {
+		try (Reader reader = extractor.extract(document)) {
 			text = Spewer.toString(reader);
 		}
 
@@ -53,12 +52,9 @@ public class ExtractorTest {
 		extractor.disableOcr();
 
 		final Document document = factory.create(getClass().getResource("/documents/ocr/simple.tiff"));
-		final TemporaryResources tmp = new TemporaryResources();
-		final Reader reader = extractor.extract(document, tmp);
+		final Reader reader = extractor.extract(document);
 
 		final int read = reader.read();
-
-		tmp.close();
 
 		Assert.assertEquals("image/tiff", document.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals(-1, read);
@@ -72,9 +68,7 @@ public class ExtractorTest {
 		thrown.expect(NoSuchFileException.class);
 		thrown.expectMessage("nothing");
 
-		try (TemporaryResources tmp = new TemporaryResources()) {
-			extractor.extract(document, tmp);
-		}
+		extractor.extract(document);
 	}
 
 	@Test
@@ -89,8 +83,7 @@ public class ExtractorTest {
 
 		final int read;
 
-		try (final TemporaryResources tmp = new TemporaryResources(); Reader reader = extractor.extract(document,
-				tmp)) {
+		try (final Reader reader = extractor.extract(document)) {
 			read = reader.read();
 		} catch (IOException e) {
 			Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
@@ -112,8 +105,7 @@ public class ExtractorTest {
 
 		final int read;
 
-		try (final TemporaryResources tmp = new TemporaryResources(); Reader reader = extractor.extract(document,
-				tmp)) {
+		try (final Reader reader = extractor.extract(document)) {
 			read = reader.read();
 		} catch (IOException e) {
 			Assert.assertEquals("application/octet-stream", document.getMetadata().get(Metadata.CONTENT_TYPE));
@@ -130,8 +122,7 @@ public class ExtractorTest {
 		final Document document = factory.create(getClass().getResource("/documents/ocr/embedded.pdf"));
 		String text;
 
-		try (final TemporaryResources tmp = new TemporaryResources(); Reader reader = extractor.extract(document,
-				tmp)) {
+		try (final Reader reader = extractor.extract(document)) {
 			text = Spewer.toString(reader);
 		}
 
@@ -151,8 +142,7 @@ public class ExtractorTest {
 
 		String text;
 
-		try (final TemporaryResources tmp = new TemporaryResources(); Reader reader = extractor.extract(document,
-				tmp)) {
+		try (final Reader reader = extractor.extract(document)) {
 			text = Spewer.toString(reader);
 		}
 
@@ -169,8 +159,7 @@ public class ExtractorTest {
 
 		String text;
 
-		try (final TemporaryResources tmp = new TemporaryResources(); Reader reader = extractor.extract(document,
-				tmp)) {
+		try (final Reader reader = extractor.extract(document)) {
 			text = Spewer.toString(reader);
 		}
 
@@ -188,8 +177,7 @@ public class ExtractorTest {
 
 		String text;
 
-		try (final TemporaryResources tmp = new TemporaryResources(); Reader reader = extractor.extract(document,
-				tmp)) {
+		try (final Reader reader = extractor.extract(document)) {
 			text = Spewer.toString(reader);
 		}
 
@@ -207,8 +195,7 @@ public class ExtractorTest {
 
 		String text;
 
-		try (final TemporaryResources tmp = new TemporaryResources(); Reader reader = extractor.extract(document,
-				tmp)) {
+		try (final Reader reader = extractor.extract(document)) {
 			text = Spewer.toString(reader);
 		}
 
@@ -231,8 +218,7 @@ public class ExtractorTest {
 
 		String text;
 
-		try (final TemporaryResources tmp = new TemporaryResources(); Reader reader = extractor.extract(document,
-				tmp)) {
+		try (final Reader reader = extractor.extract(document)) {
 			text = Spewer.toString(reader);
 		}
 

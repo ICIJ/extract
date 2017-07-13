@@ -6,9 +6,6 @@ import org.icij.kaxxa.concurrent.SealableLatch;
 import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
-import org.icij.extract.queue.ArrayDocumentQueue;
-import org.icij.extract.queue.DocumentQueue;
-import org.icij.extract.queue.DocumentQueueDrainer;
 import org.icij.time.HumanDuration;
 import org.junit.*;
 

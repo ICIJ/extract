@@ -2,8 +2,6 @@ package org.icij.extract.queue;
 
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
-import org.icij.extract.queue.ArrayDocumentQueue;
-import org.icij.extract.queue.DocumentQueue;
 import org.junit.*;
 
 import java.nio.file.Paths;
