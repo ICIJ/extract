@@ -32,6 +32,13 @@
 		<maven-install.version>2.5.2</maven-install.version>
 	</properties>
 
+	<repositories>
+		<repository>
+			<id>jitpack.io</id>
+			<url>https://jitpack.io</url>
+		</repository>
+	</repositories>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.icij.kaxxa</groupId>
@@ -79,6 +86,12 @@
 			<groupId>org.apache.tika</groupId>
 			<artifactId>tika-parsers</artifactId>
 			<version>1.15</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.pff</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- Optional PDFBox dependency for parsing JBIG2 format images in PDF files. -->
@@ -186,6 +199,12 @@
 			<artifactId>solr-core</artifactId>
 			<version>6.6.0</version>
 			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.github.rjohnsondev</groupId>
+			<artifactId>java-libpst</artifactId>
+			<version>5fd2c75</version>
 		</dependency>
 
 	</dependencies>
