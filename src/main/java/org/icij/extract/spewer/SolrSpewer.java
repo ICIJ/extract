@@ -1,6 +1,8 @@
 package org.icij.extract.spewer;
 
-import java.io.Serializable;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
@@ -8,8 +10,8 @@ import java.util.HashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import java.io.Reader;
-import java.io.IOException;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 import org.apache.commons.io.TaggedIOException;
 import org.apache.tika.metadata.Metadata;
@@ -133,12 +135,6 @@ public class SolrSpewer extends Spewer implements Serializable {
 		}
 
 		logger.info(String.format("Document added to Solr in %dms: \"%s\".", response.getElapsedTime(), document));
-		pending.incrementAndGet();
-
-		// Autocommit if the interval is hit and enabled.
-		if (commitThreshold > 0) {
-			commitPending(commitThreshold);
-		}
 	}
 
 	@Override
@@ -146,13 +142,56 @@ public class SolrSpewer extends Spewer implements Serializable {
 		throw new UnsupportedOperationException();
 	}
 
+	public void write(final Path path) throws SolrServerException, IOException, ClassNotFoundException {
+		try (final ObjectInputStream in = new ObjectInputStream(new GZIPInputStream(Files.newInputStream(path)))) {
+			final SolrInputDocument inputDocument = (SolrInputDocument) in.readObject();
+
+			write(null, inputDocument);
+		}
+	}
+
 	protected UpdateResponse write(final Document document, final SolrInputDocument inputDocument) throws
 			IOException, SolrServerException {
-		if (null != commitWithin) {
-			return client.add(inputDocument, Math.toIntExact(commitWithin.toMillis()));
+		final UpdateResponse response;
+
+		try {
+			if (null != commitWithin) {
+				response = client.add(inputDocument, Math.toIntExact(commitWithin.toMillis()));
+			} else {
+				response = client.add(inputDocument);
+			}
+		} catch (final Exception e) {
+			final Path dumped;
+
+			try {
+				dumped = dump(inputDocument);
+			} catch (final Exception dumpException) {
+				logger.error("Error while creating dump file.", dumpException);
+				throw e;
+			}
+
+			logger.error("Error while adding to Solr. Input document dumped to \"{}\".", dumped);
+			throw e;
 		}
 
-		return client.add(inputDocument);
+		pending.incrementAndGet();
+
+		// Autocommit if the interval is hit and enabled.
+		if (commitThreshold > 0) {
+			commitPending(commitThreshold);
+		}
+
+		return response;
+	}
+
+	private Path dump(final SolrInputDocument inputDocument) throws IOException {
+		final Path path = Files.createTempFile("extract-dump-", ".SolrInputDocument.gz");
+
+		try (final ObjectOutputStream out = new ObjectOutputStream(new GZIPOutputStream(Files.newOutputStream(path)))) {
+			out.writeObject(inputDocument);
+		}
+
+		return path;
 	}
 
 	private SolrInputDocument prepareDocument(final Document document, final Reader reader, final int level) throws
