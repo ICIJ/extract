@@ -39,7 +39,7 @@ public class MetadataTransformer implements Serializable {
 
 	static {
 		dateFormats.add(DateTimeFormatter.RFC_1123_DATE_TIME);
-		dateFormats.add(DateTimeFormatter.ofPattern("EEE LLL d HH:mm:ss YYYY")); // Example: "Tue Jan 27 17:03:21 2004"
+		dateFormats.add(DateTimeFormatter.ofPattern("EEE MMM d HH:mm:ss uuuu")); // Example: "Tue Jan 27 17:03:21 2004"
 
 		//noinspection deprecation
 		Stream.of(
