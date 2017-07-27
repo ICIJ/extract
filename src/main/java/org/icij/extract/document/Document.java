@@ -32,7 +32,6 @@ public class Document {
 	 * @param metadata document metadata
 	 */
 	public Document(final String id, final Identifier identifier, final Path path, final Metadata metadata) {
-		Objects.requireNonNull(identifier, "The identifier generator must not be null.");
 		Objects.requireNonNull(path, "The path must not be null.");
 
 		this.metadata = metadata;

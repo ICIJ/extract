@@ -61,6 +61,8 @@ public class Main {
 		taskFactory.addTask("tag", TagTask.class);
 		taskFactory.addTask("wipe-queue", WipeQueueTask.class);
 		taskFactory.addTask("wipe-report", WipeReportTask.class);
+		taskFactory.addTask("inspect-dump", InspectDumpTask.class);
+		taskFactory.addTask("spew-dump", SpewDumpTask.class);
 		taskFactory.addTask("help", HelpTask.class);
 		taskFactory.addTask("version", VersionTask.class);
 

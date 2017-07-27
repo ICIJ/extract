@@ -20,7 +20,6 @@ import org.icij.extract.queue.*;
 import org.icij.extract.report.ReportMap;
 import org.icij.extract.report.ReportMapFactory;
 import org.icij.extract.report.Reporter;
-import org.icij.extract.spewer.FieldNames;
 import org.icij.extract.spewer.Spewer;
 import org.icij.extract.spewer.SpewerFactory;
 import org.icij.task.DefaultTask;
@@ -43,8 +42,8 @@ import org.slf4j.LoggerFactory;
 @OptionsClass(Scanner.class)
 @OptionsClass(SpewerFactory.class)
 @OptionsClass(Extractor.class)
-@OptionsClass(FieldNames.class)
 @OptionsClass(DocumentQueueDrainer.class)
+@OptionsClass(DocumentFactory.class)
 @Option(name = "jobs", description = "The number of documents to process at a time. Defaults to the number" +
 		" of available processors.", parameter = "number")
 public class SpewTask extends DefaultTask<Long> {

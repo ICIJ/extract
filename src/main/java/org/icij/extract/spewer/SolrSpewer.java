@@ -3,6 +3,7 @@ package org.icij.extract.spewer;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
@@ -59,7 +60,9 @@ public class SolrSpewer extends Spewer implements Serializable {
 	private final AtomicInteger pending = new AtomicInteger(0);
 	private int commitThreshold = 0;
 	private Duration commitWithin = null;
+
 	private boolean atomicWrites = false;
+	private boolean dump = true;
 
 	public SolrSpewer(final SolrClient client, final FieldNames fields) {
 		super(fields);
@@ -102,6 +105,10 @@ public class SolrSpewer extends Spewer implements Serializable {
 		return atomicWrites;
 	}
 
+	public void dump(final boolean dump) {
+		this.dump = dump;
+	}
+
 	@Override
 	public void close() throws IOException {
 
@@ -142,11 +149,25 @@ public class SolrSpewer extends Spewer implements Serializable {
 		throw new UnsupportedOperationException();
 	}
 
-	public void write(final Path path) throws SolrServerException, IOException, ClassNotFoundException {
-		try (final ObjectInputStream in = new ObjectInputStream(new GZIPInputStream(Files.newInputStream(path)))) {
+	@Override
+	public Document[] write(final Path path) throws IOException, ClassNotFoundException {
+		try (final InputStream fis = Files.newInputStream(path);
+				final ObjectInputStream in = new ObjectInputStream(path.toString().endsWith(".gz") ?
+						new GZIPInputStream(fis) : fis)) {
 			final SolrInputDocument inputDocument = (SolrInputDocument) in.readObject();
 
-			write(null, inputDocument);
+			in.close();
+
+			final Document[] documents = inputDocument
+					.getFieldValues(fields.forPath()).stream().map(p -> new Document(inputDocument
+					.getFieldValue(fields.forId()).toString(), null, Paths.get(p.toString()), null))
+			.toArray(Document[]::new);
+
+			write(documents[0], inputDocument);
+
+			return documents;
+		} catch (final SolrServerException e) {
+			throw new IOException(e);
 		}
 	}
 
@@ -161,16 +182,19 @@ public class SolrSpewer extends Spewer implements Serializable {
 				response = client.add(inputDocument);
 			}
 		} catch (final Exception e) {
-			final Path dumped;
+			if (dump) {
+				final Path dumped;
 
-			try {
-				dumped = dump(inputDocument);
-			} catch (final Exception dumpException) {
-				logger.error("Error while creating dump file.", dumpException);
-				throw e;
+				try {
+					dumped = dump(inputDocument);
+				} catch (final Exception dumpException) {
+					logger.error("Error while creating dump file.", dumpException);
+					throw e;
+				}
+
+				logger.error("Error while adding to Solr. Input document dumped to \"{}\".", dumped);
 			}
 
-			logger.error("Error while adding to Solr. Input document dumped to \"{}\".", dumped);
 			throw e;
 		}
 

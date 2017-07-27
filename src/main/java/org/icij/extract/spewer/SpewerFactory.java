@@ -30,6 +30,7 @@ import org.icij.task.annotation.OptionsClass;
 @OptionsClass(MergingSolrSpewer.class)
 @OptionsClass(FileSpewer.class)
 @OptionsClass(PrintStreamSpewer.class)
+@OptionsClass(FieldNames.class)
 public abstract class SpewerFactory {
 
 	/**
@@ -79,8 +80,8 @@ public abstract class SpewerFactory {
 	 * @return A new spewer configured according to the given parameters.
 	 */
 	private static SolrSpewer createSolrSpewer(final Options<String> options, final FieldNames fields) {
-		final Extractor.EmbedHandling handling = options.get("embedHandling").parse().asEnum(Extractor
-				.EmbedHandling::parse).orElse(Extractor.EmbedHandling.getDefault());
+		final Extractor.EmbedHandling handling = options.ifPresent("embedHandling", o -> o.parse().asEnum(Extractor
+				.EmbedHandling::parse)).orElse(Extractor.EmbedHandling.getDefault());
 
 		// Calling #close on the SolrSpewer later on automatically closes the HTTP client.
 		final SolrClient solrClient = new HttpSolrClient.Builder(options.get("indexAddress").value().orElse
