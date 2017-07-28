@@ -34,7 +34,7 @@ public class DumpReportTask extends MonitorableTask<Void> {
 
 	@Override
 	public Void run(final String[] arguments) throws Exception {
-		final Optional<ExtractionStatus> result = options.get("report-status").value(ExtractionStatus::parse);
+		final Optional<ExtractionStatus> result = options.get("reportStatus").value(ExtractionStatus::parse);
 
 		try (final OutputStream output = new BufferedOutputStream(new FileOutputStream(arguments[0]));
 		     final ReportMap reportMap = new ReportMapFactory(options).createShared()) {
