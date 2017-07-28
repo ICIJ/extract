@@ -33,8 +33,14 @@ public class DigestIdentifier extends AbstractIdentifier {
 		final Metadata metadata = embed.getMetadata();
 		final String embeddedRelationshipId = metadata.get(Metadata.EMBEDDED_RELATIONSHIP_ID);
 		final String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
+		final String hash = hash(embed);
 
-		digest.update(hash(embed).getBytes(charset));
+		if (null == hash) {
+			throw new IllegalStateException(String.format("No hash is available for the document with name \"%s\" at " +
+							"path \"%s\".", name, embed.getPath()));
+		}
+
+		digest.update(hash.getBytes(charset));
 		digest.update(embed.getParent().getId().getBytes(charset));
 
 		if (null != embeddedRelationshipId) {

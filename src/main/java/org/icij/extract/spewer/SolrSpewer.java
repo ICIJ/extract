@@ -230,9 +230,21 @@ public class SolrSpewer extends Spewer implements Serializable {
 		// Set tags supplied by the caller.
 		tags.forEach((key, value)-> setFieldValue(inputDocument, fields.forTag(key), value));
 
+		String id;
+
+		try {
+			id = document.getId();
+		} catch (final IllegalStateException e) {
+			logger.error(e.getMessage());
+
+			// Don't set an ID if there's a problem.
+			// The document will be rejected by Solr and dumped for inspection.
+			id = null;
+		}
+
 		// Set the ID. Must never be written atomically.
-		if (null != fields.forId() && null != document.getId()) {
-			inputDocument.setField(fields.forId(), document.getId());
+		if (null != fields.forId() && null != id) {
+			inputDocument.setField(fields.forId(), id);
 		}
 
 		// Add the base type. De-duplicated. Eases faceting on type.
@@ -274,7 +286,7 @@ public class SolrSpewer extends Spewer implements Serializable {
 
 				// Set the ID of the parent on the child before adding to the parent.
 				// We do this because Solr flattens the hierarchy (see org.apache.solr.update.AddUpdateCommand#flatten).
-				setFieldValue(childDocument, fields.forParentId(), document.getId());
+				setFieldValue(childDocument, fields.forParentId(), id);
 				inputDocument.addChildDocument(childDocument);
 			}
 		}

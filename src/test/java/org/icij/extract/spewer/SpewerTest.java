@@ -71,8 +71,9 @@ public class SpewerTest {
 		final Metadata metadata = document.getMetadata();
 		final FieldNames fields = spewer.getFields();
 
-		final String[] dates = {"2011-12-03+01:00", "2015-06-03"};
-		final String[] isoDates = {"2011-12-03T12:00:00Z", "2015-06-03T12:00:00Z"};
+		// TODO: this should go in a separate test for the MetadataTransformer.
+		final String[] dates = {"2011-12-03+01:00", "2015-06-03", "Tue Jan 27 17:03:21 2004"};
+		final String[] isoDates = {"2011-12-03T12:00:00Z", "2015-06-03T12:00:00Z", "2004-01-27T17:03:21Z"};
 		int i = 0;
 
 		for (String date: dates) {
