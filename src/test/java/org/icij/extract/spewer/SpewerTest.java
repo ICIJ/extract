@@ -72,7 +72,7 @@ public class SpewerTest {
 		final FieldNames fields = spewer.getFields();
 
 		// TODO: this should go in a separate test for the MetadataTransformer.
-		final String[] dates = {"2011-12-03+01:00", "2015-06-03", "Tue Jan 27 17:03:21 2004"};
+		final String[] dates = {"2011-12-03+01:00", "2015-06-03", "Tue Jan 27 17:03:21 2004", "19106-06-07T08:00:00Z"};
 		final String[] isoDates = {"2011-12-03T12:00:00Z", "2015-06-03T12:00:00Z", "2004-01-27T17:03:21Z"};
 		int i = 0;
 
