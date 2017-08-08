@@ -18,12 +18,10 @@ import org.apache.tika.metadata.Metadata;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 
-import org.junit.Ignore;
-import org.junit.Test;
-import org.junit.Assert;
-import org.junit.Rule;
+import org.junit.*;
 import org.junit.rules.ExpectedException;
 
+@FixMethodOrder
 public class ExtractorTest {
 
 	private final DocumentFactory factory = new DocumentFactory().withIdentifier(new PathIdentifier());
