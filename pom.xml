@@ -367,6 +367,7 @@
 					<excludes>
 						<exclude>**/solr/*.java</exclude>
 					</excludes>
+					<trimStackTrace>false</trimStackTrace>
 					<systemProperties>
 						<property>
 							<name>java.util.logging.config.file</name>
