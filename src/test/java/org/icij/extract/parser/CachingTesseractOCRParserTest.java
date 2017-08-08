@@ -1,0 +1,88 @@
+package org.icij.extract.parser;
+
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.Parser;
+import org.apache.tika.sax.WriteOutContentHandler;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.Test;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.StringWriter;
+import java.io.Writer;
+import java.net.URL;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.concurrent.atomic.AtomicInteger;
+
+public class CachingTesseractOCRParserTest {
+
+	private static final Path tmpDir = Paths.get(System.getProperty("java.io.tmpdir"));
+
+	private final URL simple = getClass().getResource("/documents/ocr/simple.tiff");
+
+	@AfterClass
+	public static void cleanUp() throws IOException {
+		final PathMatcher matcher = tmpDir.getFileSystem().getPathMatcher("glob:tesseract-result-cache-*");
+
+		Files.walkFileTree(tmpDir, new SimpleFileVisitor<Path>() {
+
+			@Override
+			public FileVisitResult visitFile(final Path file, final BasicFileAttributes attributes) throws IOException {
+				if (matcher.matches(file.getFileName())) {
+					Files.delete(file);
+				}
+
+				return FileVisitResult.CONTINUE;
+			}
+
+			@Override
+			public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
+				return FileVisitResult.CONTINUE;
+			}
+		});
+	}
+
+	@Test
+	public void testWriteToCache() throws Throwable {
+		final Path simple = Paths.get(this.simple.toURI());
+
+		Writer writer = new StringWriter();
+		final AtomicInteger hit = new AtomicInteger(), miss = new AtomicInteger();
+
+		final Parser parser = new CachingTesseractOCRParser(tmpDir) {
+
+			private static final long serialVersionUID = 6551690243986921730L;
+
+			@Override
+			public void cacheHit() {
+				hit.incrementAndGet();
+			}
+
+			@Override
+			public void cacheMiss() {
+				miss.incrementAndGet();
+			}
+		};
+
+		try (final InputStream in = Files.newInputStream(simple)) {
+			parser.parse(in, new WriteOutContentHandler(writer), new Metadata(), new ParseContext());
+		}
+
+		Assert.assertEquals("HEAVY\nMETAL", writer.toString().trim());
+		Assert.assertEquals(0, hit.get());
+		Assert.assertEquals(1, miss.get());
+
+		// Try again from the cache.
+		writer = new StringWriter();
+		try (final InputStream in = Files.newInputStream(simple)) {
+			parser.parse(in, new WriteOutContentHandler(writer), new Metadata(), new ParseContext());
+		}
+
+		Assert.assertEquals("HEAVY\nMETAL", writer.toString().trim());
+		Assert.assertEquals(1, hit.get());
+		Assert.assertEquals(1, miss.get());
+	}
+}

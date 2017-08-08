@@ -28,6 +28,7 @@ import org.apache.tika.parser.utils.CommonsDigester.DigestAlgorithm;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
 import org.apache.tika.sax.WriteOutContentHandler;
 import org.icij.extract.document.Document;
+import org.icij.extract.parser.CachingTesseractOCRParser;
 import org.icij.extract.parser.ParsingReader;
 import org.icij.extract.report.Reporter;
 import org.icij.extract.sax.HTML5Serializer;
@@ -54,6 +55,7 @@ import org.xml.sax.ContentHandler;
 		"Defaults to spawning, which spawns new documents for each embedded document encountered.", parameter = "type")
 @Option(name = "embedOutput", description = "Path to a directory for outputting attachments en masse.",
 		parameter = "path")
+@Option(name = "ocrCache", description = "Output path for OCR cache files.", parameter = "path")
 @Option(name = "ocrLanguage", description = "Set the languages used by Tesseract. Multiple  languages may be " +
 		"specified, separated by plus characters. Tesseract uses 3-character ISO 639-2 language codes.", parameter =
 		"language")
@@ -90,8 +92,6 @@ public class Extractor {
 	private Parser defaultParser = TikaConfig.getDefaultConfig().getParser();
 	private final TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
 	private final PDFParserConfig pdfConfig = new PDFParserConfig();
-
-	private final Collection<Class<? extends Parser>> excludedParsers = new HashSet<>();
 
 	private OutputFormat outputFormat = OutputFormat.TEXT;
 	private EmbedHandling embedHandling = EmbedHandling.getDefault();
@@ -139,6 +139,9 @@ public class Extractor {
 		if (options.get("ocr").parse().isOff()) {
 			disableOcr();
 		}
+
+		options.get("ocrCache").parse().asPath().ifPresent(path -> replaceParser(TesseractOCRParser.class,
+				new CachingTesseractOCRParser(path)));
 
 		return this;
 	}
@@ -438,12 +441,25 @@ public class Extractor {
 	}
 
 	private void excludeParser(final Class<? extends Parser> exclude) {
+		replaceParser(exclude, null);
+	}
+
+	private void replaceParser(final Class<? extends Parser> exclude, final Parser replacement) {
 		if (defaultParser instanceof CompositeParser) {
 			final CompositeParser composite = (CompositeParser) defaultParser;
-			final List<Parser> parsers = composite.getAllComponentParsers();
+			final List<Parser> parsers = new ArrayList<>();
 
-			excludedParsers.add(exclude);
-			defaultParser = new CompositeParser(composite.getMediaTypeRegistry(), parsers, excludedParsers);
+			composite.getAllComponentParsers().forEach(parser -> {
+				if (parser.getClass().equals(exclude) || exclude.isAssignableFrom(parser.getClass())) {
+					if (null != replacement) {
+						parsers.add(replacement);
+					}
+				} else {
+					parsers.add(parser);
+				}
+			});
+
+			defaultParser = new CompositeParser(composite.getMediaTypeRegistry(), parsers);
 		}
 	}
 }
