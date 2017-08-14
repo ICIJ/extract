@@ -94,12 +94,18 @@ public class EmbedSpawner extends EmbedParser {
 			name = String.format("untitled_%d", ++untitled);
 		}
 
-		// Trigger spooling of the file to disk so that it can be copied.
-		// This needs to be done before parsing starts and the same TIS object must be passed to writeEmbed,
-		// otherwise it will be spooled twice.
 		final TikaInputStream tis = TikaInputStream.get(input, tmp);
-		if (null != this.outputPath) {
-			tis.getPath();
+
+		try {
+
+			// Trigger spooling of the file to disk so that it can be copied.
+			// This needs to be done before parsing starts and the same TIS object must be passed to writeEmbed,
+			// otherwise it will be spooled twice.
+			if (null != this.outputPath) {
+				tis.getPath();
+			}
+		} catch (final Exception e) {
+			logger.error("Unable to spool file to disk (\"{}\" in \"{}\").", name, root, e);
 		}
 
 		try {
