@@ -68,7 +68,7 @@ public class Document {
 
 			try {
 				id = this.generateId();
-			} catch (Exception e) {
+			} catch (final Exception e) {
 				throw new RuntimeException("Unable to generate document ID.", e);
 			}
 

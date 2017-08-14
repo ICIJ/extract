@@ -234,7 +234,7 @@ public class SolrSpewer extends Spewer implements Serializable {
 
 		try {
 			id = document.getId();
-		} catch (final IllegalStateException e) {
+		} catch (final Exception e) {
 			logger.error(e.getMessage());
 
 			// Don't set an ID if there's a problem.
