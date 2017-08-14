@@ -235,7 +235,7 @@ public class SolrSpewer extends Spewer implements Serializable {
 		try {
 			id = document.getId();
 		} catch (final Exception e) {
-			logger.error(e.getMessage());
+			logger.error("Unable to get document ID.", e);
 
 			// Don't set an ID if there's a problem.
 			// The document will be rejected by Solr and dumped for inspection.
