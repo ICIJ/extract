@@ -75,7 +75,7 @@ public class InspectDumpTask extends DefaultTask<Void> {
 					}
 
 					if (value.length() > strWarningThreshold) {
-						warnings.add(String.format("Field %s contains with length of %d characters.",
+						warnings.add(String.format("Field %s contains value with length of %d characters.",
 								field.getName(), value.length()));
 					}
 
@@ -101,23 +101,21 @@ public class InspectDumpTask extends DefaultTask<Void> {
 				}
 
 				if (value.length() > strWarningThreshold) {
-					warnings.add(String.format("Field %s contains with length of %d characters.", field.getName(),
+					warnings.add(String.format("Field %s contains value with length of %d characters.", field.getName(),
 							value.length()));
 				}
 
 				System.out.println(String.format("%s: %s", field.getName(), value));
 			}
+		}
 
-			if (!warnings.isEmpty()) {
-				System.out.println("WARNINGS");
-				System.out.println("--------");
-			}
+		if (!warnings.isEmpty()) {
+			System.out.println("WARNINGS");
+			System.out.println("--------");
+		}
 
-			for (String warning: warnings) {
-				System.out.println(warning);
-			}
-
-			warnings.clear();
+		for (String warning: warnings) {
+			System.out.println(warning);
 		}
 
 		if (expand && document.getChildDocumentCount() > 0) {
