@@ -126,6 +126,10 @@ public class Document {
 		return embed;
 	}
 
+	public boolean removeEmbed(final EmbeddedDocument embed) {
+		return embeds.remove(embed);
+	}
+
 	public List<EmbeddedDocument> getEmbeds() {
 		return embeds;
 	}

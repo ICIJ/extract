@@ -106,6 +106,12 @@ public class EmbedSpawner extends EmbedParser {
 			}
 		} catch (final Exception e) {
 			logger.error("Unable to spool file to disk (\"{}\" in \"{}\").", name, root, e);
+
+			// If a document can't be spooled then there's a severe problem with the input stream. Abort.
+			documentStack.getLast().removeEmbed(embed);
+			documentStack.removeLast();
+			writer.close();
+			return;
 		}
 
 		try {
