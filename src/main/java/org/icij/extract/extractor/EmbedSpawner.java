@@ -80,7 +80,6 @@ public class EmbedSpawner extends EmbedParser {
 
 		final ContentHandler embedHandler = handlerFunction.apply(writer);
 		final EmbeddedDocument embed = documentStack.getLast().addEmbed(metadata);
-		documentStack.add(embed);
 
 		// Use temporary resources to copy formatted outputPath from the content handler to a temporary file.
 		// Call setReader on the embed object with a plain reader for this temp file.
@@ -109,10 +108,13 @@ public class EmbedSpawner extends EmbedParser {
 
 			// If a document can't be spooled then there's a severe problem with the input stream. Abort.
 			documentStack.getLast().removeEmbed(embed);
-			documentStack.removeLast();
+			embed.clearReader();
 			writer.close();
 			return;
 		}
+
+		// Add to the stack only immediately before parsing and if there haven't been any fatal errors.
+		documentStack.add(embed);
 
 		try {
 

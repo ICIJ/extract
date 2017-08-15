@@ -235,11 +235,8 @@ public class SolrSpewer extends Spewer implements Serializable {
 		try {
 			id = document.getId();
 		} catch (final Exception e) {
-			logger.error("Unable to get document ID.", e);
-
-			// Don't set an ID if there's a problem.
-			// The document will be rejected by Solr and dumped for inspection.
-			id = null;
+			logger.error("Unable to get document ID. Skipping document.", e);
+			return null;
 		}
 
 		// Set the ID. Must never be written atomically.
@@ -280,6 +277,11 @@ public class SolrSpewer extends Spewer implements Serializable {
 		for (EmbeddedDocument embed : document.getEmbeds()) {
 			try (final Reader embedReader = embed.getReader()) {
 				final SolrInputDocument childDocument = prepareDocument(embed, embedReader, level + 1);
+
+				// Null is a signal to skip the document.
+				if (null == childDocument) {
+					continue;
+				}
 
 				// Free up memory.
 				embed.clearReader();
