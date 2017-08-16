@@ -22,8 +22,8 @@ import org.junit.After;
 
 public class SolrTagMachineTest extends SolrJettyTestBase {
 
-	public static HttpSolrClient other;
-	public static HttpSolrClient destination;
+	private static HttpSolrClient other;
+	private static HttpSolrClient destination;
 
 	@BeforeClass
 	public static void setUpBeforeSolrTagMachineTest() throws Exception {

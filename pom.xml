@@ -33,7 +33,6 @@
 	</properties>
 
 	<repositories>
-
 		<!-- For getting dependencies packages from GitHub. -->
 		<repository>
 			<id>jitpack.io</id>
@@ -88,6 +87,12 @@
 			<groupId>org.apache.tika</groupId>
 			<artifactId>tika-parsers</artifactId>
 			<version>1.15</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.pff</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- Optional PDFBox dependency for parsing JBIG2 format images in PDF files. -->
@@ -225,6 +230,12 @@
 			<artifactId>solr-core</artifactId>
 			<version>6.6.0</version>
 			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.github.rjohnsondev</groupId>
+			<artifactId>java-libpst</artifactId>
+			<version>5fd2c75</version>
 		</dependency>
 
 	</dependencies>
@@ -395,6 +406,7 @@
 					<excludes>
 						<exclude>**/solr/*.java</exclude>
 					</excludes>
+					<trimStackTrace>false</trimStackTrace>
 					<systemProperties>
 						<property>
 							<name>java.util.logging.config.file</name>

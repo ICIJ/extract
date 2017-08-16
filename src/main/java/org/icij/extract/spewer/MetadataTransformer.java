@@ -6,11 +6,19 @@ import org.apache.tika.metadata.*;
 import java.io.IOException;
 import java.io.Serializable;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.TemporalAccessor;
+
 import java.util.*;
 import java.util.stream.Stream;
 
 public class MetadataTransformer implements Serializable {
 
+	private static final List<DateTimeFormatter> dateFormats = new ArrayList<>();
 	private static final Map<String, Property> dateProperties = new HashMap<>();
 	@SuppressWarnings("deprecation")
 	private static final List<String> deduplicateProperties = Arrays.asList(
@@ -30,6 +38,8 @@ public class MetadataTransformer implements Serializable {
 	private static final long serialVersionUID = -6643888792096975746L;
 
 	static {
+		dateFormats.add(DateTimeFormatter.RFC_1123_DATE_TIME);
+		dateFormats.add(DateTimeFormatter.ofPattern("EEE MMM d HH:mm:ss uuuu")); // Example: "Tue Jan 27 17:03:21 2004"
 
 		//noinspection deprecation
 		Stream.of(
@@ -149,10 +159,37 @@ public class MetadataTransformer implements Serializable {
 	}
 
 	private void transformDate(final String name, final ValueConsumer consumer) throws IOException {
-		final Date isoDate = metadata.getDate(dateProperties.get(name));
+		final Date date = metadata.getDate(dateProperties.get(name));
+		Instant instant = null;
 
-		if (null != isoDate) {
-			consumer.accept(fields.forMetadataISODate(name), isoDate.toInstant().toString());
+		if (null != date) {
+			instant = date.toInstant();
+		} else {
+
+			// Try some other formats.
+			for (DateTimeFormatter format: dateFormats) {
+				final TemporalAccessor accessor;
+
+				try {
+					accessor = format.parseBest(metadata.get(name), Instant::from, LocalDateTime::from);
+				} catch (final DateTimeParseException e) {
+					continue;
+				}
+
+				if (accessor instanceof Instant) {
+					instant = (Instant) accessor;
+				} else if (accessor instanceof LocalDateTime) {
+
+					// Default to UTC for dates with not time zone.
+					instant = ((LocalDateTime) accessor).toInstant(ZoneOffset.UTC);
+				}
+
+				break;
+			}
+		}
+
+		if (null != instant) {
+			consumer.accept(fields.forMetadataISODate(name), instant.toString());
 		} else {
 			throw new IOException(String.format("Unable to parse date \"%s\" from field " +
 					"\"%s\" for ISO 8601 formatting.", metadata.get(name), name));

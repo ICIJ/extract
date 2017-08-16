@@ -1,6 +1,9 @@
 package org.icij.extract.spewer;
 
-import java.io.Serializable;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
@@ -8,8 +11,8 @@ import java.util.HashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import java.io.Reader;
-import java.io.IOException;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 import org.apache.commons.io.TaggedIOException;
 import org.apache.tika.metadata.Metadata;
@@ -57,7 +60,9 @@ public class SolrSpewer extends Spewer implements Serializable {
 	private final AtomicInteger pending = new AtomicInteger(0);
 	private int commitThreshold = 0;
 	private Duration commitWithin = null;
+
 	private boolean atomicWrites = false;
+	private boolean dump = true;
 
 	public SolrSpewer(final SolrClient client, final FieldNames fields) {
 		super(fields);
@@ -100,6 +105,10 @@ public class SolrSpewer extends Spewer implements Serializable {
 		return atomicWrites;
 	}
 
+	public void dump(final boolean dump) {
+		this.dump = dump;
+	}
+
 	@Override
 	public void close() throws IOException {
 
@@ -133,12 +142,6 @@ public class SolrSpewer extends Spewer implements Serializable {
 		}
 
 		logger.info(String.format("Document added to Solr in %dms: \"%s\".", response.getElapsedTime(), document));
-		pending.incrementAndGet();
-
-		// Autocommit if the interval is hit and enabled.
-		if (commitThreshold > 0) {
-			commitPending(commitThreshold);
-		}
 	}
 
 	@Override
@@ -146,13 +149,73 @@ public class SolrSpewer extends Spewer implements Serializable {
 		throw new UnsupportedOperationException();
 	}
 
+	@Override
+	public Document[] write(final Path path) throws IOException, ClassNotFoundException {
+		try (final InputStream fis = Files.newInputStream(path);
+				final ObjectInputStream in = new ObjectInputStream(path.toString().endsWith(".gz") ?
+						new GZIPInputStream(fis) : fis)) {
+			final SolrInputDocument inputDocument = (SolrInputDocument) in.readObject();
+
+			in.close();
+
+			final Document[] documents = inputDocument
+					.getFieldValues(fields.forPath()).stream().map(p -> new Document(inputDocument
+					.getFieldValue(fields.forId()).toString(), null, Paths.get(p.toString()), null))
+			.toArray(Document[]::new);
+
+			write(documents[0], inputDocument);
+
+			return documents;
+		} catch (final SolrServerException e) {
+			throw new IOException(e);
+		}
+	}
+
 	protected UpdateResponse write(final Document document, final SolrInputDocument inputDocument) throws
 			IOException, SolrServerException {
-		if (null != commitWithin) {
-			return client.add(inputDocument, Math.toIntExact(commitWithin.toMillis()));
+		final UpdateResponse response;
+
+		try {
+			if (null != commitWithin) {
+				response = client.add(inputDocument, Math.toIntExact(commitWithin.toMillis()));
+			} else {
+				response = client.add(inputDocument);
+			}
+		} catch (final Exception e) {
+			if (dump) {
+				final Path dumped;
+
+				try {
+					dumped = dump(inputDocument);
+				} catch (final Exception dumpException) {
+					logger.error("Error while creating dump file.", dumpException);
+					throw e;
+				}
+
+				logger.error("Error while adding to Solr. Input document dumped to \"{}\".", dumped);
+			}
+
+			throw e;
 		}
 
-		return client.add(inputDocument);
+		pending.incrementAndGet();
+
+		// Autocommit if the interval is hit and enabled.
+		if (commitThreshold > 0) {
+			commitPending(commitThreshold);
+		}
+
+		return response;
+	}
+
+	private Path dump(final SolrInputDocument inputDocument) throws IOException {
+		final Path path = Files.createTempFile("extract-dump-", ".SolrInputDocument.gz");
+
+		try (final ObjectOutputStream out = new ObjectOutputStream(new GZIPOutputStream(Files.newOutputStream(path)))) {
+			out.writeObject(inputDocument);
+		}
+
+		return path;
 	}
 
 	private SolrInputDocument prepareDocument(final Document document, final Reader reader, final int level) throws
@@ -167,9 +230,18 @@ public class SolrSpewer extends Spewer implements Serializable {
 		// Set tags supplied by the caller.
 		tags.forEach((key, value)-> setFieldValue(inputDocument, fields.forTag(key), value));
 
+		String id;
+
+		try {
+			id = document.getId();
+		} catch (final Exception e) {
+			logger.error("Unable to get document ID. Skipping document.", e);
+			return null;
+		}
+
 		// Set the ID. Must never be written atomically.
-		if (null != fields.forId() && null != document.getId()) {
-			inputDocument.setField(fields.forId(), document.getId());
+		if (null != fields.forId() && null != id) {
+			inputDocument.setField(fields.forId(), id);
 		}
 
 		// Add the base type. De-duplicated. Eases faceting on type.
@@ -206,9 +278,17 @@ public class SolrSpewer extends Spewer implements Serializable {
 			try (final Reader embedReader = embed.getReader()) {
 				final SolrInputDocument childDocument = prepareDocument(embed, embedReader, level + 1);
 
+				// Null is a signal to skip the document.
+				if (null == childDocument) {
+					continue;
+				}
+
+				// Free up memory.
+				embed.clearReader();
+
 				// Set the ID of the parent on the child before adding to the parent.
 				// We do this because Solr flattens the hierarchy (see org.apache.solr.update.AddUpdateCommand#flatten).
-				setFieldValue(childDocument, fields.forParentId(), document.getId());
+				setFieldValue(childDocument, fields.forParentId(), id);
 				inputDocument.addChildDocument(childDocument);
 			}
 		}

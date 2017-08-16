@@ -106,8 +106,10 @@ public class MergingSolrSpewer extends SolrSpewer {
 		}
 
 		// Merge the resource name field.
-		mergeField(resourceNameKey, document.getMetadata().get(Metadata.RESOURCE_NAME_KEY), existingDocument,
-				inputDocument);
+		if (document.getMetadata() != null) {
+			mergeField(resourceNameKey, document.getMetadata().get(Metadata.RESOURCE_NAME_KEY), existingDocument,
+					inputDocument);
+		}
 	}
 
 	private void mergeField(final String name, final String newValue, final SolrDocument existingDocument, final

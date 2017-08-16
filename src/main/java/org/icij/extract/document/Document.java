@@ -32,7 +32,6 @@ public class Document {
 	 * @param metadata document metadata
 	 */
 	public Document(final String id, final Identifier identifier, final Path path, final Metadata metadata) {
-		Objects.requireNonNull(identifier, "The identifier generator must not be null.");
 		Objects.requireNonNull(path, "The path must not be null.");
 
 		this.metadata = metadata;
@@ -69,7 +68,7 @@ public class Document {
 
 			try {
 				id = this.generateId();
-			} catch (Exception e) {
+			} catch (final Exception e) {
 				throw new RuntimeException("Unable to generate document ID.", e);
 			}
 
@@ -127,6 +126,10 @@ public class Document {
 		return embed;
 	}
 
+	public boolean removeEmbed(final EmbeddedDocument embed) {
+		return embeds.remove(embed);
+	}
+
 	public List<EmbeddedDocument> getEmbeds() {
 		return embeds;
 	}
@@ -141,6 +144,11 @@ public class Document {
 
 	public void setReader(final ReaderGenerator readerGenerator) {
 		this.readerGenerator = readerGenerator;
+	}
+
+	public void clearReader() {
+		this.reader = null;
+		this.readerGenerator = null;
 	}
 
 	public void setForeignId(final String foreignId) {

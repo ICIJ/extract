@@ -8,6 +8,7 @@ import java.io.OutputStreamWriter;
 import java.io.OutputStream;
 import java.io.StringWriter;
 
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -57,6 +58,10 @@ public abstract class Spewer implements AutoCloseable, Serializable {
 	public abstract void write(final Document document, final Reader reader) throws IOException;
 
 	public abstract void writeMetadata(final Document document) throws IOException;
+
+	public Document[] write(final Path path) throws IOException, ClassNotFoundException {
+		throw new UnsupportedOperationException("Not implemented.");
+	}
 
 	public FieldNames getFields() {
 		return fields;

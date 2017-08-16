@@ -14,7 +14,6 @@ import org.apache.commons.io.TaggedIOException;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
-import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.*;
 import org.apache.tika.parser.html.HtmlMapper;
@@ -29,6 +28,7 @@ import org.apache.tika.parser.utils.CommonsDigester.DigestAlgorithm;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
 import org.apache.tika.sax.WriteOutContentHandler;
 import org.icij.extract.document.Document;
+import org.icij.extract.parser.CachingTesseractOCRParser;
 import org.icij.extract.parser.ParsingReader;
 import org.icij.extract.report.Reporter;
 import org.icij.extract.sax.HTML5Serializer;
@@ -55,6 +55,7 @@ import org.xml.sax.ContentHandler;
 		"Defaults to spawning, which spawns new documents for each embedded document encountered.", parameter = "type")
 @Option(name = "embedOutput", description = "Path to a directory for outputting attachments en masse.",
 		parameter = "path")
+@Option(name = "ocrCache", description = "Output path for OCR cache files.", parameter = "path")
 @Option(name = "ocrLanguage", description = "Set the languages used by Tesseract. Multiple  languages may be " +
 		"specified, separated by plus characters. Tesseract uses 3-character ISO 639-2 language codes.", parameter =
 		"language")
@@ -91,8 +92,6 @@ public class Extractor {
 	private Parser defaultParser = TikaConfig.getDefaultConfig().getParser();
 	private final TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
 	private final PDFParserConfig pdfConfig = new PDFParserConfig();
-
-	private final Collection<Class<? extends Parser>> excludedParsers = new HashSet<>();
 
 	private OutputFormat outputFormat = OutputFormat.TEXT;
 	private EmbedHandling embedHandling = EmbedHandling.getDefault();
@@ -140,6 +139,9 @@ public class Extractor {
 		if (options.get("ocr").parse().isOff()) {
 			disableOcr();
 		}
+
+		options.get("ocrCache").parse().asPath().ifPresent(path -> replaceParser(TesseractOCRParser.class,
+				new CachingTesseractOCRParser(path)));
 
 		return this;
 	}
@@ -250,15 +252,15 @@ public class Extractor {
 	 * @param document the file to extract from
 	 * @return A {@link Reader} that can be used to read extracted text on demand.
 	 */
-	public Reader extract(final Document document, final TemporaryResources tmp) throws IOException {
+	public Reader extract(final Document document) throws IOException {
 
 		// Use the the TikaInputStream.parse method that accepts a file, because this sets metadata properties like the
 		// resource name and size.
-		return extract(document, TikaInputStream.get(document.getPath(), document.getMetadata()), tmp);
+		return extract(document, TikaInputStream.get(document.getPath(), document.getMetadata()));
 	}
 
 	/**
-	 * Extract and spew content from a document. Internally, as with {@link #extract(Document, TemporaryResources)},
+	 * Extract and spew content from a document. Internally, as with {@link #extract(Document)},
 	 * this method creates a {@link TikaInputStream} from the path of the given document.
 	 *
 	 * @param document document to extract from
@@ -266,7 +268,7 @@ public class Extractor {
 	 * @throws IOException if there was an error reading or writing the document
 	 */
 	public void extract(final Document document, final Spewer spewer) throws IOException {
-		try (final TemporaryResources tmp = new TemporaryResources(); final Reader reader = extract(document, tmp)) {
+		try (final Reader reader = extract(document)) {
 			spewer.write(document, reader);
 		}
 	}
@@ -300,6 +302,11 @@ public class Extractor {
 			status = status(e, spewer);
 			log(e, status, document);
 			exception = e;
+		}
+
+		// For tagged IO exceptions, discard the tag, which is either unwanted or not serializable.
+		if (null != exception && (exception instanceof TaggedIOException)) {
+			exception = ((TaggedIOException) exception).getCause();
 		}
 
 		reporter.save(document, status, exception);
@@ -377,8 +384,7 @@ public class Extractor {
 	 * @param document file that is being extracted from
 	 * @return A pull-parsing reader.
 	 */
-	protected Reader extract(final Document document, final TikaInputStream input, final TemporaryResources tmp)
-			throws IOException {
+	protected Reader extract(final Document document, final TikaInputStream input) throws IOException {
 		final Metadata metadata = document.getMetadata();
 		final ParseContext context = new ParseContext();
 		final AutoDetectParser autoDetectParser = new AutoDetectParser(defaultParser);
@@ -416,8 +422,7 @@ public class Extractor {
 
 		if (EmbedHandling.SPAWN == embedHandling) {
 			context.set(Parser.class, parser);
-			context.set(EmbeddedDocumentExtractor.class, new EmbedSpawner(document, tmp, context, embedOutput,
-					handler));
+			context.set(EmbeddedDocumentExtractor.class, new EmbedSpawner(document, context, embedOutput, handler));
 		} else if (EmbedHandling.CONCATENATE == embedHandling) {
 			context.set(Parser.class, parser);
 			context.set(EmbeddedDocumentExtractor.class, new EmbedParser(document, context));
@@ -436,12 +441,25 @@ public class Extractor {
 	}
 
 	private void excludeParser(final Class<? extends Parser> exclude) {
+		replaceParser(exclude, null);
+	}
+
+	private void replaceParser(final Class<? extends Parser> exclude, final Parser replacement) {
 		if (defaultParser instanceof CompositeParser) {
 			final CompositeParser composite = (CompositeParser) defaultParser;
-			final List<Parser> parsers = composite.getAllComponentParsers();
+			final List<Parser> parsers = new ArrayList<>();
 
-			excludedParsers.add(exclude);
-			defaultParser = new CompositeParser(composite.getMediaTypeRegistry(), parsers, excludedParsers);
+			composite.getAllComponentParsers().forEach(parser -> {
+				if (parser.getClass().equals(exclude) || exclude.isAssignableFrom(parser.getClass())) {
+					if (null != replacement) {
+						parsers.add(replacement);
+					}
+				} else {
+					parsers.add(parser);
+				}
+			});
+
+			defaultParser = new CompositeParser(composite.getMediaTypeRegistry(), parsers);
 		}
 	}
 }

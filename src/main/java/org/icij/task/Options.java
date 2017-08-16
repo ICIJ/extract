@@ -3,11 +3,16 @@ package org.icij.task;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 
 public class Options<T> implements Iterable<Option<T>> {
 
 	protected final Map<String, Option<T>> map = new HashMap<>();
+
+	public <R> Optional<R> ifPresent(final String name, final Function<Option<T>, Optional<R>> function) {
+		return map.containsKey(name) ? function.apply(get(name)) : Optional.empty();
+	}
 
 	public Option<T> get(final String name) {
 		return map.get(name);
