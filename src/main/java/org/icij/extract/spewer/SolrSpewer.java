@@ -125,23 +125,16 @@ public class SolrSpewer extends Spewer implements Serializable {
 
 	@Override
 	public void write(final Document document, final Reader reader) throws IOException {
-		final SolrInputDocument inputDocument = prepareDocument(document, reader, 0);
+		final SolrInputDocument inputDocument = prepareDocument(document, reader);
 		final UpdateResponse response;
 
-		try {
-			response = write(document, inputDocument);
-		} catch (SolrServerException e) {
-			throw new TaggedIOException(new IOException(String.format("Unable to add document to Solr: \"%s\". " +
-					"There was server-side error.", document), e), this);
-		} catch (SolrException e) {
-			throw new TaggedIOException(new IOException(String.format("Unable to add document to Solr: \"%s\". " +
-					"HTTP error %d was returned.", document, e.code()), e), this);
-		} catch (IOException e) {
-			throw new TaggedIOException(new IOException(String.format("Unable to add document to Solr: \"%s\". " +
-					"There was an error communicating with the server.", document), e), this);
-		}
+		response = write(document, inputDocument);
+		logger.info("Document added to Solr in {}ms: \"{}\".", response.getElapsedTime(), document);
 
-		logger.info(String.format("Document added to Solr in %dms: \"%s\".", response.getElapsedTime(), document));
+		// Write children.
+		for (EmbeddedDocument childDocument : document.getEmbeds()) {
+			write(childDocument, 1, document);
+		}
 	}
 
 	@Override
@@ -166,14 +159,13 @@ public class SolrSpewer extends Spewer implements Serializable {
 			write(documents[0], inputDocument);
 
 			return documents;
-		} catch (final SolrServerException e) {
-			throw new IOException(e);
 		}
 	}
 
 	protected UpdateResponse write(final Document document, final SolrInputDocument inputDocument) throws
-			IOException, SolrServerException {
+			IOException {
 		final UpdateResponse response;
+		boolean success = false;
 
 		try {
 			if (null != commitWithin) {
@@ -181,21 +173,31 @@ public class SolrSpewer extends Spewer implements Serializable {
 			} else {
 				response = client.add(inputDocument);
 			}
-		} catch (final Exception e) {
-			if (dump) {
-				final Path dumped;
+
+			success = true;
+		} catch (final SolrServerException e) {
+			throw new TaggedIOException(new IOException(String.format("Unable to add document to Solr: \"%s\". " +
+					"There was server-side error.", document), e), this);
+		} catch (final SolrException e) {
+			throw new TaggedIOException(new IOException(String.format("Unable to add document to Solr: \"%s\". " +
+					"HTTP error %d was returned.", document, ((SolrException) e).code()), e), this);
+		} catch (final IOException e) {
+			throw new TaggedIOException(new IOException(String.format("Unable to add document to Solr: \"%s\". " +
+						"There was an error communicating with the server.", document), e), this);
+		} finally {
+			if (!success && dump) {
+				Path dumped = null;
 
 				try {
 					dumped = dump(inputDocument);
-				} catch (final Exception dumpException) {
-					logger.error("Error while creating dump file.", dumpException);
-					throw e;
+				} catch (final Exception e) {
+					logger.error("Error while creating dump file.", e);
 				}
 
-				logger.error("Error while adding to Solr. Input document dumped to \"{}\".", dumped);
+				if (null != dumped) {
+					logger.error("Error while adding to Solr. Input document dumped to \"{}\".", dumped);
+				}
 			}
-
-			throw e;
 		}
 
 		pending.incrementAndGet();
@@ -218,8 +220,27 @@ public class SolrSpewer extends Spewer implements Serializable {
 		return path;
 	}
 
-	private SolrInputDocument prepareDocument(final Document document, final Reader reader, final int level) throws
-			IOException {
+	private void write(final EmbeddedDocument child, final int level, final Document parent) throws IOException {
+		final SolrInputDocument inputDocument = prepareDocument(child, level, parent);
+		final UpdateResponse response;
+
+		// Free up memory.
+		child.clearReader();
+
+		// Null is a signal to skip.
+		if (null == inputDocument) {
+			return;
+		}
+
+		response = write(child, inputDocument);
+		logger.info("Child document added to Solr in {}ms: \"{}\".", response.getElapsedTime(), child);
+
+		for (EmbeddedDocument grandchild : child.getEmbeds()) {
+			write(grandchild, level + 1, child);
+		}
+	}
+
+	private SolrInputDocument prepareDocument(final Document document, final Reader reader) throws IOException {
 		final SolrInputDocument inputDocument = new SolrInputDocument();
 
 		// Set extracted metadata fields supplied by Tika.
@@ -270,28 +291,31 @@ public class SolrSpewer extends Spewer implements Serializable {
 		// Finally, set the text field containing the actual extracted text.
 		setFieldValue(inputDocument, fields.forText(), toString(reader));
 
+		return inputDocument;
+	}
+
+	private SolrInputDocument prepareDocument(final EmbeddedDocument child, final int level, final Document parent)
+			throws IOException {
+		final SolrInputDocument inputDocument;
+
+		try (final Reader reader = child.getReader()) {
+			inputDocument = prepareDocument(child, reader);
+		}
+
+		// Null is a signal to skip the document.
+		if (null == inputDocument) {
+			return null;
+		}
+
 		// Set the level in the hierarchy.
 		setFieldValue(inputDocument, fields.forLevel(), Integer.toString(level));
 
-		// Add embedded documents as child documents.
-		for (EmbeddedDocument embed : document.getEmbeds()) {
-			try (final Reader embedReader = embed.getReader()) {
-				final SolrInputDocument childDocument = prepareDocument(embed, embedReader, level + 1);
-
-				// Null is a signal to skip the document.
-				if (null == childDocument) {
-					continue;
-				}
-
-				// Free up memory.
-				embed.clearReader();
-
-				// Set the ID of the parent on the child before adding to the parent.
-				// We do this because Solr flattens the hierarchy (see org.apache.solr.update.AddUpdateCommand#flatten).
-				setFieldValue(childDocument, fields.forParentId(), id);
-				inputDocument.addChildDocument(childDocument);
-			}
-		}
+		// Set the ID of the parent on the child before adding to the parent.
+		// We do this because:
+		// 1) even when using child documents, Solr flattens the hierarchy (see org.apache.solr.update
+		// .AddUpdateCommand#flatten);
+		// 2) we need to reference the parent.
+		setFieldValue(inputDocument, fields.forParentId(), parent.getId());
 
 		return inputDocument;
 	}
