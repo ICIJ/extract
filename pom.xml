@@ -43,25 +43,25 @@
 		<dependency>
 			<groupId>org.icij.kaxxa</groupId>
 			<artifactId>kaxxa-concurrent</artifactId>
-			<version>1.0-SNAPSHOT</version>
+			<version>1.0.0</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.icij.kaxxa</groupId>
 			<artifactId>kaxxa-events</artifactId>
-			<version>1.0-SNAPSHOT</version>
+			<version>1.0.0</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.icij.kaxxa</groupId>
 			<artifactId>kaxxa-io</artifactId>
-			<version>1.0-SNAPSHOT</version>
+			<version>1.0.0</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.icij.kaxxa</groupId>
 			<artifactId>kaxxa-sql</artifactId>
-			<version>1.0-SNAPSHOT</version>
+			<version>1.0.0</version>
 		</dependency>
 
 		<dependency>
