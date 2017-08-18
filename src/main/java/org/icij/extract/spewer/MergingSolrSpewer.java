@@ -9,6 +9,7 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.tika.metadata.Metadata;
 import org.icij.extract.document.Document;
+import org.icij.extract.document.EmbeddedDocument;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 
@@ -50,10 +51,9 @@ public class MergingSolrSpewer extends SolrSpewer {
 	@Override
 	protected UpdateResponse write(final Document document, final SolrInputDocument inputDocument) throws
 			IOException {
-		final Object level = inputDocument.getFieldValue(fields.forLevel());
 
 		// Only root documents are merged.
-		if (null != level && Integer.valueOf(level.toString()) > 0) {
+		if (document instanceof EmbeddedDocument) {
 			return super.write(document, inputDocument);
 		} else {
 			return write(document, inputDocument, retries);

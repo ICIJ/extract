@@ -126,14 +126,28 @@ public class SolrSpewer extends Spewer implements Serializable {
 	@Override
 	public void write(final Document document, final Reader reader) throws IOException {
 		final SolrInputDocument inputDocument = prepareDocument(document, reader);
-		final UpdateResponse response;
+		UpdateResponse response;
 
 		response = write(document, inputDocument);
 		logger.info("Document added to Solr in {}ms: \"{}\".", response.getElapsedTime(), document);
 
-		// Write children.
-		for (EmbeddedDocument childDocument : document.getEmbeds()) {
-			write(childDocument, 1, document);
+		try {
+
+			// We need to deleted the "fake" child documents so that there are no orphans.
+			response = client.deleteByQuery(String.format("%s:%s AND %s:[1 TO *]", fields.forRoot(), document.getId(),
+					fields.forLevel()));
+		} catch (final SolrServerException e) {
+			throw new IOException(e);
+		}
+
+		logger.info("Deleted old child documents in {}ms: \"{}\".", response.getElapsedTime(), document);
+
+		if (document.hasEmbeds()) {
+			for (EmbeddedDocument childDocument : document.getEmbeds()) {
+				write(childDocument, 1, document, document);
+			}
+
+			logger.info("Wrote child documents: \"{}\".", document);
 		}
 	}
 
@@ -220,8 +234,9 @@ public class SolrSpewer extends Spewer implements Serializable {
 		return path;
 	}
 
-	private void write(final EmbeddedDocument child, final int level, final Document parent) throws IOException {
-		final SolrInputDocument inputDocument = prepareDocument(child, level, parent);
+	private void write(final EmbeddedDocument child, final int level, final Document parent, final Document root)
+			throws IOException {
+		final SolrInputDocument inputDocument = prepareDocument(child, level, parent, root);
 		final UpdateResponse response;
 
 		// Free up memory.
@@ -236,7 +251,7 @@ public class SolrSpewer extends Spewer implements Serializable {
 		logger.info("Child document added to Solr in {}ms: \"{}\".", response.getElapsedTime(), child);
 
 		for (EmbeddedDocument grandchild : child.getEmbeds()) {
-			write(grandchild, level + 1, child);
+			write(grandchild, level + 1, child, root);
 		}
 	}
 
@@ -294,8 +309,8 @@ public class SolrSpewer extends Spewer implements Serializable {
 		return inputDocument;
 	}
 
-	private SolrInputDocument prepareDocument(final EmbeddedDocument child, final int level, final Document parent)
-			throws IOException {
+	private SolrInputDocument prepareDocument(final EmbeddedDocument child, final int level, final Document parent,
+	                                          final Document root) throws IOException {
 		final SolrInputDocument inputDocument;
 
 		try (final Reader reader = child.getReader()) {
@@ -316,6 +331,9 @@ public class SolrSpewer extends Spewer implements Serializable {
 		// .AddUpdateCommand#flatten);
 		// 2) we need to reference the parent.
 		setFieldValue(inputDocument, fields.forParentId(), parent.getId());
+
+		// Set the ID of the root document.
+		setFieldValue(inputDocument, fields.forRoot(), root.getId());
 
 		return inputDocument;
 	}
