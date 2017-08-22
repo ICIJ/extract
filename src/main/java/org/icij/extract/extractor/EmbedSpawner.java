@@ -64,14 +64,13 @@ public class EmbedSpawner extends EmbedParser {
 				writeEnd(handler);
 			}
 		} else {
-			try (final TemporaryResources tmp = new TemporaryResources()) {
-				spawnEmbedded(input, metadata, tmp);
+			try (final TikaInputStream tis = TikaInputStream.get(input)) {
+				spawnEmbedded(tis, metadata);
 			}
 		}
 	}
 
-	private void spawnEmbedded(final InputStream input, final Metadata metadata, final TemporaryResources tmp)
-			throws IOException {
+	private void spawnEmbedded(final TikaInputStream tis, final Metadata metadata) throws IOException {
 		final ByteArrayOutputStream output = new ByteArrayOutputStream(8192);
 
 		// Create a Writer that will receive the parser outputPath for the embed file, for later retrieval.
@@ -92,8 +91,6 @@ public class EmbedSpawner extends EmbedParser {
 		if (null == name || name.isEmpty()) {
 			name = String.format("untitled_%d", ++untitled);
 		}
-
-		final TikaInputStream tis = TikaInputStream.get(input, tmp);
 
 		try {
 

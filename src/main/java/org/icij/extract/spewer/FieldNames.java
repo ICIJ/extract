@@ -36,6 +36,7 @@ public class FieldNames {
 	public static final String DEFAULT_BASE_TYPE_FIELD = "extract_base_type";
 	public static final String DEFAULT_PARENT_PATH_FIELD = "extract_parent_paths";
 	public static final String DEFAULT_PARENT_ID_FIELD = "extract_parent_id";
+	public static final String DEFAULT_ROOT_FIELD = "extract_root";
 	public static final String DEFAULT_LEVEL_FIELD = "extract_level";
 	public static final String DEFAULT_VERSION_FIELD = "_version_";
 	public static final String DEFAULT_METADATA_FIELD_PREFIX = "tika_metadata_";
@@ -49,6 +50,7 @@ public class FieldNames {
 	private String baseTypeField = DEFAULT_BASE_TYPE_FIELD;
 	private String versionField = DEFAULT_VERSION_FIELD;
 	private String parentIdField = DEFAULT_PARENT_ID_FIELD;
+	private String rootField = DEFAULT_ROOT_FIELD;
 	private String levelField = DEFAULT_LEVEL_FIELD;
 	private String tagFieldPrefix = DEFAULT_TAG_FIELD_PREFIX;
 	private String metadataFieldPrefix = DEFAULT_METADATA_FIELD_PREFIX;
@@ -100,6 +102,14 @@ public class FieldNames {
 
 	String forParentId() {
 		return parentIdField;
+	}
+
+	private void forRoot(final String rootField) {
+		this.rootField = rootField;
+	}
+
+	String forRoot() {
+		return rootField;
 	}
 
 	private void forLevel(final String levelField) {

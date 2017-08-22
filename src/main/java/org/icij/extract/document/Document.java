@@ -134,6 +134,10 @@ public class Document {
 		return embeds;
 	}
 
+	public boolean hasEmbeds() {
+		return !embeds.isEmpty();
+	}
+
 	public EmbeddedDocument getEmbed(final String key) {
 		return lookup.get(key);
 	}
