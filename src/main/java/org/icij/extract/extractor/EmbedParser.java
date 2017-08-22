@@ -64,18 +64,17 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 
 	void delegateParsing(final InputStream input, final ContentHandler handler, final Metadata metadata)
 			throws IOException, SAXException {
-		try (final TemporaryResources tmp = new TemporaryResources()) {
-			final TikaInputStream newStream = TikaInputStream.get(new CloseShieldInputStream(input), tmp);
-
+		try (final TikaInputStream tis = TikaInputStream.get(new CloseShieldInputStream(input))) {
 			if (input instanceof TikaInputStream) {
 				final Object container = ((TikaInputStream) input).getOpenContainer();
+
 				if (container != null) {
-					newStream.setOpenContainer(container);
+					tis.setOpenContainer(container);
 				}
 			}
 
 			// Use the delegate parser to parse this entry.
-			DELEGATING_PARSER.parse(newStream, handler, metadata, context);
+			DELEGATING_PARSER.parse(tis, handler, metadata, context);
 		} catch (final EncryptedDocumentException e) {
 			logger.error("Unable to decrypt encrypted document embedded in document: \"{}\" ({}) (in \"{}\").",
 					metadata.get(Metadata.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root, e);
