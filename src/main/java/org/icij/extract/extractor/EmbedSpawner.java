@@ -71,21 +71,20 @@ public class EmbedSpawner extends EmbedParser {
 	}
 
 	private void spawnEmbedded(final TikaInputStream tis, final Metadata metadata) throws IOException {
-		final ByteArrayOutputStream output = new ByteArrayOutputStream(8192);
 
-		// Create a Writer that will receive the parser outputPath for the embed file, for later retrieval.
-		final Writer writer = new BufferedWriter(new OutputStreamWriter(new GZIPOutputStream(output, true),
-				StandardCharsets.UTF_8));
+		// Create a Writer that will receive the parser output for the embed file, for later retrieval.
+		final ByteArrayOutputStream output = new ByteArrayOutputStream(8192);
+		final Writer writer = new OutputStreamWriter(new GZIPOutputStream(output), StandardCharsets.UTF_8);
 
 		final ContentHandler embedHandler = handlerFunction.apply(writer);
 		final EmbeddedDocument embed = documentStack.getLast().addEmbed(metadata);
 
-		// Use temporary resources to copy formatted outputPath from the content handler to a temporary file.
+		// Use temporary resources to copy formatted output from the content handler to a temporary file.
 		// Call setReader on the embed object with a plain reader for this temp file.
 		// When all parsing finishes, close temporary resources.
 		// Note that getPath should still return the path to the original file.
-		embed.setReader(() -> new BufferedReader(new InputStreamReader(new GZIPInputStream(new ByteArrayInputStream(output
-					.toByteArray())))));
+		embed.setReader(() -> new InputStreamReader(new GZIPInputStream(new ByteArrayInputStream(output
+					.toByteArray())), StandardCharsets.UTF_8));
 
 		String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
 		if (null == name || name.isEmpty()) {
