@@ -47,7 +47,8 @@ public class CachingTesseractOCRParser extends TesseractOCRParser {
 	                        final TesseractOCRConfig config)
 			throws IOException, SAXException, TikaException {
 		if (null != outputPath) {
-			cachedParse(in, xhtml, new Metadata(), context, config, true);
+			cachedParse(in, xhtml, new Metadata(), context, null == config ?
+					context.get(TesseractOCRConfig.class, DEFAULT_CONFIG) : config, true);
 		} else {
 			super.parseInline(in, xhtml, context, config);
 		}
@@ -132,7 +133,7 @@ public class CachingTesseractOCRParser extends TesseractOCRParser {
 	                         final ParseContext context, TesseractOCRConfig config, final boolean inline)
 			throws IOException, SAXException, TikaException {
 		try (final TikaInputStream tis = TikaInputStream.get(in)) {
-			cachedParse(tis, handler, metadata, context, null == config ? DEFAULT_CONFIG : config, inline);
+			cachedParse(tis, handler, metadata, context, config, inline);
 		} catch (final InterruptedException e) {
 			throw new TikaException("Interrupted.", e);
 		}
