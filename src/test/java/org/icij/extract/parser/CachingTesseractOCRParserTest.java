@@ -6,6 +6,7 @@ import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.WriteOutContentHandler;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -19,30 +20,22 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class CachingTesseractOCRParserTest {
 
-	private static final Path tmpDir = Paths.get(System.getProperty("java.io.tmpdir"));
+	private static final Path tmpDir = Paths.get(System.getProperty("java.io.tmpdir"), "tesseract-cache");
 
 	private final URL simple = getClass().getResource("/documents/ocr/simple.tiff");
 
+	@BeforeClass
+	public static void setUp() throws IOException {
+		if (!Files.isDirectory(tmpDir)) {
+			Files.createDirectory(tmpDir);
+		}
+	}
+
 	@AfterClass
 	public static void cleanUp() throws IOException {
-		final PathMatcher matcher = tmpDir.getFileSystem().getPathMatcher("glob:tesseract-result-cache-*");
-
-		Files.walkFileTree(tmpDir, new SimpleFileVisitor<Path>() {
-
-			@Override
-			public FileVisitResult visitFile(final Path file, final BasicFileAttributes attributes) throws IOException {
-				if (matcher.matches(file.getFileName())) {
-					Files.delete(file);
-				}
-
-				return FileVisitResult.CONTINUE;
-			}
-
-			@Override
-			public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
-				return FileVisitResult.CONTINUE;
-			}
-		});
+		Files.list(tmpDir).forEach(path -> {try {
+			Files.delete(path);
+		} catch (final IOException ignored) { }});
 	}
 
 	@Test
