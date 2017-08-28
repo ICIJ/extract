@@ -18,10 +18,7 @@ import org.xml.sax.SAXException;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.*;
 import java.util.LinkedList;
 import java.util.function.Function;
 import java.util.zip.GZIPInputStream;
@@ -136,6 +133,7 @@ public class EmbedSpawner extends EmbedParser {
 	}
 
 	private void writeEmbed(final TikaInputStream tis, final EmbeddedDocument embed, final String name) throws IOException {
+		final Path destination = outputPath.resolve(embed.getHash());
 		final Path source;
 
 		final Metadata metadata = embed.getMetadata();
@@ -162,12 +160,17 @@ public class EmbedSpawner extends EmbedParser {
 			metadata.set(Metadata.CONTENT_LENGTH, Long.toString(Files.size(source)));
 		}
 
-		// To prevent massive duplication and because the disk is only a storage for underlying date, save using the
+		// To prevent massive duplication and because the disk is only a storage for underlying data, save using the
 		// straight hash as a filename.
-		try (final OutputStream copy = Files.newOutputStream(outputPath.resolve(embed.getHash()),
-				StandardOpenOption.CREATE_NEW)) {
-			Files.copy(source, copy);
-		} catch (FileAlreadyExistsException e) {
+		if (Files.notExists(destination)) {
+			try {
+				Files.copy(source, destination, StandardCopyOption.ATOMIC_MOVE);
+			} catch (final FileAlreadyExistsException e) {
+				logger.info("Temporary file for document \"{}\" in \"{}\" already exists.", name, root);
+			}
+		} else if (Files.size(source) != Files.size(destination)) {
+			Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
+		} else {
 			logger.info("Temporary file for document \"{}\" in \"{}\" already exists.", name, root);
 		}
 	}
