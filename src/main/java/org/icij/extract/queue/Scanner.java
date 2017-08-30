@@ -369,8 +369,8 @@ public class Scanner extends ExecutorProxy {
 		 *
 		 * @throws InterruptedException if interrupted while waiting for a queue slot
 		 */
-		void queue(final Path file) throws InterruptedException {
-			final Document document = factory.create(file);
+		void queue(final Path file, final BasicFileAttributes attributes) throws InterruptedException {
+			final Document document = factory.create(file, attributes);
 
 			queue.put(document);
 			queued++;
@@ -482,7 +482,7 @@ public class Scanner extends ExecutorProxy {
 			}
 
 			try {
-				queue(file);
+				queue(file, attributes);
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
 				logger.warn("Interrupted. Terminating scanner.");

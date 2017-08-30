@@ -10,6 +10,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -73,12 +74,30 @@ public class DocumentFactory {
 		return new Document(id, identifier, path);
 	}
 
+	public Document create(final String id, final Path path, final long size) {
+		final Metadata metadata = new Metadata();
+
+		metadata.set(Metadata.CONTENT_LENGTH, Long.toString(size));
+		return new Document(id, identifier, path, metadata);
+	}
+
 	public Document create(final String id, final Path path, final Metadata metadata) {
 		return new Document(id, identifier, path, metadata);
 	}
 
 	public Document create(final Path path) {
 		return new Document(identifier, path);
+	}
+
+	public Document create(final Path path, final BasicFileAttributes attributes) {
+		return create(path, attributes.size());
+	}
+
+	public Document create(final Path path, final long size) {
+		final Metadata metadata = new Metadata();
+
+		metadata.set(Metadata.CONTENT_LENGTH, Long.toString(size));
+		return new Document(identifier, path, metadata);
 	}
 
 	public Document create(final String path) {
