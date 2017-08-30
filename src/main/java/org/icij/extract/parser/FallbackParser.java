@@ -13,9 +13,9 @@ import java.io.InputStream;
 import java.util.Collections;
 import java.util.Set;
 
-public class EmptyFileParser extends AbstractParser {
+public class FallbackParser extends AbstractParser {
 
-	public static Parser INSTANCE = new EmptyFileParser();
+	public static Parser INSTANCE = new FallbackParser();
 
 	private static final long serialVersionUID = 2962493551622366449L;
 

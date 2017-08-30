@@ -29,7 +29,7 @@ import org.apache.tika.sax.ExpandedTitleContentHandler;
 import org.apache.tika.sax.WriteOutContentHandler;
 import org.icij.extract.document.Document;
 import org.icij.extract.parser.CachingTesseractOCRParser;
-import org.icij.extract.parser.EmptyFileParser;
+import org.icij.extract.parser.FallbackParser;
 import org.icij.extract.parser.ParsingReader;
 import org.icij.extract.report.Reporter;
 import org.icij.extract.sax.HTML5Serializer;
@@ -405,7 +405,7 @@ public class Extractor {
 
 		// Set a fallback parser that outputs an empty document for empty files,
 		// otherwise throws an exception.
-		autoDetectParser.setFallback(EmptyFileParser.INSTANCE);
+		autoDetectParser.setFallback(FallbackParser.INSTANCE);
 
 		// Only include "safe" tags in the HTML output from Tika's HTML parser.
 		// This excludes script tags and objects.
