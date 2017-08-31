@@ -21,8 +21,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.LinkedList;
 import java.util.function.Function;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
 
 public class EmbedSpawner extends EmbedParser {
 
@@ -71,7 +69,7 @@ public class EmbedSpawner extends EmbedParser {
 
 		// Create a Writer that will receive the parser output for the embed file, for later retrieval.
 		final ByteArrayOutputStream output = new ByteArrayOutputStream(8192);
-		final Writer writer = new OutputStreamWriter(new GZIPOutputStream(output), StandardCharsets.UTF_8);
+		final Writer writer = new OutputStreamWriter(output, StandardCharsets.UTF_8);
 
 		final ContentHandler embedHandler = handlerFunction.apply(writer);
 		final EmbeddedDocument embed = documentStack.getLast().addEmbed(metadata);
@@ -80,8 +78,8 @@ public class EmbedSpawner extends EmbedParser {
 		// Call setReader on the embed object with a plain reader for this temp file.
 		// When all parsing finishes, close temporary resources.
 		// Note that getPath should still return the path to the original file.
-		embed.setReader(() -> new InputStreamReader(new GZIPInputStream(new ByteArrayInputStream(output
-					.toByteArray())), StandardCharsets.UTF_8));
+		embed.setReader(() -> new InputStreamReader(new ByteArrayInputStream(output.toByteArray()),
+				StandardCharsets.UTF_8));
 
 		String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
 		if (null == name || name.isEmpty()) {
