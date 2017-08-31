@@ -162,16 +162,14 @@ public class EmbedSpawner extends EmbedParser {
 
 		// To prevent massive duplication and because the disk is only a storage for underlying data, save using the
 		// straight hash as a filename.
-		if (Files.notExists(destination)) {
-			try {
-				Files.copy(source, destination, StandardCopyOption.ATOMIC_MOVE);
-			} catch (final FileAlreadyExistsException e) {
+		try {
+			Files.copy(source, destination);
+		} catch (final FileAlreadyExistsException e) {
+			if (Files.size(source) != Files.size(destination)) {
+				Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
+			} else {
 				logger.info("Temporary file for document \"{}\" in \"{}\" already exists.", name, root);
 			}
-		} else if (Files.size(source) != Files.size(destination)) {
-			Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
-		} else {
-			logger.info("Temporary file for document \"{}\" in \"{}\" already exists.", name, root);
 		}
 	}
 
