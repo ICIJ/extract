@@ -221,6 +221,14 @@ public class MIMEOutlookPSTParser extends AbstractParser {
 
 		builder.setMessageId(pstMessage.getInternetMessageId());
 
+		// TODO: building multipart emails is a nightmare.
+		// 1) follow this guide: https://stackoverflow.com/questions/3902455/mail-multipart-alternative-vs-multipart-mixed
+		// 2) with body html and body text we'll have encoding problems:
+		// 	- the body text should be provided in the original charset and not transcoded to utf-8 - for this we need to be able to get
+		//	  the raw bytes and the charset from the pstobject, instead of a string;
+		//	- the same for the HTML, except that it's worse because the HTML document might contain a <meta charset="bla"> in the header,
+		//	  which will then break the display in viewers. 
+
 		final int attachmentCount = pstMessage.getNumberOfAttachments();
 
 		final String bodyText = pstMessage.getBody(), bodyHtml = pstMessage.getBodyHTML();
