@@ -1,26 +1,25 @@
 package org.icij.extract.parser.afp;
 
 import org.afplib.afplib.*;
-import org.afplib.base.Triplet;
-import org.afplib.io.SDFHelper;
+import org.afplib.base.SF;
+
+import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.extractor.EmbeddedDocumentUtil;
-import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.PagedText;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.ParseContext;
-import org.apache.tika.sax.EmbeddedContentHandler;
 import org.apache.tika.sax.XHTMLContentHandler;
+
 import org.eclipse.emf.ecore.EObject;
+
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
+
 import java.util.LinkedList;
 import java.util.List;
 
@@ -31,23 +30,64 @@ import java.util.List;
  * <a href="https://www.ibm.com/support/knowledgecenter/en/SSLTBW_1.13.0/com.ibm.zos.r13.admb100/admb1a04722.htm">
  *     Structured field formats</a> for a description of each one.
  */
-class AFPVisitor {
+class MODCAVisitor {
+
+	private static final boolean DEBUG = false;
 
 	private final XHTMLContentHandler xhtml;
 	private final Metadata metadata;
 	private final ParseContext context;
 
 	private final List<IPD> pictureData = new LinkedList<>();
-	private Metadata imageMetadata = null;
 	private String imageName = null;
 
+	private int functionSet = 0;
 	private int pages = 0;
 	private int images = 0;
 
-	AFPVisitor(final XHTMLContentHandler xhtml, final Metadata metadata, final ParseContext context) {
+	MODCAVisitor(final XHTMLContentHandler xhtml, final Metadata metadata, final ParseContext context) {
 		this.xhtml = xhtml;
 		this.metadata = metadata;
 		this.context = context;
+	}
+
+	void accept(final SF sf) throws SAXException, IOException {
+		switch (sf.eClass().getClassifierID()) {
+			case AfplibPackage.BBC: visit((BBC) sf);
+				break;
+			case AfplibPackage.BDA: visit((BDA) sf);
+				break;
+			case AfplibPackage.BDT: visit((BDT) sf);
+				break;
+			case AfplibPackage.BGR: visit((BGR) sf);
+				break;
+			case AfplibPackage.BIM: visit((BIM) sf);
+				break;
+			case AfplibPackage.BPG: visit((BPG) sf);
+				break;
+			case AfplibPackage.BPT: visit((BPT) sf);
+				break;
+			case AfplibPackage.EBC: visit((EBC) sf);
+				break;
+			case AfplibPackage.EDT: visit((EDT) sf);
+				break;
+			case AfplibPackage.EIM: visit((EIM) sf);
+				break;
+			case AfplibPackage.EPG: visit((EPG) sf);
+				break;
+			case AfplibPackage.EPT: visit((EPT) sf);
+				break;
+			case AfplibPackage.IDD: visit((IDD) sf);
+				break;
+			case AfplibPackage.IPD: visit((IPD) sf);
+				break;
+			case AfplibPackage.MCF: visit((MCF) sf);
+				break;
+			case AfplibPackage.NOP: visit((NOP) sf);
+				break;
+			case AfplibPackage.PTX: visit((PTX) sf);
+				break;
+		}
 	}
 
 	/**
@@ -55,7 +95,7 @@ class AFPVisitor {
 	 *
 	 * @param bbc begin bar code object
 	 */
-	void visit(final BBC bbc) throws SAXException {
+	private void visit(final BBC bbc) throws SAXException {
 		final String name = bbc.getBCdoName();
 
 		xhtml.startElement("div", "class", "bar-code");
@@ -73,7 +113,7 @@ class AFPVisitor {
 	 * @param bda bar code data
 	 * @throws SAXException if there's an exception writing the tag
 	 */
-	void visit(final BDA bda) throws SAXException {
+	private void visit(final BDA bda) throws SAXException {
 		final byte[] data = bda.getData();
 
 		if (null != data && data.length > 0) {
@@ -88,7 +128,7 @@ class AFPVisitor {
 	 *
 	 * @param bdt begin document
 	 */
-	void visit(final BDT bdt) {
+	private void visit(final BDT bdt) {
 		final String title = bdt.getDocName();
 
 		if (null != title) {
@@ -101,7 +141,7 @@ class AFPVisitor {
 	 *
 	 * @param bgr begin graphics object
 	 */
-	void visit(final BGR bgr) throws SAXException {
+	private void visit(final BGR bgr) throws SAXException {
 		final String name = bgr.getGdoName();
 
 		if (null != name) {
@@ -117,8 +157,7 @@ class AFPVisitor {
 	 * @param bim begin image object
 	 * @throws SAXException if there's an exception writing the image tag
 	 */
-	void visit(final BIM bim) throws SAXException {
-		imageMetadata = new Metadata();
+	private void visit(final BIM bim) throws SAXException {
 		imageName = bim.getIdoName();
 
 		if (null != imageName) {
@@ -128,9 +167,6 @@ class AFPVisitor {
 		if (null == imageName || imageName.isEmpty()) {
 			imageName = "image-" + (images++);
 		}
-
-		imageMetadata.set(TikaCoreProperties.EMBEDDED_RESOURCE_TYPE,
-				TikaCoreProperties.EmbeddedResourceType.INLINE.toString());
 
 		final AttributesImpl attr = new AttributesImpl();
 
@@ -146,7 +182,7 @@ class AFPVisitor {
 	 * @param bpg begin page
 	 * @throws SAXException if there's an exception writing the page tag
 	 */
-	void visit(final BPG bpg) throws SAXException {
+	private void visit(final BPG bpg) throws SAXException {
 		final String name = bpg.getPageName();
 
 		pages++;
@@ -164,7 +200,7 @@ class AFPVisitor {
 	 *
 	 * @param bpt begin presentation text
 	 */
-	void visit(final BPT bpt) throws SAXException {
+	private void visit(final BPT bpt) throws SAXException {
 		xhtml.startElement("p");
 	}
 
@@ -173,7 +209,7 @@ class AFPVisitor {
 	 *
 	 * @param ebc end bar code object
 	 */
-	void visit(final EBC ebc) throws SAXException {
+	private void visit(final EBC ebc) throws SAXException {
 		xhtml.endElement("div");
 	}
 
@@ -182,7 +218,7 @@ class AFPVisitor {
 	 *
 	 * @param edt end document
 	 */
-	void visit(final EDT edt) {
+	private void visit(final EDT edt) {
 		final String title = edt.getDocName();
 
 		if (null != title) {
@@ -197,102 +233,38 @@ class AFPVisitor {
 	 *
 	 * @param eim end image object
 	 */
-	void visit(final EIM eim) throws IOException, SAXException {
-		final Triplet[] triplets = SDFHelper.ipds2sdf(pictureData);
-		final ByteArrayOutputStream boas = new ByteArrayOutputStream();
+	private void visit(final EIM eim) throws IOException, SAXException {
+		final EmbeddedDocumentExtractor embedExtractor;
+		final Metadata metadata = new Metadata();
 
-		int compressionId = 0;
-		int bitOrder = 0;
-		int bitsPerIDE = 0;
+		metadata.set(TikaCoreProperties.EMBEDDED_RESOURCE_TYPE,
+				TikaCoreProperties.EmbeddedResourceType.INLINE.toString());
+		metadata.set(TikaCoreProperties.TITLE, imageName);
 
-		final byte[] buffer;
-		String type = null;
-		String suffix = null;
+		switch (functionSet) {
+			case 10:
+			case 11:
+			case 40:
+			case 42:
+			case 45:
+				metadata.set(Metadata.CONTENT_TYPE, "image/x-afp+fs" + functionSet);
+				break;
 
-		pictureData.clear();
+			default:
+				throw new IOException("Unknown function set: " + functionSet + ".");
+		}
 
-		for (Triplet triplet: triplets) {
-			final int classifierId = triplet.eClass().getClassifierID();
+		embedExtractor = EmbeddedDocumentUtil.getEmbeddedDocumentExtractor(context);
+		if (embedExtractor.shouldParseEmbedded(metadata)) {
+			final ByteArrayOutputStream bos = new ByteArrayOutputStream(4096);
 
-			switch (classifierId) {
-				default:
-					System.out.println("  classifier: " + Integer.toString(classifierId) + " / " +
-							Integer.toHexString(classifierId).toUpperCase());
-					break;
-
-				case AfplibPackage.BEGIN_SEGMENT:
-					final BeginSegment beginSegment = (BeginSegment) triplet;
-
-					System.out.println("    segment name: " + beginSegment.getSEGNAME());
-					break;
-
-				case AfplibPackage.END_SEGMENT:
-					break;
-
-				case AfplibPackage.BEGIN_IMAGE:
-					final BeginImage beginImage = (BeginImage) triplet;
-
-					if (beginImage.getOBJTYPE() != 0xFF) {
-						throw new IOException("Object type must be equal to xFF (IOCA image object).");
-					}
-
-					break;
-
-				case AfplibPackage.END_IMAGE:
-					break;
-
-				case AfplibPackage.IMAGE_SIZE:
-					final ImageSize imageSize = (ImageSize) triplet;
-
-					System.out.println("    hresol: " + imageSize.getHRESOL());
-					System.out.println("    hsize: " + imageSize.getHSIZE());
-					System.out.println("    unitbase: " + imageSize.getUNITBASE());
-					System.out.println("    vresol: " + imageSize.getVRESOL());
-					System.out.println("    vsize: " + imageSize.getVSIZE());
-					break;
-
-				case AfplibPackage.IDE_SIZE:
-					final IDESize ideSize = (IDESize) triplet;
-
-					bitsPerIDE = ideSize.getIDESZ();
-
-					System.out.println("    IDE size: " + Integer.toHexString(bitsPerIDE));
-					break;
-
-				case AfplibPackage.IMAGE_ENCODING:
-					final ImageEncoding imageEncoding = (ImageEncoding) triplet;
-
-					bitOrder = imageEncoding.getBITORDR();
-					compressionId = imageEncoding.getCOMPRID();
-
-					System.out.println("    bit order: " + Integer.toHexString(bitOrder));
-					System.out.println("    compression ID: " + Integer.toHexString(compressionId));
-					break;
-
-				case AfplibPackage.IMAGE_DATA:
-					boas.write(((ImageData) triplet).getDATA());
-					break;
+			for (IPD ipd : pictureData) {
+				bos.write(ipd.getIOCAdat());
 			}
+
+			embedExtractor.parseEmbedded(new ByteArrayInputStream(bos.toByteArray()),
+					xhtml, metadata, false);
 		}
-
-		type = compressIdToType(compressionId);
-		suffix = suffixForType(type);
-
-		imageName = imageName + suffix;
-
-		imageMetadata.set(Metadata.CONTENT_TYPE, type);
-		imageMetadata.set(Metadata.RESOURCE_NAME_KEY, imageName);
-
-		buffer = boas.toByteArray();
-
-		Files.write(Paths.get("/Users/matt/Downloads/test/" + imageName), buffer, StandardOpenOption.CREATE);
-
-		try (final InputStream in = TikaInputStream.get(buffer)) {
-			EmbeddedDocumentUtil.getEmbeddedDocumentExtractor(context).parseEmbedded(in, new
-					EmbeddedContentHandler(xhtml), imageMetadata, false);
-		}
-
-		imageMetadata = null;
 	}
 
 	/**
@@ -301,7 +273,7 @@ class AFPVisitor {
 	 * @param epg end page
 	 * @throws SAXException if there's an exception writing the closing tag
 	 */
-	void visit(final EPG epg) throws SAXException {
+	private void visit(final EPG epg) throws SAXException {
 		xhtml.endElement("div");
 	}
 
@@ -310,7 +282,7 @@ class AFPVisitor {
 	 *
 	 * @param ept end presentation text
 	 */
-	void visit(final EPT ept) throws SAXException {
+	private void visit(final EPT ept) throws SAXException {
 		xhtml.endElement("p");
 	}
 
@@ -319,14 +291,25 @@ class AFPVisitor {
 	 *
 	 * @param idd image data descriptor
 	 */
-	void visit(final IDD idd) throws IOException {
+	private void visit(final IDD idd) throws IOException {
+		if (DEBUG) {
+			System.out.println("\txresol: " + idd.getXRESOL());
+			System.out.println("\txsize: " + idd.getXSIZE());
+			System.out.println("\tunitbase: " + idd.getUNITBASE());
+			System.out.println("\tyresol: " + idd.getYRESOL());
+			System.out.println("\tysize: " + idd.getYSIZE());
+			System.out.println("\tnum sdfs: " + idd.getSDFS().size());
+		}
+
 		for (EObject eo: idd.eContents()) {
 			if (eo instanceof IOCAFunctionSetIdentification) {
 				final IOCAFunctionSetIdentification identification = (IOCAFunctionSetIdentification) eo;
-				final int functionSet = identification.getFCNSET();
+				functionSet = identification.getFCNSET();
 
-				System.out.println("  function set: " + functionSet + " / " +
-						Integer.toHexString(functionSet).toUpperCase());
+				if (DEBUG) {
+					System.out.println("\tfunction set: " + functionSet + " / " +
+							Integer.toHexString(functionSet).toUpperCase());
+				}
 
 				if (identification.getCATEGORY() != 1) {
 					throw new IOException("IOCA function set category must be equal to x01.");
@@ -340,7 +323,7 @@ class AFPVisitor {
 	 *
 	 * @param ipd image picture data
 	 */
-	void visit(final IPD ipd) throws IOException {
+	private void visit(final IPD ipd) throws IOException {
 		pictureData.add(ipd);
 	}
 
@@ -349,7 +332,7 @@ class AFPVisitor {
 	 *
 	 * @param mcf map coded font
 	 */
-	void visit(final MCF mcf) {
+	private void visit(final MCF mcf) {
 
 	}
 
@@ -358,12 +341,18 @@ class AFPVisitor {
 	 *
 	 * @param nop no operation
 	 */
-	void visit(final NOP nop) throws SAXException {
+	private void visit(final NOP nop) throws SAXException {
 		final byte[] comment = nop.getUndfData();
 
 		if (null != comment && comment.length > 0) {
 			xhtml.startElement("p");
-			xhtml.characters(new String(comment, nop.getCharset()));
+
+			if (null != nop.getCharset()) {
+				xhtml.characters(new String(comment, nop.getCharset()));
+			} else {
+				xhtml.characters(new String(comment));
+			}
+
 			xhtml.endElement("p");
 		}
 	}
@@ -373,40 +362,7 @@ class AFPVisitor {
 	 *
 	 * @param ptx presentation text data
 	 */
-	void visit(final PTX ptx) {
+	private void visit(final PTX ptx) {
 
-	}
-
-	private String compressIdToType(final int compressionId) {
-		switch (compressionId) {
-
-			// G4 MMR-Modified Modified READ
-			// (ITU-TSS T.6 Group 4 two-dimensional coding standard for facsimile)
-			case 0x82:
-				return "image/tiff";
-
-			case 0x83:
-				return "image/jpeg";
-
-			case 0x84:
-				return "image/jbig2";
-		}
-
-		throw new IllegalArgumentException("Unknown compression ID: " + Integer.toHexString(compressionId));
-	}
-
-	private String suffixForType(final String type) {
-		switch (type) {
-			case "image/tiff":
-				return ".tiff";
-
-			case "image/jpeg":
-				return ".jpg";
-
-			case "image/jbig2":
-				return ".jb2";
-		}
-
-		throw new IllegalArgumentException("Unknown type: " + type);
 	}
 }

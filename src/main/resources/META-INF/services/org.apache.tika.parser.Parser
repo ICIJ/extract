@@ -1,1 +1,2 @@
-org.icij.extract.parser.afp.AFPParser
+org.icij.extract.parser.afp.MODCAParser
+org.icij.extract.parser.afp.IOCAParser

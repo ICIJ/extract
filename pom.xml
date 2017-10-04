@@ -102,6 +102,12 @@
 			<version>3.19.3</version>
 		</dependency>
 
+		<dependency>
+			<groupId>com.twelvemonkeys.imageio</groupId>
+			<artifactId>imageio-ioca</artifactId>
+			<version>3.4-SNAPSHOT</version>
+		</dependency>
+
 		<!-- Optional PDFBox dependency for parsing JBIG2 format images in PDF files. -->
 		<dependency>
 			<groupId>com.levigo.jbig2</groupId>
@@ -122,18 +128,10 @@
 			<version>1.3.0</version>
 		</dependency>
 
-		<!--
-		<dependency>
-			<groupId>com.github.afpdev</groupId>
-			<artifactId>alpheusafpparser</artifactId>
-			<version>0.2.2</version>
-		</dependency>
-		-->
-
 		<dependency>
 			<groupId>com.github.yan74</groupId>
 			<artifactId>afplib</artifactId>
-			<version>8079ffc</version>
+			<version>e05f341</version>
 		</dependency>
 
 		<dependency>
