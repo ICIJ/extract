@@ -103,9 +103,9 @@
 		</dependency>
 
 		<dependency>
-			<groupId>com.twelvemonkeys.imageio</groupId>
-			<artifactId>imageio-ioca</artifactId>
-			<version>3.4-SNAPSHOT</version>
+			<groupId>com.github.mattcg</groupId>
+			<artifactId>TwelveMonkeys</artifactId>
+			<version>f1e1293ef4</version>
 		</dependency>
 
 		<!-- Optional PDFBox dependency for parsing JBIG2 format images in PDF files. -->
@@ -131,7 +131,7 @@
 		<dependency>
 			<groupId>com.github.yan74</groupId>
 			<artifactId>afplib</artifactId>
-			<version>e05f341</version>
+			<version>0a6c4f0</version>
 		</dependency>
 
 		<dependency>
