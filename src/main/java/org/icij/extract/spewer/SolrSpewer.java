@@ -125,7 +125,7 @@ public class SolrSpewer extends Spewer implements Serializable {
 
 	@Override
 	public void write(final Document document, final Reader reader) throws IOException {
-		final SolrInputDocument inputDocument = prepareDocument(document, reader);
+		final SolrInputDocument inputDocument = prepareDocument(document, reader, 0);
 		UpdateResponse response;
 
 		response = write(document, inputDocument);
@@ -255,7 +255,8 @@ public class SolrSpewer extends Spewer implements Serializable {
 		}
 	}
 
-	private SolrInputDocument prepareDocument(final Document document, final Reader reader) throws IOException {
+	private SolrInputDocument prepareDocument(final Document document, final Reader reader, final int level)
+			throws IOException {
 		final SolrInputDocument inputDocument = new SolrInputDocument();
 
 		// Set extracted metadata fields supplied by Tika.
@@ -303,6 +304,9 @@ public class SolrSpewer extends Spewer implements Serializable {
 			setFieldValue(inputDocument, fields.forParentPath(), document.getPath().getParent().toString());
 		}
 
+		// Set the level in the hierarchy.
+		setFieldValue(inputDocument, fields.forLevel(), Integer.toString(level));
+
 		// Finally, set the text field containing the actual extracted text.
 		setFieldValue(inputDocument, fields.forText(), toString(reader));
 
@@ -314,16 +318,13 @@ public class SolrSpewer extends Spewer implements Serializable {
 		final SolrInputDocument inputDocument;
 
 		try (final Reader reader = child.getReader()) {
-			inputDocument = prepareDocument(child, reader);
+			inputDocument = prepareDocument(child, reader, level);
 		}
 
 		// Null is a signal to skip the document.
 		if (null == inputDocument) {
 			return null;
 		}
-
-		// Set the level in the hierarchy.
-		setFieldValue(inputDocument, fields.forLevel(), Integer.toString(level));
 
 		// Set the ID of the parent on the child before adding to the parent.
 		// We do this because:

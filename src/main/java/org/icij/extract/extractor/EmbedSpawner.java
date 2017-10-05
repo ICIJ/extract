@@ -18,14 +18,9 @@ import org.xml.sax.SAXException;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.*;
 import java.util.LinkedList;
 import java.util.function.Function;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
 
 public class EmbedSpawner extends EmbedParser {
 
@@ -71,21 +66,20 @@ public class EmbedSpawner extends EmbedParser {
 	}
 
 	private void spawnEmbedded(final TikaInputStream tis, final Metadata metadata) throws IOException {
-		final ByteArrayOutputStream output = new ByteArrayOutputStream(8192);
 
-		// Create a Writer that will receive the parser outputPath for the embed file, for later retrieval.
-		final Writer writer = new BufferedWriter(new OutputStreamWriter(new GZIPOutputStream(output, true),
-				StandardCharsets.UTF_8));
+		// Create a Writer that will receive the parser output for the embed file, for later retrieval.
+		final ByteArrayOutputStream output = new ByteArrayOutputStream(8192);
+		final Writer writer = new OutputStreamWriter(output, StandardCharsets.UTF_8);
 
 		final ContentHandler embedHandler = handlerFunction.apply(writer);
 		final EmbeddedDocument embed = documentStack.getLast().addEmbed(metadata);
 
-		// Use temporary resources to copy formatted outputPath from the content handler to a temporary file.
+		// Use temporary resources to copy formatted output from the content handler to a temporary file.
 		// Call setReader on the embed object with a plain reader for this temp file.
 		// When all parsing finishes, close temporary resources.
 		// Note that getPath should still return the path to the original file.
-		embed.setReader(() -> new BufferedReader(new InputStreamReader(new GZIPInputStream(new ByteArrayInputStream(output
-					.toByteArray())))));
+		embed.setReader(() -> new InputStreamReader(new ByteArrayInputStream(output.toByteArray()),
+				StandardCharsets.UTF_8));
 
 		String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
 		if (null == name || name.isEmpty()) {
@@ -137,6 +131,7 @@ public class EmbedSpawner extends EmbedParser {
 	}
 
 	private void writeEmbed(final TikaInputStream tis, final EmbeddedDocument embed, final String name) throws IOException {
+		final Path destination = outputPath.resolve(embed.getHash());
 		final Path source;
 
 		final Metadata metadata = embed.getMetadata();
@@ -163,13 +158,16 @@ public class EmbedSpawner extends EmbedParser {
 			metadata.set(Metadata.CONTENT_LENGTH, Long.toString(Files.size(source)));
 		}
 
-		// To prevent massive duplication and because the disk is only a storage for underlying date, save using the
+		// To prevent massive duplication and because the disk is only a storage for underlying data, save using the
 		// straight hash as a filename.
-		try (final OutputStream copy = Files.newOutputStream(outputPath.resolve(embed.getHash()),
-				StandardOpenOption.CREATE_NEW)) {
-			Files.copy(source, copy);
-		} catch (FileAlreadyExistsException e) {
-			logger.info("Temporary file for document \"{}\" in \"{}\" already exists.", name, root);
+		try {
+			Files.copy(source, destination);
+		} catch (final FileAlreadyExistsException e) {
+			if (Files.size(source) != Files.size(destination)) {
+				Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
+			} else {
+				logger.info("Temporary file for document \"{}\" in \"{}\" already exists.", name, root);
+			}
 		}
 	}
 
