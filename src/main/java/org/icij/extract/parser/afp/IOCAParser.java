@@ -17,13 +17,11 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+
 import java.util.*;
 
 public class IOCAParser extends AbstractParser {
@@ -71,8 +69,6 @@ public class IOCAParser extends AbstractParser {
 
 				ImageIO.write(reader.read(i), "png", file);
 				DELEGATE.parse(Files.newInputStream(file.toPath()), handler, metadata, context);
-				Files.copy(file.toPath(), Paths.get("/Users/matt/Downloads/test/bla-"+ i + ".png"),
-						StandardCopyOption.REPLACE_EXISTING);
 			}
 		} finally {
 			reader.dispose();
