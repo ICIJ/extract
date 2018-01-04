@@ -30,8 +30,8 @@ jobs:
           - v1-dependencies-
 
       - run:
-        name: Install tesseract-ocr
-        command: sudo apt-get install -y tesseract-ocr
+          name: Install tesseract-ocr
+          command: sudo apt-get install -y tesseract-ocr
 
       - save_cache:
           paths:
