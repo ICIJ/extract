@@ -1,5 +1,6 @@
 package org.icij.extract.spewer;
 
+import org.apache.tika.metadata.Metadata;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.get.GetRequest;
@@ -19,8 +20,10 @@ import org.junit.Test;
 import java.io.ByteArrayInputStream;
 import java.net.InetAddress;
 import java.nio.file.Paths;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class ElasticsearchSpewerTest {
     private static final String TEST_INDEX = "datashare-test";
@@ -49,7 +52,24 @@ public class ElasticsearchSpewerTest {
 
 		spewer.write(document, reader);
 
-    	GetResponse documentFields = client.get(new GetRequest("datashare", "doc", document.getId())).get();
+    	GetResponse documentFields = client.get(new GetRequest(TEST_INDEX, "doc", document.getId())).get();
+		assertTrue(documentFields.isExists());
 		assertEquals(document.getId(), documentFields.getId());
+	}
+
+	@Test
+	public void testEmbeddedDocumentsWrite() throws Exception {
+		final Document document = factory.create(Paths.get("test-file.txt"));
+		document.addEmbed("embedded-key", new PathIdentifier(), Paths.get("embedded_file.txt"), new Metadata());
+		final ParsingReader reader = new ParsingReader(new ByteArrayInputStream("test embedded document".getBytes()));
+
+		spewer.write(document, reader);
+
+        GetRequest getRequest = new GetRequest(TEST_INDEX, "doc", "embedded_file.txt");
+        getRequest.routing("test-file.txt");
+        GetResponse documentFields = client.get(getRequest).get();
+        assertTrue(documentFields.isExists());
+		assertEquals("test-file.txt", ((Map)documentFields.getSourceAsMap().get("join")).get("parent"));
+		assertEquals("document", ((Map)documentFields.getSourceAsMap().get("join")).get("name"));
 	}
 }

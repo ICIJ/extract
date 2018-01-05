@@ -3,6 +3,7 @@ package org.icij.extract.spewer;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
 import org.icij.extract.document.Document;
+import org.icij.extract.document.EmbeddedDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,6 +13,8 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+
+import static java.lang.System.currentTimeMillis;
 
 public class ElasticsearchSpewer extends Spewer implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchSpewer.class);
@@ -37,22 +40,59 @@ public class ElasticsearchSpewer extends Spewer implements Serializable {
 
     @Override
     public void write(final Document document, final Reader reader) throws IOException {
-        IndexRequest req = new IndexRequest(index_name, ES_INDEX_TYPE, document.getId());
-        req = req.source(generateJsonFrom(document, reader));
+        indexDocument(document, reader, null, 0);
+        for (EmbeddedDocument childDocument : document.getEmbeds()) {
+            writeTree(childDocument, document, 1);
+        }
+    }
+
+    private void writeTree(final Document doc, final Document parent, final int level)
+            throws IOException {
+        doc.clearReader();
+        try (final Reader reader = doc.getReader()) {
+            indexDocument(doc, reader, parent, level);
+        }
+
+        for (EmbeddedDocument child : doc.getEmbeds()) {
+            writeTree(child, doc, level + 1);
+        }
+    }
+
+    private void indexDocument(Document document, Reader reader,
+                               final Document parent, final int level) throws IOException {
+        final IndexRequest req = prepareRequest(document, reader, parent, level);
         try {
+            long before = currentTimeMillis();
             client.index(req).get();
+            logger.info("{} added to elasticsearch in {}ms: \"{}\".", parent == null ? "Document": "Child",
+                    currentTimeMillis() - before, document);
         } catch (InterruptedException | ExecutionException e) {
             logger.warn("interrupted execution of request", e);
         }
     }
 
-    private Map<String, Object> generateJsonFrom(final Document document, final Reader reader) throws IOException {
+    private IndexRequest prepareRequest(final Document document, final Reader reader,
+                                        final Document parent, final int level) throws IOException {
+        IndexRequest req = new IndexRequest(index_name, ES_INDEX_TYPE, document.getId());
         Map<String, Object> jsonDocument = new HashMap<>();
-        new MetadataTransformer(document.getMetadata(), fields).
-                transform(new MapValueConsumer(jsonDocument), new MapValuesConsumer(jsonDocument));
+        new MetadataTransformer(document.getMetadata(), fields).transform(
+                new MapValueConsumer(jsonDocument), new MapValuesConsumer(jsonDocument));
+
         jsonDocument.put(ES_DOC_TYPE_FIELD, "document");
-        jsonDocument.put(ES_CONTENT_FIELD, toString(reader));
-        return jsonDocument;
+        if (parent != null) {
+            jsonDocument.put(ES_JOIN_FIELD, new HashMap<String, String>() {{
+                put("name", "document");
+                put("parent", parent.getId());
+            }});
+            req.routing(parent.getId());
+        }
+        jsonDocument.put(fields.forLevel(), level);
+
+        if (reader != null) {
+            jsonDocument.put(ES_CONTENT_FIELD, toString(reader));
+        }
+        req = req.source(jsonDocument);
+        return req;
     }
 
     @Override
