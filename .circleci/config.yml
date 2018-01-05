@@ -19,6 +19,10 @@ jobs:
     dependencies:
       override:
 
+    database:
+      pre:
+        - docker run -d -ti -e discovery.type=single-node docker.elastic.co/elasticsearch/elasticsearch:6.1.0
+
     steps:
       - checkout
 
