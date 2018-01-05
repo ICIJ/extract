@@ -1,21 +1,19 @@
 package org.icij.extract.test;
 
-import java.util.Properties;
-
-import java.io.File;
-
-import java.net.URL;
-
 import org.apache.commons.io.FileUtils;
-
-import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.embedded.JettyConfig;
 import org.apache.solr.client.solrj.embedded.JettySolrRunner;
-
-import org.junit.ClassRule;
-import org.junit.BeforeClass;
+import org.apache.solr.client.solrj.impl.HttpClientUtil;
+import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.common.params.ModifiableSolrParams;
 import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
+
+import java.io.File;
+import java.net.URL;
+import java.util.Properties;
 
 public abstract class SolrJettyTestBase {
 
@@ -83,13 +81,11 @@ public abstract class SolrJettyTestBase {
 			// - enable Map Remote and map 127.0.0.1:8888 to 127.0.0.1:8080
 			url = new URL(url.getProtocol(), url.getHost(), url.getPort(), url.getFile() + "/" + core);
 
-			final HttpSolrClient client = new HttpSolrClient.Builder(url.toString()).build();
+			ModifiableSolrParams params = new ModifiableSolrParams();
+			params.add(HttpClientUtil.PROP_CONNECTION_TIMEOUT, Integer.toString(DEFAULT_CONNECTION_TIMEOUT));
 
-			client.setConnectionTimeout(DEFAULT_CONNECTION_TIMEOUT);
-			client.setDefaultMaxConnectionsPerHost(100);
-			client.setMaxTotalConnections(100);
-
-			return client;
+			return new HttpSolrClient.Builder(url.toString()).
+					withHttpClient(HttpClientUtil.createClient(params)).build();
 		} catch(Exception e) {
 			throw new RuntimeException(e);
 		}

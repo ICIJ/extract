@@ -24,7 +24,7 @@
 		<java.version>1.8</java.version>
 
 		<app.main.class>org.icij.extract.cli.Main</app.main.class>
-
+		<solr.version>7.1.0</solr.version>
 		<maven-compiler.version>3.6.0</maven-compiler.version>
 		<maven-dependency.version>2.10</maven-dependency.version>
 		<maven-jar.version>2.6</maven-jar.version>
@@ -124,7 +124,7 @@
 		<dependency>
 			<groupId>org.apache.solr</groupId>
 			<artifactId>solr-solrj</artifactId>
-			<version>6.6.0</version>
+			<version>${solr.version}</version>
 		</dependency>
 
 		<dependency>
@@ -204,7 +204,7 @@
 		<dependency>
 			<groupId>org.apache.solr</groupId>
 			<artifactId>solr-core</artifactId>
-			<version>6.6.0</version>
+			<version>${solr.version}</version>
 			<scope>test</scope>
 		</dependency>
 
