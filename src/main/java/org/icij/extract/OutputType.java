@@ -9,7 +9,7 @@ import java.util.Locale;
  * @since 1.0.0-beta
  */
 public enum OutputType {
-	FILE, STDOUT, SOLR, REST;
+	FILE, STDOUT, SOLR, REST, ELASTICSEARCH;
 
 	/**
 	 * Print a friendly name for the output type.
