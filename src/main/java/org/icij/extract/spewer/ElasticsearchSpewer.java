@@ -16,6 +16,7 @@ import java.util.concurrent.ExecutionException;
 public class ElasticsearchSpewer extends Spewer implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchSpewer.class);
     private final Client client;
+    private final String index_name;
     private static final String ES_INDEX_NAME = "datashare";
     private static final String ES_INDEX_TYPE = "doc";
     private static final String ES_DOC_TYPE_FIELD = "type";
@@ -23,13 +24,20 @@ public class ElasticsearchSpewer extends Spewer implements Serializable {
     private static final String ES_CONTENT_FIELD = "content";
 
     public ElasticsearchSpewer(final Client client, final FieldNames fields) {
-       		super(fields);
-       		this.client = client;
-       	}
+        super(fields);
+        this.client = client;
+        this.index_name = ES_INDEX_NAME;
+    }
+
+    public ElasticsearchSpewer(final Client client, final FieldNames fields, final String index_name) {
+        super(fields);
+        this.client = client;
+        this.index_name = index_name;
+    }
 
     @Override
     public void write(final Document document, final Reader reader) throws IOException {
-        IndexRequest req = new IndexRequest(ES_INDEX_NAME, ES_INDEX_TYPE, document.getId());
+        IndexRequest req = new IndexRequest(index_name, ES_INDEX_TYPE, document.getId());
         req = req.source(generateJsonFrom(document, reader));
         try {
             client.index(req).get();
@@ -48,14 +56,12 @@ public class ElasticsearchSpewer extends Spewer implements Serializable {
     }
 
     @Override
-    public void writeMetadata(Document document) throws IOException {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public void close() throws Exception {
         client.close();
     }
+
+    @Override
+    public void writeMetadata(Document document) throws IOException { throw new UnsupportedOperationException();}
 
     static class MapValueConsumer implements MetadataTransformer.ValueConsumer {
         private final Map<String, Object> map;
