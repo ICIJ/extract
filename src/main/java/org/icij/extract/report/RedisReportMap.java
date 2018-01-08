@@ -3,24 +3,23 @@ package org.icij.extract.report;
 import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.redis.*;
+import org.icij.task.Options;
+import org.icij.task.annotation.Option;
+import org.icij.task.annotation.OptionsClass;
+import org.redisson.Redisson;
+import org.redisson.RedissonMap;
+import org.redisson.client.RedisOutOfMemoryException;
+import org.redisson.client.codec.Codec;
+import org.redisson.client.protocol.Decoder;
+import org.redisson.client.protocol.Encoder;
+import org.redisson.command.CommandSyncService;
+import org.redisson.connection.ConnectionManager;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
-
-import org.icij.task.Options;
-
-import org.icij.task.annotation.Option;
-import org.icij.task.annotation.OptionsClass;
-import org.redisson.RedissonMap;
-import org.redisson.client.codec.Codec;
-import org.redisson.client.protocol.Decoder;
-import org.redisson.client.protocol.Encoder;
-import org.redisson.client.RedisOutOfMemoryException;
-import org.redisson.command.CommandSyncService;
-import org.redisson.connection.ConnectionManager;
 
 /**
  * A {@link ReportMap} using Redis as a backend.
@@ -62,7 +61,7 @@ public class RedisReportMap extends RedissonMap<Document, Report> implements Rep
 	private RedisReportMap(final DocumentFactory factory, final ConnectionManager connectionManager, final String name,
 	                       final Charset charset) {
 		super(new ReportCodec(factory, charset), new CommandSyncService(connectionManager), null == name ?
-				DEFAULT_NAME : name);
+				DEFAULT_NAME : name, Redisson.create(connectionManager.getCfg()), null);
 		this.connectionManager = connectionManager;
 	}
 

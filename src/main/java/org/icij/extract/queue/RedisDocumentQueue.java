@@ -1,9 +1,5 @@
 package org.icij.extract.queue;
 
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-
 import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.redis.ConnectionManagerFactory;
@@ -12,12 +8,17 @@ import org.icij.extract.redis.DocumentEncoder;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
+import org.redisson.Redisson;
 import org.redisson.RedissonBlockingQueue;
 import org.redisson.client.codec.Codec;
 import org.redisson.client.protocol.Decoder;
 import org.redisson.client.protocol.Encoder;
 import org.redisson.command.CommandSyncService;
 import org.redisson.connection.ConnectionManager;
+
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 /**
  * A {@link DocumentQueue} using Redis as a backend.
@@ -60,7 +61,7 @@ public class RedisDocumentQueue extends RedissonBlockingQueue<Document> implemen
 	private RedisDocumentQueue(final DocumentFactory factory, final ConnectionManager connectionManager,
 	                           final String name, final Charset charset) {
 		super(new DocumentQueueCodec(factory, charset), new CommandSyncService(connectionManager), null == name ?
-				DEFAULT_NAME : name);
+				DEFAULT_NAME : name, Redisson.create(connectionManager.getCfg()));
 		this.connectionManager = connectionManager;
 	}
 
