@@ -43,6 +43,7 @@ public class ElasticsearchSpewerTest {
     @AfterClass
     public static void tearDown() throws Exception {
         client.admin().indices().delete(new DeleteIndexRequest(TEST_INDEX));
+        client.close();
     }
 
     @Test
