@@ -1,5 +1,5 @@
-/*.iml
-/target/
-/.idea/
+*.iml
+target
+/.idea
 /tesseract_opencl_profile_devices.dat
 /kernel-*.bin
