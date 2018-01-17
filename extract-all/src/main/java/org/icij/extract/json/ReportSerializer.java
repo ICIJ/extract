@@ -1,20 +1,17 @@
 package org.icij.extract.json;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import org.icij.event.Notifiable;
 import org.icij.extract.document.Document;
+import org.icij.extract.extractor.ExtractionStatus;
 import org.icij.extract.report.Report;
 import org.icij.extract.report.ReportMap;
-import org.icij.extract.extractor.ExtractionStatus;
-
-import java.util.Iterator;
-import java.util.Map;
 
 import java.io.IOException;
-
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.JsonSerializer;
-
-import org.icij.kaxxa.events.Notifiable;
+import java.util.Iterator;
+import java.util.Map;
 
 /**
  * Serializes a {@link ReportMap} to JSON.

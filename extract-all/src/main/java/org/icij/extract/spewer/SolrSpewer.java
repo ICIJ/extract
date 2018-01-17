@@ -1,39 +1,38 @@
 package org.icij.extract.spewer;
 
+import org.apache.commons.io.TaggedIOException;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.solr.client.solrj.SolrClient;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.client.solrj.response.UpdateResponse;
+import org.apache.solr.common.SolrException;
+import org.apache.solr.common.SolrInputDocument;
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.mime.MediaType;
+import org.icij.extract.document.Document;
+import org.icij.extract.document.EmbeddedDocument;
+import org.icij.extract.parser.ParsingReader;
+import org.icij.spewer.FieldNames;
+import org.icij.spewer.MetadataTransformer;
+import org.icij.spewer.Spewer;
+import org.icij.task.Options;
+import org.icij.task.annotation.Option;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Map;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
-
-import org.apache.commons.io.TaggedIOException;
-import org.apache.tika.metadata.Metadata;
-import org.apache.tika.mime.MediaType;
-
-import org.apache.solr.common.SolrInputDocument;
-import org.apache.solr.common.SolrException;
-import org.apache.solr.client.solrj.SolrClient;
-import org.apache.solr.client.solrj.impl.HttpSolrClient;
-import org.apache.solr.client.solrj.response.UpdateResponse;
-import org.apache.solr.client.solrj.SolrServerException;
-
-import org.apache.http.impl.client.CloseableHttpClient;
-
-import org.icij.extract.document.Document;
-import org.icij.extract.document.EmbeddedDocument;
-import org.icij.extract.parser.ParsingReader;
-import org.icij.task.Options;
-import org.icij.task.annotation.Option;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Writes the text output from a {@link ParsingReader} to a Solr core.

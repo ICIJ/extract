@@ -1,17 +1,16 @@
 package org.icij.extract.tasks;
 
-import org.icij.extract.IndexType;
-import org.icij.net.http.PinnedHttpClientBuilder;
-import org.icij.task.MonitorableTask;
-
-import java.io.IOException;
-
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.SolrClient;
+import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.icij.extract.IndexType;
+import org.icij.spewer.http.PinnedHttpClientBuilder;
+import org.icij.task.MonitorableTask;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.Task;
+
+import java.io.IOException;
 
 /**
  * Delete documents from the index.

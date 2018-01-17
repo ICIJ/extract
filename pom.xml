@@ -1,23 +1,24 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
 
-	<groupId>org.icij.extract</groupId>
-	<artifactId>extract</artifactId>
-	<version>2.0.0</version>
-	<packaging>pom</packaging>
+    <groupId>org.icij.extract</groupId>
+    <artifactId>extract</artifactId>
+    <version>2.0.0</version>
+    <packaging>pom</packaging>
 
-	<developers>
-		<developer>
-			<name>Matthew Caruana Galizia</name>
-			<email>mcaruana@icij.org</email>
-		</developer>
-	</developers>
+    <developers>
+        <developer>
+            <name>Matthew Caruana Galizia</name>
+            <email>mcaruana@icij.org</email>
+        </developer>
+    </developers>
 
-	<scm>
-		<url>https://github.com/ICIJ/extract</url>
-		<connection>scm:git:https://github.com/ICIJ/extract.git</connection>
-		<developerConnection>scm:git:https://github.com/ICIJ/extract.git</developerConnection>
-	</scm>
+    <scm>
+        <url>https://github.com/ICIJ/extract</url>
+        <connection>scm:git:https://github.com/ICIJ/extract.git</connection>
+        <developerConnection>scm:git:https://github.com/ICIJ/extract.git</developerConnection>
+    </scm>
 
     <modules>
         <module>extract-lib</module>
@@ -25,16 +26,33 @@
     </modules>
 
     <properties>
-         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-         <java.version>1.8</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <java.version>1.8</java.version>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
 
-         <app.main.class>org.icij.extract.cli.Main</app.main.class>
-         <solr.version>7.1.0</solr.version>
+        <app.main.class>org.icij.extract.cli.Main</app.main.class>
+        <solr.version>7.1.0</solr.version>
 
-         <maven-compiler.version>3.6.0</maven-compiler.version>
-         <maven-dependency.version>2.10</maven-dependency.version>
-         <maven-jar.version>2.6</maven-jar.version>
-         <maven-shade.version>2.4.3</maven-shade.version>
-         <maven-install.version>2.5.2</maven-install.version>
-     </properties>
+        <maven-compiler.version>3.6.0</maven-compiler.version>
+        <maven-dependency.version>2.10</maven-dependency.version>
+        <maven-jar.version>2.6</maven-jar.version>
+        <maven-shade.version>2.4.3</maven-shade.version>
+        <maven-install.version>2.5.2</maven-install.version>
+    </properties>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>1.7.25</version>
+            </dependency>
+
+            <dependency>
+                <groupId>junit</groupId>
+                <artifactId>4.12</artifactId>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 </project>

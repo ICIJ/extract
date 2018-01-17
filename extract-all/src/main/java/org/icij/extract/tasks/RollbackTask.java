@@ -1,18 +1,17 @@
 package org.icij.extract.tasks;
 
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.solr.client.solrj.SolrClient;
+import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.response.UpdateResponse;
 import org.icij.extract.IndexType;
-
-import java.io.IOException;
-
-import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.SolrClient;
-import org.icij.net.http.PinnedHttpClientBuilder;
+import org.icij.spewer.http.PinnedHttpClientBuilder;
 import org.icij.task.DefaultTask;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.Task;
+
+import java.io.IOException;
 
 /**
  * Task for sending a rollback message to the index.

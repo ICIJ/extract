@@ -1,33 +1,27 @@
 package org.icij.extract.solr;
 
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.common.SolrDocument;
+import org.apache.tika.exception.TikaException;
 import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.parser.ParsingReader;
-import org.icij.extract.spewer.FieldNames;
 import org.icij.extract.spewer.SolrSpewer;
-import org.icij.extract.test.*;
-
-import java.util.Map;
-import java.util.HashMap;
+import org.icij.extract.test.SolrJettyTestBase;
+import org.icij.spewer.FieldNames;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-
-import java.nio.file.Paths;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-
+import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
-
-import org.apache.tika.exception.TikaException;
-
-import org.apache.solr.common.SolrDocument;
-import org.apache.solr.client.solrj.SolrServerException;
-
-import org.junit.Test;
-import org.junit.Assert;
-import org.junit.After;
+import java.util.HashMap;
+import java.util.Map;
 
 public class SolrSpewerTest extends SolrJettyTestBase {
 

@@ -1,25 +1,16 @@
 package org.icij.extract.cli;
 
 import me.tongfei.progressbar.ProgressBar;
-
-import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.UnrecognizedOptionException;
-
-import org.icij.kaxxa.events.Monitorable;
-import org.icij.kaxxa.events.listeners.ConsoleProgressListener;
-
-import org.icij.extract.tasks.*;
+import org.icij.event.Monitorable;
+import org.icij.event.listeners.ConsoleProgressListener;
 import org.icij.extract.cli.tasks.HelpTask;
 import org.icij.extract.cli.tasks.VersionTask;
-
-import org.icij.task.Option;
-import org.icij.task.Options;
-import org.icij.task.DefaultTask;
-import org.icij.task.DefaultTaskFactory;
-import org.icij.task.StringOptionParser;
-import org.icij.task.transformers.CommonsTransformer;
+import org.icij.extract.tasks.*;
+import org.icij.task.*;
 
 import java.io.IOException;
 import java.nio.file.Files;

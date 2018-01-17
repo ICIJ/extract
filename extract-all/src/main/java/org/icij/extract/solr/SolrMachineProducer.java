@@ -1,26 +1,21 @@
 package org.icij.extract.solr;
 
-import java.util.Set;
-
-import java.util.function.Supplier;
-
-import java.util.concurrent.Callable;
-import java.util.concurrent.TransferQueue;
-import java.util.concurrent.LinkedTransferQueue;
-
-import java.io.IOException;
-
-import org.apache.solr.common.SolrDocument;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
-import org.apache.solr.client.solrj.StreamingResponseCallback;
 import org.apache.solr.client.solrj.SolrServerException;
-
-import org.icij.kaxxa.events.Notifiable;
-import org.icij.extract.spewer.FieldNames;
-
+import org.apache.solr.client.solrj.StreamingResponseCallback;
+import org.apache.solr.common.SolrDocument;
+import org.icij.event.Notifiable;
+import org.icij.spewer.FieldNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.LinkedTransferQueue;
+import java.util.concurrent.TransferQueue;
+import java.util.function.Supplier;
 
 // TODO: Refactor into a Queue.
 public class SolrMachineProducer extends StreamingResponseCallback implements Callable<Long>,

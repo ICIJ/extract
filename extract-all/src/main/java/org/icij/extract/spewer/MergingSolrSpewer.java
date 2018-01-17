@@ -10,6 +10,7 @@ import org.apache.solr.common.SolrInputDocument;
 import org.apache.tika.metadata.Metadata;
 import org.icij.extract.document.Document;
 import org.icij.extract.document.EmbeddedDocument;
+import org.icij.spewer.FieldNames;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 

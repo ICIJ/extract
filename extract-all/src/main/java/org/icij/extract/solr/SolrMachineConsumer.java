@@ -1,13 +1,11 @@
 package org.icij.extract.solr;
 
-import java.util.function.Consumer;
+import org.apache.solr.common.SolrDocument;
+import org.icij.event.Notifiable;
+import org.icij.spewer.FieldNames;
 
 import java.util.concurrent.atomic.AtomicInteger;
-
-import org.apache.solr.common.SolrDocument;
-
-import org.icij.kaxxa.events.Notifiable;
-import org.icij.extract.spewer.FieldNames;
+import java.util.function.Consumer;
 
 public abstract class SolrMachineConsumer implements Consumer<SolrDocument> {
 

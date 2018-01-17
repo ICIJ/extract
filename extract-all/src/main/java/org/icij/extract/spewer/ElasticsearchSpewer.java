@@ -4,6 +4,9 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
 import org.icij.extract.document.Document;
 import org.icij.extract.document.EmbeddedDocument;
+import org.icij.spewer.FieldNames;
+import org.icij.spewer.MetadataTransformer;
+import org.icij.spewer.Spewer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

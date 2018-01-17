@@ -1,17 +1,14 @@
 package org.icij.extract.cli.tasks;
 
-import javax.imageio.ImageIO;
-
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.io.FileUtils;
-
+import org.icij.extract.cli.CommonsTransformer;
 import org.icij.extract.cli.Main;
-
-import org.icij.task.Options;
 import org.icij.task.DefaultTask;
+import org.icij.task.Options;
 import org.icij.task.StringOptionParser;
-import org.icij.task.transformers.CommonsTransformer;
 
+import javax.imageio.ImageIO;
 import java.util.Arrays;
 import java.util.Set;
 

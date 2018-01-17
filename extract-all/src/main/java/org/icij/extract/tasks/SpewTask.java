@@ -1,33 +1,33 @@
 package org.icij.extract.tasks;
 
-import org.icij.extract.mysql.DataSourceFactory;
-import org.icij.kaxxa.concurrent.BooleanSealableLatch;
-
-import java.nio.file.Path;
-import java.util.List;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.commons.io.FileUtils;
-
-import java.lang.management.ManagementFactory;
-
 import com.sun.management.OperatingSystemMXBean;
+import org.apache.commons.io.FileUtils;
+import org.icij.concurrent.BooleanSealableLatch;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.extractor.DocumentConsumer;
 import org.icij.extract.extractor.Extractor;
-import org.icij.extract.queue.*;
+import org.icij.extract.mysql.DataSourceFactory;
+import org.icij.extract.queue.DocumentQueue;
+import org.icij.extract.queue.DocumentQueueDrainer;
+import org.icij.extract.queue.DocumentQueueFactory;
+import org.icij.extract.queue.Scanner;
 import org.icij.extract.report.ReportMap;
 import org.icij.extract.report.ReportMapFactory;
 import org.icij.extract.report.Reporter;
-import org.icij.extract.spewer.Spewer;
-import org.icij.extract.spewer.SpewerFactory;
+import org.icij.spewer.Spewer;
+import org.icij.spewer.SpewerFactory;
 import org.icij.task.DefaultTask;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
 import org.icij.task.annotation.Task;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.management.ManagementFactory;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Spew extracted text from files to an output.

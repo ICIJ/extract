@@ -26,23 +26,20 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.icij.kaxxa</groupId>
-            <artifactId>kaxxa-concurrent</artifactId>
-            <version>1.0.0</version>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>log4j-over-slf4j</artifactId>
+            <version>1.7.25</version>
         </dependency>
 
         <dependency>
-            <groupId>org.icij.kaxxa</groupId>
-            <artifactId>kaxxa-events</artifactId>
-            <version>1.0.0</version>
+            <groupId>org.icij.extract</groupId>
+            <artifactId>extract-lib</artifactId>
+            <version>2.0.0</version>
         </dependency>
-
-        <dependency>
-            <groupId>org.icij.kaxxa</groupId>
-            <artifactId>kaxxa-io</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-
         <dependency>
             <groupId>org.icij.kaxxa</groupId>
             <artifactId>kaxxa-sql</artifactId>
@@ -65,18 +62,6 @@
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-csv</artifactId>
             <version>1.4</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.tika</groupId>
-            <artifactId>tika-parsers</artifactId>
-            <version>1.16</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.pff</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <!-- Optional dependency for parsing SQLite files. -->
@@ -163,24 +148,6 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>2.9.0</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>log4j-over-slf4j</artifactId>
-            <version>1.7.25</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>1.7.25</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-jdk14</artifactId>
-            <version>1.7.25</version>
         </dependency>
 
         <!-- EXCLUDED DEPENDENCY (excluded from JAR because it is test scope) -->

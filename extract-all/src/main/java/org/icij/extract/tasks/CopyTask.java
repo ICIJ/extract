@@ -1,23 +1,23 @@
 package org.icij.extract.tasks;
 
-import org.icij.extract.IndexType;
-import org.icij.extract.solr.*;
-import org.icij.net.http.PinnedHttpClientBuilder;
-
-import java.util.Map;
-import java.util.HashMap;
-
-import java.io.IOException;
-import java.util.Optional;
-
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.SolrClient;
+import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
-
+import org.icij.extract.IndexType;
+import org.icij.extract.solr.SolrCopyConsumer;
+import org.icij.extract.solr.SolrMachine;
+import org.icij.extract.solr.SolrMachineConsumer;
+import org.icij.extract.solr.SolrMachineProducer;
+import org.icij.spewer.http.PinnedHttpClientBuilder;
 import org.icij.task.MonitorableTask;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.Task;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Copy index fields.

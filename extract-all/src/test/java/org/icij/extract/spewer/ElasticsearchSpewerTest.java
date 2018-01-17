@@ -13,6 +13,7 @@ import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.parser.ParsingReader;
+import org.icij.spewer.FieldNames;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
