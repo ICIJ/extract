@@ -34,7 +34,7 @@ public class ExecutorProxyTest {
 		});
 
 		proxy.shutdown();
-		Assert.assertTrue(proxy.awaitTermination(1, TimeUnit.SECONDS));
+		Assert.assertTrue(proxy.awaitTermination(2, TimeUnit.SECONDS));
 		Assert.assertTrue(result.get(0, TimeUnit.MILLISECONDS));
 
 		Assert.assertTrue(proxy.awaitTermination(0, TimeUnit.SECONDS));
