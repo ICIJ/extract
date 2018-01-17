@@ -150,6 +150,12 @@
             <version>2.9.0</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.github.rjohnsondev</groupId>
+            <artifactId>java-libpst</artifactId>
+            <version>5fd2c75</version>
+        </dependency>
+
         <!-- EXCLUDED DEPENDENCY (excluded from JAR because it is test scope) -->
         <dependency>
             <groupId>junit</groupId>
@@ -166,11 +172,10 @@
         </dependency>
 
         <dependency>
-            <groupId>com.github.rjohnsondev</groupId>
-            <artifactId>java-libpst</artifactId>
-            <version>5fd2c75</version>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <scope>test</scope>
         </dependency>
-
     </dependencies>
 
     <dependencyManagement>

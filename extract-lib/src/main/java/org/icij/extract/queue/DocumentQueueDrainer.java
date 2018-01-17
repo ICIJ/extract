@@ -191,10 +191,10 @@ public class DocumentQueueDrainer extends ExecutorProxy {
 				logger.info("Polling the queue, waiting indefinitely.");
 				document = queue.take();
 			} else if (pollTimeout.getSeconds() > 0) {
-				logger.info(String.format("Polling the queue, waiting up to \"%s\".", pollTimeout));
+				logger.debug(String.format("Polling the queue, waiting up to \"%s\".", pollTimeout));
 				document = queue.poll(pollTimeout.getSeconds(), TimeUnit.SECONDS);
 			} else {
-				logger.info("Polling the queue without waiting.");
+				logger.debug("Polling the queue without waiting.");
 				document = queue.poll();
 			}
 
