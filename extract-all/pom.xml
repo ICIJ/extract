@@ -260,15 +260,6 @@
                             <outputDirectory>${project.build.directory}/classes</outputDirectory>
                         </configuration>
                     </execution>
-                    <execution>
-                        <id>purge-local-dependencies</id>
-                        <phase>clean</phase>
-                        <goals>
-                            <goal>purge-local-repository</goal>
-                        </goals>
-                        <configuration>
-                        </configuration>
-                    </execution>
                 </executions>
             </plugin>
 
