@@ -6,8 +6,8 @@ import org.icij.extract.report.ReportMap;
 import org.icij.extract.report.ReportMapFactory;
 import org.icij.extract.report.Reporter;
 import org.icij.extract.spewer.SolrSpewer;
+import org.icij.extract.spewer.SpewerFactory;
 import org.icij.spewer.Spewer;
-import org.icij.spewer.SpewerFactory;
 import org.icij.task.DefaultTask;
 import org.icij.task.annotation.OptionsClass;
 import org.icij.task.annotation.Task;
@@ -31,7 +31,7 @@ public class SpewDumpTask extends DefaultTask<Void> {
 	@Override
 	public Void run(final String[] arguments) throws Exception {
 		try (final ReportMap reportMap = new ReportMapFactory(options).create();
-		     final Spewer spewer = SpewerFactory.createSpewer(options)) {
+			 final Spewer spewer = SpewerFactory.createSpewer(options)) {
 			final Reporter reporter = new Reporter(reportMap);
 
 			if (spewer instanceof SolrSpewer) {

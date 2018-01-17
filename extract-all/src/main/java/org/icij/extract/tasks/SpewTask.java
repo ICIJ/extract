@@ -14,8 +14,8 @@ import org.icij.extract.queue.Scanner;
 import org.icij.extract.report.ReportMap;
 import org.icij.extract.report.ReportMapFactory;
 import org.icij.extract.report.Reporter;
+import org.icij.extract.spewer.SpewerFactory;
 import org.icij.spewer.Spewer;
-import org.icij.spewer.SpewerFactory;
 import org.icij.task.DefaultTask;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
@@ -74,10 +74,10 @@ public class SpewTask extends DefaultTask<Long> {
 		try (final ReportMap reportMap = new ReportMapFactory(options)
 				.withDocumentFactory(documentFactory)
 				.create();
-		     final DocumentQueue queue = new DocumentQueueFactory(options)
+			 final DocumentQueue queue = new DocumentQueueFactory(options)
 				     .withDocumentFactory(documentFactory)
 				     .create();
-		     final Spewer spewer = SpewerFactory.createSpewer(options)) {
+			 final Spewer spewer = SpewerFactory.createSpewer(options)) {
 
 			return spew(documentFactory, reportMap, spewer, queue, paths, parallelism);
 		}
