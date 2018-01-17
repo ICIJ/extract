@@ -3,10 +3,6 @@ package org.icij.extract.spewer;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.icij.extract.OutputType;
 import org.icij.extract.extractor.Extractor;
 import org.icij.spewer.*;
@@ -14,10 +10,6 @@ import org.icij.spewer.http.PinnedHttpClientBuilder;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
-
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.Optional;
 
 import static org.icij.extract.OutputType.STDOUT;
 
@@ -27,9 +19,9 @@ import static org.icij.extract.OutputType.STDOUT;
  * @since 1.0.0
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  */
-@Option(name = "outputType", description = "Set the output type. Either \"file\", \"stdout\", \"solr\" or \"elasticsearch\".",
+@Option(name = "outputType", description = "Set the output type. Either \"file\", \"stdout\" or \"solr\".",
 		parameter = "type", code = "o")
-@Option(name = "indexType", description = "Specify the index type. Valid types are : solr, elasticsearch", parameter = "type")
+@Option(name = "indexType", description = "Specify the index type. Valid types are : solr", parameter = "type")
 @Option(name = "indexAddress", description = "Index endpoint address.", code = "s", parameter = "url")
 @Option(name = "indexServerCertificate", description = "The index server's public certificate, used for" +
 		" certificate pinning. Supported formats are PEM, DER, PKCS #12 and JKS.", parameter = "path")
@@ -37,7 +29,6 @@ import static org.icij.extract.OutputType.STDOUT;
 		"the specified host. Use the wildcard \"*\" to disable verification.", parameter = "hostname")
 @OptionsClass(FileSpewer.class)
 @OptionsClass(PrintStreamSpewer.class)
-@OptionsClass(ElasticsearchSpewer.class)
 @OptionsClass(SolrSpewer.class)
 @OptionsClass(FieldNames.class)
 public abstract class SpewerFactory {
@@ -61,8 +52,6 @@ public abstract class SpewerFactory {
                 break;
             case FILE: spewer = new FileSpewer(fields);
                 break;
-			case ELASTICSEARCH: spewer = createElasticsearchSpewer(options, fields);
-				break;
 			case SOLR: spewer = createSolrSpewer(options, fields);
 				break;
             default: spewer = new PrintStreamSpewer(System.out, fields);
@@ -106,21 +95,4 @@ public abstract class SpewerFactory {
 
 		return new SolrSpewer(solrClient, fields);
 	}
-
-	private static ElasticsearchSpewer createElasticsearchSpewer(final Options<String> options, final FieldNames fields)
-            throws UnknownHostException {
-        System.setProperty("es.set.netty.runtime.available.processors", "false");
-        InetAddress esAddress = InetAddress.getByName("localhost");
-        int esPort = 9300;
-        Optional<String> indexAddress = options.get("indexAddress").value();
-        if (indexAddress.isPresent()) {
-            esAddress = InetAddress.getByName(indexAddress.get().split(":")[0]);
-            esPort = Integer.parseInt(indexAddress.get().split(":")[1]);
-        }
-
-        Settings settings = Settings.builder().put("cluster.name", "datashare").build();
-        Client client = new PreBuiltTransportClient(settings).addTransportAddress(
-                new TransportAddress(esAddress, esPort));
-        return new ElasticsearchSpewer(client, fields);
-    }
 }
