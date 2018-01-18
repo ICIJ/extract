@@ -52,7 +52,7 @@ public class CopyTask extends MonitorableTask<Long> {
 	private static final int DEFAULT_JOBS = Runtime.getRuntime().availableProcessors();
 
 	@Override
-	public Long run(final String[] mappings) throws Exception {
+	public Long call(final String[] mappings) throws Exception {
 		if (null == mappings || 0 == mappings.length) {
 			throw new IllegalArgumentException("You must pass the field mappings on the command line.");
 		}
@@ -79,8 +79,8 @@ public class CopyTask extends MonitorableTask<Long> {
 	}
 
 	@Override
-	public Long run() throws Exception {
-		return run(null);
+	public Long call() throws Exception {
+		return call(null);
 	}
 
 	/**

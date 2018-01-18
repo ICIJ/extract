@@ -18,7 +18,7 @@ import org.icij.task.annotation.Task;
 public class WipeQueueTask extends DefaultTask<Integer> {
 
 	@Override
-	public Integer run() throws Exception {
+	public Integer call() throws Exception {
 		final int cleared;
 
 		try (final DocumentQueue queue = new DocumentQueueFactory(options).createShared()) {

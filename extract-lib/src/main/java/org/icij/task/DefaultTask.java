@@ -45,7 +45,7 @@ public abstract class DefaultTask<R> implements Task<String, String[], R> {
 	}
 
 	@Override
-	public R run(final String[] arguments) throws Exception {
-		return run();
+	public R call(final String[] arguments) throws Exception {
+		return call();
 	}
 }

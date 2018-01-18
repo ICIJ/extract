@@ -19,7 +19,7 @@ public class HelpTask extends DefaultTask<Void> {
 			(Runtime.getRuntime().maxMemory()));
 
 	@Override
-	public Void run(final String[] args) throws Exception {
+	public Void call(final String[] args) throws Exception {
 		final String command = args[0];
 		final DefaultTask<Object> task = Main.taskFactory.getTask(command);
 		final Options<String> options = task.options();
@@ -35,7 +35,7 @@ public class HelpTask extends DefaultTask<Void> {
 	}
 
 	@Override
-	public Void run() throws Exception {
+	public Void call() throws Exception {
 		ImageIO.scanForPlugins();
 
 		final HelpFormatter formatter = new HelpFormatter();

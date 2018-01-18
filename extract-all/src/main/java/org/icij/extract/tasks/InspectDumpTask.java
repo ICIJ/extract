@@ -21,12 +21,12 @@ import java.util.zip.GZIPInputStream;
 public class InspectDumpTask extends DefaultTask<Void> {
 
 	@Override
-	public Void run() throws Exception {
+	public Void call() throws Exception {
 		throw new IllegalArgumentException("No paths supplied.");
 	}
 
 	@Override
-	public Void run(final String[] arguments) throws Exception {
+	public Void call(final String[] arguments) throws Exception {
 		final boolean expand = options.get("expandChildren").parse().asBoolean().orElse(false);
 
 		for (String path: arguments) {

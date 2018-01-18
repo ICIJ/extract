@@ -24,7 +24,7 @@ import org.icij.task.MonitorableTask;
 public class CleanReportTask extends MonitorableTask<Integer> {
 
 	@Override
-	public Integer run() throws Exception {
+	public Integer call() throws Exception {
 		int i = 0;
 
 		try (final ReportMap reportMap = new ReportMapFactory(options).createShared()) {

@@ -53,12 +53,12 @@ import java.util.Optional;
 public class RehashTask extends MonitorableTask<Long> {
 
 	@Override
-	public Long run(final String[] arguments) throws Exception {
-		return run();
+	public Long call(final String[] arguments) throws Exception {
+		return call();
 	}
 
 	@Override
-	public Long run() throws Exception {
+	public Long call() throws Exception {
 		final int parallelism = options.get("jobs").parse().asInteger()
 				.orElse(Runtime.getRuntime().availableProcessors());
 

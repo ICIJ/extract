@@ -33,7 +33,7 @@ import org.icij.task.annotation.Task;
 public class DumpReportTask extends MonitorableTask<Void> {
 
 	@Override
-	public Void run(final String[] arguments) throws Exception {
+	public Void call(final String[] arguments) throws Exception {
 		final Optional<ExtractionStatus> result = options.get("reportStatus").value(ExtractionStatus::parse);
 
 		try (final OutputStream output = new BufferedOutputStream(new FileOutputStream(arguments[0]));
@@ -48,7 +48,7 @@ public class DumpReportTask extends MonitorableTask<Void> {
 	}
 
 	@Override
-	public Void run() throws Exception {
+	public Void call() throws Exception {
 		final Optional<ExtractionStatus> result = options.get("reportStatus").value(ExtractionStatus::parse);
 
 		try (final OutputStream output = new BufferedOutputStream(new CloseShieldOutputStream(System.out));

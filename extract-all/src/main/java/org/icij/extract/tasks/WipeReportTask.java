@@ -17,7 +17,7 @@ import org.icij.task.annotation.Task;
 public class WipeReportTask extends DefaultTask<Integer> {
 
 	@Override
-	public Integer run() throws Exception {
+	public Integer call() throws Exception {
 		final int cleared;
 
 		try (final ReportMap reportMap = new ReportMapFactory(options).createShared()) {

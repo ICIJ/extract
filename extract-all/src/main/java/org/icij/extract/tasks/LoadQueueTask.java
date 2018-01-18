@@ -35,7 +35,7 @@ import org.icij.task.annotation.Task;
 public class LoadQueueTask extends DefaultTask<Void> {
 
 	@Override
-	public Void run() throws Exception {
+	public Void call() throws Exception {
 		final DocumentFactory factory = new DocumentFactory().configure(options);
 
 		try (final InputStream input = new CloseShieldInputStream(System.in);
@@ -49,7 +49,7 @@ public class LoadQueueTask extends DefaultTask<Void> {
 	}
 
 	@Override
-	public Void run(final String[] arguments) throws Exception {
+	public Void call(final String[] arguments) throws Exception {
 		final DocumentFactory factory = new DocumentFactory().configure(options);
 
 		try (final DocumentQueue queue = new DocumentQueueFactory(options)

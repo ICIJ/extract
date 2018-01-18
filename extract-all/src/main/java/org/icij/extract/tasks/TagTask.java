@@ -59,7 +59,7 @@ public class TagTask extends MonitorableTask<Long> {
 	private static final Logger logger = LoggerFactory.getLogger(TagTask.class);
 
 	@Override
-	public Long run(final String[] literals) throws Exception {
+	public Long call(final String[] literals) throws Exception {
 		final Map<String, String> pairs = new HashMap<>();
 
 		if (null == literals || 0 == literals.length) {
@@ -80,8 +80,8 @@ public class TagTask extends MonitorableTask<Long> {
 	}
 
 	@Override
-	public Long run() throws Exception {
-		return run(null);
+	public Long call() throws Exception {
+		return call(null);
 	}
 
 	private Long tag(final Map<String, String> pairs) throws Exception {

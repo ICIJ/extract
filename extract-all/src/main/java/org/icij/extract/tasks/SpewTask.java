@@ -62,7 +62,7 @@ public class SpewTask extends DefaultTask<Long> {
 	}
 
 	@Override
-	public Long run(final String[] paths) throws Exception {
+	public Long call(final String[] paths) throws Exception {
 		checkMemory();
 
 		final int parallelism = options.get("jobs").parse().asInteger().orElse(DocumentConsumer.defaultPoolSize());
@@ -84,8 +84,8 @@ public class SpewTask extends DefaultTask<Long> {
 	}
 
 	@Override
-	public Long run() throws Exception {
-		return run(null);
+	public Long call() throws Exception {
+		return call(null);
 	}
 
 	private Long spew(final DocumentFactory factory, final ReportMap reportMap, final Spewer spewer, final DocumentQueue

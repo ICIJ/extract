@@ -30,7 +30,7 @@ import java.io.IOException;
 public class RollbackTask extends DefaultTask<Integer> {
 
 	@Override
-	public Integer run() throws Exception {
+	public Integer call() throws Exception {
 		final IndexType indexType = options.get("indexType").value(IndexType::parse).orElse(IndexType.SOLR);
 
 		if (IndexType.SOLR == indexType) {

@@ -33,7 +33,7 @@ import java.io.IOException;
 public class CommitTask extends DefaultTask<Integer> {
 
 	@Override
-	public Integer run() throws Exception {
+	public Integer call() throws Exception {
 		final IndexType indexType = options.get("indexType").value(IndexType::parse).orElse(IndexType.SOLR);
 		final boolean softCommit = options.get("softCommit").parse().asBoolean().orElse(false);
 

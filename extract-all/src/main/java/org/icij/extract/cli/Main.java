@@ -70,7 +70,7 @@ public class Main {
 
 	private static void parse(final String[] args) throws Exception {
 		if (null == args || 0 == args.length) {
-			new HelpTask().run();
+			new HelpTask().call();
 			return;
 		}
 
@@ -139,9 +139,9 @@ public class Main {
 		}
 
 		if (line.getArgs().length > 0) {
-			task.run(line.getArgs());
+			task.call(line.getArgs());
 		} else {
-			task.run();
+			task.call();
 		}
 
 		if (null != progressBar) {

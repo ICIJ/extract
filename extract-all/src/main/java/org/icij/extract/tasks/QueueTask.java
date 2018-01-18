@@ -12,7 +12,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.icij.task.MonitorableTask;
-import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
 import org.icij.task.annotation.Task;
 
@@ -28,7 +27,7 @@ import org.icij.task.annotation.Task;
 public class QueueTask extends MonitorableTask<Long> {
 
 	@Override
-	public Long run(final String[] paths) throws Exception {
+	public Long call(final String[] paths) throws Exception {
 		if (null == paths || paths.length == 0) {
 			throw new IllegalArgumentException("You must pass the paths to scan on the command line.");
 		}
@@ -43,11 +42,11 @@ public class QueueTask extends MonitorableTask<Long> {
 	}
 
 	@Override
-	public Long run() throws Exception {
+	public Long call() throws Exception {
 		final String[] paths = new String[1];
 
 		paths[0] = ".";
-		return run(paths);
+		return call(paths);
 	}
 
 	/**

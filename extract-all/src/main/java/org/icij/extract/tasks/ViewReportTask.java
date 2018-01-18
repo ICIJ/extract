@@ -19,12 +19,12 @@ import org.icij.task.annotation.Task;
 public class ViewReportTask extends DefaultTask<Void> {
 
 	@Override
-	public Void run() throws Exception {
+	public Void call() throws Exception {
 		throw new RuntimeException("No ID or path supplied.");
 	}
 
 	@Override
-	public Void run(final String[] arguments) throws Exception {
+	public Void call(final String[] arguments) throws Exception {
 		final ReportMapFactory reportMapFactory = new ReportMapFactory(options);
 		final DocumentFactory documentFactory = new DocumentFactory().configure(options);
 		reportMapFactory.withDocumentFactory(documentFactory);

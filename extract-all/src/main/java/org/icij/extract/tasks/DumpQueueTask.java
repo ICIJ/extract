@@ -29,7 +29,7 @@ import org.icij.task.annotation.Task;
 public class DumpQueueTask extends MonitorableTask<Void> {
 
 	@Override
-	public Void run(final String[] arguments) throws Exception {
+	public Void call(final String[] arguments) throws Exception {
 		try (final OutputStream output = new BufferedOutputStream(new FileOutputStream(arguments[0]));
 		     final DocumentQueue queue = new DocumentQueueFactory(options).createShared()) {
 			monitor.hintRemaining(queue.size());
@@ -42,7 +42,7 @@ public class DumpQueueTask extends MonitorableTask<Void> {
 	}
 
 	@Override
-	public Void run() throws Exception {
+	public Void call() throws Exception {
 		try (final OutputStream output = new BufferedOutputStream(new CloseShieldOutputStream(System.out));
 		final DocumentQueue queue = new DocumentQueueFactory(options).createShared()) {
 			monitor.hintRemaining(queue.size());

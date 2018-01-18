@@ -24,12 +24,12 @@ public class SpewDumpTask extends DefaultTask<Void> {
 	private static final Logger logger = LoggerFactory.getLogger(SpewTask.class);
 
 	@Override
-	public Void run() throws Exception {
+	public Void call() throws Exception {
 		throw new IllegalArgumentException("No paths supplied.");
 	}
 
 	@Override
-	public Void run(final String[] arguments) throws Exception {
+	public Void call(final String[] arguments) throws Exception {
 		try (final ReportMap reportMap = new ReportMapFactory(options).create();
 			 final Spewer spewer = SpewerFactory.createSpewer(options)) {
 			final Reporter reporter = new Reporter(reportMap);

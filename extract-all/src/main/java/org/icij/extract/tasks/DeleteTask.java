@@ -38,7 +38,7 @@ import java.io.IOException;
 public class DeleteTask extends MonitorableTask<Integer> {
 
 	@Override
-	public Integer run(final String[] queries) throws Exception {
+	public Integer call(final String[] queries) throws Exception {
 		if (null == queries || 0 == queries.length) {
 			throw new IllegalArgumentException("You must pass the queries or IDs to delete on the command line.");
 		}
@@ -88,7 +88,7 @@ public class DeleteTask extends MonitorableTask<Integer> {
 	}
 
 	@Override
-	public Integer run() throws Exception {
-		return run(new String[]{"*:*"});
+	public Integer call() throws Exception {
+		return call(new String[]{"*:*"});
 	}
 }
