@@ -1,9 +1,6 @@
 package org.icij.task;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Function;
 
 public class Options<T> implements Iterable<Option<T>> {
@@ -53,6 +50,14 @@ public class Options<T> implements Iterable<Option<T>> {
 				.getAnnotationsByType(org.icij.task.annotation.OptionsClass.class)) {
 			add(otherClass, parser);
 		}
+	}
+
+	public static Options<String> from(Properties stringProperties) {
+	    Options<String> options = new Options<>();
+        stringProperties.forEach(
+                (key, value) -> options.add(new Option<>((String) key, StringOptionParser::new).update((String) value))
+        );
+		return options;
 	}
 
 	@Override

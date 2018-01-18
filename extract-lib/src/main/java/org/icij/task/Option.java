@@ -38,7 +38,6 @@ public class Option<V> {
 		if (!code.isEmpty()) {
 			this.code = code.toCharArray()[0];
 		}
-
 		return this;
 	}
 

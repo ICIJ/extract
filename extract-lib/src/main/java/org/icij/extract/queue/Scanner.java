@@ -9,15 +9,24 @@ import org.icij.extract.io.file.DosHiddenFileMatcher;
 import org.icij.extract.io.file.PosixHiddenFileMatcher;
 import org.icij.extract.io.file.SystemFileMatcher;
 import org.icij.task.Options;
+import org.icij.task.StringOptionParser;
 import org.icij.task.annotation.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.*;
-import java.util.concurrent.*;
+import java.nio.file.FileSystem;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+
+import static org.icij.extract.queue.ScannerVisitor.FOLLOW_SYMLINKS;
+import static org.icij.extract.queue.ScannerVisitor.MAX_DEPTH;
 
 /**
  * Scanner for scanning the directory tree starting at a given path.
@@ -50,13 +59,12 @@ import java.util.concurrent.*;
 		"Files not matching the pattern will be ignored.", parameter = "pattern")
 @Option(name = "excludePattern", description = "Glob pattern for excluding files and directories. Files " +
 		"and directories matching the pattern will be ignored.", parameter = "pattern")
-@Option(name = "followSymlinks", description = "Follow symbolic links, which are not followed by default.")
-@Option(name = "maxDepth", description = "The maximum depth to which the scanner will recurse.", parameter = "integer")
+@Option(name = FOLLOW_SYMLINKS, description = "Follow symbolic links, which are not followed by default.")
+@Option(name = MAX_DEPTH, description = "The maximum depth to which the scanner will recurse.", parameter = "integer")
 public class Scanner extends ExecutorProxy {
+    private static final Logger logger = LoggerFactory.getLogger(Scanner.class);
 
-	private static final Logger logger = LoggerFactory.getLogger(Scanner.class);
-
-	protected final BlockingQueue<Document> queue;
+    protected final BlockingQueue<Document> queue;
 
 	private final ArrayDeque<String> includeGlobs = new ArrayDeque<>();
 	private final ArrayDeque<String> excludeGlobs = new ArrayDeque<>();
@@ -67,10 +75,9 @@ public class Scanner extends ExecutorProxy {
 
 	private long queued = 0;
 
-	private int maxDepth = Integer.MAX_VALUE;
-	private boolean followLinks = false;
 	private boolean ignoreHiddenFiles = false;
 	private boolean ignoreSystemFiles = true;
+	private Options<String> options = new Options<>();
 
 	/**
 	 * @see Scanner(BlockingQueue, SealableLatch, Notifiable)
@@ -112,10 +119,9 @@ public class Scanner extends ExecutorProxy {
 	public Scanner configure(final Options<String> options) {
 		options.get("includeOSFiles").parse().asBoolean().ifPresent(this::ignoreSystemFiles);
 		options.get("includeHiddenFiles").parse().asBoolean().ifPresent(this::ignoreHiddenFiles);
-		options.get("followSymlinks").parse().asBoolean().ifPresent(this::followSymLinks);
 		options.get("includePattern").values().forEach(this::include);
 		options.get("excludePattern").values().forEach(this::exclude);
-		options.get("maxDepth").parse().asInteger().ifPresent(this::setMaxDepth);
+		this.options = options;
 		return this;
 	}
 
@@ -143,7 +149,8 @@ public class Scanner extends ExecutorProxy {
 	 * @param followLinks whether to follow symlinks
 	 */
 	public void followSymLinks(final boolean followLinks) {
-		this.followLinks = followLinks;
+		options.add(new org.icij.task.Option<>(FOLLOW_SYMLINKS, StringOptionParser::new).
+                update(Boolean.toString(followLinks)));
 	}
 
 	/**
@@ -152,7 +159,7 @@ public class Scanner extends ExecutorProxy {
 	 * @return whether symlinks will be followed
 	 */
 	public boolean followSymLinks() {
-		return followLinks;
+		return options.ifPresent(FOLLOW_SYMLINKS, o -> o.parse().asBoolean()).orElse(false);
 	}
 
 	/**
@@ -200,7 +207,8 @@ public class Scanner extends ExecutorProxy {
 	 * @param maxDepth maximum depth
 	 */
 	public void setMaxDepth(final int maxDepth) {
-		this.maxDepth = maxDepth;
+        options.add(new org.icij.task.Option<>(MAX_DEPTH, StringOptionParser::new).
+                        update(Integer.toString(maxDepth)));
 	}
 
 	/**
@@ -209,7 +217,7 @@ public class Scanner extends ExecutorProxy {
 	 * @return maximum depth
 	 */
 	public int getMaxDepth() {
-		return maxDepth;
+		return options.ifPresent(MAX_DEPTH, o -> o.parse().asInteger()).orElse(Integer.MAX_VALUE);
 	}
 
 	/**
@@ -239,7 +247,8 @@ public class Scanner extends ExecutorProxy {
 	 */
 	public Future<Path> scan(final Path path) {
 		final FileSystem fileSystem = path.getFileSystem();
-		final ScannerVisitor visitor = new ScannerVisitor(path);
+		final ScannerVisitor visitor = new ScannerVisitor(path, queue, factory, options).
+				withMonitor(notifiable).withLatch(latch);
 
 		// In order to make hidden-file-ignoring logic more predictable, always ignore file names starting with a
 		// dot, but only ignore DOS hidden files if the file system supports that attribute.
@@ -296,198 +305,5 @@ public class Scanner extends ExecutorProxy {
 	 */
 	public Future<Path> scan(final String path) {
 		return scan(Paths.get(path));
-	}
-
-	private class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<Path> {
-
-		private final ArrayDeque<PathMatcher> includeMatchers = new ArrayDeque<>();
-		private final ArrayDeque<PathMatcher> excludeMatchers = new ArrayDeque<>();
-
-		private final Path path;
-
-		/**
-		 * Instantiate a new task for scanning the given path.
-		 *
-		 * @param path the path to scan
-		 */
-		ScannerVisitor(final Path path) {
-			this.path = path;
-		}
-
-		/**
-		 * Recursively walks the file tree of a directory. When walking is finished or stopped by an exception, the
-		 * latch is sealed and signalled.
-		 *
-		 * @return the path at which scanning started
-		 */
-		@Override
-		public Path call() throws Exception {
-			final Set<FileVisitOption> options;
-
-			if (followLinks) {
-				options = EnumSet.of(FileVisitOption.FOLLOW_LINKS);
-			} else {
-				options = EnumSet.noneOf(FileVisitOption.class);
-			}
-
-			logger.info(String.format("Starting scan of: \"%s\".", path));
-			try {
-				Files.walkFileTree(path, options, maxDepth, this);
-			} catch (IOException e) {
-				logger.error(String.format("Error while scanning path: \"%s\".", path), e);
-				throw e;
-			} finally {
-				if (null != latch){
-					latch.seal();
-					latch.signal();
-				}
-			}
-
-			logger.info(String.format("Completed scan of: \"%s\".", path));
-			return path;
-		}
-
-		/**
-		 * Queue a result from the scanner. Blocks until a queue slot is available.
-		 *
-		 * @throws InterruptedException if interrupted while waiting for a queue slot
-		 */
-		void queue(final Path file, final BasicFileAttributes attributes) throws InterruptedException {
-			final Document document = factory.create(file, attributes);
-
-			queue.put(document);
-			queued++;
-
-			if (null != latch) {
-				latch.signal();
-			}
-
-			if (null != notifiable) {
-				notifiable.notifyListeners(file);
-			}
-		}
-
-		/**
-		 * Add a path matcher for files to exclude.
-		 *
-		 * @param matcher the matcher
-		 */
-		void exclude(final PathMatcher matcher) {
-			excludeMatchers.add(matcher);
-		}
-
-		/**
-		 * Add a path matcher for files to include.
-		 *
-		 * @param matcher the matcher
-		 */
-		void include(final PathMatcher matcher) {
-			includeMatchers.add(matcher);
-		}
-
-		/**
-		 * Check whether a path should be excluded.
-		 *
-		 * @param path path to check
-		 * @return whether the path should be excluded
-		 */
-		boolean shouldExclude(final Path path) {
-			return matches(path, excludeMatchers);
-		}
-
-		/**
-		 * Check whether a path should be included.
-		 *
-		 * @param path path to check
-		 * @return whether the path should be included
-		 */
-		boolean shouldInclude(final Path path) {
-			return includeMatchers.size() == 0 || matches(path, includeMatchers);
-		}
-
-		/**
-		 * Check whether a path matches any of the given matchers.
-		 *
-		 * @param path path to check
-		 * @return whether the path matches
-		 */
-		private boolean matches(final Path path, final ArrayDeque<PathMatcher> matchers) {
-			for (PathMatcher matcher : matchers) {
-				if (matcher.matches(path)) {
-					return true;
-				}
-			}
-
-			return false;
-		}
-
-		@Override
-		public FileVisitResult preVisitDirectory(final Path directory, final BasicFileAttributes attributes) throws
-				IOException {
-			if (Thread.currentThread().isInterrupted()) {
-				logger.warn("Scanner interrupted. Terminating job.");
-				return FileVisitResult.TERMINATE;
-			}
-
-			if (shouldExclude(directory)) {
-				return FileVisitResult.SKIP_SUBTREE;
-			}
-
-			logger.info(String.format("Entering directory: \"%s\".", directory));
-			return FileVisitResult.CONTINUE;
-		}
-
-		@Override
-		public FileVisitResult visitFile(final Path file, final BasicFileAttributes attributes) throws IOException {
-			if (Thread.currentThread().isInterrupted()) {
-				logger.warn("Scanner interrupted. Terminating job.");
-				return FileVisitResult.TERMINATE;
-			}
-
-			// From the documentation:
-			// "When following links, and the attributes of the target cannot be read, then this method attempts to
-			// parse the BasicFileAttributes of the link."
-			if (attributes.isSymbolicLink()) {
-				if (followLinks) {
-					logger.warn(String.format("Unable to read attributes of symlink target: \"%s\". Skipping.", file));
-				}
-
-				return FileVisitResult.CONTINUE;
-			}
-
-			// Only skip the file if all of the include matchers return false.
-			if (!shouldInclude(file)) {
-				return FileVisitResult.CONTINUE;
-			}
-
-			if (shouldExclude(file)) {
-				return FileVisitResult.CONTINUE;
-			}
-
-			try {
-				queue(file, attributes);
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-				logger.warn("Interrupted. Terminating scanner.");
-				return FileVisitResult.TERMINATE;
-			} catch (Exception e) {
-				logger.error(String.format("Exception while queuing file: \"%s\".", file), e);
-				throw e;
-			}
-
-			return FileVisitResult.CONTINUE;
-		}
-
-		@Override
-		public FileVisitResult visitFileFailed(final Path file, final IOException e) throws IOException {
-
-			// If the file or directory was going to be excluded anyway, suppress the exception.
-			// Don't re-throw the error. Scanning must be robust. Just log it.
-			if (!shouldExclude(file)) {
-				logger.error(String.format("Unable to read attributes of file: \"%s\".", file), e);
-			}
-
-			return FileVisitResult.CONTINUE;
-		}
 	}
 }

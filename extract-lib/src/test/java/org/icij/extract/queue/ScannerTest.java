@@ -20,10 +20,7 @@ public class ScannerTest {
 
 	private final DocumentFactory factory = new DocumentFactory().withIdentifier(new PathIdentifier());
 	private final DocumentQueue queue = new ArrayDocumentQueue(100);
-
-	private Scanner createScanner() {
-		return new Scanner(factory, queue);
-	}
+	private Scanner scanner = new Scanner(factory, queue);
 
 	private void shutdownScanner(final Scanner scanner) throws InterruptedException {
 		scanner.shutdown();
@@ -38,7 +35,6 @@ public class ScannerTest {
 	@Test
 	public void testScanDirectory() throws Throwable {
 		final Path root = Paths.get(getClass().getResource("/documents/text/").toURI());
-		final Scanner scanner = createScanner();
 
 		// Block until every single path has been scanned and queued.
 		final Future<Path> job = scanner.scan(root);
@@ -62,7 +58,6 @@ public class ScannerTest {
 	@Test
 	public void testScanDirectoryWithIncludeGlob() throws Throwable {
 		final Path root = Paths.get(getClass().getResource("/documents/").toURI());
-		final Scanner scanner = createScanner();
 
 		scanner.include("**.txt");
 
@@ -83,7 +78,6 @@ public class ScannerTest {
 	@Test
 	public void testScanDirectoryWithExcludeGlob() throws Throwable {
 		final Path root = Paths.get(getClass().getResource("/documents/").toURI());
-		final Scanner scanner = createScanner();
 
 		// Test exclude paths by extension.
 		scanner.exclude("**.bin");
@@ -116,7 +110,6 @@ public class ScannerTest {
 	@Test
 	public void testHandlesSymlink() throws Throwable {
 		final Path root = Paths.get(getClass().getResource("/links/").toURI());
-		final Scanner scanner = createScanner();
 
 		scanner.followSymLinks(true);
 		Assert.assertTrue(scanner.followSymLinks());
@@ -144,7 +137,6 @@ public class ScannerTest {
 	public void testIgnoreHiddenFiles() throws Throwable {
 		final Path root = Paths.get(getClass().getResource("/documents/").toURI());
 		final Path hidden = root.resolve(".hidden");
-		final Scanner scanner = createScanner();
 
 		scanner.ignoreHiddenFiles(true);
 		Assert.assertTrue(scanner.ignoreHiddenFiles());
@@ -169,7 +161,6 @@ public class ScannerTest {
 	public void testIgnoresSystemFilesByDefault() throws Throwable {
 		final Path root = Paths.get(getClass().getResource("/documents/").toURI());
 		final Path system = root.resolve("lost+found/trashed");
-		final Scanner scanner = createScanner();
 
 		Assert.assertTrue(scanner.ignoreSystemFiles());
 
@@ -192,7 +183,6 @@ public class ScannerTest {
 	@Test
 	public void testMaxDepth() throws Throwable {
 		final Path root = Paths.get(getClass().getResource("/documents/").toURI());
-		final Scanner scanner = createScanner();
 
 		scanner.setMaxDepth(1);
 		Assert.assertEquals(1, scanner.getMaxDepth());

@@ -7,6 +7,5 @@ import java.lang.annotation.RetentionPolicy;
 @Inherited
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Options {
-
 	Option[] value();
 }
