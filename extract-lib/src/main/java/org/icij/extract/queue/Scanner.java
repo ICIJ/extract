@@ -246,6 +246,10 @@ public class Scanner extends ExecutorProxy {
 	 * @return A {@link Future} that can be used to wait on the result or cancel.
 	 */
 	public Future<Path> scan(final Path path) {
+		return executor.submit(createScannerVisitor(path));
+	}
+
+	public ScannerVisitor createScannerVisitor(Path path) {
 		final FileSystem fileSystem = path.getFileSystem();
 		final ScannerVisitor visitor = new ScannerVisitor(path, queue, factory, options).
 				withMonitor(notifiable).withLatch(latch);
@@ -272,7 +276,7 @@ public class Scanner extends ExecutorProxy {
 		}
 
 		logger.info(String.format("Queuing scan of: \"%s\".", path));
-		return executor.submit(visitor);
+		return visitor;
 	}
 
 	/**
