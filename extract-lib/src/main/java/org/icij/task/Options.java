@@ -69,7 +69,7 @@ public class Options<T> implements Iterable<Option<T>> {
 
     @Override
     public String toString() {
-        return join(",", map.values().stream().map(Object::toString).collect(toList()));
+        return "{" + join(",", map.values().stream().map(Object::toString).collect(toList())) + "}";
     }
 
     @Override

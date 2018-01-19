@@ -27,12 +27,17 @@ public class OptionsTest {
     }
 
     @Test
+    public void test_empty_options_toString() {
+        assertEquals("{}", new Options().toString());
+    }
+
+    @Test
     public void test_toString() {
         Options<String> options = Options.from(new HashMap<String, String>() {{
             put("key1", "value1");
             put("key2", "value2");
         }});
-        assertEquals("key1=value1,key2=value2", options.toString());
+        assertEquals("{key1=value1,key2=value2}", options.toString());
     }
 
     @Test
