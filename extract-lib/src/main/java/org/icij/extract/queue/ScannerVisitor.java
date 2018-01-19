@@ -16,9 +16,8 @@ import java.util.EnumSet;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
-import java.util.concurrent.atomic.AtomicInteger;
 
-public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<Integer> {
+class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<Path> {
     static final String FOLLOW_SYMLINKS = "followSymlinks";
     static final String MAX_DEPTH = "maxDepth";
     private Logger logger = LoggerFactory.getLogger(getClass());
@@ -33,7 +32,7 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
     private int maxDepth = Integer.MAX_VALUE;
     private SealableLatch latch;
     private Notifiable notifiable;
-    private AtomicInteger queued = new AtomicInteger(0);
+    private int queued = 0;
 
     /**
      * Instantiate a new task for scanning the given path.
@@ -58,7 +57,7 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
      * @return the path at which scanning started
      */
     @Override
-    public Integer call() throws Exception {
+    public Path call() throws Exception {
         final Set<FileVisitOption> options;
 
         if (followLinks) {
@@ -81,7 +80,7 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
         }
 
         logger.info(String.format("Completed scan of: \"%s\".", path));
-        return queued.intValue();
+        return path;
     }
 
     /**
@@ -93,7 +92,7 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
         final Document document = factory.create(file, attributes);
 
         queue.put(document);
-        queued.addAndGet(1);
+        queued++;
 
         if (null != latch) {
             latch.signal();
