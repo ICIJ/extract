@@ -4,8 +4,10 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-public class Option<V> {
+import static java.lang.String.join;
+import static java.util.stream.Collectors.toList;
 
+public class Option<V> {
 	private static class DefaultSupplier<V> implements Supplier<List<V>> {
 
 		private final List<V> values = new LinkedList<>();
@@ -126,5 +128,24 @@ public class Option<V> {
 
 	public OptionParser<V> parse() {
 		return parser.apply(this);
+	}
+
+	@Override
+	public String toString() {
+		return name + "=" + join(",", values.get().stream().map(Object::toString).collect(toList()));
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) return true;
+		if (o == null || getClass() != o.getClass()) return false;
+		Option<?> option = (Option<?>) o;
+		return Objects.equals(name, option.name) &&
+				Objects.equals(values.get(), option.values.get());
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(name, values.get());
 	}
 }

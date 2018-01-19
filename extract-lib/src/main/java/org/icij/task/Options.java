@@ -3,8 +3,10 @@ package org.icij.task;
 import java.util.*;
 import java.util.function.Function;
 
-public class Options<T> implements Iterable<Option<T>> {
+import static java.lang.String.join;
+import static java.util.stream.Collectors.toList;
 
+public class Options<T> implements Iterable<Option<T>> {
 	protected final Map<String, Option<T>> map = new HashMap<>();
 
 	public <R> Optional<R> ifPresent(final String name, final Function<Option<T>, Optional<R>> function) {
@@ -52,10 +54,10 @@ public class Options<T> implements Iterable<Option<T>> {
 		}
 	}
 
-	public static Options<String> from(Properties stringProperties) {
+	public static Options<String> from(Map<String, String> stringProperties) {
 	    Options<String> options = new Options<>();
         stringProperties.forEach(
-                (key, value) -> options.add(new Option<>((String) key, StringOptionParser::new).update((String) value))
+			(key, value) -> options.add(new Option<>(key, StringOptionParser::new).update(value))
         );
 		return options;
 	}
@@ -64,4 +66,23 @@ public class Options<T> implements Iterable<Option<T>> {
 	public Iterator<Option<T>> iterator() {
 		return new OptionsIterator<>(map);
 	}
+
+    @Override
+    public String toString() {
+        return join(",", map.values().stream().map(Object::toString).collect(toList()));
+    }
+
+    @Override
+	public boolean equals(Object o) {
+		if (this == o) return true;
+		if (o == null || getClass() != o.getClass()) return false;
+		Options<?> options = (Options<?>) o;
+		return Objects.equals(map, options.map);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(map);
+	}
+
 }
