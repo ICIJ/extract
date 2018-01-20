@@ -4,13 +4,26 @@ import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 
 import static org.junit.Assert.assertEquals;
 
 public class OptionsTest {
     @Test
+    public void test_from_map() {
+        Map<String, String> properties = new HashMap<String, String>() {{
+            put("key1", "value1");
+            put("key2", "value2");
+        }};
+
+        Options<String> options = Options.from(properties);
+        assertEquals("value1", options.get("key1").value().get());
+        assertEquals("value2", options.get("key2").value().get());
+    }
+
+    @Test
     public void test_from_properties() {
-        Map<String, String> properties = new HashMap<>();
+        Properties properties = new Properties();
         properties.put("key1", "value1");
         properties.put("key2", "value2");
 
