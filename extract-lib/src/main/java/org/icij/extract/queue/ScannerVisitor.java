@@ -17,7 +17,7 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 
-class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<Path> {
+public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<Path> {
     static final String FOLLOW_SYMLINKS = "followSymlinks";
     static final String MAX_DEPTH = "maxDepth";
     private Logger logger = LoggerFactory.getLogger(getClass());
