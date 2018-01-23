@@ -2,9 +2,9 @@ package org.icij.extract.redis;
 
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
+import org.redisson.Redisson;
+import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
-import org.redisson.connection.ConnectionManager;
-import org.redisson.connection.SingleConnectionManager;
 
 /**
  * Factory for creating a Redis client.
@@ -15,7 +15,7 @@ import org.redisson.connection.SingleConnectionManager;
 @Option(name = "redisAddress", description = "Set the Redis backend address. Defaults to 127.0.0.1:6379.", parameter
 		= "address")
 @Option(name = "redisTimeout", description = "The client timeout for Redis operations.", parameter = "timeout")
-public class ConnectionManagerFactory {
+public class RedissonClientFactory {
 
 	private String address = null;
 	private int timeout = -1;
@@ -26,7 +26,7 @@ public class ConnectionManagerFactory {
 	 * @param options options containing connection parameters
 	 * @return a new connection manager
 	 */
-	public ConnectionManagerFactory withOptions(final Options<String> options) {
+	public RedissonClientFactory withOptions(final Options<String> options) {
 		withAddress(options.get("redisAddress").value().orElse(null));
 		options.get("redisTimeout").parse().asInteger().ifPresent(this::withTimeout);
 		return this;
@@ -38,7 +38,7 @@ public class ConnectionManagerFactory {
 	 * @param address the Redis server address
 	 * @return chainable factory
 	 */
-	private ConnectionManagerFactory withAddress(final String address) {
+	private RedissonClientFactory withAddress(final String address) {
 		this.address = address;
 		return this;
 	}
@@ -49,7 +49,7 @@ public class ConnectionManagerFactory {
 	 * @param timeout the timeout in milliseconds
 	 * @return chainable factory
 	 */
-	private ConnectionManagerFactory withTimeout(final int timeout) {
+	private RedissonClientFactory withTimeout(final int timeout) {
 		this.timeout = timeout;
 		return this;
 	}
@@ -59,16 +59,15 @@ public class ConnectionManagerFactory {
 	 *
 	 * @return a new connection manager
 	 */
-	public ConnectionManager create() {
+	public RedissonClient create() {
 		final String address = null == this.address ? "127.0.0.1:6379" : this.address;
 		final int timeout = this.timeout < 0 ? 60 * 1000 : this.timeout;
 
-		// TODO: support all the other types supported by the ConnectionManagerFactory.
+		// TODO: support all the other types supported by the RedissonClientFactory.
 		// TODO: Create a hash of config options so that only one manager is used per unique server. This should
 		// improve contention.
-		return new SingleConnectionManager(new Config()
-				.useSingleServer()
-				.setAddress(address)
-				.setTimeout(timeout), new Config());
+		Config config = new Config();
+		config.useSingleServer().setAddress(address).setTimeout(timeout);
+        return Redisson.create(config);
 	}
 }

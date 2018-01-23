@@ -6,13 +6,15 @@ import org.icij.extract.redis.*;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
-import org.redisson.Redisson;
 import org.redisson.RedissonMap;
+import org.redisson.api.RedissonClient;
 import org.redisson.client.RedisOutOfMemoryException;
 import org.redisson.client.codec.Codec;
 import org.redisson.client.protocol.Decoder;
 import org.redisson.client.protocol.Encoder;
 import org.redisson.command.CommandSyncService;
+import org.redisson.config.Config;
+import org.redisson.config.ConfigSupport;
 import org.redisson.connection.ConnectionManager;
 
 import java.io.IOException;
@@ -39,7 +41,7 @@ public class RedisReportMap extends RedissonMap<Document, Report> implements Rep
 	 */
 	private static final String DEFAULT_NAME = "extract:report";
 
-	private final ConnectionManager connectionManager;
+	private final RedissonClient redissonClient;
 
 	/**
 	 * Create a Redis-backed report using the provided configuration.
@@ -47,7 +49,7 @@ public class RedisReportMap extends RedissonMap<Document, Report> implements Rep
 	 * @param options options for connecting to Redis
 	 */
 	RedisReportMap(final DocumentFactory factory, final Options<String> options) {
-		this(factory, new ConnectionManagerFactory().withOptions(options).create(),
+		this(factory, new RedissonClientFactory().withOptions(options).create(),
 				options.get("reportName").value().orElse(DEFAULT_NAME),
 				options.get("charset").parse().asCharset().orElse(StandardCharsets.UTF_8));
 	}
@@ -55,14 +57,14 @@ public class RedisReportMap extends RedissonMap<Document, Report> implements Rep
 	/**
 	 * Instantiate a new Redis-backed report using the provided connection manager and name.
 	 *
-	 * @param connectionManager instantiated using {@link ConnectionManagerFactory}
+	 * @param redissonClient instantiated using {@link RedissonClientFactory}
 	 * @param name the name of the report
 	 */
-	private RedisReportMap(final DocumentFactory factory, final ConnectionManager connectionManager, final String name,
-	                       final Charset charset) {
-		super(new ReportCodec(factory, charset), new CommandSyncService(connectionManager), null == name ?
-				DEFAULT_NAME : name, Redisson.create(connectionManager.getCfg()), null);
-		this.connectionManager = connectionManager;
+	private RedisReportMap(final DocumentFactory factory, final RedissonClient redissonClient, final String name,
+						   final Charset charset) {
+		super(new ReportCodec(factory, charset), new CommandSyncService(ConfigSupport.createConnectionManager(new Config(redissonClient.getConfig()))),
+				null == name ? DEFAULT_NAME : name, redissonClient, null);
+		this.redissonClient = redissonClient;
 	}
 
 	/**
@@ -76,7 +78,7 @@ public class RedisReportMap extends RedissonMap<Document, Report> implements Rep
 
 	@Override
 	public void close() throws IOException {
-		connectionManager.shutdown();
+		redissonClient.shutdown();
 	}
 
 	/**
