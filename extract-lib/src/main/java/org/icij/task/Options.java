@@ -91,4 +91,13 @@ public class Options<T> implements Iterable<Option<T>> {
         return Objects.hash(map);
     }
 
+    public Options<T> createFrom(final Options<T> optionsToBind) {
+        Options<T> options = new Options<>();
+        map.forEach((k, v) -> options.add(optionsToBind.ifContains(k).orElse(v)));
+        return options;
+    }
+
+    private Optional<Option<T>> ifContains(final String name) {
+        return map.containsKey(name) ? Optional.of(map.get(name)) : Optional.empty();
+    }
 }

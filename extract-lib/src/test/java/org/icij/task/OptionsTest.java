@@ -61,4 +61,20 @@ public class OptionsTest {
         }};
         assertEquals(Options.from(stringProperties), Options.from(stringProperties));
     }
+
+    @Test
+    public void test_createFrom() throws Exception {
+        Options<String> options1 = Options.from(new HashMap<String, String>() {{
+            put("key1", "value1");
+            put("key2", "value2");
+        }});
+        Options<String> options2 = Options.from(new HashMap<String, String>() {{
+            put("key1", "new value1");
+        }});
+
+        assertEquals(Options.from(new HashMap<String, String>() {{
+                    put("key1", "new value1");
+                    put("key2", "value2");
+                }}), options1.createFrom(options2));
+    }
 }
