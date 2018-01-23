@@ -167,7 +167,6 @@ public class Document {
 		if (null == reader && null != readerGenerator) {
 			reader = readerGenerator.generate();
 		}
-
 		return reader;
 	}
 
@@ -184,13 +183,13 @@ public class Document {
 	}
 
 	@Override
+	public int hashCode() { return Objects.hash(id);}
+
+	@Override
 	public String toString() {
 		return path.toString();
 	}
 
 	@FunctionalInterface
-	public interface ReaderGenerator {
-
-		Reader generate() throws IOException;
-	}
+	public interface ReaderGenerator { Reader generate() throws IOException;}
 }
