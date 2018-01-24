@@ -4,6 +4,7 @@ import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 
 import org.icij.extract.mysql.DataSourceFactory;
+import org.icij.extract.redis.RedisDocumentQueue;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;

@@ -1,10 +1,8 @@
-package org.icij.extract.queue;
+package org.icij.extract.redis;
 
 import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
-import org.icij.extract.redis.DocumentDecoder;
-import org.icij.extract.redis.DocumentEncoder;
-import org.icij.extract.redis.RedissonClientFactory;
+import org.icij.extract.queue.DocumentQueue;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
@@ -44,7 +42,7 @@ public class RedisDocumentQueue extends RedissonBlockingQueue<Document> implemen
 	 * @param factory for creating {@link Document} objects
 	 * @param options options for connecting to Redis
 	 */
-	RedisDocumentQueue(final DocumentFactory factory, final Options<String> options) {
+	protected RedisDocumentQueue(final DocumentFactory factory, final Options<String> options) {
 		this(factory, new RedissonClientFactory().withOptions(options).create(),
 				options.get("queueName").value().orElse(DEFAULT_NAME),
 				options.get("charset").parse().asCharset().orElse(StandardCharsets.UTF_8));
