@@ -13,6 +13,10 @@ public class Options<T> implements Iterable<Option<T>> {
         return map.containsKey(name) ? function.apply(get(name)) : Optional.empty();
     }
 
+    public Optional<T> valueIfPresent(final String name) {
+        return map.containsKey(name) ? map.get(name).value(): Optional.empty();
+    }
+
     public Option<T> get(final String name) {
         return map.get(name);
     }

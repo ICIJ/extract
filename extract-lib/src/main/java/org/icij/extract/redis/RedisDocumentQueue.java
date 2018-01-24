@@ -17,7 +17,6 @@ import org.redisson.config.ConfigSupport;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 
 /**
  * A {@link DocumentQueue} using Redis as a backend.
@@ -42,10 +41,10 @@ public class RedisDocumentQueue extends RedissonBlockingQueue<Document> implemen
 	 * @param factory for creating {@link Document} objects
 	 * @param options options for connecting to Redis
 	 */
-	protected RedisDocumentQueue(final DocumentFactory factory, final Options<String> options) {
+	public RedisDocumentQueue(final DocumentFactory factory, final Options<String> options) {
 		this(factory, new RedissonClientFactory().withOptions(options).create(),
-				options.get("queueName").value().orElse(DEFAULT_NAME),
-				options.get("charset").parse().asCharset().orElse(StandardCharsets.UTF_8));
+				options.valueIfPresent("queueName").orElse(DEFAULT_NAME),
+				Charset.forName(options.valueIfPresent("charset").orElse("UTF-8")));
 	}
 
 	/**

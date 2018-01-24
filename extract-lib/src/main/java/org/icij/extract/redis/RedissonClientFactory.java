@@ -27,8 +27,8 @@ public class RedissonClientFactory {
 	 * @return a new connection manager
 	 */
 	public RedissonClientFactory withOptions(final Options<String> options) {
-		withAddress(options.get("redisAddress").value().orElse(null));
-		options.get("redisTimeout").parse().asInteger().ifPresent(this::withTimeout);
+		withAddress(options.valueIfPresent("redisAddress").orElse(null));
+		options.ifPresent("redisTimeout", o -> o.parse().asInteger()).ifPresent(this::withTimeout);
 		return this;
 	}
 
@@ -60,7 +60,7 @@ public class RedissonClientFactory {
 	 * @return a new connection manager
 	 */
 	public RedissonClient create() {
-		final String address = null == this.address ? "127.0.0.1:6379" : this.address;
+		final String address = null == this.address ? "redis://127.0.0.1:6379" : this.address;
 		final int timeout = this.timeout < 0 ? 60 * 1000 : this.timeout;
 
 		// TODO: support all the other types supported by the RedissonClientFactory.
