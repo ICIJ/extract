@@ -6,14 +6,13 @@ import org.icij.extract.queue.DocumentQueue;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
+import org.redisson.Redisson;
 import org.redisson.RedissonBlockingQueue;
 import org.redisson.api.RedissonClient;
 import org.redisson.client.codec.Codec;
 import org.redisson.client.protocol.Decoder;
 import org.redisson.client.protocol.Encoder;
 import org.redisson.command.CommandSyncService;
-import org.redisson.config.Config;
-import org.redisson.config.ConfigSupport;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -58,7 +57,7 @@ public class RedisDocumentQueue extends RedissonBlockingQueue<Document> implemen
 	private RedisDocumentQueue(final DocumentFactory factory, final RedissonClient redissonClient,
 	                           final String name, final Charset charset) {
 		super(new DocumentQueueCodec(factory, charset),
-				new CommandSyncService(ConfigSupport.createConnectionManager(new Config(redissonClient.getConfig()))),
+				new CommandSyncService(((Redisson)redissonClient).getConnectionManager()),
 				null == name ? DEFAULT_NAME : name, redissonClient);
 		this.redissonClient = redissonClient;
 	}
