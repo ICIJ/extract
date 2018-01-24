@@ -7,7 +7,6 @@ import org.icij.task.annotation.Option;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -42,9 +41,9 @@ public class DocumentFactory {
 	}
 
 	public DocumentFactory configure(final Options<String> options) {
-		final String algorithm = options.get("idDigestMethod").value().orElse("SHA-256");
-		final Charset charset = options.get("charset").parse().asCharset().orElse(StandardCharsets.UTF_8);
-		final Optional<String> method = options.get("idMethod").value();
+		final String algorithm = options.valueIfPresent("idDigestMethod").orElse("SHA-256");
+		final Charset charset = Charset.forName(options.valueIfPresent("charset").orElse("UTF-8"));
+		final Optional<String> method = options.valueIfPresent("idMethod");
 
 		if (method.isPresent()) {
 			switch (method.get()) {
