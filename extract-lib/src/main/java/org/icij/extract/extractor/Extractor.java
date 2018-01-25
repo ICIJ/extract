@@ -437,7 +437,7 @@ public class Extractor {
 		if (OutputFormat.HTML == outputFormat) {
 			reader = new ParsingReader(parser, input, metadata, context, handler);
 		} else {
-			reader = new ParsingReader(parser, input, metadata, context);
+			reader = new org.apache.tika.parser.ParsingReader(parser, input, metadata, context);
 		}
 
 		return reader;
