@@ -178,7 +178,7 @@ public class ExtractorTest {
 		}
 
 		Assert.assertEquals("text/plain; charset=UTF-16LE", document.getMetadata().get(Metadata.CONTENT_TYPE));
-		Assert.assertEquals(getExpected("/expected/text/utf16-txt.html"), text);
+		Assert.assertEquals(getExpected("/expected/utf16-txt.html"), text);
 	}
 
 	@Test
@@ -196,7 +196,7 @@ public class ExtractorTest {
 		}
 
 		Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
-		Assert.assertEquals(getExpected("/expected/text/embedded-pdf.html"), text);
+		Assert.assertEquals(getExpected("/expected/embedded-pdf.html"), text);
 	}
 
 	@Test
@@ -219,7 +219,7 @@ public class ExtractorTest {
 		}
 
 		Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
-		Assert.assertEquals(getExpected("/expected/text/embedded-data-uri-pdf.html"), text);
+		Assert.assertEquals(getExpected("/expected/embedded-data-uri-pdf.html"), text);
 	}
 
 	private String getExpected(final String file) throws IOException {
