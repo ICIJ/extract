@@ -1,8 +1,11 @@
-package org.icij.extract.queue;
+package org.icij.extract;
 
 import org.icij.concurrent.BooleanSealableLatch;
+import org.icij.extract.Scanner;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
+import org.icij.extract.queue.ArrayDocumentQueue;
+import org.icij.extract.queue.DocumentQueue;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;

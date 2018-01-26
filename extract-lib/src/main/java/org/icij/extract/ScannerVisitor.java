@@ -1,4 +1,4 @@
-package org.icij.extract.queue;
+package org.icij.extract;
 
 import org.icij.concurrent.SealableLatch;
 import org.icij.event.Notifiable;

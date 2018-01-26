@@ -1,4 +1,4 @@
-package org.icij.extract.queue;
+package org.icij.extract;
 
 import org.icij.concurrent.ExecutorProxy;
 import org.icij.concurrent.SealableLatch;
@@ -25,8 +25,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import static org.icij.extract.queue.ScannerVisitor.FOLLOW_SYMLINKS;
-import static org.icij.extract.queue.ScannerVisitor.MAX_DEPTH;
+import static org.icij.extract.ScannerVisitor.FOLLOW_SYMLINKS;
+import static org.icij.extract.ScannerVisitor.MAX_DEPTH;
 
 /**
  * Scanner for scanning the directory tree starting at a given path.

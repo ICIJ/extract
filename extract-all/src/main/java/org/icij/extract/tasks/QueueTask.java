@@ -2,7 +2,7 @@ package org.icij.extract.tasks;
 
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.queue.DocumentQueue;
-import org.icij.extract.queue.Scanner;
+import org.icij.extract.Scanner;
 
 import org.icij.extract.queue.DocumentQueueFactory;
 

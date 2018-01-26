@@ -10,7 +10,7 @@ import org.icij.extract.mysql.DataSourceFactory;
 import org.icij.extract.queue.DocumentQueue;
 import org.icij.extract.queue.DocumentQueueDrainer;
 import org.icij.extract.queue.DocumentQueueFactory;
-import org.icij.extract.queue.Scanner;
+import org.icij.extract.Scanner;
 import org.icij.extract.report.ReportMap;
 import org.icij.extract.report.ReportMapFactory;
 import org.icij.extract.report.Reporter;
