@@ -1,6 +1,7 @@
 package org.icij.extract.document;
 
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.Property;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -9,6 +10,16 @@ import java.util.*;
 import java.util.function.Supplier;
 
 public class Document {
+	public static String CONTENT_ENCODING = "Content-Encoding";
+	public static String CONTENT_LANGUAGE = "Content-Language";
+	public static String CONTENT_LENGTH = "Content-Length";
+	public static String CONTENT_LOCATION = "Content-Location";
+	public static String CONTENT_DISPOSITION = "Content-Disposition";
+	public static String CONTENT_MD5 = "Content-MD5";
+	public static String CONTENT_TYPE = "Content-Type";
+	public static Property LAST_MODIFIED = Property.internalDate("Last-Modified");
+	public static String LOCATION = "Location";
+
 
 	private final Path path;
 	private Supplier<String> id;
@@ -102,6 +113,10 @@ public class Document {
 
 	public Path getPath() {
 		return path;
+	}
+
+	public String getMetadata(final String fieldName) {
+		return metadata.get(fieldName);
 	}
 
 	public Metadata getMetadata() {
