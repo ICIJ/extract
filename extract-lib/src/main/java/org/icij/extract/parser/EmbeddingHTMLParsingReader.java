@@ -6,8 +6,8 @@ import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.ContentHandlerDecorator;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
-import org.icij.extract.document.Document;
-import org.icij.extract.document.EmbeddedDocument;
+import org.icij.extract.document.EmbeddedTikaDocument;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.io.DataURIEncodingInputStream;
 import org.icij.extract.io.TokenReplacingReader;
 import org.xml.sax.Attributes;
@@ -37,13 +37,13 @@ public class EmbeddingHTMLParsingReader extends ParsingReader {
 
 	private final TokenReplacingReader replacer;
 
-	public EmbeddingHTMLParsingReader(final Document parent, final String open, final String close, final Parser
+	public EmbeddingHTMLParsingReader(final TikaDocument parent, final String open, final String close, final Parser
 			parser, final TikaInputStream input, final Metadata metadata, final ParseContext context) throws
 			IOException {
 		super(parser, input, metadata, context, (writer)-> new SubstitutingContentHandler(parent, open, close, new
 				ExpandedTitleContentHandler(new HTML5Serializer(writer))));
 		this.replacer = new TokenReplacingReader((token)-> {
-			final EmbeddedDocument embed = parent.getEmbed(token);
+			final EmbeddedTikaDocument embed = parent.getEmbed(token);
 
 			if (null == embed) {
 				return null;
@@ -74,11 +74,11 @@ public class EmbeddingHTMLParsingReader extends ParsingReader {
 		private static final String IMG_TAG = "img";
 		private static final String ANCHOR_TAG = "a";
 
-		private final Document parent;
+		private final TikaDocument parent;
 		private final String open;
 		private final String close;
 
-		SubstitutingContentHandler(final Document parent, final String open, final String close, final ContentHandler
+		SubstitutingContentHandler(final TikaDocument parent, final String open, final String close, final ContentHandler
 				handler) {
 			super(handler);
 			this.open = open;

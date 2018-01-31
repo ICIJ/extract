@@ -9,13 +9,13 @@ import org.apache.tika.metadata.Metadata;
 public interface Identifier {
 
 	/**
-	 * Generate an identifier for a root document.
+	 * Generate an identifier for a root tikaDocument.
 	 *
-	 * @param document the document to generate an identifier for
+	 * @param tikaDocument the tikaDocument to generate an identifier for
 	 * @return A unique identifier, for example a fixed-length hash.
 	 * @throws Exception if there's an exception generating the ID
 	 */
-	String generate(final Document document) throws Exception;
+	String generate(final TikaDocument tikaDocument) throws Exception;
 
 	/**
 	 * Generate an identifier for an embedded document.
@@ -24,21 +24,21 @@ public interface Identifier {
 	 * @return A unique identifier for the embedded document.
 	 * @throws Exception if there's an error generating the ID
 	 */
-	String generateForEmbed(final EmbeddedDocument document) throws Exception;
+	String generateForEmbed(final EmbeddedTikaDocument document) throws Exception;
 
 	/**
-	 * Generate or retrieve (from metadata) a hash digest of the document's underlying file data.
+	 * Generate or retrieve (from metadata) a hash digest of the tikaDocument's underlying file data.
 	 *
-	 * Even if the {@link #generate(Document)} methods of the implementation generate hash digests, those are
-	 * semantically different as they represent a hash of the document, rather than the file. The former might
-	 * comprise the the relationship of the document with its parent, or its position in the path hierarchy, whereas
+	 * Even if the {@link #generate(TikaDocument)} methods of the implementation generate hash digests, those are
+	 * semantically different as they represent a hash of the tikaDocument, rather than the file. The former might
+	 * comprise the the relationship of the tikaDocument with its parent, or its position in the path hierarchy, whereas
 	 * the latter must not.
 	 *
-	 * @param document the document for which to return a file hash digest
+	 * @param tikaDocument the tikaDocument for which to return a file hash digest
 	 * @return the hash
 	 * @throws Exception if there's an error generating the hash
 	 */
-	String hash(final Document document) throws Exception;
+	String hash(final TikaDocument tikaDocument) throws Exception;
 
 	/**
 	 * Retrieve a hash digest of the document's underlying file data.

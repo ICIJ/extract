@@ -2,7 +2,7 @@ package org.icij.extract.queue;
 
 import org.icij.concurrent.BooleanSealableLatch;
 import org.icij.concurrent.SealableLatch;
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.time.HumanDuration;
@@ -13,20 +13,20 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.Consumer;
 
-public class DocumentQueueDrainerTest {
+public class TikaDocumentQueueDrainerTest {
 
 	private final DocumentFactory factory = new DocumentFactory().withIdentifier(new PathIdentifier());
 
-	private static class MockConsumer implements Consumer<Document> {
+	private static class MockConsumer implements Consumer<TikaDocument> {
 
-		private final Deque<Document> accepted = new ArrayDeque<>();
+		private final Deque<TikaDocument> accepted = new ArrayDeque<>();
 
 		@Override
-		public void accept(final Document document) {
-			accepted.add(document);
+		public void accept(final TikaDocument tikaDocument) {
+			accepted.add(tikaDocument);
 		}
 
-		Deque<Document> getAccepted() {
+		Deque<TikaDocument> getAccepted() {
 			return accepted;
 		}
 	}
@@ -44,7 +44,7 @@ public class DocumentQueueDrainerTest {
 	@Test
 	public void testDefaultPollTimeoutIs0() {
 		final DocumentQueue queue = createQueue();
-		final Consumer<Document> consumer = new MockConsumer();
+		final Consumer<TikaDocument> consumer = new MockConsumer();
 		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer);
 
 		Assert.assertEquals(0, drainer.getPollTimeout().getSeconds());
@@ -57,7 +57,7 @@ public class DocumentQueueDrainerTest {
 		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer);
 
 		final long drained = drainer.drain().get();
-		final Queue<Document> accepted = consumer.getAccepted();
+		final Queue<TikaDocument> accepted = consumer.getAccepted();
 
 		Assert.assertEquals(26, drained);
 		Assert.assertEquals(26, accepted.size());
@@ -73,10 +73,10 @@ public class DocumentQueueDrainerTest {
 		final DocumentQueue queue = createQueue();
 		final MockConsumer consumer = new MockConsumer();
 		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer);
-		final Document poison = factory.create(Paths.get("c"));
+		final TikaDocument poison = factory.create(Paths.get("c"));
 
 		final long drained = drainer.drain(poison).get();
-		final Queue<Document> accepted = consumer.getAccepted();
+		final Queue<TikaDocument> accepted = consumer.getAccepted();
 
 		Assert.assertEquals(2, drained);
 		Assert.assertEquals(2, accepted.size());
@@ -90,7 +90,7 @@ public class DocumentQueueDrainerTest {
 		final DocumentQueue queue = createQueue();
 		final MockConsumer consumer = new MockConsumer();
 		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer);
-		final Document poison = factory.create(Paths.get("1"));
+		final TikaDocument poison = factory.create(Paths.get("1"));
 
 		drainer.clearPollTimeout();
 		Assert.assertNull(drainer.getPollTimeout());
@@ -106,7 +106,7 @@ public class DocumentQueueDrainerTest {
 		}, 1000);
 
 		final long drained = drainer.drain(poison).get();
-		final Deque<Document> accepted = consumer.getAccepted();
+		final Deque<TikaDocument> accepted = consumer.getAccepted();
 
 		Assert.assertEquals(27, drained);
 		Assert.assertEquals(27, accepted.size());
@@ -133,7 +133,7 @@ public class DocumentQueueDrainerTest {
 		}, 1000);
 
 		final long drained = drainer.drain().get();
-		final Deque<Document> accepted = consumer.getAccepted();
+		final Deque<TikaDocument> accepted = consumer.getAccepted();
 
 		Assert.assertEquals(27, drained);
 		Assert.assertEquals(27, accepted.size());
@@ -171,7 +171,7 @@ public class DocumentQueueDrainerTest {
 		}, 1000);
 
 		final long drained = drainer.drain().get();
-		final Deque<Document> accepted = consumer.getAccepted();
+		final Deque<TikaDocument> accepted = consumer.getAccepted();
 
 		Assert.assertEquals(28, drained);
 		Assert.assertEquals(28, accepted.size());

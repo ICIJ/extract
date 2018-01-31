@@ -6,7 +6,7 @@ import org.junit.*;
 
 import java.nio.file.Paths;
 
-public class ArrayDocumentQueueTest {
+public class ArrayTikaDocumentQueueTest {
 
 	private final DocumentFactory factory = new DocumentFactory().withIdentifier(new PathIdentifier());
 

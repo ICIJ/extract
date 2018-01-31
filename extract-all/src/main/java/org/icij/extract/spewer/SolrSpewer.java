@@ -10,8 +10,8 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.mime.MediaType;
-import org.icij.extract.document.Document;
-import org.icij.extract.document.EmbeddedDocument;
+import org.icij.extract.document.EmbeddedTikaDocument;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.parser.ParsingReader;
 import org.icij.spewer.FieldNames;
 import org.icij.spewer.MetadataTransformer;
@@ -123,40 +123,40 @@ public class SolrSpewer extends Spewer implements Serializable {
 	}
 
 	@Override
-	public void write(final Document document, final Reader reader) throws IOException {
-		final SolrInputDocument inputDocument = prepareDocument(document, reader, 0);
+	public void write(final TikaDocument tikaDocument, final Reader reader) throws IOException {
+		final SolrInputDocument inputDocument = prepareDocument(tikaDocument, reader, 0);
 		UpdateResponse response;
 
-		response = write(document, inputDocument);
-		logger.info("Document added to Solr in {}ms: \"{}\".", response.getElapsedTime(), document);
+		response = write(tikaDocument, inputDocument);
+		logger.info("TikaDocument added to Solr in {}ms: \"{}\".", response.getElapsedTime(), tikaDocument);
 
 		try {
 
 			// We need to deleted the "fake" child documents so that there are no orphans.
-			response = client.deleteByQuery(String.format("%s:%s AND %s:[1 TO *]", fields.forRoot(), document.getId(),
+			response = client.deleteByQuery(String.format("%s:%s AND %s:[1 TO *]", fields.forRoot(), tikaDocument.getId(),
 					fields.forLevel()));
 		} catch (final SolrServerException e) {
 			throw new IOException(e);
 		}
 
-		logger.info("Deleted old child documents in {}ms: \"{}\".", response.getElapsedTime(), document);
+		logger.info("Deleted old child documents in {}ms: \"{}\".", response.getElapsedTime(), tikaDocument);
 
-		if (document.hasEmbeds()) {
-			for (EmbeddedDocument childDocument : document.getEmbeds()) {
-				write(childDocument, 1, document, document);
+		if (tikaDocument.hasEmbeds()) {
+			for (EmbeddedTikaDocument childDocument : tikaDocument.getEmbeds()) {
+				write(childDocument, 1, tikaDocument, tikaDocument);
 			}
 
-			logger.info("Wrote child documents: \"{}\".", document);
+			logger.info("Wrote child documents: \"{}\".", tikaDocument);
 		}
 	}
 
 	@Override
-	public void writeMetadata(final Document document) {
+	public void writeMetadata(final TikaDocument tikaDocument) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public Document[] write(final Path path) throws IOException, ClassNotFoundException {
+	public TikaDocument[] write(final Path path) throws IOException, ClassNotFoundException {
 		try (final InputStream fis = Files.newInputStream(path);
 				final ObjectInputStream in = new ObjectInputStream(path.toString().endsWith(".gz") ?
 						new GZIPInputStream(fis) : fis)) {
@@ -164,18 +164,18 @@ public class SolrSpewer extends Spewer implements Serializable {
 
 			in.close();
 
-			final Document[] documents = inputDocument
-					.getFieldValues(fields.forPath()).stream().map(p -> new Document(inputDocument
+			final TikaDocument[] tikaDocuments = inputDocument
+					.getFieldValues(fields.forPath()).stream().map(p -> new TikaDocument(inputDocument
 					.getFieldValue(fields.forId()).toString(), null, Paths.get(p.toString()), null))
-			.toArray(Document[]::new);
+			.toArray(TikaDocument[]::new);
 
-			write(documents[0], inputDocument);
+			write(tikaDocuments[0], inputDocument);
 
-			return documents;
+			return tikaDocuments;
 		}
 	}
 
-	protected UpdateResponse write(final Document document, final SolrInputDocument inputDocument) throws
+	protected UpdateResponse write(final TikaDocument tikaDocument, final SolrInputDocument inputDocument) throws
 			IOException {
 		final UpdateResponse response;
 		boolean success = false;
@@ -189,14 +189,14 @@ public class SolrSpewer extends Spewer implements Serializable {
 
 			success = true;
 		} catch (final SolrServerException e) {
-			throw new TaggedIOException(new IOException(String.format("Unable to add document to Solr: \"%s\". " +
-					"There was server-side error.", document), e), this);
+			throw new TaggedIOException(new IOException(String.format("Unable to add tikaDocument to Solr: \"%s\". " +
+					"There was server-side error.", tikaDocument), e), this);
 		} catch (final SolrException e) {
-			throw new TaggedIOException(new IOException(String.format("Unable to add document to Solr: \"%s\". " +
-					"HTTP error %d was returned.", document, ((SolrException) e).code()), e), this);
+			throw new TaggedIOException(new IOException(String.format("Unable to add tikaDocument to Solr: \"%s\". " +
+					"HTTP error %d was returned.", tikaDocument, ((SolrException) e).code()), e), this);
 		} catch (final IOException e) {
-			throw new TaggedIOException(new IOException(String.format("Unable to add document to Solr: \"%s\". " +
-						"There was an error communicating with the server.", document), e), this);
+			throw new TaggedIOException(new IOException(String.format("Unable to add tikaDocument to Solr: \"%s\". " +
+						"There was an error communicating with the server.", tikaDocument), e), this);
 		} finally {
 			if (!success && dump) {
 				Path dumped = null;
@@ -208,7 +208,7 @@ public class SolrSpewer extends Spewer implements Serializable {
 				}
 
 				if (null != dumped) {
-					logger.error("Error while adding to Solr. Input document dumped to \"{}\".", dumped);
+					logger.error("Error while adding to Solr. Input tikaDocument dumped to \"{}\".", dumped);
 				}
 			}
 		}
@@ -233,7 +233,7 @@ public class SolrSpewer extends Spewer implements Serializable {
 		return path;
 	}
 
-	private void write(final EmbeddedDocument child, final int level, final Document parent, final Document root)
+	private void write(final EmbeddedTikaDocument child, final int level, final TikaDocument parent, final TikaDocument root)
 			throws IOException {
 		final SolrInputDocument inputDocument = prepareDocument(child, level, parent, root);
 		final UpdateResponse response;
@@ -249,18 +249,18 @@ public class SolrSpewer extends Spewer implements Serializable {
 		response = write(child, inputDocument);
 		logger.info("Child document added to Solr in {}ms: \"{}\".", response.getElapsedTime(), child);
 
-		for (EmbeddedDocument grandchild : child.getEmbeds()) {
+		for (EmbeddedTikaDocument grandchild : child.getEmbeds()) {
 			write(grandchild, level + 1, child, root);
 		}
 	}
 
-	private SolrInputDocument prepareDocument(final Document document, final Reader reader, final int level)
+	private SolrInputDocument prepareDocument(final TikaDocument tikaDocument, final Reader reader, final int level)
 			throws IOException {
 		final SolrInputDocument inputDocument = new SolrInputDocument();
 
 		// Set extracted metadata fields supplied by Tika.
 		if (outputMetadata) {
-			setMetadataFieldValues(document.getMetadata(), inputDocument);
+			setMetadataFieldValues(tikaDocument.getMetadata(), inputDocument);
 		}
 
 		// Set tags supplied by the caller.
@@ -269,9 +269,9 @@ public class SolrSpewer extends Spewer implements Serializable {
 		String id;
 
 		try {
-			id = document.getId();
+			id = tikaDocument.getId();
 		} catch (final Exception e) {
-			logger.error("Unable to get document ID. Skipping document.", e);
+			logger.error("Unable to get tikaDocument ID. Skipping tikaDocument.", e);
 			return null;
 		}
 
@@ -281,12 +281,12 @@ public class SolrSpewer extends Spewer implements Serializable {
 		}
 
 		// Add the base type. De-duplicated. Eases faceting on type.
-		setFieldValue(inputDocument, fields.forBaseType(), Arrays.stream(document.getMetadata()
+		setFieldValue(inputDocument, fields.forBaseType(), Arrays.stream(tikaDocument.getMetadata()
 				.getValues(Metadata.CONTENT_TYPE)).map((type)-> {
 			final MediaType mediaType = MediaType.parse(type);
 
 			if (null == mediaType) {
-				logger.warn(String.format("Content type could not be parsed: \"%s\". Was: \"%s\".", document, type));
+				logger.warn(String.format("Content type could not be parsed: \"%s\". Was: \"%s\".", tikaDocument, type));
 				return type;
 			}
 
@@ -295,12 +295,12 @@ public class SolrSpewer extends Spewer implements Serializable {
 
 		// Set the path field.
 		if (null != fields.forPath()) {
-			setFieldValue(inputDocument, fields.forPath(), document.getPath().toString());
+			setFieldValue(inputDocument, fields.forPath(), tikaDocument.getPath().toString());
 		}
 
 		// Set the parent path field.
-		if (null != fields.forParentPath() && document.getPath().getNameCount() > 1) {
-			setFieldValue(inputDocument, fields.forParentPath(), document.getPath().getParent().toString());
+		if (null != fields.forParentPath() && tikaDocument.getPath().getNameCount() > 1) {
+			setFieldValue(inputDocument, fields.forParentPath(), tikaDocument.getPath().getParent().toString());
 		}
 
 		// Set the level in the hierarchy.
@@ -312,8 +312,8 @@ public class SolrSpewer extends Spewer implements Serializable {
 		return inputDocument;
 	}
 
-	private SolrInputDocument prepareDocument(final EmbeddedDocument child, final int level, final Document parent,
-	                                          final Document root) throws IOException {
+	private SolrInputDocument prepareDocument(final EmbeddedTikaDocument child, final int level, final TikaDocument parent,
+                                              final TikaDocument root) throws IOException {
 		final SolrInputDocument inputDocument;
 
 		try (final Reader reader = child.getReader()) {

@@ -16,12 +16,12 @@ public class DigestIdentifier extends AbstractIdentifier {
 	}
 
 	@Override
-	public String generate(final Document document) {
-		return hash(document).toLowerCase(ENGLISH);
+	public String generate(final TikaDocument tikaDocument) {
+		return hash(tikaDocument).toLowerCase(ENGLISH);
 	}
 
 	@Override
-	public String generateForEmbed(final EmbeddedDocument embed) throws NoSuchAlgorithmException {
+	public String generateForEmbed(final EmbeddedTikaDocument embed) throws NoSuchAlgorithmException {
 		final MessageDigest digest = MessageDigest.getInstance(algorithm);
 
 		// Embedded documents in different files or the same file could have the same hash. Therefore, to avoid ID

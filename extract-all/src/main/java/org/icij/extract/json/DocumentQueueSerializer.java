@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import org.icij.event.Notifiable;
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.queue.DocumentQueue;
 
 import java.io.IOException;
@@ -27,7 +27,7 @@ public class DocumentQueueSerializer extends JsonSerializer<DocumentQueue> {
 	@Override
 	public void serialize(final DocumentQueue queue, final JsonGenerator jsonGenerator, final SerializerProvider provider)
 		throws IOException {
-		final Iterator<Document> iterator = queue.iterator();
+		final Iterator<TikaDocument> iterator = queue.iterator();
 
 		jsonGenerator.writeStartArray();
 		while (iterator.hasNext()) {

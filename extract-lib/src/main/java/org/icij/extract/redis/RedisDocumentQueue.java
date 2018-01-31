@@ -1,6 +1,6 @@
 package org.icij.extract.redis;
 
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.queue.DocumentQueue;
 import org.icij.task.Options;
@@ -26,7 +26,7 @@ import java.nio.charset.Charset;
 @Option(name = "queueName", description = "The name of the queue.", parameter = "name")
 @Option(name = "charset", description = "Set the output encoding for strings. Defaults to UTF-8.", parameter = "name")
 @OptionsClass(RedissonClientFactory.class)
-public class RedisDocumentQueue extends RedissonBlockingQueue<Document> implements DocumentQueue {
+public class RedisDocumentQueue extends RedissonBlockingQueue<TikaDocument> implements DocumentQueue {
 	/**
 	 * The default name for a queue in Redis.
 	 */
@@ -37,7 +37,7 @@ public class RedisDocumentQueue extends RedissonBlockingQueue<Document> implemen
 	/**
 	 * Create a Redis-backed queue using the provided configuration.
 	 *
-	 * @param factory for creating {@link Document} objects
+	 * @param factory for creating {@link TikaDocument} objects
 	 * @param options options for connecting to Redis
 	 */
 	public RedisDocumentQueue(final DocumentFactory factory, final Options<String> options) {
@@ -49,7 +49,7 @@ public class RedisDocumentQueue extends RedissonBlockingQueue<Document> implemen
 	/**
 	 * Instantiate a new Redis-backed queue using the provided connection manager and name.
 	 *
-	 * @param factory for creating {@link Document} objects
+	 * @param factory for creating {@link TikaDocument} objects
 	 * @param redissonClient instantiated using {@link RedissonClientFactory}
 	 * @param name the name of the queue
 	 * @param charset the character set for encoding and decoding paths

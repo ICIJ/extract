@@ -2,8 +2,8 @@ package org.icij.spewer;
 
 import org.apache.commons.io.TaggedIOException;
 import org.apache.tika.metadata.Metadata;
-import org.icij.extract.document.Document;
-import org.icij.extract.document.EmbeddedDocument;
+import org.icij.extract.document.TikaDocument;
+import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.parser.ParsingReader;
 
 import java.io.IOException;
@@ -27,9 +27,9 @@ public class PrintStreamSpewer extends Spewer implements Serializable {
 	}
 
 	@Override
-	public void write(final Document document, final Reader reader) throws IOException {
+	public void write(final TikaDocument tikaDocument, final Reader reader) throws IOException {
 		if (outputMetadata) {
-			writeMetadata(document);
+			writeMetadata(tikaDocument);
 		}
 
 		// A PrintStream should never throw an IOException: the exception would always come from the input stream.
@@ -44,7 +44,7 @@ public class PrintStreamSpewer extends Spewer implements Serializable {
 		}
 
 		// Write out child documents, if any.
-		for (EmbeddedDocument embed: document.getEmbeds()) {
+		for (EmbeddedTikaDocument embed: tikaDocument.getEmbeds()) {
 			try (final Reader embedReader = embed.getReader()) {
 				write(embed, embedReader);
 			}
@@ -52,17 +52,17 @@ public class PrintStreamSpewer extends Spewer implements Serializable {
 	}
 
 	@Override
-	public void writeMetadata(final Document document) throws IOException {
-		final Metadata metadata = document.getMetadata();
+	public void writeMetadata(final TikaDocument tikaDocument) throws IOException {
+		final Metadata metadata = tikaDocument.getMetadata();
 
 		// Set the path field.
 		if (null != fields.forPath()) {
-			stream.println(fields.forPath() + ": " + document.getPath().toString());
+			stream.println(fields.forPath() + ": " + tikaDocument.getPath().toString());
 		}
 
 		// Set the parent path field.
-		if (null != fields.forParentPath() && document.getPath().getNameCount() > 1) {
-			stream.println(fields.forParentPath() + ": " + document.getPath().getParent().toString());
+		if (null != fields.forParentPath() && tikaDocument.getPath().getNameCount() > 1) {
+			stream.println(fields.forParentPath() + ": " + tikaDocument.getPath().getParent().toString());
 		}
 
 		new MetadataTransformer(metadata, fields).transform((name, value)-> stream.println(name + ": " + value),

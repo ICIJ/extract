@@ -5,8 +5,8 @@ import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
-import org.icij.extract.document.Document;
-import org.icij.extract.document.EmbeddedDocument;
+import org.icij.extract.document.EmbeddedTikaDocument;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.PathIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,14 +39,14 @@ public class EmbedLinker implements EmbeddedDocumentExtractor {
 	 */
 	private static final Logger logger = LoggerFactory.getLogger(EmbedLinker.class);
 
-	private final Document parent;
+	private final TikaDocument parent;
 	private final TemporaryResources tmp;
 	private final String open;
 	private final String close;
 
 	private int untitled = 0;
 
-	EmbedLinker(final Document parent, final TemporaryResources tmp, final String open, final String close) {
+	EmbedLinker(final TikaDocument parent, final TemporaryResources tmp, final String open, final String close) {
 		this.parent = parent;
 		this.tmp = tmp;
 		this.open = open;
@@ -72,7 +72,7 @@ public class EmbedLinker implements EmbeddedDocumentExtractor {
 			name = String.format("untitled file %d", ++untitled);
 		}
 
-		final EmbeddedDocument embed = saveEmbedded(name, input, metadata);
+		final EmbeddedTikaDocument embed = saveEmbedded(name, input, metadata);
 
 		// If outputHtml is false then it means that the parser already outputted markup for the embed.
 		if (outputHtml) {
@@ -105,13 +105,13 @@ public class EmbedLinker implements EmbeddedDocumentExtractor {
 		}
 	}
 
-	private EmbeddedDocument saveEmbedded(final String name, final InputStream input, final Metadata metadata) throws
+	private EmbeddedTikaDocument saveEmbedded(final String name, final InputStream input, final Metadata metadata) throws
 			IOException {
 		final Path path = tmp.createTemporaryFile().toPath();
 
 		// Add the embedded document to the parent with a key (which is the temporary path) so that it can be looked
 		// up later.
-		final EmbeddedDocument embed = parent.addEmbed(path.toString(), new PathIdentifier(), path, metadata);
+		final EmbeddedTikaDocument embed = parent.addEmbed(path.toString(), new PathIdentifier(), path, metadata);
 
 		if ((input instanceof TikaInputStream) && ((TikaInputStream) input).getOpenContainer() != null && (
 				(TikaInputStream) input).getOpenContainer() instanceof DirectoryEntry) {

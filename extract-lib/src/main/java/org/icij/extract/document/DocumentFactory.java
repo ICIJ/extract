@@ -14,10 +14,10 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * A factory class for creating {@link Document} objects with default parameters.
+ * A factory class for creating {@link TikaDocument} objects with default parameters.
  *
  * {@link org.icij.extract.queue.DocumentQueue} implementations should use the {@literal create} method that
- * instantiates a {@link Document} with all of the information that it is capable of providing.
+ * instantiates a {@link TikaDocument} with all of the information that it is capable of providing.
  *
  * For example, a queue that stores only paths should use the {@link #create(Path)} method, whereas a queue that
  * stores both a path and ID should use {@link #create(String, Path)}.
@@ -69,49 +69,49 @@ public class DocumentFactory {
 		return this;
 	}
 
-	public Document create(final String id, final Path path) {
-		return new Document(id, identifier, path);
+	public TikaDocument create(final String id, final Path path) {
+		return new TikaDocument(id, identifier, path);
 	}
 
-	public Document create(final String id, final Path path, final long size) {
+	public TikaDocument create(final String id, final Path path, final long size) {
 		final Metadata metadata = new Metadata();
 
 		metadata.set(Metadata.CONTENT_LENGTH, Long.toString(size));
-		return new Document(id, identifier, path, metadata);
+		return new TikaDocument(id, identifier, path, metadata);
 	}
 
-	public Document create(final String id, final Path path, final Metadata metadata) {
-		return new Document(id, identifier, path, metadata);
+	public TikaDocument create(final String id, final Path path, final Metadata metadata) {
+		return new TikaDocument(id, identifier, path, metadata);
 	}
 
-	public Document create(final Path path) {
-		return new Document(identifier, path);
+	public TikaDocument create(final Path path) {
+		return new TikaDocument(identifier, path);
 	}
 
-	public Document create(final Path path, final BasicFileAttributes attributes) {
+	public TikaDocument create(final Path path, final BasicFileAttributes attributes) {
 		return create(path, attributes.size());
 	}
 
-	public Document create(final Path path, final long size) {
+	public TikaDocument create(final Path path, final long size) {
 		final Metadata metadata = new Metadata();
 
 		metadata.set(Metadata.CONTENT_LENGTH, Long.toString(size));
-		return new Document(identifier, path, metadata);
+		return new TikaDocument(identifier, path, metadata);
 	}
 
-	public Document create(final String path) {
+	public TikaDocument create(final String path) {
 		return create(Paths.get(path));
 	}
 
-	public Document create(final String id, final String path) {
+	public TikaDocument create(final String id, final String path) {
 		return create(id, Paths.get(path));
 	}
 
-	public Document create(final Path path, final Metadata metadata) {
-		return new Document(identifier, path, metadata);
+	public TikaDocument create(final Path path, final Metadata metadata) {
+		return new TikaDocument(identifier, path, metadata);
 	}
 
-	public Document create(final URL url) throws URISyntaxException {
+	public TikaDocument create(final URL url) throws URISyntaxException {
 		return create(Paths.get(url.toURI()));
 	}
 }

@@ -8,7 +8,7 @@ import org.apache.http.client.methods.HttpPut;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.tika.metadata.Metadata;
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,16 +34,16 @@ public class RESTSpewer extends Spewer implements Serializable {
 	}
 
 	@Override
-	public void write(final Document document, final Reader reader) throws IOException {
-		final HttpPut put = new HttpPut(uri.resolve(document.getId()));
+	public void write(final TikaDocument tikaDocument, final Reader reader) throws IOException {
+		final HttpPut put = new HttpPut(uri.resolve(tikaDocument.getId()));
 		final List<NameValuePair> params = new ArrayList<>();
 
-		params.add(new BasicNameValuePair(fields.forId(), document.getId()));
-		params.add(new BasicNameValuePair(fields.forPath(), document.getPath().toString()));
+		params.add(new BasicNameValuePair(fields.forId(), tikaDocument.getId()));
+		params.add(new BasicNameValuePair(fields.forPath(), tikaDocument.getPath().toString()));
 		params.add(new BasicNameValuePair(fields.forText(), toString(reader)));
 
 		if (outputMetadata) {
-			parametrizeMetadata(document.getMetadata(), params);
+			parametrizeMetadata(tikaDocument.getMetadata(), params);
 		}
 
 		put.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
@@ -51,11 +51,11 @@ public class RESTSpewer extends Spewer implements Serializable {
 	}
 
 	@Override
-	public void writeMetadata(final Document document) throws IOException {
-		final HttpPut put = new HttpPut(uri.resolve(document.getId()));
+	public void writeMetadata(final TikaDocument tikaDocument) throws IOException {
+		final HttpPut put = new HttpPut(uri.resolve(tikaDocument.getId()));
 		final List<NameValuePair> params = new ArrayList<>();
 
-		parametrizeMetadata(document.getMetadata(), params);
+		parametrizeMetadata(tikaDocument.getMetadata(), params);
 		put.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
 		put(put);
 	}

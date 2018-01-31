@@ -1,6 +1,6 @@
 package org.icij.spewer;
 
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.parser.ParsingReader;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
@@ -47,11 +47,11 @@ public abstract class Spewer implements AutoCloseable, Serializable {
 		return this;
 	}
 
-	public abstract void write(final Document document, final Reader reader) throws IOException;
+	public abstract void write(final TikaDocument tikaDocument, final Reader reader) throws IOException;
 
-	public abstract void writeMetadata(final Document document) throws IOException;
+	public abstract void writeMetadata(final TikaDocument tikaDocument) throws IOException;
 
-	public Document[] write(final Path path) throws IOException, ClassNotFoundException {
+	public TikaDocument[] write(final Path path) throws IOException, ClassNotFoundException {
 		throw new UnsupportedOperationException("Not implemented.");
 	}
 
@@ -114,4 +114,5 @@ public abstract class Spewer implements AutoCloseable, Serializable {
 		copy(reader, writer);
 		return writer.toString();
 	}
+
 }

@@ -1,6 +1,6 @@
 package org.icij.extract.report;
 
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.extractor.ExtractionStatus;
@@ -17,10 +17,10 @@ public class SQLReportCodecTest {
 
 	@Test
 	public void testEncodeKey() throws Throwable {
-		final SQLMapCodec<Document, Report> codec = new SQLReportCodec(documentFactory);
-		final Document document = documentFactory.create("a", "path/to/file");
+		final SQLMapCodec<TikaDocument, Report> codec = new SQLReportCodec(documentFactory);
+		final TikaDocument tikaDocument = documentFactory.create("a", "path/to/file");
 
-		final Map<String, Object> map = codec.encodeKey(document);
+		final Map<String, Object> map = codec.encodeKey(tikaDocument);
 
 		Assert.assertEquals("path/to/file", map.get("path"));
 	}
@@ -28,7 +28,7 @@ public class SQLReportCodecTest {
 	@Test
 	public void testEncodeValue() throws Throwable {
 		final Report report = new Report(ExtractionStatus.FAILURE_NOT_PARSED, new IOException("Failed to parse."));
-		final SQLMapCodec<Document, Report> codec = new SQLReportCodec(documentFactory);
+		final SQLMapCodec<TikaDocument, Report> codec = new SQLReportCodec(documentFactory);
 
 		final Map<String, Object> map = codec.encodeValue(report);
 

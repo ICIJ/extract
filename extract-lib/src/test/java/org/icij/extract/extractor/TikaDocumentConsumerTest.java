@@ -1,6 +1,6 @@
 package org.icij.extract.extractor;
 
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.report.HashMapReportMap;
@@ -17,11 +17,11 @@ import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
 
-public class DocumentConsumerTest {
+public class TikaDocumentConsumerTest {
 
 	private final DocumentFactory factory = new DocumentFactory().withIdentifier(new PathIdentifier());
 
-	private Document getFile() throws URISyntaxException {
+	private TikaDocument getFile() throws URISyntaxException {
 		return factory.create(Paths.get(getClass().getResource("/documents/text/plain.txt").toURI()));
 	}
 
@@ -33,10 +33,10 @@ public class DocumentConsumerTest {
 		final PrintStream print = new PrintStream(output);
 		final Spewer spewer = new PrintStreamSpewer(print, new FieldNames());
 		final DocumentConsumer consumer = new DocumentConsumer(spewer, extractor, 1);
-		final Document document = getFile();
+		final TikaDocument tikaDocument = getFile();
 
 		spewer.outputMetadata(false);
-		consumer.accept(document);
+		consumer.accept(tikaDocument);
 		consumer.shutdown();
 		Assert.assertTrue(consumer.awaitTermination(1, TimeUnit.MINUTES));
 
@@ -48,7 +48,7 @@ public class DocumentConsumerTest {
 		final Spewer spewer = new PrintStreamSpewer(new PrintStream(new ByteArrayOutputStream()), new FieldNames());
 		final DocumentConsumer consumer = new DocumentConsumer(spewer, new Extractor(), 1);
 		final Reporter reporter = new Reporter(new HashMapReportMap());
-		final Document document = getFile();
+		final TikaDocument tikaDocument = getFile();
 
 		// Assert that no reporter is set by default.
 		Assert.assertNull(consumer.getReporter());
@@ -56,11 +56,11 @@ public class DocumentConsumerTest {
 		Assert.assertEquals(reporter, consumer.getReporter());
 
 		// Assert that the extraction result is reported.
-		Assert.assertNull(reporter.report(document));
+		Assert.assertNull(reporter.report(tikaDocument));
 		spewer.outputMetadata(false);
-		consumer.accept(document);
+		consumer.accept(tikaDocument);
 		consumer.shutdown();
 		Assert.assertTrue(consumer.awaitTermination(1, TimeUnit.MINUTES));
-		Assert.assertEquals(ExtractionStatus.SUCCESS, reporter.report(document).getStatus());
+		Assert.assertEquals(ExtractionStatus.SUCCESS, reporter.report(tikaDocument).getStatus());
 	}
 }

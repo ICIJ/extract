@@ -2,7 +2,7 @@ package org.icij.extract;
 
 import org.icij.concurrent.SealableLatch;
 import org.icij.event.Notifiable;
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.task.Options;
 import org.slf4j.Logger;
@@ -25,7 +25,7 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
     private final ArrayDeque<PathMatcher> excludeMatchers = new ArrayDeque<>();
 
     private final Path path;
-    private final BlockingQueue<Document> queue;
+    private final BlockingQueue<TikaDocument> queue;
     private final DocumentFactory factory;
 
     private boolean followLinks = false;
@@ -39,7 +39,7 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
      *
      * @param path the path to scan
      */
-    public ScannerVisitor(final Path path, final BlockingQueue<Document> queue, final DocumentFactory factory, Options<String> options) {
+    public ScannerVisitor(final Path path, final BlockingQueue<TikaDocument> queue, final DocumentFactory factory, Options<String> options) {
         this.path = path;
         this.queue = queue;
         this.factory = factory;
@@ -89,9 +89,9 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
      * @throws InterruptedException if interrupted while waiting for a queue slot
      */
     void queue(final Path file, final BasicFileAttributes attributes) throws InterruptedException {
-        final Document document = factory.create(file, attributes);
+        final TikaDocument tikaDocument = factory.create(file, attributes);
 
-        queue.put(document);
+        queue.put(tikaDocument);
         queued++;
 
         if (null != latch) {

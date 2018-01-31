@@ -8,8 +8,8 @@ import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.tika.metadata.Metadata;
-import org.icij.extract.document.Document;
-import org.icij.extract.document.EmbeddedDocument;
+import org.icij.extract.document.TikaDocument;
+import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.spewer.FieldNames;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 
 /**
  * A {@link SolrSpewer} that merges the {@literal path} and {@literal parent path} fields from the given
- * {@link Document} with those from any document with the same ID on the Solr server.
+ * {@link TikaDocument} with those from any document with the same ID on the Solr server.
  *
  * This functionality allows documents with file-digest-type IDs to hold multiple paths, reflecting the multiple
  * duplicate copies that may exist on disk.
@@ -50,51 +50,51 @@ public class MergingSolrSpewer extends SolrSpewer {
 	}
 
 	@Override
-	protected UpdateResponse write(final Document document, final SolrInputDocument inputDocument) throws
+	protected UpdateResponse write(final TikaDocument tikaDocument, final SolrInputDocument inputDocument) throws
 			IOException {
 
 		// Only root documents are merged.
-		if (document instanceof EmbeddedDocument) {
-			return super.write(document, inputDocument);
+		if (tikaDocument instanceof EmbeddedTikaDocument) {
+			return super.write(tikaDocument, inputDocument);
 		} else {
-			return write(document, inputDocument, retries);
+			return write(tikaDocument, inputDocument, retries);
 		}
 	}
 
-	private UpdateResponse write(final Document document, final SolrInputDocument inputDocument, final int retries)
+	private UpdateResponse write(final TikaDocument tikaDocument, final SolrInputDocument inputDocument, final int retries)
 			throws IOException {
 		try {
-			merge(document, inputDocument);
+			merge(tikaDocument, inputDocument);
 		} catch (final SolrServerException e) {
 			throw new IOException(e);
 		}
 
 		try {
-			return super.write(document, inputDocument);
+			return super.write(tikaDocument, inputDocument);
 		} catch (SolrException e) {
 			if (retries > 0 && e.code() == 409) {
-				return write(document, inputDocument, retries - 1);
+				return write(tikaDocument, inputDocument, retries - 1);
 			}
 
 			throw e;
 		}
 	}
 
-	private void merge(final Document document, final SolrInputDocument inputDocument) throws IOException,
+	private void merge(final TikaDocument tikaDocument, final SolrInputDocument inputDocument) throws IOException,
 			SolrServerException {
 		final SolrDocument existingDocument;
 		final SolrQuery params = new SolrQuery();
 		final String resourceNameKey = fields.forMetadata(Metadata.RESOURCE_NAME_KEY);
 
-		// The document must be retrieved from the real-time-get (RTG) handler, otherwise we'd have to commit every
-		// time a document is added.
+		// The tikaDocument must be retrieved from the real-time-get (RTG) handler, otherwise we'd have to commit every
+		// time a tikaDocument is added.
 		params.setRequestHandler("/get");
 
-		// Request only the fields which must be merged, not the entire document.
+		// Request only the fields which must be merged, not the entire tikaDocument.
 		params.setFields(fields.forPath(), fields.forParentPath(), fields.forVersion(), resourceNameKey);
-		existingDocument = client.getById(document.getId(), params);
+		existingDocument = client.getById(tikaDocument.getId(), params);
 
-		// Since we're updating the path and parent path values of an existing document, set the version field to
+		// Since we're updating the path and parent path values of an existing tikaDocument, set the version field to
 		// avoid conflicts. Note that child documents don't have a version field.
 		if (null != existingDocument) {
 			final Object version = existingDocument.getFieldValue(fields.forVersion());
@@ -108,18 +108,18 @@ public class MergingSolrSpewer extends SolrSpewer {
 
 		// Set the path field.
 		if (null != fields.forPath()) {
-			mergeField(fields.forPath(), document.getPath().toString(), existingDocument, inputDocument);
+			mergeField(fields.forPath(), tikaDocument.getPath().toString(), existingDocument, inputDocument);
 		}
 
 		// Set the parent path field.
-		if (null != fields.forParentPath() && document.getPath().getNameCount() > 1) {
-			mergeField(fields.forParentPath(), document.getPath().getParent().toString(), existingDocument,
+		if (null != fields.forParentPath() && tikaDocument.getPath().getNameCount() > 1) {
+			mergeField(fields.forParentPath(), tikaDocument.getPath().getParent().toString(), existingDocument,
 					inputDocument);
 		}
 
 		// Merge the resource name field.
-		if (document.getMetadata() != null) {
-			mergeField(resourceNameKey, document.getMetadata().get(Metadata.RESOURCE_NAME_KEY), existingDocument,
+		if (tikaDocument.getMetadata() != null) {
+			mergeField(resourceNameKey, tikaDocument.getMetadata().get(Metadata.RESOURCE_NAME_KEY), existingDocument,
 					inputDocument);
 		}
 	}

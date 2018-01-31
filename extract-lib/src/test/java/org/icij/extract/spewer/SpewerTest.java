@@ -2,7 +2,7 @@ package org.icij.extract.spewer;
 
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.Office;
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.spewer.FieldNames;
@@ -32,12 +32,12 @@ public class SpewerTest {
 		}
 
 		@Override
-		public void write(final Document document, final Reader reader) throws IOException {
+		public void write(final TikaDocument tikaDocument, final Reader reader) throws IOException {
 		}
 
 		@Override
-		public void writeMetadata(final Document document) throws IOException {
-			final Metadata metadata = document.getMetadata();
+		public void writeMetadata(final TikaDocument tikaDocument) throws IOException {
+			final Metadata metadata = tikaDocument.getMetadata();
 
 			new MetadataTransformer(metadata, fields).transform(this.metadata::put,
 					(name, values)-> Stream.of(values).forEach(value -> this.metadata.put(name, value)));
@@ -70,8 +70,8 @@ public class SpewerTest {
 	@Test
 	public void testWritesISO8601Dates() throws IOException {
 		final SpewerStub spewer = new SpewerStub();
-		final Document document = factory.create("test.txt");
-		final Metadata metadata = document.getMetadata();
+		final TikaDocument tikaDocument = factory.create("test.txt");
+		final Metadata metadata = tikaDocument.getMetadata();
 		final FieldNames fields = spewer.getFields();
 
 		// TODO: this should go in a separate test for the MetadataTransformer.
@@ -82,7 +82,7 @@ public class SpewerTest {
 
 		for (String date: dates) {
 			metadata.set(Office.CREATION_DATE, date);
-			spewer.writeMetadata(document);
+			spewer.writeMetadata(tikaDocument);
 
 			Assert.assertEquals(date, spewer.metadata.get(fields.forMetadata(Office.CREATION_DATE.getName())));
 			Assert.assertEquals(isoDates[i++],

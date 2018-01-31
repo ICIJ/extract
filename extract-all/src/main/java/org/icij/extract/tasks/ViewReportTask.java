@@ -1,6 +1,6 @@
 package org.icij.extract.tasks;
 
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.report.Report;
 import org.icij.extract.report.ReportMap;
@@ -31,8 +31,8 @@ public class ViewReportTask extends DefaultTask<Void> {
 
 		try (final ReportMap reportMap = reportMapFactory.createShared()) {
 			for (String path: arguments) {
-				final Document document = documentFactory.create(path);
-				final Report report = reportMap.get(document);
+				final TikaDocument tikaDocument = documentFactory.create(path);
+				final Report report = reportMap.get(tikaDocument);
 
 				System.out.println("Status:");
 				System.out.println(report.getStatus());

@@ -25,8 +25,8 @@ public abstract class AbstractIdentifier implements Identifier {
 	}
 
 	@Override
-	public String hash(final Document document) {
-		return retrieveHash(document.getMetadata());
+	public String hash(final TikaDocument tikaDocument) {
+		return retrieveHash(tikaDocument.getMetadata());
 	}
 
 	@Override

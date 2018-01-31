@@ -2,7 +2,7 @@ package org.icij.extract.queue;
 
 import org.icij.concurrent.ExecutorProxy;
 import org.icij.concurrent.SealableLatch;
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 import org.slf4j.Logger;
@@ -26,7 +26,7 @@ public class DocumentQueueDrainer extends ExecutorProxy {
 	private static final Duration DEFAULT_TIMEOUT = Duration.ZERO;
 
 	private final DocumentQueue queue;
-	private final Consumer<Document> consumer;
+	private final Consumer<TikaDocument> consumer;
 
 	private SealableLatch latch = null;
 	private Duration pollTimeout = DEFAULT_TIMEOUT;
@@ -39,7 +39,7 @@ public class DocumentQueueDrainer extends ExecutorProxy {
 	 * @param queue the queue to drain
 	 * @param consumer must accept documents drained from the queue
 	 */
-	public DocumentQueueDrainer(final DocumentQueue queue, final Consumer<Document> consumer) {
+	public DocumentQueueDrainer(final DocumentQueue queue, final Consumer<TikaDocument> consumer) {
 		super(Executors.newSingleThreadExecutor());
 		this.queue = queue;
 		this.consumer = consumer;
@@ -121,7 +121,7 @@ public class DocumentQueueDrainer extends ExecutorProxy {
 	 * @param poison the poison pill to test for when polling
 	 * @see #drain()
 	 */
-	public Future<Long> drain(final Document poison) {
+	public Future<Long> drain(final TikaDocument poison) {
 		return executor.submit(new DrainingTask(poison));
 	}
 
@@ -134,14 +134,14 @@ public class DocumentQueueDrainer extends ExecutorProxy {
 		/**
 		 * The poison pill or null if constructed without one.
 		 */
-		private final Document poison;
+		private final TikaDocument poison;
 
 		/**
 		 * Instantiate a draining task that will drain the queue until {@link DocumentQueue#poll()} returns {@code null},
 		 * or, if a timeout is specified, {@link DocumentQueue#poll(long, TimeUnit)} returns null after waiting.
 		 *
 		 * Note that if not timeout is specified, the draining thread will run until interrupted. If you want to
-		 * signal it to stop, use {@link DrainingTask#DrainingTask(Document)} with a user-defined poison pill.
+		 * signal it to stop, use {@link DrainingTask#DrainingTask(TikaDocument)} with a user-defined poison pill.
 		 */
 		DrainingTask() {
 			this.poison = null;
@@ -154,7 +154,7 @@ public class DocumentQueueDrainer extends ExecutorProxy {
 		 *
 		 * @param poison poison pill that will signal draining to stop
 		 */
-		DrainingTask(final Document poison) {
+		DrainingTask(final TikaDocument poison) {
 			this.poison = poison;
 		}
 
@@ -170,35 +170,35 @@ public class DocumentQueueDrainer extends ExecutorProxy {
 		 *
 		 * @throws InterruptedException if interrupted while polling
 		 */
-		private Document poll() throws InterruptedException {
+		private TikaDocument poll() throws InterruptedException {
 
 			// Store the latch and timeout in local constants so that they be used in a thread-safe way.
 			final Duration pollTimeout = getPollTimeout();
 			final SealableLatch latch = getLatch();
 
-			Document document;
+			TikaDocument tikaDocument;
 
 			if (null != latch) {
-				document = queue.poll();
+				tikaDocument = queue.poll();
 
 				// Wait for a signal from the latch before polling again, but if a signal has been received and the
 				// latch has been sealed in the meantime, break.
-				while (null == document && !latch.isSealed()) {
+				while (null == tikaDocument && !latch.isSealed()) {
 					latch.await();
-					document = queue.poll();
+					tikaDocument = queue.poll();
 				}
 			} else if (null == pollTimeout) {
 				logger.info("Polling the queue, waiting indefinitely.");
-				document = queue.take();
+				tikaDocument = queue.take();
 			} else if (pollTimeout.getSeconds() > 0) {
 				logger.debug(String.format("Polling the queue, waiting up to \"%s\".", pollTimeout));
-				document = queue.poll(pollTimeout.getSeconds(), TimeUnit.SECONDS);
+				tikaDocument = queue.poll(pollTimeout.getSeconds(), TimeUnit.SECONDS);
 			} else {
 				logger.debug("Polling the queue without waiting.");
-				document = queue.poll();
+				tikaDocument = queue.poll();
 			}
 
-			return document;
+			return tikaDocument;
 		}
 
 		/**
@@ -210,11 +210,11 @@ public class DocumentQueueDrainer extends ExecutorProxy {
 		private long drain() throws InterruptedException {
 			long consumed = 0;
 
-			Document document = poll();
-			while (null != document && (null == poison || !document.equals(poison))) {
-				consumer.accept(document);
+			TikaDocument tikaDocument = poll();
+			while (null != tikaDocument && (null == poison || !tikaDocument.equals(poison))) {
+				consumer.accept(tikaDocument);
 				consumed++;
-				document = poll();
+				tikaDocument = poll();
 			}
 
 			return consumed;

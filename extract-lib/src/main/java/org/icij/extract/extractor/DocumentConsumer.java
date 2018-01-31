@@ -2,7 +2,7 @@ package org.icij.extract.extractor;
 
 import org.icij.concurrent.BlockingThreadPoolExecutor;
 import org.icij.concurrent.ExecutorProxy;
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.report.Reporter;
 import org.icij.spewer.Spewer;
 import org.slf4j.Logger;
@@ -13,7 +13,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Consumer;
 
 /**
- * Base consumer for documents. Superclasses should call {@link #accept(Document)}. All tasks are sent to a
+ * Base consumer for documents. Superclasses should call {@link #accept(TikaDocument)}. All tasks are sent to a
  * work-stealing thread pool.
  *
  * The parallelism of the thread pool is defined in the call to the constructor.
@@ -25,7 +25,7 @@ import java.util.function.Consumer;
  *
  * @since 1.0.0-beta
  */
-public class DocumentConsumer extends ExecutorProxy implements Consumer<Document> {
+public class DocumentConsumer extends ExecutorProxy implements Consumer<TikaDocument> {
 
 	private static final Logger logger = LoggerFactory.getLogger(DocumentConsumer.class);
 
@@ -108,24 +108,24 @@ public class DocumentConsumer extends ExecutorProxy implements Consumer<Document
 	 * available. Otherwise the behaviour is similar to {@link ExecutorService#execute(Runnable)}, causing the task
 	 * to be put in a queue.
 	 *
-	 * @param document the document to consume
+	 * @param tikaDocument the tikaDocument to consume
 	 * @throws RejectedExecutionException if unable to queue the consumer task for execution, including when the
 	 * current thread is interrupted.
 	 */
 	@Override
-	public void accept(final Document document) {
-		logger.info(String.format("Sending to thread pool; will queue if full: \"%s\".", document));
+	public void accept(final TikaDocument tikaDocument) {
+		logger.info(String.format("Sending to thread pool; will queue if full: \"%s\".", tikaDocument));
 		executor.execute(()-> {
-			logger.info(String.format("Beginning extraction: \"%s\".", document));
+			logger.info(String.format("Beginning extraction: \"%s\".", tikaDocument));
 
 			try {
 				if (null != reporter) {
-					extractor.extract(document, spewer, reporter);
+					extractor.extract(tikaDocument, spewer, reporter);
 				} else {
-					extractor.extract(document, spewer);
+					extractor.extract(tikaDocument, spewer);
 				}
 			} catch (Exception e) {
-				logger.error(String.format("Exception while consuming file: \"%s\".", document), e);
+				logger.error(String.format("Exception while consuming file: \"%s\".", tikaDocument), e);
 			}
 		});
 	}

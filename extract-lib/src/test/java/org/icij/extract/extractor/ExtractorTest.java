@@ -3,9 +3,9 @@ package org.icij.extract.extractor;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
-import org.icij.extract.document.Document;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
+import org.icij.extract.document.TikaDocument;
 import org.icij.spewer.Spewer;
 import org.icij.test.CauseMatcher;
 import org.icij.test.RegexMatcher;
@@ -30,15 +30,15 @@ public class ExtractorTest {
 	@Test
 	public void testOcr() throws Throwable {
 		final Extractor extractor = new Extractor();
-		final Document document = factory.create(getClass().getResource("/documents/ocr/simple.tiff"));
+		final TikaDocument tikaDocument = factory.create(getClass().getResource("/documents/ocr/simple.tiff"));
 
 		String text;
 
-		try (Reader reader = extractor.extract(document)) {
+		try (Reader reader = extractor.extract(tikaDocument)) {
 			text = Spewer.toString(reader);
 		}
 
-		Assert.assertEquals("image/tiff", document.getMetadata().get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals("image/tiff", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("HEAVY\nMETAL", text.trim());
 	}
 
@@ -47,31 +47,31 @@ public class ExtractorTest {
 		final Extractor extractor = new Extractor();
 		extractor.disableOcr();
 
-		final Document document = factory.create(getClass().getResource("/documents/ocr/simple.tiff"));
-		final Reader reader = extractor.extract(document);
+		final TikaDocument tikaDocument = factory.create(getClass().getResource("/documents/ocr/simple.tiff"));
+		final Reader reader = extractor.extract(tikaDocument);
 
 		final int read = reader.read();
 
-		Assert.assertEquals("image/tiff", document.getMetadata().get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals("image/tiff", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals(-1, read);
 	}
 
 	@Test
 	public void testFileNotFound() throws Throwable {
 		final Extractor extractor = new Extractor();
-		final Document document = factory.create(Paths.get("nothing"));
+		final TikaDocument tikaDocument = factory.create(Paths.get("nothing"));
 
 		thrown.expect(NoSuchFileException.class);
 		thrown.expectMessage("nothing");
 
-		extractor.extract(document);
+		extractor.extract(tikaDocument);
 	}
 
 	@Test
 	public void testEncryptedPdf() throws Throwable {
 		final Extractor extractor = new Extractor();
 
-		final Document document = factory.create(getClass().getResource("/documents/pdf/encrypted.pdf"));
+		final TikaDocument tikaDocument = factory.create(getClass().getResource("/documents/pdf/encrypted.pdf"));
 
 		thrown.expect(IOException.class);
 		thrown.expectMessage("");
@@ -79,10 +79,10 @@ public class ExtractorTest {
 
 		final int read;
 
-		try (final Reader reader = extractor.extract(document)) {
+		try (final Reader reader = extractor.extract(tikaDocument)) {
 			read = reader.read();
 		} catch (IOException e) {
-			Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
+			Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 			throw e;
 		}
 
@@ -93,7 +93,7 @@ public class ExtractorTest {
 	public void testGarbage() throws Throwable {
 		final Extractor extractor = new Extractor();
 
-		final Document document = factory.create(getClass().getResource("/documents/garbage.bin"));
+		final TikaDocument tikaDocument = factory.create(getClass().getResource("/documents/garbage.bin"));
 
 		thrown.expect(IOException.class);
 		thrown.expectMessage("");
@@ -101,10 +101,10 @@ public class ExtractorTest {
 
 		final int read;
 
-		try (final Reader reader = extractor.extract(document)) {
+		try (final Reader reader = extractor.extract(tikaDocument)) {
 			read = reader.read();
 		} catch (IOException e) {
-			Assert.assertEquals("application/octet-stream", document.getMetadata().get(Metadata.CONTENT_TYPE));
+			Assert.assertEquals("application/octet-stream", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 			throw e;
 		}
 
@@ -115,14 +115,14 @@ public class ExtractorTest {
 	public void testEmbeds() throws Throwable {
 		final Extractor extractor = new Extractor();
 
-		final Document document = factory.create(getClass().getResource("/documents/ocr/embedded.pdf"));
+		final TikaDocument tikaDocument = factory.create(getClass().getResource("/documents/ocr/embedded.pdf"));
 		String text;
 
-		try (final Reader reader = extractor.extract(document)) {
+		try (final Reader reader = extractor.extract(tikaDocument)) {
 			text = Spewer.toString(reader);
 		}
 
-		Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		//Assert.assertEquals("HEAVY\nMETAL\n\n\n\n\n\nHEAVY\nMETAL", text.trim());
 		Assert.assertThat(text, RegexMatcher.matchesRegex("^\\s+HEAVY\\sMETAL\\s+HEAVY\\sMETAL\\s+$"));
 	}
@@ -134,15 +134,15 @@ public class ExtractorTest {
 		extractor.setEmbedHandling(Extractor.EmbedHandling.IGNORE);
 		Assert.assertEquals(extractor.getEmbedHandling(), Extractor.EmbedHandling.IGNORE);
 
-		final Document document = factory.create(getClass().getResource("/documents/ocr/embedded.pdf"));
+		final TikaDocument tikaDocument = factory.create(getClass().getResource("/documents/ocr/embedded.pdf"));
 
 		String text;
 
-		try (final Reader reader = extractor.extract(document)) {
+		try (final Reader reader = extractor.extract(tikaDocument)) {
 			text = Spewer.toString(reader);
 		}
 
-		Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("\n\n\n\n", text);
 	}
 
@@ -151,15 +151,15 @@ public class ExtractorTest {
 		final Extractor extractor = new Extractor();
 		extractor.disableOcr();
 
-		final Document document = factory.create(getClass().getResource("/documents/ocr/embedded.pdf"));
+		final TikaDocument tikaDocument = factory.create(getClass().getResource("/documents/ocr/embedded.pdf"));
 
 		String text;
 
-		try (final Reader reader = extractor.extract(document)) {
+		try (final Reader reader = extractor.extract(tikaDocument)) {
 			text = Spewer.toString(reader);
 		}
 
-		Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("\n\n\n\n", text);
 	}
 
@@ -169,15 +169,14 @@ public class ExtractorTest {
 		final Extractor extractor = new Extractor();
 		extractor.setOutputFormat(Extractor.OutputFormat.HTML);
 
-		final Document document = factory.create(getClass().getResource("/documents/text/utf16.txt"));
+		final TikaDocument tikaDocument = factory.create(getClass().getResource("/documents/text/utf16.txt"));
 
 		String text;
-
-		try (final Reader reader = extractor.extract(document)) {
+		try (final Reader reader = extractor.extract(tikaDocument)) {
 			text = Spewer.toString(reader);
 		}
 
-		Assert.assertEquals("text/plain; charset=UTF-16LE", document.getMetadata().get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals("text/plain; charset=UTF-16LE", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals(getExpected("/expected/utf16-txt.html"), text);
 	}
 
@@ -187,15 +186,15 @@ public class ExtractorTest {
 		final Extractor extractor = new Extractor();
 		extractor.setOutputFormat(Extractor.OutputFormat.HTML);
 
-		final Document document = factory.create(getClass().getResource("/documents/ocr/embedded.pdf"));
+		final TikaDocument tikaDocument = factory.create(getClass().getResource("/documents/ocr/embedded.pdf"));
 
 		String text;
 
-		try (final Reader reader = extractor.extract(document)) {
+		try (final Reader reader = extractor.extract(tikaDocument)) {
 			text = Spewer.toString(reader);
 		}
 
-		Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals(getExpected("/expected/embedded-pdf.html"), text);
 	}
 
@@ -210,15 +209,15 @@ public class ExtractorTest {
 		//extractor.setEmbedHandling(Extractor.EmbedHandling.EMBED);
 		//Assert.assertEquals(extractor.getEmbedHandling(), Extractor.EmbedHandling.EMBED);
 
-		final Document document = factory.create(getClass().getResource("/documents/ocr/embedded.pdf"));
+		final TikaDocument tikaDocument = factory.create(getClass().getResource("/documents/ocr/embedded.pdf"));
 
 		String text;
 
-		try (final Reader reader = extractor.extract(document)) {
+		try (final Reader reader = extractor.extract(tikaDocument)) {
 			text = Spewer.toString(reader);
 		}
 
-		Assert.assertEquals("application/pdf", document.getMetadata().get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals(getExpected("/expected/embedded-data-uri-pdf.html"), text);
 	}
 

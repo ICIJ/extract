@@ -1,6 +1,6 @@
 package org.icij.extract.queue;
 
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
 
 import org.icij.extract.mysql.DataSourceFactory;
@@ -40,7 +40,7 @@ public class DocumentQueueFactory {
 	}
 
 	/**
-	 * Set the documentFactory used for creating {@link Document} objects from the queue.
+	 * Set the documentFactory used for creating {@link TikaDocument} objects from the queue.
 	 *
 	 * If none is set, a default instance will be created using the given options.
 	 *

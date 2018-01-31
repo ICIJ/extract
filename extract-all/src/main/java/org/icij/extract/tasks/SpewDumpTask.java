@@ -1,6 +1,6 @@
 package org.icij.extract.tasks;
 
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.extractor.ExtractionStatus;
 import org.icij.extract.report.ReportMap;
 import org.icij.extract.report.ReportMapFactory;
@@ -41,11 +41,11 @@ public class SpewDumpTask extends DefaultTask<Void> {
 			for (String path : arguments) {
 				logger.info(String.format("Spewing document from \"%s\".", path));
 
-				final Document[] documents = spewer.write(Paths.get(path));
+				final TikaDocument[] tikaDocuments = spewer.write(Paths.get(path));
 
-				for (Document document: documents) {
-					logger.info(String.format("Spewed \"%s\".", document.getPath()));
-					reporter.save(document, ExtractionStatus.SUCCESS);
+				for (TikaDocument tikaDocument : tikaDocuments) {
+					logger.info(String.format("Spewed \"%s\".", tikaDocument.getPath()));
+					reporter.save(tikaDocument, ExtractionStatus.SUCCESS);
 				}
 			}
 		}

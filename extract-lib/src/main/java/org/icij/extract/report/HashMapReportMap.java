@@ -1,6 +1,6 @@
 package org.icij.extract.report;
 
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author Matthew Caruana Galizia <mcaruana@icij.org>
  * @since 1.0.0-beta
  */
-public class HashMapReportMap extends ConcurrentHashMap<Document, Report> implements ReportMap {
+public class HashMapReportMap extends ConcurrentHashMap<TikaDocument, Report> implements ReportMap {
 
 	private static final long serialVersionUID = -1686535587329141323L;
 
@@ -22,7 +22,7 @@ public class HashMapReportMap extends ConcurrentHashMap<Document, Report> implem
 	}
 
 	@Override
-	public boolean fastPut(final Document key, final Report value) {
+	public boolean fastPut(final TikaDocument key, final Report value) {
 		return put(key, value) != null;
 	}
 

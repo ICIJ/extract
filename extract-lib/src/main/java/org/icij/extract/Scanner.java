@@ -3,7 +3,7 @@ package org.icij.extract;
 import org.icij.concurrent.ExecutorProxy;
 import org.icij.concurrent.SealableLatch;
 import org.icij.event.Notifiable;
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.io.file.DosHiddenFileMatcher;
 import org.icij.extract.io.file.PosixHiddenFileMatcher;
@@ -64,7 +64,7 @@ import static org.icij.extract.ScannerVisitor.MAX_DEPTH;
 public class Scanner extends ExecutorProxy {
     private static final Logger logger = LoggerFactory.getLogger(Scanner.class);
 
-    protected final BlockingQueue<Document> queue;
+    protected final BlockingQueue<TikaDocument> queue;
 
 	private final ArrayDeque<String> includeGlobs = new ArrayDeque<>();
 	private final ArrayDeque<String> excludeGlobs = new ArrayDeque<>();
@@ -82,26 +82,26 @@ public class Scanner extends ExecutorProxy {
 	/**
 	 * @see Scanner(BlockingQueue, SealableLatch, Notifiable)
 	 */
-	public Scanner(final DocumentFactory factory, final BlockingQueue<Document> queue) {
+	public Scanner(final DocumentFactory factory, final BlockingQueue<TikaDocument> queue) {
 		this(factory, queue, null, null);
 	}
 
 	/**
 	 * @see Scanner(BlockingQueue, SealableLatch, Notifiable)
 	 */
-	public Scanner(final DocumentFactory factory, final BlockingQueue<Document> queue, final SealableLatch latch) {
+	public Scanner(final DocumentFactory factory, final BlockingQueue<TikaDocument> queue, final SealableLatch latch) {
 		this(factory, queue, latch, null);
 	}
 
 	/**
-	 * Creates a {@code Scanner} that sends all results straight to the underlying {@link BlockingQueue<Document>} on a
+	 * Creates a {@code Scanner} that sends all results straight to the underlying {@link BlockingQueue< TikaDocument >} on a
 	 * single thread.
 	 *
 	 * @param queue results from the scanner will be put on this queue
 	 * @param latch signalled when a document is queued
 	 * @param notifiable receives notifications when new file documents are queued
 	 */
-	public Scanner(final DocumentFactory factory, final BlockingQueue<Document> queue, final SealableLatch latch, final
+	public Scanner(final DocumentFactory factory, final BlockingQueue<TikaDocument> queue, final SealableLatch latch, final
 	Notifiable notifiable) {
 		super(Executors.newSingleThreadExecutor());
 		this.factory = factory;

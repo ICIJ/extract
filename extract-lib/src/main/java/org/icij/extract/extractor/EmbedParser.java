@@ -8,7 +8,6 @@ import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.DelegatingParser;
 import org.apache.tika.parser.ParseContext;
-import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.io.CloseShieldInputStream;
 import org.apache.tika.sax.BodyContentHandler;
@@ -17,7 +16,7 @@ import org.apache.tika.exception.TikaException;
 import org.apache.tika.exception.EncryptedDocumentException;
 
 import org.apache.tika.utils.ExceptionUtils;
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,10 +38,10 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 	private static final Logger logger = LoggerFactory.getLogger(EmbedParser.class);
     private static final Parser DELEGATING_PARSER = new DelegatingParser();
 
-	final Document root;
+	final TikaDocument root;
 	protected final ParseContext context;
 
-	EmbedParser(final Document root, final ParseContext context) {
+	EmbedParser(final TikaDocument root, final ParseContext context) {
 		super(context);
 		this.root = root;
 		this.context = context;

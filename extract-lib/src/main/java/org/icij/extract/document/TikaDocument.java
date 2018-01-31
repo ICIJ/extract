@@ -9,7 +9,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Supplier;
 
-public class Document {
+public class TikaDocument {
 	public static String CONTENT_ENCODING = "Content-Encoding";
 	public static String CONTENT_LANGUAGE = "Content-Language";
 	public static String CONTENT_LENGTH = "Content-Length";
@@ -27,8 +27,8 @@ public class Document {
 	private final Metadata metadata;
 
 	private Identifier identifier;
-	private List<EmbeddedDocument> embeds = new LinkedList<>();
-	private Map<String, EmbeddedDocument> lookup = new HashMap<>();
+	private List<EmbeddedTikaDocument> embeds = new LinkedList<>();
+	private Map<String, EmbeddedTikaDocument> lookup = new HashMap<>();
 
 	private Reader reader = null;
 	private ReaderGenerator readerGenerator = null;
@@ -42,7 +42,7 @@ public class Document {
 	 * @param path the path to the document
 	 * @param metadata document metadata
 	 */
-	public Document(final String id, final Identifier identifier, final Path path, final Metadata metadata) {
+	public TikaDocument(final String id, final Identifier identifier, final Path path, final Metadata metadata) {
 		Objects.requireNonNull(path, "The path must not be null.");
 
 		this.metadata = metadata;
@@ -52,9 +52,9 @@ public class Document {
 	}
 
 	/**
-	 * @see Document(String, Identifier, Path, Metadata)
+	 * @see TikaDocument (String, Identifier, Path, Metadata)
 	 */
-	public Document(final String id, final Identifier identifier, final Path path) {
+	public TikaDocument(final String id, final Identifier identifier, final Path path) {
 		this(id, identifier, path, new Metadata());
 	}
 
@@ -65,7 +65,7 @@ public class Document {
 	 * @param path the path to the document
 	 * @param metadata document metadata
 	 */
-	public Document(final Identifier identifier, final Path path, final Metadata metadata) {
+	public TikaDocument(final Identifier identifier, final Path path, final Metadata metadata) {
 		Objects.requireNonNull(identifier, "The identifier generator must not be null.");
 		Objects.requireNonNull(path, "The path must not be null.");
 
@@ -89,9 +89,9 @@ public class Document {
 	}
 
 	/**
-	 * @see Document(Identifier, Path, Metadata)
+	 * @see TikaDocument (Identifier, Path, Metadata)
 	 */
-	public Document(final Identifier identifier, final Path path) {
+	public TikaDocument(final Identifier identifier, final Path path) {
 		this(identifier, path, new Metadata());
 	}
 
@@ -123,29 +123,29 @@ public class Document {
 		return metadata;
 	}
 
-	public EmbeddedDocument addEmbed(final Metadata metadata) {
-		return addEmbed(new EmbeddedDocument(this, metadata));
+	public EmbeddedTikaDocument addEmbed(final Metadata metadata) {
+		return addEmbed(new EmbeddedTikaDocument(this, metadata));
 	}
 
-	private EmbeddedDocument addEmbed(final Identifier identifier, final Path path, final Metadata metadata) {
-		return addEmbed(new EmbeddedDocument(this, identifier, path, metadata));
+	private EmbeddedTikaDocument addEmbed(final Identifier identifier, final Path path, final Metadata metadata) {
+		return addEmbed(new EmbeddedTikaDocument(this, identifier, path, metadata));
 	}
 
-	public EmbeddedDocument addEmbed(final String key, final Identifier identifier, final Path path, final Metadata
+	public EmbeddedTikaDocument addEmbed(final String key, final Identifier identifier, final Path path, final Metadata
 			metadata) {
 		return lookup.put(key, addEmbed(identifier, path, metadata));
 	}
 
-	private EmbeddedDocument addEmbed(final EmbeddedDocument embed) {
+	private EmbeddedTikaDocument addEmbed(final EmbeddedTikaDocument embed) {
 		embeds.add(embed);
 		return embed;
 	}
 
-	public boolean removeEmbed(final EmbeddedDocument embed) {
+	public boolean removeEmbed(final EmbeddedTikaDocument embed) {
 		return embeds.remove(embed);
 	}
 
-	public List<EmbeddedDocument> getEmbeds() {
+	public List<EmbeddedTikaDocument> getEmbeds() {
 		return embeds;
 	}
 
@@ -153,7 +153,7 @@ public class Document {
 		return !embeds.isEmpty();
 	}
 
-	public EmbeddedDocument getEmbed(final String key) {
+	public EmbeddedTikaDocument getEmbed(final String key) {
 		return lookup.get(key);
 	}
 
@@ -187,14 +187,14 @@ public class Document {
 
 	@Override
 	public boolean equals(final Object other) {
-		if (!(other instanceof Document)) {
+		if (!(other instanceof TikaDocument)) {
 			return false;
 		}
 
 		// Only documents with the same ID are equal, as paths are not globally unique unless explicitly declared so,
 		// if, for example, the PathIdentifier is used.
 		final String id = getId();
-		return null != id && id.equals(((Document) other).getId());
+		return null != id && id.equals(((TikaDocument) other).getId());
 	}
 
 	@Override

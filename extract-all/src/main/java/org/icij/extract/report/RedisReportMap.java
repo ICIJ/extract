@@ -1,6 +1,6 @@
 package org.icij.extract.report;
 
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.redis.*;
 import org.icij.task.Options;
@@ -34,7 +34,7 @@ import java.util.Collections;
 @Option(name = "charset", description = "Set the output encoding for text and document attributes. Defaults to UTF-8.",
 		parameter = "name")
 @OptionsClass(ConnectionManager.class)
-public class RedisReportMap extends RedissonMap<Document, Report> implements ReportMap {
+public class RedisReportMap extends RedissonMap<TikaDocument, Report> implements ReportMap {
 
 	/**
 	 * The default name for a report in Redis.

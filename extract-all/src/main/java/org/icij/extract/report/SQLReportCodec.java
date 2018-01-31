@@ -1,6 +1,6 @@
 package org.icij.extract.report;
 
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.extractor.ExtractionStatus;
 import org.icij.kaxxa.sql.SQLMapCodec;
@@ -27,7 +27,7 @@ import java.util.Map;
 		"value")
 @Option(name = "reportFailureStatus", description = "A general failure status value to use instead of the more " +
 		"specific values.", parameter = "value")
-public class SQLReportCodec implements SQLMapCodec<Document, Report> {
+public class SQLReportCodec implements SQLMapCodec<TikaDocument, Report> {
 
 	private final DocumentFactory factory;
 	private final String idKey;
@@ -62,37 +62,37 @@ public class SQLReportCodec implements SQLMapCodec<Document, Report> {
 
 	@Override
 	public Map<String, Object> encodeKey(final Object o) {
-		final Document document = (Document) o;
+		final TikaDocument tikaDocument = (TikaDocument) o;
 		final Map<String, Object> map = new HashMap<>();
 
 		if (null != idKey) {
-			map.put(idKey, document.getId());
+			map.put(idKey, tikaDocument.getId());
 		}
 
 		if (null != foreignIdKey) {
-			map.put(foreignIdKey, document.getForeignId());
+			map.put(foreignIdKey, tikaDocument.getForeignId());
 		}
 
-		map.put(pathKey, document.getPath().toString());
+		map.put(pathKey, tikaDocument.getPath().toString());
 		return map;
 	}
 
 	@Override
-	public Document decodeKey(final ResultSet rs) throws SQLException {
+	public TikaDocument decodeKey(final ResultSet rs) throws SQLException {
 		final Path path = Paths.get(rs.getString(pathKey));
-		final Document document;
+		final TikaDocument tikaDocument;
 
 		if (null != idKey) {
-			document = factory.create(rs.getString(idKey), path);
+			tikaDocument = factory.create(rs.getString(idKey), path);
 		} else {
-			document = factory.create(path);
+			tikaDocument = factory.create(path);
 		}
 
 		if (null != foreignIdKey) {
-			document.setForeignId(rs.getString(foreignIdKey));
+			tikaDocument.setForeignId(rs.getString(foreignIdKey));
 		}
 
-		return document;
+		return tikaDocument;
 	}
 
 	@Override

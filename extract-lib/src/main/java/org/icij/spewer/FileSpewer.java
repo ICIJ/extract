@@ -6,7 +6,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.commons.io.TaggedIOException;
 import org.apache.commons.io.output.TaggedOutputStream;
 import org.apache.tika.metadata.Metadata;
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.extractor.Extractor;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
@@ -72,8 +72,8 @@ public class FileSpewer extends Spewer implements Serializable {
 	public void close() throws IOException {}
 
 	@Override
-	public void write(final Document document, final Reader reader) throws IOException {
-		final Path outputPath = getOutputPath(document);
+	public void write(final TikaDocument tikaDocument, final Reader reader) throws IOException {
+		final Path outputPath = getOutputPath(tikaDocument);
 
 		// Add the output extension.
 		Path contentsOutputPath;
@@ -114,14 +114,14 @@ public class FileSpewer extends Spewer implements Serializable {
 		}
 
 		if (outputMetadata) {
-			writeMetadata(document);
+			writeMetadata(tikaDocument);
 		}
 	}
 
 	@Override
-	public void writeMetadata(final Document document) throws IOException {
-		final Metadata metadata = document.getMetadata();
-		Path outputPath = getOutputPath(document);
+	public void writeMetadata(final TikaDocument tikaDocument) throws IOException {
+		final Metadata metadata = tikaDocument.getMetadata();
+		Path outputPath = getOutputPath(tikaDocument);
 		outputPath = outputPath.getFileSystem().getPath(outputPath.toString() + ".json");
 
 		logger.info(String.format("Outputting metadata to file: \"%s\".", outputPath));
@@ -147,8 +147,8 @@ public class FileSpewer extends Spewer implements Serializable {
 		}
 	}
 
-	private Path getOutputPath(final Document document) {
-		final Path path = document.getPath();
+	private Path getOutputPath(final TikaDocument tikaDocument) {
+		final Path path = tikaDocument.getPath();
 
 		// Join the file path to the output directory path to parse the output path.
 		// If the file path is absolute, the leading slash must be removed.

@@ -1,6 +1,6 @@
 package org.icij.extract.report;
 
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.extractor.ExtractionStatus;
 
 import java.util.Set;
@@ -19,7 +19,7 @@ import java.util.concurrent.Semaphore;
 public class Reporter implements AutoCloseable {
 
 	private Set<Class<? extends Exception>> journalableTypes = new HashSet<>();
-	private Map<Document, Report> journal = new ConcurrentHashMap<>();
+	private Map<TikaDocument, Report> journal = new ConcurrentHashMap<>();
 	private Semaphore flushing = new Semaphore(1);
 
 	/**
@@ -43,27 +43,27 @@ public class Reporter implements AutoCloseable {
 	}
 
 	/**
-	 * Check the extraction result of a given document.
+	 * Check the extraction result of a given tikaDocument.
 	 *
-	 * @param document the document to check
+	 * @param tikaDocument the tikaDocument to check
 	 * @return The extraction report or {@code null} if no result was recorded for the file.
 	 */
-	public Report report(final Document document) {
-		return reportMap.get(document);
+	public Report report(final TikaDocument tikaDocument) {
+		return reportMap.get(tikaDocument);
 	}
 
 	/**
-	 * Save the extraction report for the given document.
+	 * Save the extraction report for the given tikaDocument.
 	 *
-	 * @param document the document
+	 * @param tikaDocument the tikaDocument
 	 * @param report the extraction report
 	 */
-	public void save(final Document document, final Report report) {
+	public void save(final TikaDocument tikaDocument, final Report report) {
 		try {
-			reportMap.fastPut(document, report);
+			reportMap.fastPut(tikaDocument, report);
 		} catch (Exception e) {
 			if (journalableTypes.contains(e.getClass())) {
-				journal.put(document, report);
+				journal.put(tikaDocument, report);
 			}
 
 			throw e;
@@ -79,35 +79,35 @@ public class Reporter implements AutoCloseable {
 	}
 
 	/**
-	 * Save the extraction status and optional exception for the given document.
+	 * Save the extraction status and optional exception for the given tikaDocument.
 	 *
-	 * @param document the document
+	 * @param tikaDocument the tikaDocument
 	 * @param status the extraction status
 	 * @param exception any exception caught during extraction
 	 */
-	public void save(final Document document, final ExtractionStatus status, final Exception exception) {
-		save(document, new Report(status, exception));
+	public void save(final TikaDocument tikaDocument, final ExtractionStatus status, final Exception exception) {
+		save(tikaDocument, new Report(status, exception));
 	}
 
 	/**
-	 * Save the extraction status for the given document.
+	 * Save the extraction status for the given tikaDocument.
 	 *
-	 * @param document the document
+	 * @param tikaDocument the tikaDocument
 	 * @param status the extraction status
 	 */
-	public void save(final Document document, final ExtractionStatus status) {
-		save(document, new Report(status));
+	public void save(final TikaDocument tikaDocument, final ExtractionStatus status) {
+		save(tikaDocument, new Report(status));
 	}
 
 	/**
 	 * Check an extraction result.
 	 *
-	 * @param document the document to check
+	 * @param tikaDocument the tikaDocument to check
 	 * @param result matched against the actual result
 	 * @return {@code true} if the results match or {@code false} if there is no match or no recorded result.
 	 */
-	public boolean check(final Document document, final ExtractionStatus result) {
-		final Report report = report(document);
+	public boolean check(final TikaDocument tikaDocument, final ExtractionStatus result) {
+		final Report report = report(tikaDocument);
 
 		return null != report && report.getStatus().equals(result);
 	}
@@ -115,11 +115,11 @@ public class Reporter implements AutoCloseable {
 	/**
 	 * Check whether a path should be skipped.
 	 *
-	 * @param document the document to check
-	 * @return {@code true} if the document should be skipped.
+	 * @param tikaDocument the tikaDocument to check
+	 * @return {@code true} if the tikaDocument should be skipped.
 	 */
-	public boolean skip(final Document document) {
-		return check(document, ExtractionStatus.SUCCESS);
+	public boolean skip(final TikaDocument tikaDocument) {
+		return check(tikaDocument, ExtractionStatus.SUCCESS);
 	}
 
 	@Override
@@ -136,7 +136,7 @@ public class Reporter implements AutoCloseable {
 	}
 
 	/**
-	 * Add a class of {@link Exception} that when caught during {@link #save(Document, Report)}, would add
+	 * Add a class of {@link Exception} that when caught during {@link #save(TikaDocument, Report)}, would add
 	 * the arguments to journal which is flushed when the next operation succeeds.
 	 *
 	 * @param e the class of exception that is temporary
@@ -149,10 +149,10 @@ public class Reporter implements AutoCloseable {
 	 * Flush the journal of failed status to the report.
 	 */
 	private void flushJournal() {
-		final Iterator<Map.Entry<Document, Report>> iterator = journal.entrySet().iterator();
+		final Iterator<Map.Entry<TikaDocument, Report>> iterator = journal.entrySet().iterator();
 
 		while (iterator.hasNext()) {
-			final Map.Entry<Document, Report> entry = iterator.next();
+			final Map.Entry<TikaDocument, Report> entry = iterator.next();
 
 			reportMap.fastPut(entry.getKey(), entry.getValue());
 			iterator.remove();

@@ -4,16 +4,16 @@ import org.apache.tika.metadata.Metadata;
 
 import java.nio.file.Path;
 
-public class EmbeddedDocument extends Document {
+public class EmbeddedTikaDocument extends TikaDocument {
 
-	private final Document parent;
+	private final TikaDocument parent;
 
-	EmbeddedDocument(final Document parent, final Metadata metadata) {
+	EmbeddedTikaDocument(final TikaDocument parent, final Metadata metadata) {
 		super(parent.getIdentifier(), parent.getPath(), metadata);
 		this.parent = parent;
 	}
 
-	EmbeddedDocument(final Document parent, final Identifier identifier, final Path path, final Metadata metadata) {
+	EmbeddedTikaDocument(final TikaDocument parent, final Identifier identifier, final Path path, final Metadata metadata) {
 		super(identifier, path, metadata);
 		this.parent = parent;
 	}
@@ -23,7 +23,7 @@ public class EmbeddedDocument extends Document {
 		return getIdentifier().generateForEmbed(this);
 	}
 
-	Document getParent() {
+	TikaDocument getParent() {
 		return parent;
 	}
 }

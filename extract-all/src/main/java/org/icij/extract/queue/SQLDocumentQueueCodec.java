@@ -1,7 +1,7 @@
 package org.icij.extract.queue;
 
 import org.apache.tika.metadata.Metadata;
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.kaxxa.sql.SQLQueueCodec;
 import org.icij.task.Options;
@@ -25,7 +25,7 @@ import java.util.Map;
 @Option(name = "queueStatusKey", description = "The table key for storing the queue status.", parameter = "name")
 @Option(name = "queueWaitingStatus", description = "The status value for waiting documents.", parameter = "value")
 @Option(name = "queueProcessedStatus", description = "The status value for non-waiting documents.", parameter = "value")
-public class SQLDocumentQueueCodec implements SQLQueueCodec<Document> {
+public class SQLDocumentQueueCodec implements SQLQueueCodec<TikaDocument> {
 
 	private final DocumentFactory factory;
 	private final String idKey;
@@ -49,17 +49,17 @@ public class SQLDocumentQueueCodec implements SQLQueueCodec<Document> {
 
 	@Override
 	public Map<String, Object> encodeKey(final Object o) {
-		final Document document = (Document) o;
+		final TikaDocument tikaDocument = (TikaDocument) o;
 		final Map<String, Object> map = new HashMap<>();
 
 		if (null != idKey) {
-			map.put(idKey, document.getId());
+			map.put(idKey, tikaDocument.getId());
 		} else {
-			map.put(pathKey, document.getPath().toString());
+			map.put(pathKey, tikaDocument.getPath().toString());
 		}
 
 		if (null != foreignIdKey) {
-			map.put(foreignIdKey, document.getForeignId());
+			map.put(foreignIdKey, tikaDocument.getForeignId());
 		}
 
 		return map;
@@ -81,41 +81,41 @@ public class SQLDocumentQueueCodec implements SQLQueueCodec<Document> {
 	}
 
 	@Override
-	public Document decodeValue(final ResultSet rs) throws SQLException {
+	public TikaDocument decodeValue(final ResultSet rs) throws SQLException {
 		final Path path = Paths.get(rs.getString(pathKey));
 		final Long size = rs.getLong(sizeKey);
-		final Document document;
+		final TikaDocument tikaDocument;
 
 		if (null != idKey) {
-			document = factory.create(rs.getString(idKey), path, size);
+			tikaDocument = factory.create(rs.getString(idKey), path, size);
 		} else {
-			document = factory.create(path, size);
+			tikaDocument = factory.create(path, size);
 		}
 
 		if (null != foreignIdKey) {
-			document.setForeignId(rs.getString(foreignIdKey));
+			tikaDocument.setForeignId(rs.getString(foreignIdKey));
 		}
 
-		return document;
+		return tikaDocument;
 	}
 
 	@Override
 	public Map<String, Object> encodeValue(final Object o) {
-		final Document document = (Document) o;
+		final TikaDocument tikaDocument = (TikaDocument) o;
 		final Map<String, Object> map = new HashMap<>();
 
 		if (null != idKey) {
-			map.put(idKey, document.getId());
+			map.put(idKey, tikaDocument.getId());
 		}
 
 		if (null != foreignIdKey) {
-			map.put(foreignIdKey, document.getForeignId());
+			map.put(foreignIdKey, tikaDocument.getForeignId());
 		}
 
-		map.put(pathKey, document.getPath().toString());
+		map.put(pathKey, tikaDocument.getPath().toString());
 		map.put(statusKey, waitingStatus);
 
-		final String size = document.getMetadata().get(Metadata.CONTENT_LENGTH);
+		final String size = tikaDocument.getMetadata().get(Metadata.CONTENT_LENGTH);
 
 		if (null != size) {
 			map.put(sizeKey, Long.valueOf(size));

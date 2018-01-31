@@ -1,6 +1,6 @@
 package org.icij.extract.redis;
 
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.redisson.client.protocol.Encoder;
 
 import java.io.IOException;
@@ -16,6 +16,6 @@ public class DocumentEncoder implements Encoder {
 
 	@Override
 	public byte[] encode(final Object in) throws IOException {
-		return ((Document) in).getPath().toString().getBytes(charset);
+		return ((TikaDocument) in).getPath().toString().getBytes(charset);
 	}
 }

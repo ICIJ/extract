@@ -9,8 +9,8 @@ import org.apache.tika.parser.ParseContext;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.EmbeddedContentHandler;
 import org.apache.tika.utils.ExceptionUtils;
-import org.icij.extract.document.Document;
-import org.icij.extract.document.EmbeddedDocument;
+import org.icij.extract.document.EmbeddedTikaDocument;
+import org.icij.extract.document.TikaDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
@@ -28,15 +28,15 @@ public class EmbedSpawner extends EmbedParser {
 
 	private final Path outputPath;
 	private final Function<Writer, ContentHandler> handlerFunction;
-	private LinkedList<Document> documentStack = new LinkedList<>();
+	private LinkedList<TikaDocument> tikaDocumentStack = new LinkedList<>();
 	private int untitled = 0;
 
-	EmbedSpawner(final Document root, final ParseContext context, final Path outputPath,
-	             final Function<Writer, ContentHandler> handlerFunction) {
+	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
+				 final Function<Writer, ContentHandler> handlerFunction) {
 		super(root, context);
 		this.outputPath = outputPath;
 		this.handlerFunction = handlerFunction;
-		documentStack.add(root);
+		tikaDocumentStack.add(root);
 	}
 
 	@Override
@@ -72,7 +72,7 @@ public class EmbedSpawner extends EmbedParser {
 		final Writer writer = new OutputStreamWriter(output, StandardCharsets.UTF_8);
 
 		final ContentHandler embedHandler = handlerFunction.apply(writer);
-		final EmbeddedDocument embed = documentStack.getLast().addEmbed(metadata);
+		final EmbeddedTikaDocument embed = tikaDocumentStack.getLast().addEmbed(metadata);
 
 		// Use temporary resources to copy formatted output from the content handler to a temporary file.
 		// Call setReader on the embed object with a plain reader for this temp file.
@@ -98,14 +98,14 @@ public class EmbedSpawner extends EmbedParser {
 			logger.error("Unable to spool file to disk (\"{}\" in \"{}\").", name, root, e);
 
 			// If a document can't be spooled then there's a severe problem with the input stream. Abort.
-			documentStack.getLast().removeEmbed(embed);
+			tikaDocumentStack.getLast().removeEmbed(embed);
 			embed.clearReader();
 			writer.close();
 			return;
 		}
 
 		// Add to the stack only immediately before parsing and if there haven't been any fatal errors.
-		documentStack.add(embed);
+		tikaDocumentStack.add(embed);
 
 		try {
 
@@ -120,7 +120,7 @@ public class EmbedSpawner extends EmbedParser {
 			metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM,
 					ExceptionUtils.getFilteredStackTrace(e));
 		} finally {
-			documentStack.removeLast();
+			tikaDocumentStack.removeLast();
 			writer.close();
 		}
 
@@ -130,7 +130,7 @@ public class EmbedSpawner extends EmbedParser {
 		}
 	}
 
-	private void writeEmbed(final TikaInputStream tis, final EmbeddedDocument embed, final String name) throws IOException {
+	private void writeEmbed(final TikaInputStream tis, final EmbeddedTikaDocument embed, final String name) throws IOException {
 		final Path destination = outputPath.resolve(embed.getHash());
 		final Path source;
 

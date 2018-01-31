@@ -1,6 +1,6 @@
 package org.icij.extract.tasks;
 
-import org.icij.extract.document.Document;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.report.ReportMap;
 import org.icij.extract.report.ReportMapFactory;
 
@@ -28,7 +28,7 @@ public class CleanReportTask extends MonitorableTask<Integer> {
 		int i = 0;
 
 		try (final ReportMap reportMap = new ReportMapFactory(options).createShared()) {
-			final Iterator<Document> iterator = reportMap.keySet().iterator();
+			final Iterator<TikaDocument> iterator = reportMap.keySet().iterator();
 
 			monitor.hintRemaining(reportMap.size());
 			while (iterator.hasNext()) {
