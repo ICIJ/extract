@@ -51,6 +51,9 @@ public class DocumentFactory {
 				case "path":
 					this.identifier = new PathIdentifier();
 					break;
+				case "path-digest":
+					this.identifier = new PathDigestIdentifier(algorithm, charset);
+					break;
 				case "tika-digest":
 					this.identifier = new DigestIdentifier(algorithm, charset);
 					break;
