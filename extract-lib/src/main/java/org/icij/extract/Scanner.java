@@ -3,8 +3,8 @@ package org.icij.extract;
 import org.icij.concurrent.ExecutorProxy;
 import org.icij.concurrent.SealableLatch;
 import org.icij.event.Notifiable;
-import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.io.file.DosHiddenFileMatcher;
 import org.icij.extract.io.file.PosixHiddenFileMatcher;
 import org.icij.extract.io.file.SystemFileMatcher;
@@ -14,9 +14,12 @@ import org.icij.task.annotation.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.nio.file.FileSystem;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +27,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.icij.extract.ScannerVisitor.FOLLOW_SYMLINKS;
 import static org.icij.extract.ScannerVisitor.MAX_DEPTH;
@@ -250,10 +254,14 @@ public class Scanner extends ExecutorProxy {
 	}
 
 	public ScannerVisitor createScannerVisitor(Path path) {
-		final FileSystem fileSystem = path.getFileSystem();
 		final ScannerVisitor visitor = new ScannerVisitor(path, queue, factory, options).
 				withMonitor(notifiable).withLatch(latch);
+		configureScannerVisitor(path, visitor);
+		return visitor;
+	}
 
+	private void configureScannerVisitor(Path path, ScannerVisitor visitor) {
+		final FileSystem fileSystem = path.getFileSystem();
 		// In order to make hidden-file-ignoring logic more predictable, always ignore file names starting with a
 		// dot, but only ignore DOS hidden files if the file system supports that attribute.
 		if (ignoreHiddenFiles) {
@@ -276,7 +284,6 @@ public class Scanner extends ExecutorProxy {
 		}
 
 		logger.info(String.format("Queuing scan of: \"%s\".", path));
-		return visitor;
 	}
 
 	/**
@@ -304,10 +311,18 @@ public class Scanner extends ExecutorProxy {
 		return scan(_paths);
 	}
 
-	/**
-	 * @see Scanner#scan(Path)
-	 */
-	public Future<Path> scan(final String path) {
-		return scan(Paths.get(path));
+	public long getNumberOfFiles(final Path path) throws IOException {
+		CountingVisitor scannerVisitor = new CountingVisitor(path, null, null, options);
+		this.configureScannerVisitor(path, scannerVisitor);
+		Files.walkFileTree(path, scannerVisitor);
+		return scannerVisitor.nbFiles.get();
+	}
+
+	static class CountingVisitor extends ScannerVisitor {
+		final AtomicLong nbFiles = new AtomicLong(0);
+		public CountingVisitor(Path path, BlockingQueue<TikaDocument> queue, DocumentFactory factory, Options<String> options) {
+			super(path, queue, factory, options);
+		}
+		@Override void queue(Path file, BasicFileAttributes attributes) {nbFiles.incrementAndGet();}
 	}
 }

@@ -1,7 +1,6 @@
 package org.icij.extract;
 
 import org.icij.concurrent.BooleanSealableLatch;
-import org.icij.extract.Scanner;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.queue.ArrayDocumentQueue;
@@ -19,16 +18,13 @@ import java.util.TimerTask;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.assertEquals;
+
 public class ScannerTest {
 
 	private final DocumentFactory factory = new DocumentFactory().withIdentifier(new PathIdentifier());
 	private final DocumentQueue queue = new ArrayDocumentQueue(100);
 	private Scanner scanner = new Scanner(factory, queue);
-
-	private void shutdownScanner(final Scanner scanner) throws InterruptedException {
-		scanner.shutdown();
-		scanner.awaitTermination(1, TimeUnit.SECONDS);
-	}
 
 	@After
 	public void tearDown() throws InterruptedException {
@@ -42,7 +38,7 @@ public class ScannerTest {
 		// Block until every single path has been scanned and queued.
 		final Future<Path> job = scanner.scan(root);
 
-		Assert.assertEquals(job.get(), root);
+		assertEquals(job.get(), root);
 		shutdownScanner(scanner);
 
 		// Assert that the queue contains at least one file, manually.
@@ -59,6 +55,18 @@ public class ScannerTest {
 	}
 
 	@Test
+	public void testScanNumberOfFiles() throws Exception {
+		final Path regularFiles = Paths.get(getClass().getResource("/documents/text/").toURI());
+		assertEquals(2, scanner.getNumberOfFiles(regularFiles));
+
+		scanner.ignoreSystemFiles(true);
+		final Path rootFiles = Paths.get(getClass().getResource("/documents/").toURI());
+		assertEquals(7, scanner.getNumberOfFiles(rootFiles));
+
+		shutdownScanner(scanner);
+	}
+
+	@Test
 	public void testScanDirectoryWithIncludeGlob() throws Throwable {
 		final Path root = Paths.get(getClass().getResource("/documents/").toURI());
 
@@ -67,7 +75,7 @@ public class ScannerTest {
 		// Block until every single path has been scanned and queued.
 		final Future<Path> job = scanner.scan(root);
 
-		Assert.assertEquals(job.get(), root);
+		assertEquals(job.get(), root);
 		shutdownScanner(scanner);
 
 		// Assert that the queue contains at least one file, manually.
@@ -91,7 +99,7 @@ public class ScannerTest {
 		// Block until every single path has been scanned and queued.
 		final Future<Path> job = scanner.scan(root);
 
-		Assert.assertEquals(job.get(), root);
+		assertEquals(job.get(), root);
 		shutdownScanner(scanner);
 
 		// Assert that the queue contains at least one file, manually.
@@ -126,7 +134,7 @@ public class ScannerTest {
 
 		final Future<Path> job = scanner.scan(root);
 
-		Assert.assertEquals(job.get(), root);
+		assertEquals(job.get(), root);
 		shutdownScanner(scanner);
 
 		// Assert that the queue doesn't contain the symlink, but contains linked files.
@@ -145,7 +153,7 @@ public class ScannerTest {
 		Assert.assertTrue(scanner.ignoreHiddenFiles());
 
 		// Block until every single path has been scanned and queued.
-		Assert.assertEquals(scanner.scan(root).get(), root);
+		assertEquals(scanner.scan(root).get(), root);
 
 		// Assert that the queue does not contain the hidden file.
 		Assert.assertTrue(Files.exists(hidden));
@@ -155,7 +163,7 @@ public class ScannerTest {
 		scanner.ignoreHiddenFiles(false);
 		Assert.assertFalse(scanner.ignoreHiddenFiles());
 
-		Assert.assertEquals(scanner.scan(root).get(), root);
+		assertEquals(scanner.scan(root).get(), root);
 		Assert.assertTrue(queue.contains(factory.create(hidden)));
 		shutdownScanner(scanner);
 	}
@@ -168,7 +176,7 @@ public class ScannerTest {
 		Assert.assertTrue(scanner.ignoreSystemFiles());
 
 		// Block until every single path has been scanned and queued.
-		Assert.assertEquals(scanner.scan(root).get(), root);
+		assertEquals(scanner.scan(root).get(), root);
 
 		// Assert that the queue does not contain the system file.
 		Assert.assertTrue(Files.exists(system));
@@ -178,7 +186,7 @@ public class ScannerTest {
 		scanner.ignoreSystemFiles(false);
 		Assert.assertFalse(scanner.ignoreSystemFiles());
 
-		Assert.assertEquals(scanner.scan(root).get(), root);
+		assertEquals(scanner.scan(root).get(), root);
 		Assert.assertTrue(queue.contains(factory.create(system)));
 		shutdownScanner(scanner);
 	}
@@ -188,10 +196,10 @@ public class ScannerTest {
 		final Path root = Paths.get(getClass().getResource("/documents/").toURI());
 
 		scanner.setMaxDepth(1);
-		Assert.assertEquals(1, scanner.getMaxDepth());
+		assertEquals(1, scanner.getMaxDepth());
 
 		// Block until every single path has been scanned and queued.
-		Assert.assertEquals(scanner.scan(root).get(), root);
+		assertEquals(scanner.scan(root).get(), root);
 
 		Assert.assertTrue(Files.exists(root.resolve("text/plain.txt")));
 		Assert.assertFalse(queue.contains(factory.create(root.resolve("text/plain.txt"))));
@@ -219,5 +227,10 @@ public class ScannerTest {
 		Assert.assertTrue(queue.contains(factory.create(garbage)));
 
 		shutdownScanner(scanner);
+	}
+
+	private void shutdownScanner(final Scanner scanner) throws InterruptedException {
+		scanner.shutdown();
+		scanner.awaitTermination(1, TimeUnit.SECONDS);
 	}
 }
