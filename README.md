@@ -16,4 +16,4 @@ We welcome contributions! Please submit pull requests or contact us directly.
 
 ## License
 
-Copyright (c) 2015 Matthew Caruana Galizia. See `LICENSE`.
+Copyright (c) 2018 International Consortium of Investigative Journalists. See `LICENSE`.
