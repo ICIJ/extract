@@ -10,7 +10,7 @@ For guidance and instructions, please see the [wiki](https://github.com/ICIJ/ext
 
 ## Credits and Collaboration
 
-Developed by [Matthew Caruana Galizia](https://twitter.com/mcaruanagalizia) at [ICIJ](https://www.icij.org/).
+Initialy developed by [Matthew Caruana Galizia](https://twitter.com/mcaruanagalizia) at [ICIJ](https://www.icij.org/).
 
 We welcome contributions! Please submit pull requests or contact us directly.
 
