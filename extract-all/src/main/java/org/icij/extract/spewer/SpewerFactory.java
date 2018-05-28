@@ -13,13 +13,7 @@ import org.icij.task.annotation.OptionsClass;
 
 import static org.icij.extract.OutputType.STDOUT;
 
-/**
- * A factory class for creating {@link Spewer} instances from given commandline option values.
- *
- * @since 1.0.0
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- */
-@Option(name = "outputType", description = "Set the output type. Either \"file\", \"stdout\" or \"solr\".",
+@Option(name = "outputType", description = "Set the output type. Either \"file\", \"stdout\", \"solr\".",
 		parameter = "type", code = "o")
 @Option(name = "indexType", description = "Specify the index type. Valid types are : solr", parameter = "type")
 @Option(name = "indexAddress", description = "Index endpoint address.", code = "s", parameter = "url")
