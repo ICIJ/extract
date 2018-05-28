@@ -25,7 +25,6 @@
 
 		<app.main.class>org.icij.extract.cli.Main</app.main.class>
 		<solr.version>7.1.0</solr.version>
-		<elasticsearch.version>6.1.0</elasticsearch.version>
 
 		<maven-compiler.version>3.6.0</maven-compiler.version>
 		<maven-dependency.version>2.10</maven-dependency.version>
@@ -127,11 +126,6 @@
 			<groupId>org.apache.solr</groupId>
 			<artifactId>solr-solrj</artifactId>
 			<version>${solr.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.elasticsearch.client</groupId>
-			<artifactId>transport</artifactId>
-			<version>${elasticsearch.version}</version>
 		</dependency>
 
 		<dependency>
