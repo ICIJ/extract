@@ -1,5 +1,7 @@
 package org.icij.extract.redis;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import org.icij.extract.document.TikaDocument;
 import org.redisson.client.protocol.Encoder;
 
@@ -15,7 +17,10 @@ public class DocumentEncoder implements Encoder {
 	}
 
 	@Override
-	public byte[] encode(final Object in) throws IOException {
-		return ((TikaDocument) in).getPath().toString().getBytes(charset);
+	public ByteBuf encode(final Object in) throws IOException {
+		byte[] payload = ((TikaDocument) in).getPath().toString().getBytes(charset);
+		ByteBuf out = ByteBufAllocator.DEFAULT.buffer(payload.length);
+		out.writeBytes(payload);
+		return out;
 	}
 }

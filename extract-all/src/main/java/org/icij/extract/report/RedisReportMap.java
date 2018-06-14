@@ -1,7 +1,7 @@
 package org.icij.extract.report;
 
-import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.redis.*;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
@@ -9,7 +9,7 @@ import org.icij.task.annotation.OptionsClass;
 import org.redisson.RedissonMap;
 import org.redisson.api.RedissonClient;
 import org.redisson.client.RedisOutOfMemoryException;
-import org.redisson.client.codec.Codec;
+import org.redisson.client.codec.BaseCodec;
 import org.redisson.client.protocol.Decoder;
 import org.redisson.client.protocol.Encoder;
 import org.redisson.command.CommandSyncService;
@@ -87,7 +87,7 @@ public class RedisReportMap extends RedissonMap<TikaDocument, Report> implements
 	 * @author Matthew Caruana Galizia <mcaruana@icij.org>
 	 * @since 1.0.0-beta
 	 */
-	static class ReportCodec implements Codec {
+	static class ReportCodec extends BaseCodec {
 
 		private final Decoder<Object> documentDecoder;
 		private final Encoder documentEncoder;
