@@ -14,7 +14,7 @@ public class PathDigestIdentifier extends AbstractIdentifier {
 	}
 
 	@Override
-	public String generate(final Document document) throws NoSuchAlgorithmException {
+	public String generate(final TikaDocument document) throws NoSuchAlgorithmException {
 		final MessageDigest digest = MessageDigest.getInstance(algorithm);
 
 		digest.update(document.getPath().toString().getBytes(charset));
@@ -22,7 +22,7 @@ public class PathDigestIdentifier extends AbstractIdentifier {
 	}
 
 	@Override
-	public String generateForEmbed(final EmbeddedDocument embed) throws NoSuchAlgorithmException {
+	public String generateForEmbed(final EmbeddedTikaDocument embed) throws NoSuchAlgorithmException {
 		return generate(embed);
 	}
 }
