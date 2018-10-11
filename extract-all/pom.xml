@@ -148,9 +148,7 @@
     </dependencyManagement>
 
     <build>
-        <finalName>extract</finalName>
         <plugins>
-
             <!-- Compilation -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
