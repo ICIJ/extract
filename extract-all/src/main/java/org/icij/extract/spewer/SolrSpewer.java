@@ -134,7 +134,7 @@ public class SolrSpewer extends Spewer implements Serializable {
 
 			// We need to deleted the "fake" child documents so that there are no orphans.
 			response = client.deleteByQuery(String.format("%s:\"%s\" AND %s:[1 TO *]", fields.forRoot(),
-					document.getId(), fields.forLevel()));
+					tikaDocument.getId(), fields.forLevel()));
 		} catch (final SolrServerException e) {
 			throw new IOException(e);
 		}
