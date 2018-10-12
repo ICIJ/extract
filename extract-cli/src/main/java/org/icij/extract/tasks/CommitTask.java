@@ -16,8 +16,7 @@ import java.io.IOException;
 /**
  * A task that sends a commit message to an indexer API endpoint.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 @Task("Send a hard or soft commit message to the index.")
 @Option(name = "indexType", description = "Specify the index type. For now, the only valid value is " +

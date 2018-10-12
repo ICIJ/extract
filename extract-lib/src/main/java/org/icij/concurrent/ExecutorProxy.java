@@ -10,8 +10,6 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * A class of traits used by implementing classes that proxy an executor.
- *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
  */
 public abstract class ExecutorProxy implements Shutdownable {
 

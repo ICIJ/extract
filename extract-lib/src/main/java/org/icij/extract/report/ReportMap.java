@@ -8,8 +8,7 @@ import java.util.concurrent.ConcurrentMap;
 /**
  * The interface for a report map.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 public interface ReportMap extends ConcurrentMap<TikaDocument, Report>, AutoCloseable {
 

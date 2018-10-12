@@ -9,8 +9,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 /**
  * A {@link DocumentQueue} using an array as a backend.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 @Option(name = "queueBuffer", description = "The size of the internal file path buffer used by the queue.",
 		parameter = "size")

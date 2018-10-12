@@ -11,8 +11,6 @@ import java.io.IOException;
  *
  * Requests are only retried when no response is received from the server and not for any other kind of explicit,
  * permanent error.
- *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
  */
 public class CountdownHttpRequestRetryHandler implements HttpRequestRetryHandler {
 

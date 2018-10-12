@@ -22,8 +22,7 @@ import java.util.Optional;
 /**
  * Copy index fields.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 @Task("Copy Solr fields from one field to another, or back to the same field to force reindexing.\n\n" +
 		"Both literal mappings and wildcards are supported, for example \"field_a:field_b\" and \"field_*\".")

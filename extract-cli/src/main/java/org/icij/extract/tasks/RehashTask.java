@@ -21,8 +21,7 @@ import java.util.Optional;
  * Task that allows the IDs of index documents to be rehashed, optionally replacing parts of the path at
  * the same time.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 @Task("Recalculate IDs using a path replacement and/or new digest algorithm.")
 @Option(name = "index-type", description = "Specify the index type. For now, the only valid value is " +

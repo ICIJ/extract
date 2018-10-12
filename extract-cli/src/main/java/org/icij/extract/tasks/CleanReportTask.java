@@ -16,8 +16,7 @@ import org.icij.task.MonitorableTask;
 /**
  * A command that removes nonexistent file paths from a report, returning the number of paths removed.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 @Task("Remove any files that don't exist on disk from the report.")
 @OptionsClass(ReportMapFactory.class)

@@ -10,8 +10,7 @@ import io.netty.util.CharsetUtil;
 /**
  * Decoder for converting a string to a {@link ExtractionStatus}.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 public class ResultDecoder implements Decoder<Object> {
 

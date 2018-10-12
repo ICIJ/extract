@@ -17,8 +17,7 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 /**
  * Deserializes a {@link ReportMap} from JSON.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 public class ReportDeserializer extends JsonDeserializer<ReportMap> {
 

@@ -18,8 +18,7 @@ import org.icij.task.annotation.Task;
 /**
  * Task that scans paths for files to add to a queue.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 @Task("Queue files for processing later.")
 @OptionsClass(DocumentQueueFactory.class)

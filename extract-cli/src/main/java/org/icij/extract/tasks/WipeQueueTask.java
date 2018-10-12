@@ -10,8 +10,7 @@ import org.icij.task.annotation.Task;
 /**
  * CLI class for wiping a {@link DocumentQueue} from the backend.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 @Task("Wipe a queue. The name option is respected.")
 @OptionsClass(DocumentQueueFactory.class)

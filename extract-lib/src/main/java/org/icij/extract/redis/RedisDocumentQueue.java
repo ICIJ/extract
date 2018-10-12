@@ -20,8 +20,7 @@ import java.nio.charset.Charset;
 /**
  * A {@link DocumentQueue} using Redis as a backend.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 @Option(name = "queueName", description = "The name of the queue.", parameter = "name")
 @Option(name = "charset", description = "Set the output encoding for strings. Defaults to UTF-8.", parameter = "name")
@@ -69,9 +68,6 @@ public class RedisDocumentQueue extends RedissonBlockingQueue<TikaDocument> impl
 
 	/**
 	 * Codec for a queue of paths to documents.
-	 *
-	 * @author Matthew Caruana Galizia <mcaruana@icij.org>
-	 * @since 1.0.0-beta
 	 */
 	static class DocumentQueueCodec extends BaseCodec {
 

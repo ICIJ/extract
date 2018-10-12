@@ -11,8 +11,7 @@ import org.icij.task.annotation.OptionsClass;
 /**
  * Factory methods for creating {@link ReportMap} objects.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 @Option(name = "reportType", description = "Set the report backend type. Either \"redis\" or \"mysql\".",
 		parameter = "type", code = "r")

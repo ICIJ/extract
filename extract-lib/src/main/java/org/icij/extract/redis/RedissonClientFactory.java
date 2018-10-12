@@ -9,8 +9,7 @@ import org.redisson.config.Config;
 /**
  * Factory for creating a Redis client.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 @Option(name = "redisAddress", description = "Set the Redis backend address. Defaults to 127.0.0.1:6379.", parameter
 		= "address")

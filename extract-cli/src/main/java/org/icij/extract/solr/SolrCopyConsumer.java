@@ -16,8 +16,7 @@ import org.slf4j.LoggerFactory;
  * A consumer that forces reindexing by copying a field onto itself
  * or onto another field.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 public class SolrCopyConsumer extends SolrMachineConsumer {
 

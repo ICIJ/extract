@@ -7,8 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * A {@link ReportMap} using a {@link ConcurrentHashMap} as a backend.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 public class HashMapReportMap extends ConcurrentHashMap<TikaDocument, Report> implements ReportMap {
 

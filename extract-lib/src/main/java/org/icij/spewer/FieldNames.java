@@ -9,8 +9,7 @@ import java.util.regex.Pattern;
 /**
  * Defaults for use with spewers.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 @Option(name = "idField", description = "Index field for an automatically generated identifier. The ID " +
 		"for the same file is guaranteed not to change if the path doesn't change. Defaults to \"id\".", code = "i",
