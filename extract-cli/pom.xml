@@ -8,7 +8,7 @@
         <version>2.0.0</version>
     </parent>
 
-    <artifactId>extract-all</artifactId>
+    <artifactId>extract-cli</artifactId>
     <packaging>jar</packaging>
 
     <properties>

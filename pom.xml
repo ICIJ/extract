@@ -22,7 +22,7 @@
 
     <modules>
         <module>extract-lib</module>
-        <module>extract-all</module>
+        <module>extract-cli</module>
     </modules>
 
     <properties>
