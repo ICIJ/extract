@@ -83,22 +83,16 @@ public class Scanner extends ExecutorProxy {
 	private boolean ignoreSystemFiles = true;
 	private Options<String> options = new Options<>();
 
-	/**
-	 * @see Scanner(BlockingQueue, SealableLatch, Notifiable)
-	 */
 	public Scanner(final DocumentFactory factory, final BlockingQueue<TikaDocument> queue) {
 		this(factory, queue, null, null);
 	}
 
-	/**
-	 * @see Scanner(BlockingQueue, SealableLatch, Notifiable)
-	 */
 	public Scanner(final DocumentFactory factory, final BlockingQueue<TikaDocument> queue, final SealableLatch latch) {
 		this(factory, queue, latch, null);
 	}
 
 	/**
-	 * Creates a {@code Scanner} that sends all results straight to the underlying {@link BlockingQueue< TikaDocument >} on a
+	 * Creates a {@code Scanner} that sends all results straight to the underlying {@link BlockingQueue} on a
 	 * single thread.
 	 *
 	 * @param queue results from the scanner will be put on this queue

@@ -12,9 +12,6 @@ import java.util.Iterator;
 
 /**
  * Serializes a {@link DocumentQueue} to JSON.
- *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
  */
 public class DocumentQueueSerializer extends JsonSerializer<DocumentQueue> {
 

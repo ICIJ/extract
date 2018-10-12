@@ -5,8 +5,7 @@ import java.util.Locale;
 /**
  * An enumerated list of implemented index types.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 public enum IndexType {
 	SOLR;

@@ -25,10 +25,7 @@ import java.security.cert.X509Certificate;
 import java.util.Locale;
 
 /**
- * Extends {@link HttpClientBuilder} with the ability to pin a certificate
- * and a hostname.
- *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
+ * Extends {@link HttpClientBuilder} with the ability to pin a certificate and a hostname.
  */
 public class PinnedHttpClientBuilder extends HttpClientBuilder {
 

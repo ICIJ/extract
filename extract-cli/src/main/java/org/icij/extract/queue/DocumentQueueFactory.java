@@ -12,8 +12,7 @@ import org.icij.task.annotation.OptionsClass;
 /**
  * Factory methods for creating queue objects.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 @Option(name = "queueType", description = "Set the queue backend type. Valid values \"redis\" and \"mysql\".",
 		parameter = "type",	code = "q")

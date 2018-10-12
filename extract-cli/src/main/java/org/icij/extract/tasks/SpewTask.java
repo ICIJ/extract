@@ -32,8 +32,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Spew extracted text from files to an output.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 @Task("Extract from files.")
 @OptionsClass(DataSourceFactory.class)

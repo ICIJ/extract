@@ -36,7 +36,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * <code>
  * BlockingThreadPoolExecutor threadPoolExecutor = new BlockingThreadPoolExecutor(5);
  *
- * for (int i = 0; i < 5000; i++) {
+ * for (int i = 0; i &#60; 5000; i++) {
  *   threadPoolExecutor.execute(...)
  * }
  *
@@ -240,7 +240,7 @@ public class BlockingThreadPoolExecutor extends ThreadPoolExecutor {
 	 * Thus it is not safe to call this method in case there are several threads feeding the {@code
 	 * ThreadPoolExecutor} with tasks (calling {@code execute}). The safe way to call this method is from the thread
 	 * that is calling {@code execute} and when there is only one such thread. Note that this method differs from
-	 * {@code awaitTermination, as it can be called without shutting down the {@code ThreadPoolExecutor}.
+	 * awaitTermination, as it can be called without shutting down the {@code ThreadPoolExecutor}.
 	 *
 	 * @throws InterruptedException when the internal condition throws it.
 	 */

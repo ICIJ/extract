@@ -20,8 +20,7 @@ import java.util.Optional;
 /**
  * Tag the intersect or complement of two Solr cores, or a single core.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 @Task("Tag the intersect or complement of two Solr cores, or a single core.\n\n" +
 		"An intersect subset is calculated by iterating over documents in the core specified by the " +

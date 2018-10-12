@@ -1,22 +1,19 @@
 package org.icij.extract.json;
 
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.queue.DocumentQueue;
 
 import java.io.IOException;
-
 import java.nio.file.Paths;
-
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.DeserializationContext;
 
 /**
  * Deserializes a {@link DocumentQueue} from JSON.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 public class DocumentQueueDeserializer extends JsonDeserializer<DocumentQueue> {
 

@@ -13,8 +13,7 @@ import io.netty.buffer.ByteBuf;
 /**
  * Decoder for converting a string to {@link Path}.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 public class DocumentDecoder implements Decoder<Object> {
 

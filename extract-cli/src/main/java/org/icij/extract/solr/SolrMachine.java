@@ -28,8 +28,7 @@ import org.slf4j.LoggerFactory;
  *
  * Memory use is kept under control by throttling the streaming producer.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 public class SolrMachine implements Callable<Long> {
 

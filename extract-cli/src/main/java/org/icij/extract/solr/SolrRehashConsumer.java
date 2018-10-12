@@ -25,8 +25,7 @@ import java.util.regex.Pattern;
  * This is useful when you want to change the paths of documents that
  * have already been added to Solr.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 public class SolrRehashConsumer extends SolrMachineConsumer {
 

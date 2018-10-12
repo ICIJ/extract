@@ -24,8 +24,7 @@ import org.icij.task.annotation.Task;
 /**
  * A command that loads a {@link DocumentQueue} from JSON.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 @Task("Load a queue from a JSON or CSV dump file. If no source path is given then the input is read from standard " +
 		"input.")

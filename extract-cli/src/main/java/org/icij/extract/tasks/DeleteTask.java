@@ -15,8 +15,7 @@ import java.io.IOException;
 /**
  * Delete documents from the index.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 @Task("Delete documents from Solr.\n\nSimple arguments are assumed to be IDs. Everything else is assumed to " +
 		"be a query, for example \"path:data/*\" to delete all documents containing a \"path\" field value " +

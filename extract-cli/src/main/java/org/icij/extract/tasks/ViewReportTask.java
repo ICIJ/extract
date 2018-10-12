@@ -11,8 +11,6 @@ import org.icij.task.annotation.Task;
 
 /**
  * CLI class for viewing a single report.
- *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
  */
 @Task("View a single report.")
 @OptionsClass(ReportMapFactory.class)

@@ -16,8 +16,7 @@ import java.io.IOException;
 /**
  * Task for sending a rollback message to the index.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 @Task("Send a rollback message to the index.")
 @Option(name = "indexType", description = "Specify the index type. For now, the only valid value is " +

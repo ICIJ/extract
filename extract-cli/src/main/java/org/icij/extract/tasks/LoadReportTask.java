@@ -19,8 +19,7 @@ import org.icij.task.annotation.Task;
 /**
  * CLI class for loading a report from JSON.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 @Task("Load a report from a JSON dump file. The name option is respected. If no source path is given then " +
 		"the input is read from standard input.")

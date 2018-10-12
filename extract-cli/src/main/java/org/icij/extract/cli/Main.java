@@ -19,9 +19,6 @@ import java.util.Properties;
 
 /**
  * The main class for running the commandline application.
- *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
  */
 public class Main {
 

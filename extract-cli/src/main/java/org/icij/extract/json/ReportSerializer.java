@@ -16,8 +16,7 @@ import java.util.Map;
 /**
  * Serializes a {@link ReportMap} to JSON.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 public class ReportSerializer extends JsonSerializer<ReportMap> {
 

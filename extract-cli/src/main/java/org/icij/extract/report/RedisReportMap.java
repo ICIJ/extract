@@ -26,8 +26,7 @@ import java.util.Collections;
 /**
  * A {@link ReportMap} using Redis as a backend.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 @Option(name = "reportName", description = "The name of the report, the default of which is type-dependent.",
 		parameter = "name")
@@ -83,9 +82,6 @@ public class RedisReportMap extends RedissonMap<TikaDocument, Report> implements
 
 	/**
 	 * Codec for a map of string keys to integer values.
-	 *
-	 * @author Matthew Caruana Galizia <mcaruana@icij.org>
-	 * @since 1.0.0-beta
 	 */
 	static class ReportCodec extends BaseCodec {
 

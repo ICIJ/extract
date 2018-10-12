@@ -20,8 +20,7 @@ import org.icij.task.annotation.Task;
 /**
  * A command that dumps a queue to JSON output.
  *
- * @author Matthew Caruana Galizia <mcaruana@icij.org>
- * @since 1.0.0-beta
+ *
  */
 @Task("Dump the queue for debugging. The name option is respected. If no destination path is given then the " +
 		"dump is written to standard output.")
