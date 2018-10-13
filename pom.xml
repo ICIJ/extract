@@ -7,6 +7,28 @@
     <version>2.0.1</version>
     <packaging>pom</packaging>
 
+    <name>ICIJ Extract</name>
+    <description>A cross-platform command line tool for parallelised content extraction and analysis.</description>
+    <url>https://github.com/ICIJ/extract</url>
+
+    <organization>
+        <name>The International Consortium of Investigative Journalists</name>
+        <url>https://www.icij.org/</url>
+    </organization>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/ICIJ/extract/issues</url>
+    </issueManagement>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>http://www.opensource.org/licenses/mit-license.php</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
     <developers>
         <developer>
             <name>Matthew Caruana Galizia</name>
