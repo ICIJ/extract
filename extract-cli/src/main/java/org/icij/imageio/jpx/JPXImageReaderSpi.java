@@ -1,22 +1,20 @@
 package org.icij.imageio.jpx;
 
+import com.github.jaiimageio.impl.common.PackageUtil;
 import com.github.jaiimageio.jpeg2000.impl.J2KImageReader;
 import com.github.jaiimageio.jpeg2000.impl.J2KImageReaderSpi;
-
-import java.io.IOException;
-import java.util.Locale;
 
 import javax.imageio.IIOException;
 import javax.imageio.ImageReader;
 import javax.imageio.spi.ImageReaderSpi;
 import javax.imageio.spi.ServiceRegistry;
 import javax.imageio.stream.ImageInputStream;
-
-import com.github.jaiimageio.impl.common.PackageUtil;
+import java.io.IOException;
+import java.util.Locale;
 
 /**
- * This class shims support for JPX format images until a fix for <a href="https://github
- * .com/jai-imageio/jai-imageio-jpeg2000/issues/8">jai-imageio-jpeg2000 issue #8</a> is released.
+ * This class shims support for JPX format images until a fix for
+ * <a href="https://github.com/jai-imageio/jai-imageio-jpeg2000/issues/8">jai-imageio-jpeg2000 issue #8</a> is released.
  *
  * It does this by wrapping the {@link J2KImageReaderSpi} provided by that package.
  */

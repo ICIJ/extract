@@ -1,6 +1,8 @@
 package org.icij.imageio.jpx;
 
-import java.util.Locale;
+import com.github.jaiimageio.impl.common.PackageUtil;
+import com.github.jaiimageio.jpeg2000.impl.J2KImageWriter;
+import com.github.jaiimageio.jpeg2000.impl.J2KImageWriterSpi;
 
 import javax.imageio.IIOException;
 import javax.imageio.ImageTypeSpecifier;
@@ -8,15 +10,11 @@ import javax.imageio.ImageWriter;
 import javax.imageio.spi.ImageWriterSpi;
 import javax.imageio.spi.ServiceRegistry;
 import javax.imageio.stream.ImageOutputStream;
-
-import com.github.jaiimageio.impl.common.PackageUtil;
-
-import com.github.jaiimageio.jpeg2000.impl.J2KImageWriter;
-import com.github.jaiimageio.jpeg2000.impl.J2KImageWriterSpi;
+import java.util.Locale;
 
 /**
- * This class shims support for JPX format images until a fix for <a href="https://github
- * .com/jai-imageio/jai-imageio-jpeg2000/issues/8">jai-imageio-jpeg2000 issue #8</a> is released.
+ * This class shims support for JPX format images until a fix for
+ * <a href="https://github.com/jai-imageio/jai-imageio-jpeg2000/issues/8">jai-imageio-jpeg2000 issue #8</a> is released.
  *
  * It does this by wrapping the {@link J2KImageWriterSpi} provided by that package.
  */
