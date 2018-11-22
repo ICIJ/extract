@@ -4,3 +4,4 @@ target
 /.idea
 /tesseract_opencl_profile_devices.dat
 /kernel-*.bin
+.DS_Store
