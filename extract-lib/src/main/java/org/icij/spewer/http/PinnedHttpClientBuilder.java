@@ -6,6 +6,10 @@ import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.client.CredentialsProvider; //NEW
+import org.apache.http.auth.UsernamePasswordCredentials; //NEW 
+import org.apache.http.impl.client.BasicCredentialsProvider; //NEW
+import org.apache.http.auth.AuthScope; //NEW
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
@@ -24,9 +28,12 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Locale;
 
+
 /**
  * Extends {@link HttpClientBuilder} with the ability to pin a certificate and a hostname.
  */
+ 
+ 
 public class PinnedHttpClientBuilder extends HttpClientBuilder {
 
 	private HostnameVerifier hostnameVerifier = null;
@@ -35,7 +42,13 @@ public class PinnedHttpClientBuilder extends HttpClientBuilder {
 	public static PinnedHttpClientBuilder createWithDefaults() {
 		final PinnedHttpClientBuilder builder = new PinnedHttpClientBuilder();
 
+		final CredentialsProvider provider = new BasicCredentialsProvider(); //NEW
+		final UsernamePasswordCredentials credentials = new UsernamePasswordCredentials(
+            "myusername","mypassword"); //NEW
+		provider.setCredentials(AuthScope.ANY, credentials);                //NEW
+		
 		builder
+			.setDefaultCredentialsProvider(provider)
 			.setMaxConnPerRoute(32)
 			.setMaxConnTotal(128)
 			.disableRedirectHandling()

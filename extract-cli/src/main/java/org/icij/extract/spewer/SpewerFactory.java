@@ -10,8 +10,7 @@ import org.icij.spewer.http.PinnedHttpClientBuilder;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
-import org.apache.http.client.CredentialsProvider //NEW
-import org.apache.http.auth.UsernamePasswordCredentials //NEW 
+
 import static org.icij.extract.OutputType.STDOUT;
 
 /**
@@ -60,13 +59,8 @@ public abstract class SpewerFactory {
 	}
 
 	private static CloseableHttpClient createHttpClient(final Options<String> options) {
-		CredentialsProvider provider = new BasicCredentialsProvider(); //NEW
-		UsernamePasswordCredentials credentials = new UsernamePasswordCredentials(
-            "myusername","mypassword"); //NEW
-		provider.setCredentials(AuthScope.ANY, credentials);                //NEW
+
 		return PinnedHttpClientBuilder.createWithDefaults()
-				.setVerifyHostname(options.get("indexVerifyHost").value().orElse(null))
-				..setDefaultCredentialsProvider(provider) //NEW
 				.pinCertificate(options.get("indexServerCertificate").value().orElse(null))
 				.build();
 	}
