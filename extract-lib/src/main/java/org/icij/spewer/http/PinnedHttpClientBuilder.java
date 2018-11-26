@@ -38,17 +38,18 @@ public class PinnedHttpClientBuilder extends HttpClientBuilder {
 
 	private HostnameVerifier hostnameVerifier = null;
 	private SSLContext sslContext = null;
+        private String indexPassword = null;
+        private String indexUsername = null;
 
 	public static PinnedHttpClientBuilder createWithDefaults() {
-		final PinnedHttpClientBuilder builder = new PinnedHttpClientBuilder();
-
-		final CredentialsProvider provider = new BasicCredentialsProvider(); //NEW
-		final UsernamePasswordCredentials credentials = new UsernamePasswordCredentials(
-            "solr","SolrRocks"); //NEW
-		provider.setCredentials(AuthScope.ANY, credentials);                //NEW
+		System.out.println("MAKING A HTTP CLIENT BUILDER");
+                final PinnedHttpClientBuilder builder = new PinnedHttpClientBuilder();
+//		final CredentialsProvider provider = new BasicCredentialsProvider(); //NEW
+//		final UsernamePasswordCredentials credentials = new UsernamePasswordCredentials(
+//            "solr","SolrRocks"); //NEW
+//		provider.setCredentials(AuthScope.ANY, credentials);                //NEW
 		
 		builder
-			.setDefaultCredentialsProvider(provider)
 			.setMaxConnPerRoute(32)
 			.setMaxConnTotal(128)
 			.disableRedirectHandling()
@@ -61,7 +62,43 @@ public class PinnedHttpClientBuilder extends HttpClientBuilder {
 		super();
 	}
 
-	public PinnedHttpClientBuilder setVerifyHostname(final String verifyHostname) {
+	
+        public PinnedHttpClientBuilder setUserPassword(final String username, final String password) {
+            if (null == password) {
+			indexPassword = null;
+			return this;
+                } else {
+                        indexPassword= password;
+            }
+            if (null == username) {
+			indexUsername = null;
+			return this;
+                } else {
+                        indexUsername= username;
+            }
+            System.out.println("setting user and password");
+            System.out.println(indexPassword);
+            System.out.println(indexUsername);
+            return this;
+        }
+        public PinnedHttpClientBuilder anotherMethod (){
+            System.out.println("beep beep test");
+            return this;
+        
+        }
+        public PinnedHttpClientBuilder setCredentials(){
+            System.out.println("SETTING CREDENTIALS");
+            final PinnedHttpClientBuilder builder = new PinnedHttpClientBuilder();
+            final CredentialsProvider provider = new BasicCredentialsProvider(); 
+            final UsernamePasswordCredentials credentials = new UsernamePasswordCredentials(
+            indexUsername,indexPassword); //
+	    provider.setCredentials(AuthScope.ANY, credentials);
+            this.setDefaultCredentialsProvider(provider);
+            return this;//NEW
+        }
+        
+   
+        public PinnedHttpClientBuilder setVerifyHostname(final String verifyHostname) {
 		if (null == verifyHostname) {
 			hostnameVerifier = null;
 			return this;
