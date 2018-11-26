@@ -48,6 +48,8 @@ import java.util.zip.GZIPOutputStream;
 		"duration")
 @Option(name = "atomicWrites", description = "Make atomic updates to the index. If your schema contains " +
 		"fields that are not included in the payload, this prevents their values, if any, from being erased.")
+@Option(name = "testoption", description = "Another option " +
+		"continues", parameter="number")
 public class SolrSpewer extends Spewer implements Serializable {
 	private static final Logger logger = LoggerFactory.getLogger(SolrSpewer.class);
 	private static final long serialVersionUID = -8455227685165065698L;
@@ -70,11 +72,11 @@ public class SolrSpewer extends Spewer implements Serializable {
 
 	public SolrSpewer configure(final Options<String> options) {
 		super.configure(options);
-
+//                System.out.println(options);
 		options.get("atomicWrites").parse().asBoolean().ifPresent(this::atomicWrites);
 		options.get("commitInterval").parse().asInteger().ifPresent(this::setCommitThreshold);
 		options.get("commitWithin").parse().asDuration().ifPresent(this::setCommitWithin);
-
+                    System.out.println(options);
 		return this;
 	}
 

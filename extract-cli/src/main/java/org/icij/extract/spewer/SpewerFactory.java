@@ -22,6 +22,8 @@ import static org.icij.extract.OutputType.STDOUT;
 @Option(name = "indexAddress", description = "Index endpoint address.", code = "s", parameter = "url")
 @Option(name = "indexServerCertificate", description = "The index server's public certificate, used for" +
 		" certificate pinning. Supported formats are PEM, DER, PKCS #12 and JKS.", parameter = "path")
+@Option(name = "indexUsername", description = "The index server's username.", parameter = "username")
+@Option(name = "indexPassword", description = "The index server's password.", parameter = "password")
 @Option(name = "indexVerifyHost", description = "Verify the index server's public certificate against " +
 		"the specified host. Use the wildcard \"*\" to disable verification.", parameter = "hostname")
 @OptionsClass(FileSpewer.class)
@@ -62,7 +64,9 @@ public abstract class SpewerFactory {
 
 		return PinnedHttpClientBuilder.createWithDefaults()
 				.pinCertificate(options.get("indexServerCertificate").value().orElse(null))
-				.build();
+				.setUserPassword(options.get("indexUsername").value().orElse(null),options.get("indexPassword").value().orElse(null))
+                                .setCredentials()
+                                .build();
 	}
 
 	private static RESTSpewer createRESTSpewer(final Options<String> options, final FieldNames fields) {
