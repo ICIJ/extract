@@ -44,7 +44,7 @@ public class PinnedHttpClientBuilder extends HttpClientBuilder {
 
 		final CredentialsProvider provider = new BasicCredentialsProvider(); //NEW
 		final UsernamePasswordCredentials credentials = new UsernamePasswordCredentials(
-            "myusername","mypassword"); //NEW
+            "solr","SolrRocks"); //NEW
 		provider.setCredentials(AuthScope.ANY, credentials);                //NEW
 		
 		builder
