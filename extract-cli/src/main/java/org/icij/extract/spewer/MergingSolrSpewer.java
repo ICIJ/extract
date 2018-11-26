@@ -1,6 +1,5 @@
 package org.icij.extract.spewer;
 
-import org.icij.extract.spewer.SolrSpewer;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -30,8 +29,6 @@ import java.util.stream.Collectors;
  */
 @Option(name = "retriesOnConflict", description = "The number of times to retry adding a document when a " +
 		"conflict error is returned by the index, after merging in existing fields.", parameter = "number")
-@Option(name = "anotheroption", description = "yet more option " +
-		"continues", parameter="number")
 public class MergingSolrSpewer extends SolrSpewer {
 
 	private static final long serialVersionUID = -7084864083664544361L;
@@ -39,18 +36,14 @@ public class MergingSolrSpewer extends SolrSpewer {
 
 	public MergingSolrSpewer(final SolrClient client, final FieldNames fields) {
 		super(client, fields);
-
 	}
 
 	public MergingSolrSpewer configure(final Options<String> options) {
 		super.configure(options);
-//                System.out.println(options);
-                //REMOVED AS TRIGGERED NULLPOINTEXCEPTION; TODO: FIND CAUSE
-                //options.get("retriesOnConflict").parse().asInteger().ifPresent(this::setRetries);
+		options.get("retriesOnConflict").parse().asInteger().ifPresent(this::setRetries);
 
 		return this;
 	}
-        
 
 	public void setRetries(final int retries) {
 		this.retries = retries;

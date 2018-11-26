@@ -25,8 +25,6 @@ import java.io.IOException;
 		"neither fsync-ing index files nor writing a new index descriptor. This could lead to data loss if Solr is " +
 		"terminated unexpectedly.")
 @Option(name = "address", description = "Index core API endpoint address.", code = "s", parameter = "url")
-@Option(name = "indexUsername", description = "The index server's username.", parameter = "username")
-@Option(name = "indexPassword", description = "The index server's password.", parameter = "password")
 @Option(name = "serverCertificate", description = "The index server's public certificate, used for " +
 		"certificate pinning. Supported formats are PEM, DER, PKCS #12 and JKS.", parameter = "path")
 @Option(name = "verifyHost", description = "Verify the index server's public certificate against the " +
@@ -54,8 +52,6 @@ public class CommitTask extends DefaultTask<Integer> {
 	private UpdateResponse commitSolr(final boolean softCommit) {
 		try (final CloseableHttpClient httpClient = PinnedHttpClientBuilder.createWithDefaults()
 				.setVerifyHostname(options.get("verifyHost").value().orElse(null))
-                        	.setUserPassword(options.get("indexUsername").value().orElse(null),options.get("indexPassword").value().orElse(null))
-                                .setCredentials()
 				.pinCertificate(options.get("serverCertificate").value().orElse(null))
 				.build();
 		     final SolrClient client = new HttpSolrClient.Builder(options.get("address").value().orElse
