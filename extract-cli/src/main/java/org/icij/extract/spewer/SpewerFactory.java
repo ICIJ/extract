@@ -22,8 +22,8 @@ import static org.icij.extract.OutputType.STDOUT;
 @Option(name = "indexAddress", description = "Index endpoint address.", code = "s", parameter = "url")
 @Option(name = "indexServerCertificate", description = "The index server's public certificate, used for" +
 		" certificate pinning. Supported formats are PEM, DER, PKCS #12 and JKS.", parameter = "path")
-@Option(name = "indexUsername", description = "The index server's username.", parameter = "username")
-@Option(name = "indexPassword", description = "The index server's password.", parameter = "password")
+@Option(name = "indexUsername", description = "The index server's username.", code="U", parameter = "username")
+@Option(name = "indexPassword", description = "The index server's password.", code="P", parameter = "password")
 @Option(name = "indexVerifyHost", description = "Verify the index server's public certificate against " +
 		"the specified host. Use the wildcard \"*\" to disable verification.", parameter = "hostname")
 @OptionsClass(FileSpewer.class)

@@ -25,8 +25,8 @@ import java.io.IOException;
 		"neither fsync-ing index files nor writing a new index descriptor. This could lead to data loss if Solr is " +
 		"terminated unexpectedly.")
 @Option(name = "address", description = "Index core API endpoint address.", code = "s", parameter = "url")
-@Option(name = "indexUsername", description = "The index server's username.", parameter = "username")
-@Option(name = "indexPassword", description = "The index server's password.", parameter = "password")
+@Option(name = "indexUsername", description = "The index server's username.", code = "U", parameter = "username")
+@Option(name = "indexPassword", description = "The index server's password.", code= "P", parameter = "password")
 @Option(name = "serverCertificate", description = "The index server's public certificate, used for " +
 		"certificate pinning. Supported formats are PEM, DER, PKCS #12 and JKS.", parameter = "path")
 @Option(name = "verifyHost", description = "Verify the index server's public certificate against the " +
