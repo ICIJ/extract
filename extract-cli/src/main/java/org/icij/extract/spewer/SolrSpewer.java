@@ -72,11 +72,9 @@ public class SolrSpewer extends Spewer implements Serializable {
 
 	public SolrSpewer configure(final Options<String> options) {
 		super.configure(options);
-//                System.out.println(options);
 		options.get("atomicWrites").parse().asBoolean().ifPresent(this::atomicWrites);
 		options.get("commitInterval").parse().asInteger().ifPresent(this::setCommitThreshold);
 		options.get("commitWithin").parse().asDuration().ifPresent(this::setCommitWithin);
-                    System.out.println(options);
 		return this;
 	}
 
