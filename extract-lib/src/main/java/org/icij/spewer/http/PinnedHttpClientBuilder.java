@@ -31,6 +31,16 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Locale;
+import org.apache.http.HttpException;
+import org.apache.http.HttpHost;
+import org.apache.http.HttpRequest;
+import org.apache.http.HttpRequestInterceptor;
+import org.apache.http.auth.AuthState;
+import org.apache.http.auth.Credentials;
+import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.impl.auth.BasicScheme;
+import org.apache.http.protocol.HttpContext;
+import org.apache.http.protocol.HttpCoreContext;
 
 
 /**
@@ -52,7 +62,7 @@ public class PinnedHttpClientBuilder extends HttpClientBuilder {
 //		final UsernamePasswordCredentials credentials = new UsernamePasswordCredentials(
 //            "solr","SolrRocks"); //NEW
 //		provider.setCredentials(AuthScope.ANY, credentials);                //NEW
-		
+
 		builder
 			.setMaxConnPerRoute(32)
 			.setMaxConnTotal(128)
@@ -65,7 +75,6 @@ public class PinnedHttpClientBuilder extends HttpClientBuilder {
 	public PinnedHttpClientBuilder() {
 		super();
 	}
-
 	
         public PinnedHttpClientBuilder setUserPassword(final String username, final String password) {
             if (null == password) {
@@ -86,11 +95,12 @@ public class PinnedHttpClientBuilder extends HttpClientBuilder {
         public PinnedHttpClientBuilder setCredentials(){
             if (null != indexUsername && null != indexPassword ){
             logger.info("Setting username and password");
-            final PinnedHttpClientBuilder builder = new PinnedHttpClientBuilder();
+//            final PinnedHttpClientBuilder builder = new PinnedHttpClientBuilder();
             final CredentialsProvider provider = new BasicCredentialsProvider(); 
             final UsernamePasswordCredentials credentials = new UsernamePasswordCredentials(
             indexUsername,indexPassword); //
 	    provider.setCredentials(AuthScope.ANY, credentials);
+            this.addInterceptorFirst(new PreemptiveAuthInterceptor());
             this.setDefaultCredentialsProvider(provider);
             }
             else {
@@ -199,5 +209,26 @@ public class PinnedHttpClientBuilder extends HttpClientBuilder {
 		public final boolean verify(final String host, final SSLSession session) {
 			return defaultVerifier.verify(verifyHostname, session);
 		}
-	}
+        }
+        static class PreemptiveAuthInterceptor implements HttpRequestInterceptor {
+
+            public void process(final HttpRequest request, final HttpContext context) throws HttpException, IOException {
+            AuthState authState = (AuthState) context.getAttribute(HttpClientContext.TARGET_AUTH_STATE);
+            // If no auth scheme available yet, try to initialize it
+            // preemptively
+            if (authState.getAuthScheme() == null) {
+                CredentialsProvider credsProvider = (CredentialsProvider) 
+                        context.getAttribute(HttpClientContext.CREDS_PROVIDER);
+                HttpHost targetHost = (HttpHost) context.getAttribute(HttpCoreContext.HTTP_TARGET_HOST);
+                AuthScope authScope = new AuthScope(targetHost.getHostName(), targetHost.getPort());
+                Credentials creds = credsProvider.getCredentials(authScope);
+                if(creds == null){
+               }
+                authState.update(new BasicScheme(), creds);
+            }
+
+            }
+        }
+        
+            
 }

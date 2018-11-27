@@ -61,7 +61,7 @@ public abstract class SpewerFactory {
 	}
 
 	private static CloseableHttpClient createHttpClient(final Options<String> options) {
-
+		
 		return PinnedHttpClientBuilder.createWithDefaults()
 				.pinCertificate(options.get("indexServerCertificate").value().orElse(null))
 				.setUserPassword(options.get("indexUsername").value().orElse(null),options.get("indexPassword").value().orElse(null))
