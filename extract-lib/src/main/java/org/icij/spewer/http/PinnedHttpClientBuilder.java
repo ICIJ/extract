@@ -11,6 +11,10 @@ import org.apache.http.auth.UsernamePasswordCredentials; //NEW
 import org.apache.http.impl.client.BasicCredentialsProvider; //NEW
 import org.apache.http.auth.AuthScope; //NEW
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
@@ -40,9 +44,9 @@ public class PinnedHttpClientBuilder extends HttpClientBuilder {
 	private SSLContext sslContext = null;
         private String indexPassword = null;
         private String indexUsername = null;
+        private Logger logger = LoggerFactory.getLogger(getClass());
 
 	public static PinnedHttpClientBuilder createWithDefaults() {
-		System.out.println("MAKING A HTTP CLIENT BUILDER");
                 final PinnedHttpClientBuilder builder = new PinnedHttpClientBuilder();
 //		final CredentialsProvider provider = new BasicCredentialsProvider(); //NEW
 //		final UsernamePasswordCredentials credentials = new UsernamePasswordCredentials(
@@ -76,24 +80,22 @@ public class PinnedHttpClientBuilder extends HttpClientBuilder {
                 } else {
                         indexUsername= username;
             }
-            System.out.println("setting user and password");
-            System.out.println(indexPassword);
-            System.out.println(indexUsername);
+            
             return this;
-        }
-        public PinnedHttpClientBuilder anotherMethod (){
-            System.out.println("beep beep test");
-            return this;
-        
         }
         public PinnedHttpClientBuilder setCredentials(){
-            System.out.println("SETTING CREDENTIALS");
+            if (null != indexUsername && null != indexPassword ){
+            logger.info("Setting username and password");
             final PinnedHttpClientBuilder builder = new PinnedHttpClientBuilder();
             final CredentialsProvider provider = new BasicCredentialsProvider(); 
             final UsernamePasswordCredentials credentials = new UsernamePasswordCredentials(
             indexUsername,indexPassword); //
 	    provider.setCredentials(AuthScope.ANY, credentials);
             this.setDefaultCredentialsProvider(provider);
+            }
+            else {
+            logger.info("Username and password not set. No authentication set");
+            }
             return this;//NEW
         }
         

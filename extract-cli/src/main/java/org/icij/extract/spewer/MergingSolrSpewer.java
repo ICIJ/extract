@@ -47,7 +47,7 @@ public class MergingSolrSpewer extends SolrSpewer {
 //                System.out.println(options);
                 //REMOVED AS TRIGGERED NULLPOINTEXCEPTION; TODO: FIND CAUSE
                 //options.get("retriesOnConflict").parse().asInteger().ifPresent(this::setRetries);
-
+                this.retries = retries; //temp fix
 		return this;
 	}
         
