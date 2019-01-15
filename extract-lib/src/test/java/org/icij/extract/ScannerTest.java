@@ -57,11 +57,11 @@ public class ScannerTest {
 	@Test
 	public void testScanNumberOfFiles() throws Exception {
 		final Path regularFiles = Paths.get(getClass().getResource("/documents/text/").toURI());
-		assertEquals(2, scanner.getNumberOfFiles(regularFiles));
+		assertEquals(3, scanner.getNumberOfFiles(regularFiles));
 
 		scanner.ignoreSystemFiles(true);
 		final Path rootFiles = Paths.get(getClass().getResource("/documents/").toURI());
-		assertEquals(7, scanner.getNumberOfFiles(rootFiles));
+		assertEquals(8, scanner.getNumberOfFiles(rootFiles));
 
 		shutdownScanner(scanner);
 	}
