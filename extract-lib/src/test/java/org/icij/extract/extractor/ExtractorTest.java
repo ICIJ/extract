@@ -57,6 +57,20 @@ public class ExtractorTest {
 	}
 
 	@Test
+	public void testRtfFile() throws Throwable {
+		final Extractor extractor = new Extractor();
+		final TikaDocument tikaDocument = factory.create(getClass().getResource("/documents/text/doc.rtf"));
+
+		String text;
+		try (Reader reader = extractor.extract(tikaDocument)) {
+			text = Spewer.toString(reader);
+		}
+
+		Assert.assertEquals("application/rtf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals("RTF Text Document", text.trim());
+	}
+
+	@Test
 	public void testFileNotFound() throws Throwable {
 		final Extractor extractor = new Extractor();
 		final TikaDocument tikaDocument = factory.create(Paths.get("nothing"));
