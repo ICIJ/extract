@@ -47,4 +47,7 @@ public interface Identifier {
 	 * @return the hash
 	 */
 	String retrieveHash(final Metadata metadata);
+	static String shorten(final String s, final int l) {
+		return s.substring(0, l) + "..." + s.substring(s.length() - l);
+	}
 }
