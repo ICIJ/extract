@@ -40,6 +40,9 @@ import java.time.Duration;
 import java.util.*;
 import java.util.function.Function;
 
+import static java.lang.System.currentTimeMillis;
+import static org.icij.extract.document.Identifier.shorten;
+
 /**
  * A reusable class that sets up Tika parsers based on runtime options.
  *
@@ -268,7 +271,10 @@ public class Extractor {
 	 * @throws IOException if there was an error reading or writing the document
 	 */
 	public void extract(final TikaDocument tikaDocument, final Spewer spewer) throws IOException {
+		long before = currentTimeMillis();
 		try (final Reader reader = extract(tikaDocument)) {
+			logger.info("{} extracted in {}ms: {}", tikaDocument.getPath(), currentTimeMillis() - before,
+					shorten(tikaDocument.getId(), 4));
 			spewer.write(tikaDocument, reader);
 		}
 	}
