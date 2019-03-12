@@ -18,8 +18,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 
 public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<Path> {
-    static final String FOLLOW_SYMLINKS = "followSymlinks";
-    static final String MAX_DEPTH = "maxDepth";
+    public static final String FOLLOW_SYMLINKS = "followSymlinks";
+    public static final String MAX_DEPTH = "maxDepth";
     private Logger logger = LoggerFactory.getLogger(getClass());
     private final ArrayDeque<PathMatcher> includeMatchers = new ArrayDeque<>();
     private final ArrayDeque<PathMatcher> excludeMatchers = new ArrayDeque<>();
