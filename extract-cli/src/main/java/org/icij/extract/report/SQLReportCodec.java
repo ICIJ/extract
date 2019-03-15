@@ -1,13 +1,15 @@
 package org.icij.extract.report;
 
-import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.extractor.ExtractionStatus;
-import org.icij.kaxxa.sql.SQLMapCodec;
+import org.icij.extract.mysql.SQLMapCodec;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.ResultSet;

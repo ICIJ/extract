@@ -1,11 +1,9 @@
 package org.icij.extract.report;
 
-import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
-
-import org.icij.kaxxa.sql.concurrent.MySQLConcurrentMap;
-import org.icij.kaxxa.sql.SQLMapCodec;
-
+import org.icij.extract.document.TikaDocument;
+import org.icij.extract.mysql.MySQLConcurrentMap;
+import org.icij.extract.mysql.SQLMapCodec;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
