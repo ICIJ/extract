@@ -70,9 +70,8 @@ public class RedisDocumentQueue extends RedissonBlockingQueue<TikaDocument> impl
 
 	@Override
 	public DocumentQueue newQueue() {
-		this.rename(getName() + ":all");
 		return new RedisDocumentQueue(codec, new CommandSyncService(((Redisson)redissonClient).getConnectionManager()),
-				getName(), redissonClient);
+				getName()+ ":filtered", redissonClient);
 	}
 
 	@Override
