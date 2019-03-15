@@ -10,5 +10,5 @@ import java.util.concurrent.BlockingQueue;
  * @since 2.0.0
  */
 public interface DocumentQueue extends BlockingQueue<TikaDocument>, AutoCloseable {
-
+    DocumentQueue newQueue();
 }

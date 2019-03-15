@@ -34,4 +34,9 @@ public class MySQLDocumentQueue extends MySQLBlockingQueue<TikaDocument> impleme
 			((Closeable) source).close();
 		}
 	}
+
+	@Override
+	public DocumentQueue newQueue() {
+		return null;
+	}
 }
