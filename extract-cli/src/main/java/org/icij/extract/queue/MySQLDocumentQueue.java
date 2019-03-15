@@ -1,11 +1,9 @@
 package org.icij.extract.queue;
 
-import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
-
-import org.icij.kaxxa.sql.concurrent.MySQLBlockingQueue;
-import org.icij.kaxxa.sql.SQLQueueCodec;
-
+import org.icij.extract.document.TikaDocument;
+import org.icij.extract.mysql.MySQLBlockingQueue;
+import org.icij.extract.mysql.SQLQueueCodec;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;

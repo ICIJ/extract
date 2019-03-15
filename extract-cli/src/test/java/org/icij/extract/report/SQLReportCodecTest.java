@@ -1,10 +1,10 @@
 package org.icij.extract.report;
 
-import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.extractor.ExtractionStatus;
-import org.icij.kaxxa.sql.SQLMapCodec;
+import org.icij.extract.mysql.SQLMapCodec;
 import org.junit.Assert;
 import org.junit.Test;
 
