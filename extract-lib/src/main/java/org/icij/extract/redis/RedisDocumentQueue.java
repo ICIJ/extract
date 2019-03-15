@@ -10,8 +10,10 @@ import org.redisson.Redisson;
 import org.redisson.RedissonBlockingQueue;
 import org.redisson.api.RedissonClient;
 import org.redisson.client.codec.BaseCodec;
+import org.redisson.client.codec.Codec;
 import org.redisson.client.protocol.Decoder;
 import org.redisson.client.protocol.Encoder;
+import org.redisson.command.CommandAsyncExecutor;
 import org.redisson.command.CommandSyncService;
 
 import java.io.IOException;
@@ -55,10 +57,22 @@ public class RedisDocumentQueue extends RedissonBlockingQueue<TikaDocument> impl
 	 */
 	private RedisDocumentQueue(final DocumentFactory factory, final RedissonClient redissonClient,
 	                           final String name, final Charset charset) {
-		super(new DocumentQueueCodec(factory, charset),
+		this(new DocumentQueueCodec(factory, charset),
 				new CommandSyncService(((Redisson)redissonClient).getConnectionManager()),
 				null == name ? DEFAULT_NAME : name, redissonClient);
-		this.redissonClient = redissonClient;
+
+	}
+
+	private RedisDocumentQueue(Codec codec, CommandAsyncExecutor commandExecutor, String name, RedissonClient redisson) {
+		super(codec, commandExecutor, name, redisson);
+		this.redissonClient = redisson;
+	}
+
+	@Override
+	public DocumentQueue newQueue() {
+		this.rename(getName() + ":all");
+		return new RedisDocumentQueue(codec, new CommandSyncService(((Redisson)redissonClient).getConnectionManager()),
+				getName(), redissonClient);
 	}
 
 	@Override
