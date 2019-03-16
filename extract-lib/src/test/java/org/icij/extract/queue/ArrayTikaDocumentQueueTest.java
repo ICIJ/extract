@@ -31,7 +31,7 @@ public class ArrayTikaDocumentQueueTest {
     public void testRemoveDuplicates() throws Exception {
         final DocumentQueue queue = createQueue(get("/foo/bar"), get("/foo/baz"), get("/foo/bar"));
 
-        queue.removeDuplicatePaths();
+        assertThat(queue.removeDuplicatePaths()).isEqualTo(1);
 
         assertThat(queue.size()).isEqualTo(2);
     }

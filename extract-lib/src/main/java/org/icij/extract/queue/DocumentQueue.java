@@ -16,12 +16,14 @@ import java.util.stream.Collector;
 public interface DocumentQueue extends BlockingQueue<TikaDocument>, AutoCloseable {
     DocumentQueue newQueue();
 
-    default void removeDuplicatePaths() {
+    default int removeDuplicatePaths() {
         Set<Path> documents = new HashSet<>();
+        final int initialSize = size();
         forEach(doc -> {
             if (documents.contains(doc.getPath())) {remove(doc);}
             else {documents.add(doc.getPath());}
         });
+        return initialSize - size();
     }
 
     default Collector<TikaDocument, DocumentQueue, DocumentQueue> toDocumentQueue() {
