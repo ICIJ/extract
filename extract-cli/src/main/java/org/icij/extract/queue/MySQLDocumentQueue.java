@@ -38,9 +38,4 @@ public class MySQLDocumentQueue extends MySQLBlockingQueue<TikaDocument> impleme
 	public DocumentQueue newQueue() {
 		throw new NotImplementedException();
 	}
-
-	@Override
-	public void removeDuplicatePaths() {
-		throw new NotImplementedException();
-	}
 }
