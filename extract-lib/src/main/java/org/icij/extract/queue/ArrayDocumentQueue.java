@@ -39,4 +39,5 @@ public class ArrayDocumentQueue extends ArrayBlockingQueue<TikaDocument> impleme
 	public DocumentQueue newQueue() {
 		return new ArrayDocumentQueue(this.size());
 	}
+
 }

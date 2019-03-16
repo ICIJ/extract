@@ -1,13 +1,10 @@
 package org.icij.extract;
 
-import org.icij.extract.document.TikaDocument;
 import org.icij.extract.queue.DocumentQueue;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Set;
-import java.util.concurrent.BlockingQueue;
-import java.util.stream.Collector;
 
 import static java.util.stream.Collectors.toSet;
 
@@ -27,17 +24,7 @@ public class QueueFilterBuilder {
 
     public DocumentQueue execute() throws IOException {
         Set<Path> extractedSet = this.extractedStream.extractedDocuments().collect(toSet());
-        return documentQueue.stream().filter(d -> !extractedSet.contains(d.getPath())).collect(toDocumentQueue());
+        return documentQueue.stream().filter(d -> !extractedSet.contains(d.getPath())).collect(documentQueue.toDocumentQueue());
     }
 
-    private Collector<TikaDocument, DocumentQueue, DocumentQueue> toDocumentQueue() {
-        return Collector.of(
-                () -> documentQueue.newQueue(),
-                BlockingQueue::add,
-                (r1, r2) -> {
-                    r1.addAll(r2);
-                    return r1;
-                }
-        );
-    }
 }

@@ -7,6 +7,7 @@ import org.icij.extract.mysql.SQLQueueCodec;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import javax.sql.DataSource;
 import java.io.Closeable;
@@ -35,6 +36,11 @@ public class MySQLDocumentQueue extends MySQLBlockingQueue<TikaDocument> impleme
 
 	@Override
 	public DocumentQueue newQueue() {
-		return null;
+		throw new NotImplementedException();
+	}
+
+	@Override
+	public void removeDuplicatePaths() {
+		throw new NotImplementedException();
 	}
 }
