@@ -51,8 +51,7 @@ public class PrintStreamSpewer extends Spewer implements Serializable {
 		}
 	}
 
-	@Override
-	public void writeMetadata(final TikaDocument tikaDocument) throws IOException {
+	private void writeMetadata(final TikaDocument tikaDocument) throws IOException {
 		final Metadata metadata = tikaDocument.getMetadata();
 
 		// Set the path field.
@@ -73,9 +72,7 @@ public class PrintStreamSpewer extends Spewer implements Serializable {
 	}
 
 	@Override
-	public void close() throws IOException {
-		if (!stream.equals(System.out) && !stream.equals(System.err)) {
-			stream.close();
-		}
+	protected void writeDocument(TikaDocument doc, Reader reader, TikaDocument parent, TikaDocument root, int level) {
+		throw new UnsupportedOperationException("not implemented");
 	}
 }
