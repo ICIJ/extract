@@ -50,7 +50,7 @@ public abstract class Spewer implements AutoCloseable, Serializable {
         return this;
     }
 
-    protected abstract void writeDocument(TikaDocument doc, Reader reader, TikaDocument parent, TikaDocument root, int level);
+    protected abstract void writeDocument(TikaDocument doc, Reader reader, TikaDocument parent, TikaDocument root, int level) throws IOException;
 
     public void write(final TikaDocument document, final Reader reader) throws IOException {
         writeDocument(document, reader, null, null, 0);
