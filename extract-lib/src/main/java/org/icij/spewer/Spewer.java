@@ -37,6 +37,7 @@ public abstract class Spewer implements AutoCloseable, Serializable {
     protected final Map<String, String> tags = new HashMap<>();
     protected final FieldNames fields;
 
+    public Spewer() { this(new FieldNames());}
     public Spewer(final FieldNames fields) {
         this.fields = fields;
     }
