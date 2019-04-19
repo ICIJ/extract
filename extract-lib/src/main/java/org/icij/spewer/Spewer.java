@@ -134,6 +134,37 @@ public abstract class Spewer implements AutoCloseable, Serializable {
         return writer.toString();
     }
 
+    protected Map<String, Object> getMetadata(TikaDocument document) throws IOException {
+        Map<String, Object> metadata = new HashMap<>();
+        new MetadataTransformer(document.getMetadata(), fields).transform(
+                new MapValueConsumer(metadata), new MapValuesConsumer(metadata));
+        return metadata;
+    }
+
+    static protected class MapValueConsumer implements MetadataTransformer.ValueConsumer {
+
+        private final Map<String, Object> map;
+
+        MapValueConsumer(final Map<String, Object> map) { this.map = map;}
+
+        @Override
+        public void accept(String name, String value) throws IOException {
+            map.put(name, value);
+        }
+    }
+
+    static protected class MapValuesConsumer implements MetadataTransformer.ValueArrayConsumer {
+
+        private final Map<String, Object> map;
+
+        MapValuesConsumer(Map<String, Object> jsonDocument) { map = jsonDocument;}
+
+        @Override
+        public void accept(String name, String[] values) throws IOException {
+            map.put(name, String.join(",", values));
+        }
+    }
+
     @Override
     public void close() throws Exception {
         throw new OperationNotSupportedException("not implemented");
