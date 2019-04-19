@@ -50,7 +50,6 @@ public class RESTSpewer extends Spewer implements Serializable {
 		put(put);
 	}
 
-	@Override
 	public void writeMetadata(final TikaDocument tikaDocument) throws IOException {
 		final HttpPut put = new HttpPut(uri.resolve(tikaDocument.getId()));
 		final List<NameValuePair> params = new ArrayList<>();
@@ -60,7 +59,6 @@ public class RESTSpewer extends Spewer implements Serializable {
 		put(put);
 	}
 
-	@Override
 	public void close() throws IOException {
 		client.close();
 	}
@@ -84,5 +82,10 @@ public class RESTSpewer extends Spewer implements Serializable {
 				throw new TaggedIOException(new IOException(String.format("Unexpected response code: %d", code)), this);
 			}
 		}
+	}
+
+	@Override
+	protected void writeDocument(TikaDocument doc, Reader reader, TikaDocument parent, TikaDocument root, int level) {
+		throw new UnsupportedOperationException("not implemented");
 	}
 }

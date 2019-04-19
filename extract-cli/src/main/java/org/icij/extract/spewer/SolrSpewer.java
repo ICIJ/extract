@@ -151,11 +151,6 @@ public class SolrSpewer extends Spewer implements Serializable {
 	}
 
 	@Override
-	public void writeMetadata(final TikaDocument tikaDocument) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
 	public TikaDocument[] write(final Path path) throws IOException, ClassNotFoundException {
 		try (final InputStream fis = Files.newInputStream(path);
 				final ObjectInputStream in = new ObjectInputStream(path.toString().endsWith(".gz") ?
@@ -407,5 +402,10 @@ public class SolrSpewer extends Spewer implements Serializable {
 		} else {
 			document.setField(name, values);
 		}
+	}
+
+	@Override
+	protected void writeDocument(TikaDocument doc, Reader reader, TikaDocument parent, TikaDocument root, int level) {
+		throw new UnsupportedOperationException("not implemented");
 	}
 }

@@ -60,17 +60,6 @@ public class FileSpewer extends Spewer implements Serializable {
 		this.outputDirectory = outputDirectory;
 	}
 
-	public Path getOutputDirectory() {
-		return outputDirectory;
-	}
-
-	public String getOutputExtension() {
-		return outputExtension;
-	}
-
-	@Override
-	public void close() throws IOException {}
-
 	@Override
 	public void write(final TikaDocument tikaDocument, final Reader reader) throws IOException {
 		final Path outputPath = getOutputPath(tikaDocument);
@@ -118,8 +107,7 @@ public class FileSpewer extends Spewer implements Serializable {
 		}
 	}
 
-	@Override
-	public void writeMetadata(final TikaDocument tikaDocument) throws IOException {
+	private void writeMetadata(final TikaDocument tikaDocument) throws IOException {
 		final Metadata metadata = tikaDocument.getMetadata();
 		Path outputPath = getOutputPath(tikaDocument);
 		outputPath = outputPath.getFileSystem().getPath(outputPath.toString() + ".json");
@@ -161,5 +149,10 @@ public class FileSpewer extends Spewer implements Serializable {
 		}
 
 		return path;
+	}
+
+	@Override
+	protected void writeDocument(TikaDocument doc, Reader reader, TikaDocument parent, TikaDocument root, int level) {
+		throw new UnsupportedOperationException("Not implemented.");
 	}
 }

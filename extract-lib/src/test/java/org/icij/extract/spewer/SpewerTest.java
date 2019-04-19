@@ -32,11 +32,10 @@ public class SpewerTest {
 		}
 
 		@Override
-		public void write(final TikaDocument tikaDocument, final Reader reader) throws IOException {
+		protected void writeDocument(TikaDocument doc, Reader reader, TikaDocument parent, TikaDocument root, int level) {
 		}
 
-		@Override
-		public void writeMetadata(final TikaDocument tikaDocument) throws IOException {
+		void writeMetadata(final TikaDocument tikaDocument) throws IOException {
 			final Metadata metadata = tikaDocument.getMetadata();
 
 			new MetadataTransformer(metadata, fields).transform(this.metadata::put,
