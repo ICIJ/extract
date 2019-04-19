@@ -13,8 +13,7 @@
 
     <properties>
         <app.main.class>org.icij.extract.cli.Main</app.main.class>
-        <solr.version>7.4.0</solr.version>
-        <elasticsearch.version>6.1.0</elasticsearch.version>
+        <solr.version>7.7.0</solr.version>
         <jackson.version>2.9.8</jackson.version>
     </properties>
 
