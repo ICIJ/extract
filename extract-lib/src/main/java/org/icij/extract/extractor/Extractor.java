@@ -48,8 +48,7 @@ import static org.icij.extract.document.Identifier.shorten;
  *
  * @since 1.0.0-beta
  */
-@Option(name = "digestMethod", description = "The hash digest method used for documents, for example \"SHA256\". May" +
-		" be specified multiple times", parameter = "name")
+@Option(name = "digestMethod", description = "The hash digest method used for documents, for example \"SHA256\".", parameter = "name")
 @Option(name = "outputFormat", description = "Set the output format. Either \"text\" or \"HTML\". " +
 		"Defaults to text output.", parameter = "type")
 @Option(name = "embedHandling", description = "Set the embed handling mode. Either \"ignore\", " +
@@ -107,7 +106,7 @@ public class Extractor {
 	public Extractor() {
 
 		// Calculate the SHA256 digest by default.
-		setDigestAlgorithms(DigestAlgorithm.SHA256);
+		setDigestAlgorithm(DigestAlgorithm.SHA256.toString());
 
 		// Run OCR on images contained within PDFs and not on pages.
 		pdfConfig.setExtractInlineImages(true);
@@ -131,13 +130,7 @@ public class Extractor {
 		options.get("embedOutput").parse().asPath().ifPresent(this::setEmbedOutputPath);
 		options.get("ocrLanguage").value().ifPresent(this::setOcrLanguage);
 		options.get("ocrTimeout").parse().asDuration().ifPresent(this::setOcrTimeout);
-
-		final Collection<DigestAlgorithm> digestAlgorithms = options.get("digestMethod").values
-				(DigestAlgorithm::valueOf);
-
-		if (!digestAlgorithms.isEmpty()) {
-			setDigestAlgorithms(digestAlgorithms.toArray(new DigestAlgorithm[digestAlgorithms.size()]));
-		}
+		options.get("digestMethod").value().ifPresent(this::setDigestAlgorithm);
 
 		if (options.get("ocr").parse().isOff()) {
 			disableOcr();
@@ -230,8 +223,8 @@ public class Extractor {
 		setOcrTimeout(Math.toIntExact(duration.getSeconds()));
 	}
 
-	public void setDigestAlgorithms(final DigestAlgorithm... digestAlgorithms) {
-		digester = new CommonsDigester(20 * 1024 * 1024, digestAlgorithms);
+	public void setDigestAlgorithm(final String digestAlgorithm) {
+		digester = new CommonsDigester(20 * 1024 * 1024, digestAlgorithm);
 	}
 
 	/**
