@@ -7,6 +7,7 @@ import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
 import org.icij.spewer.Spewer;
+import org.icij.task.Options;
 import org.icij.test.CauseMatcher;
 import org.icij.test.RegexMatcher;
 import org.junit.*;
@@ -18,6 +19,7 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
+import java.util.HashMap;
 
 @FixMethodOrder
 public class ExtractorTest {
@@ -123,6 +125,28 @@ public class ExtractorTest {
 		}
 
 		Assert.fail(String.format("Read \"%d\" while expecting exception.", read));
+	}
+
+	@Test
+	public void testByProjectDigester() throws Exception {
+		final Extractor extractor = new Extractor();
+		DocumentFactory documentFactory = new DocumentFactory().configure(Options.from(new HashMap<String, String>() {{
+			put("idDigestMethod", "SHA-384");
+		}}));
+		final TikaDocument tikaDocument1 = documentFactory.create(getClass().getResource("/documents/ocr/simple.tiff"));
+		final TikaDocument tikaDocument2 = documentFactory.create(getClass().getResource("/documents/ocr/simple.tiff"));
+		final TikaDocument tikaDocument3 = documentFactory.create(getClass().getResource("/documents/ocr/simple.tiff"));
+
+		extractor.setDigestAlgorithm("SHA384");
+		extractor.extract(tikaDocument1);
+		extractor.setDigester(new UpdatableDigester("project1", "SHA-384") {});
+		extractor.extract(tikaDocument2);
+		extractor.setDigester(new UpdatableDigester("project2", "SHA-384"));
+		extractor.extract(tikaDocument3);
+
+		Assert.assertNotEquals(tikaDocument1.getId(), tikaDocument2.getId());
+		Assert.assertNotEquals(tikaDocument1.getId(), tikaDocument3.getId());
+		Assert.assertNotEquals(tikaDocument2.getId(), tikaDocument3.getId());
 	}
 
 	@Test
