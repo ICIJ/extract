@@ -227,6 +227,10 @@ public class Extractor {
 		digester = new CommonsDigester(20 * 1024 * 1024, digestAlgorithm);
 	}
 
+	public void setDigester(final DigestingParser.Digester digester) {
+		this.digester = digester;
+	}
+
 	/**
 	 * Disable OCR. This method only has an effect if Tesseract is installed.
 	 */
@@ -387,6 +391,9 @@ public class Extractor {
 		final Metadata metadata = tikaDocument.getMetadata();
 		final ParseContext context = new ParseContext();
 		final AutoDetectParser autoDetectParser = new AutoDetectParser(defaultParser);
+		// Set a fallback parser that outputs an empty tikaDocument for empty files,
+		// otherwise throws an exception.
+		autoDetectParser.setFallback(FallbackParser.INSTANCE);
 		final Parser parser;
 
 		if (null != digester) {
@@ -400,10 +407,6 @@ public class Extractor {
 		}
 
 		context.set(PDFParserConfig.class, pdfConfig);
-
-		// Set a fallback parser that outputs an empty tikaDocument for empty files,
-		// otherwise throws an exception.
-		autoDetectParser.setFallback(FallbackParser.INSTANCE);
 
 		// Only include "safe" tags in the HTML output from Tika's HTML parser.
 		// This excludes script tags and objects.
