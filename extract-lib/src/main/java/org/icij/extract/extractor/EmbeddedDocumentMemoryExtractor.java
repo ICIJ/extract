@@ -58,7 +58,7 @@ public class EmbeddedDocumentMemoryExtractor {
         }
 
         @Override
-        public void parseEmbedded(InputStream stream, ContentHandler handler, Metadata metadata, boolean outputHtml) throws IOException {
+        public void parseEmbedded(InputStream stream, ContentHandler handler, Metadata metadata, boolean outputHtml) throws IOException, SAXException {
             if (fileContent != null) return;
 
             digester.digest(stream, metadata, context);
@@ -70,6 +70,8 @@ public class EmbeddedDocumentMemoryExtractor {
                     buffer.write(tmp, 0, nbTmpBytesRead);
                 }
                 this.fileContent = buffer.toByteArray();
+            } else {
+                super.parseEmbedded(stream, handler, metadata, outputHtml);
             }
         }
 
