@@ -1,6 +1,7 @@
 package org.icij.extract.document;
 
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 
 /**
  * An {@linkplain Identifier} holds logic for generating both unique identifiers for documents as well as digest
@@ -25,6 +26,11 @@ public interface Identifier {
 	 * @throws Exception if there's an error generating the ID
 	 */
 	String generateForEmbed(final EmbeddedTikaDocument document) throws Exception;
+
+	static String getKey(String algorithm) {
+		return TikaCoreProperties.TIKA_META_PREFIX + "digest" + Metadata.NAMESPACE_PREFIX_DELIMITER + algorithm
+				.replace("-", "");
+	}
 
 	/**
 	 * Generate or retrieve (from metadata) a hash digest of the tikaDocument's underlying file data.
