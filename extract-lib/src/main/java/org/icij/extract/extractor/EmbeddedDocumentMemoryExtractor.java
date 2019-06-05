@@ -1,6 +1,5 @@
 package org.icij.extract.extractor;
 
-import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.ParsingEmbeddedDocumentExtractor;
 import org.apache.tika.metadata.Metadata;
@@ -10,6 +9,7 @@ import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.BodyContentHandler;
 import org.icij.extract.document.Identifier;
+import org.icij.extract.document.TikaDocumentSource;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
@@ -21,7 +21,6 @@ public class EmbeddedDocumentMemoryExtractor {
     private final Parser parser;
     private final String digesterModifier;
     private final String digesterAlgorithm;
-    private TikaConfig config = TikaConfig.getDefaultConfig();
 
     EmbeddedDocumentMemoryExtractor(final String digesterModifier, final String digesterAlgorithm) {
         this.digesterModifier = digesterModifier;
@@ -29,7 +28,7 @@ public class EmbeddedDocumentMemoryExtractor {
         parser = new DigestingParser(new AutoDetectParser(), new UpdatableDigester(digesterModifier, digesterAlgorithm));
     }
 
-    public byte[] extract(final InputStream stream, final String documentDigest) throws SAXException, TikaException, IOException {
+    public TikaDocumentSource extract(final InputStream stream, final String documentDigest) throws SAXException, TikaException, IOException {
         Metadata metadata = new Metadata();
         ParseContext context = new ParseContext();
         ContentHandler handler = new BodyContentHandler(-1);
@@ -41,14 +40,14 @@ public class EmbeddedDocumentMemoryExtractor {
 
         parser.parse(stream, handler, metadata, context);
 
-        return extractor.getBytes();
+        return extractor.getDocument();
     }
 
     static class DigestEmbeddedDocumentExtractor extends ParsingEmbeddedDocumentExtractor {
         private final String digest;
         private final ParseContext context;
         private final UpdatableDigester digester;
-        private byte[] fileContent = null;
+        private TikaDocumentSource document = null;
 
         private DigestEmbeddedDocumentExtractor(final String digest, ParseContext context,UpdatableDigester digester) {
             super(context);
@@ -59,24 +58,23 @@ public class EmbeddedDocumentMemoryExtractor {
 
         @Override
         public void parseEmbedded(InputStream stream, ContentHandler handler, Metadata metadata, boolean outputHtml) throws IOException, SAXException {
-            if (fileContent != null) return;
+            if (document != null) return;
 
             digester.digest(stream, metadata, context);
             if (digest.equals(metadata.get(Identifier.getKey(digester.algorithm)))) {
                 ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-                long nbBytesRead = 0L;
                 int nbTmpBytesRead;
-                for(byte[] tmp = new byte[8192]; (nbTmpBytesRead = stream.read(tmp)) > 0; nbBytesRead += (long)nbTmpBytesRead) {
+                for(byte[] tmp = new byte[8192]; (nbTmpBytesRead = stream.read(tmp)) > 0;) {
                     buffer.write(tmp, 0, nbTmpBytesRead);
                 }
-                this.fileContent = buffer.toByteArray();
+                this.document = new TikaDocumentSource(metadata, buffer.toByteArray());
             } else {
                 super.parseEmbedded(stream, handler, metadata, outputHtml);
             }
         }
 
-        public byte[] getBytes() {
-            return fileContent;
+        public TikaDocumentSource getDocument() {
+            return document;
         }
     }
 }
