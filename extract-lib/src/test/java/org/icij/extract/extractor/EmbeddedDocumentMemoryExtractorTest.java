@@ -39,4 +39,15 @@ public class EmbeddedDocumentMemoryExtractorTest {
         assertThat(textContent).isNotNull();
         assertThat(new String(textContent)).isEqualTo("embed_4");
     }
+
+    @Test
+    public void test_embedded_file_extraction_level_2_sha384() throws Exception {
+        InputStream stream = getClass().getResourceAsStream("/documents/recursive_embedded.docx");
+
+        byte[] textContent = new EmbeddedDocumentMemoryExtractor("prj", "SHA-384").
+                extract(stream, "50a4893b3f4b9390061c28d09db0650ef9b30b3d32c3cc7b56349df5a6db0dc6707fd4bb7a9b5c6b0b38c1ce6b990c08");
+
+        assertThat(textContent).isNotNull();
+        assertThat(new String(textContent)).isEqualTo("embed_2b");
+    }
 }
