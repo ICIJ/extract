@@ -1,6 +1,5 @@
 package org.icij.extract.extractor;
 
-import com.sun.istack.internal.NotNull;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.ParsingEmbeddedDocumentExtractor;
 import org.apache.tika.metadata.Metadata;
@@ -97,7 +96,6 @@ public class EmbeddedDocumentMemoryExtractor {
             }
         }
 
-        @NotNull
         public TikaDocumentSource getDocument() {
             return ofNullable(document).orElseThrow(() ->
                     new ContentNotFoundException(documentStack.get(0).getPath().toString(), digestToFind)
