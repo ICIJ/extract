@@ -32,8 +32,8 @@ public class EmbeddedDocumentMemoryExtractorTest {
                     extract(tikaDocument, "unknownDigest");
             fail("NullPointerException should have been thrown");
         } catch (ContentNotFoundException npe) {
-            assertThat(npe).hasMessage("<unknownDigest> embedded document not found in " +
-                    "root document /home/dev/src/extract/extract-lib/target/test-classes/documents/recursive_embedded.docx");
+            assertThat(npe.getMessage()).contains("<unknownDigest> embedded document not found in root document");
+            assertThat(npe.getMessage()).contains("documents/recursive_embedded.docx");
         }
     }
 
