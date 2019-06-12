@@ -61,7 +61,7 @@ public class ScannerTest {
 
 		scanner.ignoreSystemFiles(true);
 		final Path rootFiles = Paths.get(getClass().getResource("/documents/").toURI());
-		assertEquals(9, scanner.getNumberOfFiles(rootFiles));
+		assertEquals(10, scanner.getNumberOfFiles(rootFiles));
 
 		shutdownScanner(scanner);
 	}

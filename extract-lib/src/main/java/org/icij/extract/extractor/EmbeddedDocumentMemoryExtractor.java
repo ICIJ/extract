@@ -2,6 +2,8 @@ package org.icij.extract.extractor;
 
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.ParsingEmbeddedDocumentExtractor;
+import org.apache.tika.io.CloseShieldInputStream;
+import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.DigestingParser;
@@ -75,24 +77,27 @@ public class EmbeddedDocumentMemoryExtractor {
             if (document != null) return;
             EmbeddedTikaDocument embed = this.documentStack.getLast().addEmbed(metadata);
 
-            digester.digest(stream, metadata, context);
-            String digest;
-            try {
-                digest = new DigestIdentifier(algorithm, Charset.defaultCharset()).generateForEmbed(embed);
-            } catch (NoSuchAlgorithmException e) {
-                throw new RuntimeException(e);
-            }
-            if (digestToFind.equals(digest)) {
-                ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-                int nbTmpBytesRead;
-                for (byte[] tmp = new byte[8192]; (nbTmpBytesRead = stream.read(tmp)) > 0; ) {
-                    buffer.write(tmp, 0, nbTmpBytesRead);
+            try (final TikaInputStream tis = TikaInputStream.get(new CloseShieldInputStream(stream))) {
+                digester.digest(tis, metadata, context);
+                tis.reset();
+                String digest;
+                try {
+                    digest = new DigestIdentifier(algorithm, Charset.defaultCharset()).generateForEmbed(embed);
+                } catch (NoSuchAlgorithmException e) {
+                    throw new RuntimeException(e);
                 }
-                this.document = new TikaDocumentSource(metadata, buffer.toByteArray());
-            } else {
-                this.documentStack.add(embed);
-                super.parseEmbedded(stream, handler, metadata, outputHtml);
-                this.documentStack.removeLast();
+                if (digestToFind.equals(digest)) {
+                    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                    int nbTmpBytesRead;
+                    for (byte[] tmp = new byte[8192]; (nbTmpBytesRead = tis.read(tmp)) > 0; ) {
+                        buffer.write(tmp, 0, nbTmpBytesRead);
+                    }
+                    this.document = new TikaDocumentSource(metadata, buffer.toByteArray());
+                } else {
+                    this.documentStack.add(embed);
+                    super.parseEmbedded(stream, handler, metadata, outputHtml);
+                    this.documentStack.removeLast();
+                }
             }
         }
 

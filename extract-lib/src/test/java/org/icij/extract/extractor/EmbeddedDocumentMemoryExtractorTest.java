@@ -1,5 +1,6 @@
 package org.icij.extract.extractor;
 
+import org.apache.tika.parser.utils.CommonsDigester;
 import org.icij.extract.document.DigestIdentifier;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.TikaDocument;
@@ -72,6 +73,17 @@ public class EmbeddedDocumentMemoryExtractorTest {
 
         assertThat(textContent).isNotNull();
         assertThat(new String(textContent.content)).isEqualTo("embed_2b");
+    }
+
+    @Test
+    public void test_embedded_file_extraction_bug() throws Exception {
+        TikaDocument tikaDocument384 = new DocumentFactory().withIdentifier(new DigestIdentifier("SHA-256", Charset.defaultCharset())).
+                        create(getClass().getResource("/documents/embedded_file_bug.eml"));
+        TikaDocumentSource textContent = new EmbeddedDocumentMemoryExtractor(new CommonsDigester(1024*1024*20, "SHA256"), "SHA-256").
+                extract(tikaDocument384, "378c7eb3bc002966bf0d9f650efa5811c24787e93418a622bca69842d98bf518");
+
+        assertThat(textContent).isNotNull();
+        assertThat(new String(textContent.content)).hasSize(10094);
     }
 
     @Test
