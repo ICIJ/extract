@@ -77,13 +77,16 @@ public class EmbeddedDocumentMemoryExtractorTest {
 
     @Test
     public void test_embedded_file_extraction_bug() throws Exception {
-        TikaDocument tikaDocument384 = new DocumentFactory().withIdentifier(new DigestIdentifier("SHA-256", Charset.defaultCharset())).
+        final Extractor extractor = new Extractor();
+        extractor.setDigester(new CommonsDigester(1024 * 1024 * 20, "SHA256"));
+        TikaDocument tikaDocument256 = new DocumentFactory().withIdentifier(new DigestIdentifier("SHA-256", Charset.defaultCharset())).
                         create(getClass().getResource("/documents/embedded_file_bug.eml"));
-        TikaDocumentSource textContent = new EmbeddedDocumentMemoryExtractor(new CommonsDigester(1024*1024*20, "SHA256"), "SHA-256").
-                extract(tikaDocument384, "378c7eb3bc002966bf0d9f650efa5811c24787e93418a622bca69842d98bf518");
 
-        assertThat(textContent).isNotNull();
-        assertThat(new String(textContent.content)).hasSize(10094);
+        TikaDocumentSource pngFile = new EmbeddedDocumentMemoryExtractor(new CommonsDigester(1024*1024*20, "SHA256"), "SHA-256").
+                extract(tikaDocument256, "adfa536a06e9517b61e75fce4751fa4c0b73616f0f8e64fc95518d20811a589f");
+
+        assertThat(pngFile).isNotNull();
+        assertThat(new String(pngFile.content)).hasSize(634);
     }
 
     @Test

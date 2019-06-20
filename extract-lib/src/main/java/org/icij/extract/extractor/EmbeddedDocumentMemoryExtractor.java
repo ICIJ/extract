@@ -1,7 +1,6 @@
 package org.icij.extract.extractor;
 
 import org.apache.tika.exception.TikaException;
-import org.apache.tika.extractor.ParsingEmbeddedDocumentExtractor;
 import org.apache.tika.io.CloseShieldInputStream;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
@@ -37,7 +36,7 @@ public class EmbeddedDocumentMemoryExtractor {
     }
 
     public EmbeddedDocumentMemoryExtractor(final DigestingParser.Digester digester, String algorithm) {
-        parser = new DigestingParser(new AutoDetectParser(), digester);
+        this.parser = new DigestingParser(new AutoDetectParser(), digester);
         this.digester = digester;
         this.algorithm = algorithm;
     }
@@ -55,25 +54,23 @@ public class EmbeddedDocumentMemoryExtractor {
         return extractor.getDocument();
     }
 
-    static class DigestEmbeddedDocumentExtractor extends ParsingEmbeddedDocumentExtractor {
+    static class DigestEmbeddedDocumentExtractor extends EmbedParser {
         private final String digestToFind;
-        private final ParseContext context;
         private final DigestingParser.Digester digester;
         private final String algorithm;
         private TikaDocumentSource document = null;
         private LinkedList<TikaDocument> documentStack = new LinkedList<>();
 
         private DigestEmbeddedDocumentExtractor(final TikaDocument rootDocument, final String digest, ParseContext context, DigestingParser.Digester digester, String algorithm) {
-            super(context);
+            super(rootDocument, context);
             this.digestToFind = digest;
-            this.context = context;
             this.digester = digester;
             this.algorithm = algorithm;
             this.documentStack.add(rootDocument);
         }
 
         @Override
-        public void parseEmbedded(InputStream stream, ContentHandler handler, Metadata metadata, boolean outputHtml) throws IOException, SAXException {
+        public void delegateParsing(InputStream stream, ContentHandler handler, Metadata metadata) throws IOException, SAXException {
             if (document != null) return;
             EmbeddedTikaDocument embed = this.documentStack.getLast().addEmbed(metadata);
 
@@ -95,9 +92,10 @@ public class EmbeddedDocumentMemoryExtractor {
                     this.document = new TikaDocumentSource(metadata, buffer.toByteArray());
                 } else {
                     this.documentStack.add(embed);
-                    super.parseEmbedded(stream, handler, metadata, outputHtml);
-                    this.documentStack.removeLast();
+                    super.delegateParsing(tis, handler, metadata);
                 }
+            } finally {
+                this.documentStack.removeLast();
             }
         }
 
