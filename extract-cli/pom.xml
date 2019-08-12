@@ -13,7 +13,7 @@
 
     <properties>
         <app.main.class>org.icij.extract.cli.Main</app.main.class>
-        <solr.version>7.7.0</solr.version>
+        <solr.version>8.2.0</solr.version>
         <jackson.version>2.9.9</jackson.version>
     </properties>
 
