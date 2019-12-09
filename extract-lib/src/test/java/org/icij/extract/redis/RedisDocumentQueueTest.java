@@ -36,14 +36,12 @@ public class RedisDocumentQueueTest {
         queue.put(factory.create(get("/foo/bar")));
         queue.put(factory.create(get("/foo/baz")));
 
-        RedisDocumentQueue filtered = (RedisDocumentQueue) new QueueFilterBuilder()
+        assertThat(new QueueFilterBuilder()
                 .filter(queue)
                 .with(() -> Stream.of(get("/foo/bar")))
-                .execute();
+                .execute()).isEqualTo(1);
 
-        assertThat(filtered.getName()).isEqualTo(queue.getName() + ":filtered");
-        assertThat(filtered.size()).isEqualTo(1);
-        filtered.delete();
+        assertThat(queue.size()).isEqualTo(1);
     }
 
     @After public void tearDown() { queue.delete();}
