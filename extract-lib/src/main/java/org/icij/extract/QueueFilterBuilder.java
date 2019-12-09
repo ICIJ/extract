@@ -1,16 +1,15 @@
 package org.icij.extract;
 
+import org.icij.extract.document.DocumentFactory;
+import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.queue.DocumentQueue;
 
 import java.io.IOException;
-import java.nio.file.Path;
-import java.util.Set;
-
-import static java.util.stream.Collectors.toSet;
 
 public class QueueFilterBuilder {
     private ExtractedStreamer extractedStream;
     private DocumentQueue documentQueue;
+    private DocumentFactory documentFactory = new DocumentFactory().withIdentifier(new PathIdentifier());
 
     public QueueFilterBuilder filter(DocumentQueue documentQueue) {
         this.documentQueue = documentQueue;
@@ -22,9 +21,13 @@ public class QueueFilterBuilder {
         return this;
     }
 
-    public DocumentQueue execute() throws IOException {
-        Set<Path> extractedSet = this.extractedStream.extractedDocuments().collect(toSet());
-        return documentQueue.stream().filter(d -> !extractedSet.contains(d.getPath())).collect(documentQueue.toDocumentQueue());
+    public QueueFilterBuilder with(DocumentFactory factory) {
+        this.documentFactory = factory;
+        return this;
+    }
+
+    public long execute() throws IOException {
+        return extractedStream.extractedDocuments().filter(p -> documentQueue.remove(documentFactory.create(p))).count();
     }
 
 }
