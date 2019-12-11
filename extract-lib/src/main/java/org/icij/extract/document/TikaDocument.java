@@ -198,7 +198,7 @@ public class TikaDocument {
 	}
 
 	@Override
-	public int hashCode() { return Objects.hash(id);}
+	public int hashCode() { return Objects.hash(id.get());}
 
 	@Override
 	public String toString() {
