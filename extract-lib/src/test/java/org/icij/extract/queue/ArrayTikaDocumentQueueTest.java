@@ -28,7 +28,7 @@ public class ArrayTikaDocumentQueueTest {
     }
 
     @Test
-    public void testRemoveDuplicates() throws Exception {
+    public void testRemoveDuplicates() {
         final DocumentQueue queue = createQueue(get("/foo/bar"), get("/foo/baz"), get("/foo/bar"));
 
         assertThat(queue.removeDuplicatePaths()).isEqualTo(1);
@@ -36,8 +36,32 @@ public class ArrayTikaDocumentQueueTest {
         assertThat(queue.size()).isEqualTo(2);
     }
 
+    @Test
+    public void testRemoveNValues() {
+        final DocumentQueue queue = createQueue(get("/foo/bar"), get("/foo/bar"), get("/foo/bar"));
+
+        assertThat(queue.remove(factory.create("/foo/bar"), 2)).isTrue();
+
+        assertThat(queue.size()).isEqualTo(1);
+    }
+
+    @Test
+    public void testRemoveNValuesNoValuesRemoved() {
+        final DocumentQueue queue = createQueue();
+        assertThat(queue.remove(factory.create("/foo/bar"), 0)).isFalse();
+    }
+
+    @Test
+    public void testRemoveAllValues() {
+        final DocumentQueue queue = createQueue(get("/foo/baz"), get("/foo/bar"), get("/foo/bar"), get("/foo/bar"));
+
+        assertThat(queue.remove(factory.create("/foo/bar"), 0)).isTrue();
+
+        assertThat(queue.size()).isEqualTo(1);
+    }
+
     private DocumentQueue createQueue(Path... paths) {
-        final DocumentQueue queue = new ArrayDocumentQueue(3);
+        final DocumentQueue queue = new ArrayDocumentQueue(4);
         stream(paths).forEach(p -> queue.add(factory.create(p)));
         return queue;
     }

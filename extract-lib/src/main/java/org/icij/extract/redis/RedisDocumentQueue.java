@@ -75,6 +75,11 @@ public class RedisDocumentQueue extends RedissonBlockingQueue<TikaDocument> impl
 	}
 
 	@Override
+	public boolean remove(Object o, int count) {
+		return super.remove(o, count);
+	}
+
+	@Override
 	public void close() throws IOException {
 		redissonClient.shutdown();
 	}
