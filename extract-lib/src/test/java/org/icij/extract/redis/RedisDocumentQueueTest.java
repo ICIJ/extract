@@ -25,8 +25,9 @@ public class RedisDocumentQueueTest {
         queue.put(factory.create(get("/foo/bar")));
         queue.put(factory.create(get("/foo/baz")));
         queue.put(factory.create(get("/foo/bar")));
+        queue.put(factory.create(get("/foo/bar")));
 
-        assertThat(queue.removeDuplicatePaths()).isEqualTo(1);
+        assertThat(queue.removeDuplicatePaths()).isEqualTo(2);
 
         assertThat(queue.size()).isEqualTo(2);
     }
