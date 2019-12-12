@@ -104,14 +104,14 @@ public class SpewTask extends DefaultTask<Long> {
 
 		if (null != paths && paths.length > 0) {
 			final Scanner scanner = new Scanner(factory, queue, new BooleanSealableLatch(), null).configure(options);
-			final List<Future<Path>> scanning = scanner.scan(paths);
+			final List<Future<Long>> scanning = scanner.scan(paths);
 
 			// Set the latch that will be waited on for polling, then start draining in the background.
 			drainer.setLatch(scanner.getLatch());
 			draining = drainer.drain();
 
 			// Start scanning in a background thread but block until every path has been scanned and queued.
-			for (Future<Path> scan : scanning) scan.get();
+			for (Future<Long> scan : scanning) scan.get();
 
 			// Only a short timeout is needed when awaiting termination, because the call to parse the result of each
 			// job is blocking and by the time `awaitTermination` is reached the jobs would have finished.
