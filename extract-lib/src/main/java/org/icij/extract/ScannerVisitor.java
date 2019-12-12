@@ -17,7 +17,7 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 
-public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<Path> {
+public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<Long> {
     public static final String FOLLOW_SYMLINKS = "followSymlinks";
     public static final String MAX_DEPTH = "maxDepth";
     private Logger logger = LoggerFactory.getLogger(getClass());
@@ -32,7 +32,7 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
     private int maxDepth = Integer.MAX_VALUE;
     private SealableLatch latch;
     private Notifiable notifiable;
-    private int queued = 0;
+    private long queued = 0;
 
     /**
      * Instantiate a new task for scanning the given path.
@@ -57,7 +57,7 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
      * @return the path at which scanning started
      */
     @Override
-    public Path call() throws Exception {
+    public Long call() throws Exception {
         final Set<FileVisitOption> options;
 
         if (followLinks) {
@@ -80,7 +80,7 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
         }
 
         logger.info(String.format("Completed scan of: \"%s\".", path));
-        return path;
+        return queued;
     }
 
     /**
