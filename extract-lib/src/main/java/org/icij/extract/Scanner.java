@@ -243,7 +243,7 @@ public class Scanner extends ExecutorProxy {
 	 * @param path the path to scan
 	 * @return A {@link Future} that can be used to wait on the result or cancel.
 	 */
-	public Future<Path> scan(final Path path) {
+	public Future<Long> scan(final Path path) {
 		return executor.submit(createScannerVisitor(path));
 	}
 
@@ -287,8 +287,8 @@ public class Scanner extends ExecutorProxy {
 	 * @see #scan(Path)
 	 * @return a {@link Future} for each path scanned
 	 */
-	public List<Future<Path>> scan(final Path[] paths) {
-		final List<Future<Path>> futures = new ArrayList<>();
+	public List<Future<Long>> scan(final Path[] paths) {
+		final List<Future<Long>> futures = new ArrayList<>();
 
 		for (Path path : paths) futures.add(scan(path));
 		return futures;
@@ -297,7 +297,7 @@ public class Scanner extends ExecutorProxy {
 	/**
 	 * @see #scan(Path[])
 	 */
-	public List<Future<Path>> scan(final String[] paths) {
+	public List<Future<Long>> scan(final String[] paths) {
 		final Path[] _paths = new Path[paths.length];
 
 		for (int i = 0; i < paths.length; i++) _paths[i] = Paths.get(paths[i]);
