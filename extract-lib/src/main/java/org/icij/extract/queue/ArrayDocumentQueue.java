@@ -34,10 +34,4 @@ public class ArrayDocumentQueue extends ArrayBlockingQueue<TikaDocument> impleme
 	public void close() {
 		clear();
 	}
-
-	@Override
-	public DocumentQueue newQueue() {
-		return new ArrayDocumentQueue(this.size());
-	}
-
 }
