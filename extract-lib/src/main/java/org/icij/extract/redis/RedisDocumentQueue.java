@@ -1,6 +1,7 @@
 package org.icij.extract.redis;
 
 import org.icij.extract.document.DocumentFactory;
+import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
 import org.icij.extract.queue.DocumentQueue;
 import org.icij.task.Options;
@@ -18,6 +19,7 @@ import org.redisson.command.CommandSyncService;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.HashMap;
 
 /**
  * A {@link DocumentQueue} using Redis as a backend.
@@ -34,6 +36,19 @@ public class RedisDocumentQueue extends RedissonBlockingQueue<TikaDocument> impl
 	private static final String DEFAULT_NAME = "extract:queue";
 
 	private final RedissonClient redissonClient;
+
+	/**
+	 * Create a Redis-backed queue with path identifier document factory
+	 *
+	 * @param queueName name of the redis key
+	 * @param redisAddress redis url i.e. redis://127.0.0.1:6379
+	 */
+	public RedisDocumentQueue(final String queueName, final String redisAddress) {
+		this(new DocumentFactory().withIdentifier(new PathIdentifier()), Options.from(new HashMap<String, String>() {{
+			put("redisAddress", redisAddress);
+			put("queueName", queueName);
+		}}));
+	}
 
 	/**
 	 * Create a Redis-backed queue using the provided configuration.
