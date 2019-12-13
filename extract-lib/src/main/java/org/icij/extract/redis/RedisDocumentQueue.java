@@ -51,6 +51,19 @@ public class RedisDocumentQueue extends RedissonBlockingQueue<TikaDocument> impl
 	}
 
 	/**
+	 * Create a Redis-backed queue with a pre-defined document factory
+	 *
+	 * @param queueName name of the redis key
+	 * @param redisAddress redis url i.e. redis://127.0.0.1:6379
+	 */
+	public RedisDocumentQueue(DocumentFactory factory, final String queueName, final String redisAddress) {
+		this(factory, Options.from(new HashMap<String, String>() {{
+			put("redisAddress", redisAddress);
+			put("queueName", queueName);
+		}}));
+	}
+
+	/**
 	 * Create a Redis-backed queue using the provided configuration.
 	 *
 	 * @param factory for creating {@link TikaDocument} objects
