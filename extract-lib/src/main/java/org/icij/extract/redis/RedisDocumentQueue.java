@@ -1,8 +1,5 @@
 package org.icij.extract.redis;
 
-import org.icij.extract.document.DocumentFactory;
-import org.icij.extract.document.PathIdentifier;
-import org.icij.extract.document.TikaDocument;
 import org.icij.extract.queue.DocumentQueue;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
@@ -45,20 +42,7 @@ public class RedisDocumentQueue extends RedissonBlockingQueue<Path> implements D
 	 * @param redisAddress redis url i.e. redis://127.0.0.1:6379
 	 */
 	public RedisDocumentQueue(final String queueName, final String redisAddress) {
-		this(new DocumentFactory().withIdentifier(new PathIdentifier()), Options.from(new HashMap<String, String>() {{
-			put("redisAddress", redisAddress);
-			put("queueName", queueName);
-		}}));
-	}
-
-	/**
-	 * Create a Redis-backed queue with a pre-defined document factory
-	 *
-	 * @param queueName name of the redis key
-	 * @param redisAddress redis url i.e. redis://127.0.0.1:6379
-	 */
-	public RedisDocumentQueue(DocumentFactory factory, final String queueName, final String redisAddress) {
-		this(factory, Options.from(new HashMap<String, String>() {{
+		this(Options.from(new HashMap<String, String>() {{
 			put("redisAddress", redisAddress);
 			put("queueName", queueName);
 		}}));
@@ -67,11 +51,10 @@ public class RedisDocumentQueue extends RedissonBlockingQueue<Path> implements D
 	/**
 	 * Create a Redis-backed queue using the provided configuration.
 	 *
-	 * @param factory for creating {@link TikaDocument} objects
 	 * @param options options for connecting to Redis
 	 */
-	public RedisDocumentQueue(final DocumentFactory factory, final Options<String> options) {
-		this(factory, new RedissonClientFactory().withOptions(options).create(),
+	public RedisDocumentQueue(final Options<String> options) {
+		this(new RedissonClientFactory().withOptions(options).create(),
 				options.valueIfPresent("queueName").orElse(DEFAULT_NAME),
 				Charset.forName(options.valueIfPresent("charset").orElse("UTF-8")));
 	}
@@ -79,12 +62,11 @@ public class RedisDocumentQueue extends RedissonBlockingQueue<Path> implements D
 	/**
 	 * Instantiate a new Redis-backed queue using the provided connection manager and name.
 	 *
-	 * @param factory for creating {@link TikaDocument} objects
 	 * @param redissonClient instantiated using {@link RedissonClientFactory}
 	 * @param name the name of the queue
 	 * @param charset the character set for encoding and decoding paths
 	 */
-	private RedisDocumentQueue(final DocumentFactory factory, final RedissonClient redissonClient,
+	private RedisDocumentQueue(final RedissonClient redissonClient,
 	                           final String name, final Charset charset) {
 		this(new PathQueueCodec(charset),
 				new CommandSyncService(((Redisson)redissonClient).getConnectionManager()),
