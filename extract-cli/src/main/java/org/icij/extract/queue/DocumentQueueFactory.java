@@ -90,7 +90,7 @@ public class DocumentQueueFactory {
 		}
 
 		if (DocumentQueueType.REDIS == type) {
-			return new RedisDocumentQueue(documentFactory, options);
+			return new RedisDocumentQueue(options);
 		}
 
 		if (DocumentQueueType.MYSQL == type) {

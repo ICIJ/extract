@@ -15,7 +15,7 @@ import static org.fest.assertions.Assertions.assertThat;
 
 public class RedisDocumentQueueTest {
     private DocumentFactory factory = new DocumentFactory().withIdentifier(new PathIdentifier());;
-    private RedisDocumentQueue queue = new RedisDocumentQueue(factory, Options.from(new HashMap<String, String>() {{
+    private RedisDocumentQueue queue = new RedisDocumentQueue(Options.from(new HashMap<String, String>() {{
         put("redisAddress", "redis://redis:6379");
         put("queueName", "test:queue");
     }}));
