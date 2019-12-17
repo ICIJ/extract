@@ -2,8 +2,6 @@ package org.icij.extract;
 
 import org.icij.concurrent.SealableLatch;
 import org.icij.event.Notifiable;
-import org.icij.extract.document.TikaDocument;
-import org.icij.extract.document.DocumentFactory;
 import org.icij.task.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,8 +23,7 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
     private final ArrayDeque<PathMatcher> excludeMatchers = new ArrayDeque<>();
 
     private final Path path;
-    private final BlockingQueue<TikaDocument> queue;
-    private final DocumentFactory factory;
+    private final BlockingQueue<Path> queue;
 
     private boolean followLinks = false;
     private int maxDepth = Integer.MAX_VALUE;
@@ -39,10 +36,9 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
      *
      * @param path the path to scan
      */
-    public ScannerVisitor(final Path path, final BlockingQueue<TikaDocument> queue, final DocumentFactory factory, Options<String> options) {
+    public ScannerVisitor(final Path path, final BlockingQueue<Path> queue, Options<String> options) {
         this.path = path;
         this.queue = queue;
-        this.factory = factory;
         options.ifPresent(FOLLOW_SYMLINKS, o -> o.parse().asBoolean()).ifPresent(this::followSymLinks);
         options.ifPresent(MAX_DEPTH, o -> o.parse().asInteger()).ifPresent(this::setMaxDepth);
     }
@@ -89,9 +85,7 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
      * @throws InterruptedException if interrupted while waiting for a queue slot
      */
     void queue(final Path file, final BasicFileAttributes attributes) throws InterruptedException {
-        final TikaDocument tikaDocument = factory.create(file, attributes);
-
-        queue.put(tikaDocument);
+        queue.put(file);
         queued++;
 
         if (null != latch) {

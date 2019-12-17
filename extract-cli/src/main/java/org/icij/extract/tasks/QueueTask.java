@@ -33,7 +33,7 @@ public class QueueTask extends MonitorableTask<Long> {
 		try (final DocumentQueue queue = new DocumentQueueFactory(options)
 				.withDocumentFactory(factory)
 				.createShared()) {
-			return queue(new Scanner(factory, queue, null, monitor).configure(options), paths);
+			return queue(new Scanner(queue, null, monitor).configure(options), paths);
 		}
 	}
 

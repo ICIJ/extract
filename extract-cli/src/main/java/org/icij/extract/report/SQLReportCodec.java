@@ -29,7 +29,7 @@ import java.util.Map;
 		"value")
 @Option(name = "reportFailureStatus", description = "A general failure status value to use instead of the more " +
 		"specific values.", parameter = "value")
-public class SQLReportCodec implements SQLMapCodec<TikaDocument, Report> {
+public class SQLReportCodec implements SQLMapCodec<Path, Report> {
 
 	private final DocumentFactory factory;
 	private final String idKey;
@@ -80,7 +80,7 @@ public class SQLReportCodec implements SQLMapCodec<TikaDocument, Report> {
 	}
 
 	@Override
-	public TikaDocument decodeKey(final ResultSet rs) throws SQLException {
+	public Path decodeKey(final ResultSet rs) throws SQLException {
 		final Path path = Paths.get(rs.getString(pathKey));
 		final TikaDocument tikaDocument;
 
@@ -94,7 +94,7 @@ public class SQLReportCodec implements SQLMapCodec<TikaDocument, Report> {
 			tikaDocument.setForeignId(rs.getString(foreignIdKey));
 		}
 
-		return tikaDocument;
+		return tikaDocument.getPath();
 	}
 
 	@Override

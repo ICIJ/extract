@@ -1,8 +1,6 @@
 package org.icij.extract;
 
 import org.icij.concurrent.BooleanSealableLatch;
-import org.icij.extract.document.DocumentFactory;
-import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.queue.ArrayDocumentQueue;
 import org.icij.extract.queue.DocumentQueue;
 import org.junit.After;
@@ -21,15 +19,8 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.assertEquals;
 
 public class ScannerTest {
-
-	private final DocumentFactory factory = new DocumentFactory().withIdentifier(new PathIdentifier());
 	private final DocumentQueue queue = new ArrayDocumentQueue(100);
-	private Scanner scanner = new Scanner(factory, queue);
-
-	@After
-	public void tearDown() throws InterruptedException {
-		queue.clear();
-	}
+	private Scanner scanner = new Scanner(queue);
 
 	@Test
 	public void testScanDirectory() throws Throwable {
@@ -44,12 +35,12 @@ public class ScannerTest {
 		// Assert that the queue contains at least one file, manually.
 		Assert.assertTrue(Files.exists(root.resolve("plain.txt")));
 		Assert.assertTrue(String.format("Queued file path must start with root path \"%s\".", root),
-				queue.contains(factory.create(root.resolve("plain.txt"))));
+				queue.contains(root.resolve("plain.txt")));
 
 		try (DirectoryStream<Path> directoryStream = Files.newDirectoryStream(root)) {
 			for (Path file : directoryStream) {
 				Assert.assertTrue(String.format("Failed asserting that queue contains \"%s\".", file),
-						queue.contains(factory.create(file)));
+						queue.contains(file));
 			}
 		}
 	}
@@ -82,8 +73,8 @@ public class ScannerTest {
 		final Path garbage = root.resolve("garbage.bin");
 
 		Assert.assertTrue(Files.exists(garbage));
-		Assert.assertFalse(queue.contains(factory.create(garbage)));
-		Assert.assertTrue(queue.contains(factory.create(root.resolve("text/plain.txt"))));
+		Assert.assertFalse(queue.contains(garbage));
+		Assert.assertTrue(queue.contains(root.resolve("text/plain.txt")));
 	}
 
 	@Test
@@ -108,14 +99,14 @@ public class ScannerTest {
 
 		// Test paths excluded by extension.
 		Assert.assertTrue(Files.exists(garbage));
-		Assert.assertFalse(queue.contains(factory.create(garbage)));
+		Assert.assertFalse(queue.contains(garbage));
 
 		// Test whether entire directory was excluded.
 		Assert.assertTrue(Files.exists(ocrTiff));
-		Assert.assertFalse(queue.contains(factory.create(ocrTiff)));
+		Assert.assertFalse(queue.contains(ocrTiff));
 
 		// Test whether at least one other file was included.
-		Assert.assertTrue(queue.contains(factory.create(root.resolve("text/plain.txt"))));
+		Assert.assertTrue(queue.contains(root.resolve("text/plain.txt")));
 	}
 
 	@Test
@@ -140,8 +131,8 @@ public class ScannerTest {
 		// Assert that the queue doesn't contain the symlink, but contains linked files.
 		Assert.assertTrue(Files.isSymbolicLink(documents));
 		Assert.assertTrue(Files.exists(documents));
-		Assert.assertFalse(queue.contains(factory.create(documents)));
-		Assert.assertTrue(queue.contains(factory.create(root.resolve("documents/garbage.bin"))));
+		Assert.assertFalse(queue.contains(documents));
+		Assert.assertTrue(queue.contains(root.resolve("documents/garbage.bin")));
 	}
 
 	@Test
@@ -157,14 +148,14 @@ public class ScannerTest {
 
 		// Assert that the queue does not contain the hidden file.
 		Assert.assertTrue(Files.exists(hidden));
-		Assert.assertFalse(queue.contains(factory.create(hidden)));
+		Assert.assertFalse(queue.contains(hidden));
 
 		// Now test if hidden files are scanned.
 		scanner.ignoreHiddenFiles(false);
 		Assert.assertFalse(scanner.ignoreHiddenFiles());
 
 		assertEquals(10, (long)scanner.scan(root).get());
-		Assert.assertTrue(queue.contains(factory.create(hidden)));
+		Assert.assertTrue(queue.contains(hidden));
 		shutdownScanner(scanner);
 	}
 
@@ -180,14 +171,14 @@ public class ScannerTest {
 
 		// Assert that the queue does not contain the system file.
 		Assert.assertTrue(Files.exists(system));
-		Assert.assertFalse(queue.contains(factory.create(system)));
+		Assert.assertFalse(queue.contains(system));
 
 		// Now test if system files are scanned.
 		scanner.ignoreSystemFiles(false);
 		Assert.assertFalse(scanner.ignoreSystemFiles());
 
 		assertEquals(11, (long)scanner.scan(root).get());
-		Assert.assertTrue(queue.contains(factory.create(system)));
+		Assert.assertTrue(queue.contains(system));
 		shutdownScanner(scanner);
 	}
 
@@ -202,8 +193,8 @@ public class ScannerTest {
 		assertEquals(7, (long)scanner.scan(root).get());
 
 		Assert.assertTrue(Files.exists(root.resolve("text/plain.txt")));
-		Assert.assertFalse(queue.contains(factory.create(root.resolve("text/plain.txt"))));
-		Assert.assertTrue(queue.contains(factory.create(root.resolve("garbage.bin"))));
+		Assert.assertFalse(queue.contains(root.resolve("text/plain.txt")));
+		Assert.assertTrue(queue.contains(root.resolve("garbage.bin")));
 		shutdownScanner(scanner);
 	}
 
@@ -211,7 +202,7 @@ public class ScannerTest {
 	public void testLatch() throws Throwable {
 		final Path root = Paths.get(getClass().getResource("/documents/").toURI());
 		final Path garbage = root.resolve("garbage.bin");
-		final Scanner scanner = new Scanner(factory, queue, new BooleanSealableLatch());
+		final Scanner scanner = new Scanner(queue, new BooleanSealableLatch());
 
 		new Timer().schedule(new TimerTask() {
 
@@ -224,7 +215,7 @@ public class ScannerTest {
 		scanner.getLatch().await();
 
 		Assert.assertTrue(Files.exists(garbage));
-		Assert.assertTrue(queue.contains(factory.create(garbage)));
+		Assert.assertTrue(queue.contains(garbage));
 
 		shutdownScanner(scanner);
 	}
@@ -233,4 +224,8 @@ public class ScannerTest {
 		scanner.shutdown();
 		scanner.awaitTermination(1, TimeUnit.SECONDS);
 	}
+
+	@After
+	public void tearDown() { queue.clear();}
+
 }

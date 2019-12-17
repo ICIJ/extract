@@ -1,9 +1,9 @@
 package org.icij.extract.queue;
 
-import org.icij.extract.document.TikaDocument;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 
+import java.nio.file.Path;
 import java.util.concurrent.ArrayBlockingQueue;
 
 /**
@@ -13,7 +13,7 @@ import java.util.concurrent.ArrayBlockingQueue;
  */
 @Option(name = "queueBuffer", description = "The size of the internal file path buffer used by the queue.",
 		parameter = "size")
-public class ArrayDocumentQueue extends ArrayBlockingQueue<TikaDocument> implements DocumentQueue {
+public class ArrayDocumentQueue extends ArrayBlockingQueue<Path> implements DocumentQueue {
 
 	private static final long serialVersionUID = -7491630465350342533L;
 

@@ -19,6 +19,7 @@ import org.redisson.command.CommandSyncService;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.file.Path;
 import java.util.HashMap;
 
 /**
@@ -29,7 +30,7 @@ import java.util.HashMap;
 @Option(name = "queueName", description = "The name of the queue.", parameter = "name")
 @Option(name = "charset", description = "Set the output encoding for strings. Defaults to UTF-8.", parameter = "name")
 @OptionsClass(RedissonClientFactory.class)
-public class RedisDocumentQueue extends RedissonBlockingQueue<TikaDocument> implements DocumentQueue {
+public class RedisDocumentQueue extends RedissonBlockingQueue<Path> implements DocumentQueue {
 	/**
 	 * The default name for a queue in Redis.
 	 */
@@ -85,7 +86,7 @@ public class RedisDocumentQueue extends RedissonBlockingQueue<TikaDocument> impl
 	 */
 	private RedisDocumentQueue(final DocumentFactory factory, final RedissonClient redissonClient,
 	                           final String name, final Charset charset) {
-		this(new DocumentQueueCodec(factory, charset),
+		this(new PathQueueCodec(charset),
 				new CommandSyncService(((Redisson)redissonClient).getConnectionManager()),
 				null == name ? DEFAULT_NAME : name, redissonClient);
 
@@ -109,29 +110,29 @@ public class RedisDocumentQueue extends RedissonBlockingQueue<TikaDocument> impl
 	/**
 	 * Codec for a queue of paths to documents.
 	 */
-	static class DocumentQueueCodec extends BaseCodec {
+	static class PathQueueCodec extends BaseCodec {
 
-		private final Decoder<Object> documentDecoder;
+		private final Decoder<Object> pathDecoder;
 		private final Encoder documentEncoder;
 
-		DocumentQueueCodec(final DocumentFactory factory, final Charset charset) {
-			documentDecoder = new DocumentDecoder(factory, charset);
-			documentEncoder = new DocumentEncoder(charset);
+		PathQueueCodec(final Charset charset) {
+			pathDecoder = new PathDecoder(charset);
+			documentEncoder = new PathEncoder(charset);
 		}
 
 		@Override
 		public Decoder<Object> getValueDecoder() {
-			return documentDecoder;
+			return pathDecoder;
 		}
 
 		@Override
 		public Decoder<Object> getMapValueDecoder() {
-			return documentDecoder;
+			return pathDecoder;
 		}
 
 		@Override
 		public Decoder<Object> getMapKeyDecoder() {
-			return documentDecoder;
+			return pathDecoder;
 		}
 
 		@Override

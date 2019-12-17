@@ -8,6 +8,7 @@ import org.icij.spewer.Spewer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Consumer;
@@ -25,7 +26,7 @@ import java.util.function.Consumer;
  *
  * @since 1.0.0-beta
  */
-public class DocumentConsumer extends ExecutorProxy implements Consumer<TikaDocument> {
+public class DocumentConsumer extends ExecutorProxy implements Consumer<Path> {
 
 	private static final Logger logger = LoggerFactory.getLogger(DocumentConsumer.class);
 
@@ -108,24 +109,24 @@ public class DocumentConsumer extends ExecutorProxy implements Consumer<TikaDocu
 	 * available. Otherwise the behaviour is similar to {@link ExecutorService#execute(Runnable)}, causing the task
 	 * to be put in a queue.
 	 *
-	 * @param tikaDocument the tikaDocument to consume
+	 * @param path the tikaDocument to consume
 	 * @throws RejectedExecutionException if unable to queue the consumer task for execution, including when the
 	 * current thread is interrupted.
 	 */
 	@Override
-	public void accept(final TikaDocument tikaDocument) {
-		logger.info(String.format("Sending to thread pool; will queue if full: \"%s\".", tikaDocument));
+	public void accept(final Path path) {
+		logger.info(String.format("Sending to thread pool; will queue if full: \"%s\".", path));
 		executor.execute(()-> {
-			logger.info(String.format("Beginning extraction: \"%s\".", tikaDocument));
+			logger.info(String.format("Beginning extraction: \"%s\".", path));
 
 			try {
 				if (null != reporter) {
-					extractor.extract(tikaDocument, spewer, reporter);
+					extractor.extract(path, spewer, reporter);
 				} else {
-					extractor.extract(tikaDocument, spewer);
+					extractor.extract(path, spewer);
 				}
 			} catch (Exception e) {
-				logger.error(String.format("Exception while consuming file: \"%s\".", tikaDocument), e);
+				logger.error(String.format("Exception while consuming file: \"%s\".", path), e);
 			}
 		});
 	}

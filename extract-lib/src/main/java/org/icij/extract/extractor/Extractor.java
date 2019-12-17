@@ -6,7 +6,6 @@ import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.io.TikaInputStream;
-import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.*;
 import org.apache.tika.parser.html.DefaultHtmlMapper;
 import org.apache.tika.parser.html.HtmlMapper;
@@ -17,6 +16,8 @@ import org.apache.tika.parser.utils.CommonsDigester;
 import org.apache.tika.parser.utils.CommonsDigester.DigestAlgorithm;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
 import org.apache.tika.sax.WriteOutContentHandler;
+import org.icij.extract.document.DocumentFactory;
+import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
 import org.icij.extract.parser.CachingTesseractOCRParser;
 import org.icij.extract.parser.FallbackParser;
@@ -37,11 +38,13 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.function.Function;
 
 import static java.lang.System.currentTimeMillis;
-import static org.icij.extract.document.Identifier.shorten;
 
 /**
  * A reusable class that sets up Tika parsers based on runtime options.
@@ -94,6 +97,7 @@ public class Extractor {
 	private Parser defaultParser = TikaConfig.getDefaultConfig().getParser();
 	private final TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
 	private final PDFParserConfig pdfConfig = new PDFParserConfig();
+	private final DocumentFactory documentFactory;
 
 	private OutputFormat outputFormat = OutputFormat.TEXT;
 	private EmbedHandling embedHandling = EmbedHandling.getDefault();
@@ -103,8 +107,8 @@ public class Extractor {
 	 * Create a new extractor, which will OCR images by default if Tesseract is available locally, extract inline
 	 * images from PDF files and OCR them and use PDFBox's non-sequential PDF parser.
 	 */
-	public Extractor() {
-
+	public Extractor(final DocumentFactory factory) {
+		this.documentFactory = factory;
 		// Calculate the SHA256 digest by default.
 		setDigestAlgorithm(DigestAlgorithm.SHA256.toString());
 
@@ -124,7 +128,12 @@ public class Extractor {
 		ocrConfig.setLanguage("eng");
 	}
 
+	public Extractor() {
+		this(new DocumentFactory().withIdentifier(new PathIdentifier()));
+	}
+
 	public Extractor configure(final Options<String> options) {
+		documentFactory.configure(options);
 		options.get("outputFormat").parse().asEnum(OutputFormat::parse).ifPresent(this::setOutputFormat);
 		options.get("embedHandling").parse().asEnum(EmbedHandling::parse).ifPresent(this::setEmbedHandling);
 		options.get("embedOutput").parse().asPath().ifPresent(this::setEmbedOutputPath);
@@ -243,56 +252,37 @@ public class Extractor {
 	}
 
 	/**
-	 * This method will wrap the given {@link TikaDocument} in a {@link TikaInputStream} and return a {@link Reader}
-	 * which can be used to initiate extraction on demand.
-	 *
-	 * Internally, this method uses {@link TikaInputStream#get} which ensures that the resource name and content
-	 * length metadata properties are set automatically.
-	 *
-	 * @param tikaDocument the file to extract from
-	 * @return A {@link Reader} that can be used to read extracted text on demand.
-	 */
-	public Reader extract(final TikaDocument tikaDocument) throws IOException {
-
-		// Use the the TikaInputStream.parse method that accepts a file, because this sets metadata properties like the
-		// resource name and size.
-		return extract(tikaDocument, TikaInputStream.get(tikaDocument.getPath(), tikaDocument.getMetadata()));
-	}
-
-	/**
-	 * Extract and spew content from a document. Internally, as with {@link #extract(TikaDocument)},
+	 * Extract and spew content from a document. Internally, as with {@link #extract(Path)},
 	 * this method creates a {@link TikaInputStream} from the path of the given document.
 	 *
-	 * @param tikaDocument document to extract from
+	 * @param path document to extract from
 	 * @param spewer endpoint to write to
 	 * @throws IOException if there was an error reading or writing the document
 	 */
-	public void extract(final TikaDocument tikaDocument, final Spewer spewer) throws IOException {
+	public void extract(final Path path, final Spewer spewer) throws IOException {
 		long before = currentTimeMillis();
-		try (final Reader reader = extract(tikaDocument)) {
-			logger.info("{} extracted in {}ms: {}", tikaDocument.getPath(), currentTimeMillis() - before,
-					shorten(tikaDocument.getId(), 4));
-			spewer.write(tikaDocument, reader);
-		}
+		TikaDocument document = extract(path);
+		logger.info("{} extracted in {}ms", path, currentTimeMillis() - before);
+		spewer.write(document, document.getReader());
 	}
 
 	/**
-	 * Extract and spew content from a document. This method is the same as {@link #extract(TikaDocument, Spewer)} with
+	 * Extract and spew content from a document. This method is the same as {@link #extract(Path, Spewer)} with
 	 * the exception that the document will be skipped if the reporter returns {@literal false} for a call to
-	 * {@link Reporter#skip(TikaDocument)}.
+	 * {@link Reporter#skip(Path)}.
 	 *
 	 * If the document is not skipped, then the result of the extraction is passed to the reporter in a call to
-	 * {@link Reporter#save(TikaDocument, ExtractionStatus, Exception)}.
+	 * {@link Reporter#save(Path, ExtractionStatus, Exception)}.
 	 *
-	 * @param tikaDocument document to extract from
+	 * @param path document to extract from
 	 * @param spewer endpoint to write to
 	 * @param reporter used to check whether the document should be skipped and save extraction status
 	 */
-	public void extract(final TikaDocument tikaDocument, final Spewer spewer, final Reporter reporter) {
+	public void extract(final Path path, final Spewer spewer, final Reporter reporter) {
 		Objects.requireNonNull(reporter);
 
-		if (reporter.skip(tikaDocument)) {
-			logger.info(String.format("File already extracted; skipping: \"%s\".", tikaDocument));
+		if (reporter.skip(path)) {
+			logger.info(String.format("File already extracted; skipping: \"%s\".", path));
 			return;
 		}
 
@@ -300,10 +290,10 @@ public class Extractor {
 		Exception exception = null;
 
 		try {
-			extract(tikaDocument, spewer);
+			extract(path, spewer);
 		} catch (final Exception e) {
 			status = status(e, spewer);
-			log(e, status, tikaDocument);
+			log(e, status, path);
 			exception = e;
 		}
 
@@ -312,29 +302,29 @@ public class Extractor {
 			exception = ((TaggedIOException) exception).getCause();
 		}
 
-		reporter.save(tikaDocument, status, exception);
+		reporter.save(path, status, exception);
 	}
 
-	private void log(final Exception e, final ExtractionStatus status, final TikaDocument tikaDocument) {
+	private void log(final Exception e, final ExtractionStatus status, final Path file) {
 		switch (status) {
 			case FAILURE_NOT_SAVED:
-				logger.error(String.format("The extraction result could not be outputted: \"%s\".", tikaDocument),
+				logger.error(String.format("The extraction result could not be outputted: \"%s\".", file),
 						e.getCause());
 				break;
 			case FAILURE_NOT_FOUND:
-				logger.error(String.format("File not found: \"%s\".", tikaDocument), e);
+				logger.error(String.format("File not found: \"%s\".", file), e);
 				break;
 			case FAILURE_NOT_DECRYPTED:
-				logger.warn(String.format("Skipping encrypted file: \"%s\".", tikaDocument), e);
+				logger.warn(String.format("Skipping encrypted file: \"%s\".", file), e);
 				break;
 			case FAILURE_NOT_PARSED:
-				logger.error(String.format("The tikaDocument could not be parsed: \"%s\".", tikaDocument), e);
+				logger.error(String.format("The file could not be parsed: \"%s\".", file), e);
 				break;
 			case FAILURE_UNREADABLE:
-				logger.error(String.format("The tikaDocument stream could not be read: \"%s\".", tikaDocument), e);
+				logger.error(String.format("The file stream could not be read: \"%s\".", file), e);
 				break;
 			default:
-				logger.error(String.format("Unknown exception during extraction or output: \"%s\".", tikaDocument), e);
+				logger.error(String.format("Unknown exception during extraction or output: \"%s\".", file), e);
 				break;
 		}
 	}
@@ -383,14 +373,15 @@ public class Extractor {
 	/**
 	 * Create a pull-parser from the given {@link TikaInputStream}.
 	 *
-	 * @param input the stream to extract from
-	 * @param tikaDocument file that is being extracted from
+	 * @param path the stream to extract from
 	 * @return A pull-parsing reader.
 	 */
-	protected Reader extract(final TikaDocument tikaDocument, final TikaInputStream input) throws IOException {
-		final Metadata metadata = tikaDocument.getMetadata();
+	protected TikaDocument extract(final Path path) throws IOException {
+		final TikaDocument rootDocument = documentFactory.create(path);
+		TikaInputStream tikaInputStream = TikaInputStream.get(path, rootDocument.getMetadata());
 		final ParseContext context = new ParseContext();
 		final AutoDetectParser autoDetectParser = new AutoDetectParser(defaultParser);
+
 		// Set a fallback parser that outputs an empty tikaDocument for empty files,
 		// otherwise throws an exception.
 		autoDetectParser.setFallback(FallbackParser.INSTANCE);
@@ -427,22 +418,24 @@ public class Extractor {
 
 		if (EmbedHandling.SPAWN == embedHandling) {
 			context.set(Parser.class, parser);
-			context.set(EmbeddedDocumentExtractor.class, new EmbedSpawner(tikaDocument, context, embedOutput, handler));
+			context.set(EmbeddedDocumentExtractor.class, new EmbedSpawner(rootDocument, context, embedOutput, handler));
 		} else if (EmbedHandling.CONCATENATE == embedHandling) {
 			context.set(Parser.class, parser);
-			context.set(EmbeddedDocumentExtractor.class, new EmbedParser(tikaDocument, context));
+			context.set(EmbeddedDocumentExtractor.class, new EmbedParser(rootDocument, context));
 		} else {
 			context.set(Parser.class, EmptyParser.INSTANCE);
 			context.set(EmbeddedDocumentExtractor.class, new EmbedBlocker());
 		}
 
+		// the constructor of ParsingReader actually parses the document in background
 		if (OutputFormat.HTML == outputFormat) {
-			reader = new ParsingReader(parser, input, metadata, context, handler);
+			reader = new ParsingReader(parser, tikaInputStream, rootDocument.getMetadata(), context, handler);
 		} else {
-			reader = new org.apache.tika.parser.ParsingReader(parser, input, metadata, context);
+			reader = new org.apache.tika.parser.ParsingReader(parser, tikaInputStream, rootDocument.getMetadata(), context);
 		}
+		rootDocument.setReader(reader);
 
-		return reader;
+		return rootDocument;
 	}
 
 	private void excludeParser(final Class<? extends Parser> exclude) {
