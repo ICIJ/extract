@@ -263,7 +263,7 @@ public class Extractor {
 		long before = currentTimeMillis();
 		TikaDocument document = extract(path);
 		logger.info("{} extracted in {}ms", path, currentTimeMillis() - before);
-		spewer.write(document, document.getReader());
+		spewer.write(document);
 	}
 
 	/**
@@ -376,7 +376,7 @@ public class Extractor {
 	 * @param path the stream to extract from
 	 * @return A pull-parsing reader.
 	 */
-	protected TikaDocument extract(final Path path) throws IOException {
+	public TikaDocument extract(final Path path) throws IOException {
 		final TikaDocument rootDocument = documentFactory.create(path);
 		TikaInputStream tikaInputStream = TikaInputStream.get(path, rootDocument.getMetadata());
 		final ParseContext context = new ParseContext();

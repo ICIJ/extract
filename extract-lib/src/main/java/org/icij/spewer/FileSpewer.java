@@ -61,7 +61,7 @@ public class FileSpewer extends Spewer implements Serializable {
 	}
 
 	@Override
-	public void write(final TikaDocument tikaDocument, final Reader reader) throws IOException {
+	public void write(final TikaDocument tikaDocument) throws IOException {
 		final Path outputPath = getOutputPath(tikaDocument);
 
 		// Add the output extension.
@@ -92,7 +92,7 @@ public class FileSpewer extends Spewer implements Serializable {
 		// #copy buffers the input so there's no need to use an output buffer.
 		try (final OutputStream output = Files.newOutputStream(contentsOutputPath)) {
 			tagged = new TaggedOutputStream(output);
-			copy(reader, tagged);
+			copy(tikaDocument.getReader(), tagged);
 		} catch (IOException e) {
 			if (null != tagged && tagged.isCauseOf(e)) {
 				throw new TaggedIOException(new IOException(String.format("Error writing output to file: \"%s\".",
@@ -152,7 +152,7 @@ public class FileSpewer extends Spewer implements Serializable {
 	}
 
 	@Override
-	protected void writeDocument(TikaDocument doc, Reader reader, TikaDocument parent, TikaDocument root, int level) {
+	protected void writeDocument(TikaDocument doc, TikaDocument parent, TikaDocument root, int level) {
 		throw new UnsupportedOperationException("Not implemented.");
 	}
 }

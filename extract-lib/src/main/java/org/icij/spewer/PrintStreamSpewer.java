@@ -2,13 +2,12 @@ package org.icij.spewer;
 
 import org.apache.commons.io.TaggedIOException;
 import org.apache.tika.metadata.Metadata;
-import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.EmbeddedTikaDocument;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.parser.ParsingReader;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.io.Reader;
 import java.io.Serializable;
 
 /**
@@ -27,14 +26,14 @@ public class PrintStreamSpewer extends Spewer implements Serializable {
 	}
 
 	@Override
-	public void write(final TikaDocument tikaDocument, final Reader reader) throws IOException {
+	public void write(final TikaDocument tikaDocument) throws IOException {
 		if (outputMetadata) {
 			writeMetadata(tikaDocument);
 		}
 
 		// A PrintStream should never throw an IOException: the exception would always come from the input stream.
 		// There's no need to use a TaggedOutputStream or catch IOExceptions.
-		copy(reader, stream);
+		copy(tikaDocument.getReader(), stream);
 
 		// Add an extra newline to signify the end of the text.
 		stream.println();
@@ -45,9 +44,7 @@ public class PrintStreamSpewer extends Spewer implements Serializable {
 
 		// Write out child documents, if any.
 		for (EmbeddedTikaDocument embed: tikaDocument.getEmbeds()) {
-			try (final Reader embedReader = embed.getReader()) {
-				write(embed, embedReader);
-			}
+			write(embed);
 		}
 	}
 
@@ -72,7 +69,7 @@ public class PrintStreamSpewer extends Spewer implements Serializable {
 	}
 
 	@Override
-	protected void writeDocument(TikaDocument doc, Reader reader, TikaDocument parent, TikaDocument root, int level) {
+	protected void writeDocument(TikaDocument doc, TikaDocument parent, TikaDocument root, int level) {
 		throw new UnsupportedOperationException("not implemented");
 	}
 }

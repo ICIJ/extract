@@ -50,10 +50,10 @@ public abstract class Spewer implements AutoCloseable, Serializable {
         return this;
     }
 
-    protected abstract void writeDocument(TikaDocument doc, Reader reader, TikaDocument parent, TikaDocument root, int level) throws IOException;
+    protected abstract void writeDocument(TikaDocument doc, TikaDocument parent, TikaDocument root, int level) throws IOException;
 
-    public void write(final TikaDocument document, final Reader reader) throws IOException {
-        writeDocument(document, reader, null, null, 0);
+    public void write(final TikaDocument document) throws IOException {
+        writeDocument(document, null, null, 0);
         for (EmbeddedTikaDocument childDocument : document.getEmbeds()) {
             writeTree(childDocument, document, document, 1);
         }
@@ -61,9 +61,7 @@ public abstract class Spewer implements AutoCloseable, Serializable {
 
     private void writeTree(final TikaDocument doc, final TikaDocument parent, TikaDocument root, final int level)
             throws IOException {
-        try (final Reader reader = doc.getReader()) {
-            writeDocument(doc, reader, parent, root, level);
-        }
+        writeDocument(doc, parent, root, level);
 
         for (EmbeddedTikaDocument child : doc.getEmbeds()) {
             writeTree(child, doc, root, level + 1);
