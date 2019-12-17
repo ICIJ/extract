@@ -123,8 +123,8 @@ public class SolrSpewer extends Spewer implements Serializable {
 	}
 
 	@Override
-	public void write(final TikaDocument tikaDocument, final Reader reader) throws IOException {
-		final SolrInputDocument inputDocument = prepareDocument(tikaDocument, reader, 0);
+	public void write(final TikaDocument tikaDocument) throws IOException {
+		final SolrInputDocument inputDocument = prepareDocument(tikaDocument, 0);
 		UpdateResponse response;
 
 		response = write(tikaDocument, inputDocument);
@@ -249,7 +249,7 @@ public class SolrSpewer extends Spewer implements Serializable {
 		}
 	}
 
-	private SolrInputDocument prepareDocument(final TikaDocument tikaDocument, final Reader reader, final int level)
+	private SolrInputDocument prepareDocument(final TikaDocument tikaDocument, final int level)
 			throws IOException {
 		final SolrInputDocument inputDocument = new SolrInputDocument();
 
@@ -302,18 +302,14 @@ public class SolrSpewer extends Spewer implements Serializable {
 		setFieldValue(inputDocument, fields.forLevel(), Integer.toString(level));
 
 		// Finally, set the text field containing the actual extracted text.
-		setFieldValue(inputDocument, fields.forText(), toString(reader));
+		setFieldValue(inputDocument, fields.forText(), toString(tikaDocument.getReader()));
 
 		return inputDocument;
 	}
 
 	private SolrInputDocument prepareDocument(final EmbeddedTikaDocument child, final int level, final TikaDocument parent,
                                               final TikaDocument root) throws IOException {
-		final SolrInputDocument inputDocument;
-
-		try (final Reader reader = child.getReader()) {
-			inputDocument = prepareDocument(child, reader, level);
-		}
+		final SolrInputDocument inputDocument = prepareDocument(child, level);
 
 		// Null is a signal to skip the document.
 		if (null == inputDocument) {
@@ -405,7 +401,7 @@ public class SolrSpewer extends Spewer implements Serializable {
 	}
 
 	@Override
-	protected void writeDocument(TikaDocument doc, Reader reader, TikaDocument parent, TikaDocument root, int level) {
+	protected void writeDocument(TikaDocument doc, TikaDocument parent, TikaDocument root, int level) {
 		throw new UnsupportedOperationException("not implemented");
 	}
 }

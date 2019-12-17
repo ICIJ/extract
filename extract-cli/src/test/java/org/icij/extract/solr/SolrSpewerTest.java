@@ -2,10 +2,9 @@ package org.icij.extract.solr;
 
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrDocument;
-import org.apache.tika.exception.TikaException;
-import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.parser.ParsingReader;
 import org.icij.extract.spewer.SolrSpewer;
 import org.icij.extract.test.SolrJettyTestBase;
@@ -19,7 +18,6 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
-import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -35,15 +33,15 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 	}
 
 	@Test
-	public void testWrite() throws IOException, TikaException, NoSuchAlgorithmException, SolrServerException {
+	public void testWrite() throws IOException, SolrServerException {
 		final SolrSpewer spewer = new SolrSpewer(client, new FieldNames());
 
 		final Charset charset = StandardCharsets.UTF_8;
 		final String buffer = "test";
 		final TikaDocument tikaDocument = factory.create(Paths.get("test-file.txt"));
-		final ParsingReader reader = new ParsingReader(new ByteArrayInputStream(buffer.getBytes(charset)));
+		tikaDocument.setReader(new ParsingReader(new ByteArrayInputStream(buffer.getBytes(charset))));
 
-		spewer.write(tikaDocument, reader);
+		spewer.write(tikaDocument);
 		client.commit(true, true);
 
 		SolrDocument response = client.getById("0");
@@ -55,8 +53,7 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 	}
 
 	@Test
-	public void testWriteMetadata()
-		throws IOException, TikaException, NoSuchAlgorithmException, SolrServerException, InterruptedException {
+	public void testWriteMetadata() throws IOException, SolrServerException {
 		final SolrSpewer spewer = new SolrSpewer(client, new FieldNames());
 
 		final Charset charset = StandardCharsets.UTF_8;
@@ -69,8 +66,9 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		final String length = Integer.toString(buffer.getBytes(charset).length);
 		tikaDocument.getMetadata().set("Content-Length", length);
 		tikaDocument.getMetadata().set("Content-Type", "text/plain; charset=UTF-8");
+		tikaDocument.setReader(reader);
 
-		spewer.write(tikaDocument, reader);
+		spewer.write(tikaDocument);
 		client.commit(true, true);
 		client.optimize(true, true);
 
@@ -84,14 +82,14 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 	}
 
 	@Test
-	public void testWriteTags()
-		throws IOException, TikaException, NoSuchAlgorithmException, SolrServerException, InterruptedException {
+	public void testWriteTags() throws IOException, SolrServerException {
 		final SolrSpewer spewer = new SolrSpewer(client, new FieldNames());
 
 		final Charset charset = StandardCharsets.UTF_8;
 		final String buffer = "test";
 		final TikaDocument tikaDocument = factory.create(Paths.get("test/file.txt"));
 		final ParsingReader reader = new ParsingReader(new ByteArrayInputStream(buffer.getBytes(charset)));
+		tikaDocument.setReader(reader);
 		final Map<String, String> tags = new HashMap<>();
 
 		tags.put("batch", "1");
@@ -99,7 +97,7 @@ public class SolrSpewerTest extends SolrJettyTestBase {
 		spewer.outputMetadata(true);
 		spewer.setTags(tags);
 
-		spewer.write(tikaDocument, reader);
+		spewer.write(tikaDocument);
 		client.commit(true, true);
 		client.optimize(true, true);
 

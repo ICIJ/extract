@@ -3,6 +3,7 @@ package org.icij.extract.spewer;
 import org.apache.tika.exception.TikaException;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
+import org.icij.extract.document.TikaDocument;
 import org.icij.extract.parser.ParsingReader;
 import org.icij.spewer.FieldNames;
 import org.icij.spewer.PrintStreamSpewer;
@@ -19,7 +20,7 @@ public class PrintStreamSpewerTest {
 	private final DocumentFactory factory = new DocumentFactory().withIdentifier(new PathIdentifier());
 
 	@Test
-	public void testWrite() throws IOException, TikaException {
+	public void testWrite() throws IOException {
 		final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 		final PrintStream printStream = new PrintStream(outputStream);
 		final Spewer spewer = new PrintStreamSpewer(printStream, new FieldNames());
@@ -28,9 +29,10 @@ public class PrintStreamSpewerTest {
 		final String name = "imaginary-file.txt";
 		final InputStream inputStream = new ByteArrayInputStream(buffer.getBytes(StandardCharsets.UTF_8));
 		final ParsingReader reader = new ParsingReader(inputStream, name);
-
 		spewer.outputMetadata(false);
-		spewer.write(factory.create(name), reader);
+		TikaDocument document = factory.create(name);
+		document.setReader(reader);
+		spewer.write(document);
 
 		Assert.assertEquals("$\n\n", outputStream.toString(StandardCharsets.UTF_8.name()));
 		Assert.assertArrayEquals(new byte[] {0x24, 0x0A}, Arrays.copyOfRange(outputStream.toByteArray(), 0, 2));
@@ -48,7 +50,9 @@ public class PrintStreamSpewerTest {
 		final ParsingReader reader = new ParsingReader(inputStream, name);
 
 		spewer.outputMetadata(false);
-		spewer.write(factory.create(name), reader);
+		TikaDocument document = factory.create(name);
+		document.setReader(reader);
+		spewer.write(document);
 
 		Assert.assertEquals("$\n\n", outputStream.toString(StandardCharsets.UTF_8.name()));
 		Assert.assertArrayEquals(new byte[] {0x24, 0x0A}, Arrays.copyOfRange(outputStream.toByteArray(), 0, 2));
@@ -66,7 +70,9 @@ public class PrintStreamSpewerTest {
 		final ParsingReader reader = new ParsingReader(inputStream, name);
 
 		spewer.outputMetadata(false);
-		spewer.write(factory.create(name), reader);
+		TikaDocument document = factory.create(name);
+		document.setReader(reader);
+		spewer.write(document);
 
 		Assert.assertEquals("$\n\n", outputStream.toString(StandardCharsets.UTF_8.name()));
 		Assert.assertArrayEquals(new byte[] {0x24, 0x0A}, Arrays.copyOfRange(outputStream.toByteArray(), 0, 2));
@@ -88,7 +94,9 @@ public class PrintStreamSpewerTest {
 
 		spewer.outputMetadata(false);
 		spewer.setOutputEncoding(StandardCharsets.UTF_16LE);
-		spewer.write(factory.create("test-file"), reader);
+		TikaDocument document = factory.create("test-file");
+		document.setReader(reader);
+		spewer.write(document);
 
 		Assert.assertArrayEquals(new byte[] {0x24, 0x00, 0x0A, 0x00}, Arrays.copyOfRange(outputStream.toByteArray(),
 				0, 4));
@@ -110,7 +118,9 @@ public class PrintStreamSpewerTest {
 
 		spewer.outputMetadata(false);
 		spewer.setOutputEncoding(StandardCharsets.UTF_16BE);
-		spewer.write(factory.create("test-file"), reader);
+		TikaDocument document = factory.create("test-file");
+		document.setReader(reader);
+		spewer.write(document);
 
 		Assert.assertArrayEquals(new byte[] {0x00, 0x24, 0x00, 0x0A}, Arrays.copyOfRange(outputStream.toByteArray(),
 				0, 4));

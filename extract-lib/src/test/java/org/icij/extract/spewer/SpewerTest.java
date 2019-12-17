@@ -2,9 +2,9 @@ package org.icij.extract.spewer;
 
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.Office;
-import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
+import org.icij.extract.document.TikaDocument;
 import org.icij.spewer.FieldNames;
 import org.icij.spewer.MetadataTransformer;
 import org.icij.spewer.Spewer;
@@ -12,7 +12,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,7 +31,7 @@ public class SpewerTest {
 		}
 
 		@Override
-		protected void writeDocument(TikaDocument doc, Reader reader, TikaDocument parent, TikaDocument root, int level) {
+		protected void writeDocument(TikaDocument doc, TikaDocument parent, TikaDocument root, int level) {
 		}
 
 		void writeMetadata(final TikaDocument tikaDocument) throws IOException {
