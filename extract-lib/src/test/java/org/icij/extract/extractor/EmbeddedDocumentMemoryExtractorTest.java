@@ -12,17 +12,18 @@ import org.junit.Test;
 
 import java.io.Reader;
 import java.nio.charset.Charset;
+import java.nio.file.Paths;
 
 import static org.fest.assertions.Assertions.assertThat;
 import static org.fest.assertions.Fail.fail;
 
 public class EmbeddedDocumentMemoryExtractorTest {
     private TikaDocument tikaDocument;
+    DocumentFactory documentFactory = new DocumentFactory().withIdentifier(new DigestIdentifier("SHA-256", Charset.defaultCharset()));
 
     @Before
     public void setUp() throws Exception {
-        tikaDocument = new DocumentFactory().withIdentifier(new DigestIdentifier("SHA-256", Charset.defaultCharset())).
-                create(getClass().getResource("/documents/recursive_embedded.docx"));
+        tikaDocument = documentFactory.create(getClass().getResource("/documents/recursive_embedded.docx"));
     }
 
     @Test
@@ -91,18 +92,19 @@ public class EmbeddedDocumentMemoryExtractorTest {
 
     @Test
     public void test_embedded_file_content_extraction_should_have_same_hashes_than_extracted_docs() throws Exception {
-        Extractor extractor = new Extractor();
+        Extractor extractor = new Extractor(documentFactory);
         extractor.setDigester(new UpdatableDigester("prj", "SHA-256"));
-        try (Reader reader = extractor.extract(tikaDocument)) {
+        TikaDocument extracted = extractor.extract(Paths.get(getClass().getResource("/documents/recursive_embedded.docx").getPath()));
+        try (Reader reader = extracted.getReader()) {
             Spewer.toString(reader);
         }
 
         EmbeddedDocumentMemoryExtractor contentExtractor = new EmbeddedDocumentMemoryExtractor(
                 new UpdatableDigester("prj", "SHA-256"));
 
-        assertThat(tikaDocument.getEmbeds()).hasSize(2);
-        assertThat(contentExtractor.extract(tikaDocument, tikaDocument.getEmbeds().get(0).getId())).isNotNull();
-        assertThat(contentExtractor.extract(tikaDocument, tikaDocument.getEmbeds().get(1).getId())).isNotNull();
-        assertThat(contentExtractor.extract(tikaDocument, tikaDocument.getEmbeds().get(1).getEmbeds().get(0).getId())).isNotNull();
+        assertThat(extracted.getEmbeds()).hasSize(2);
+        assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(0).getId())).isNotNull();
+        assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(1).getId())).isNotNull();
+        assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(1).getEmbeds().get(0).getId())).isNotNull();
     }
 }

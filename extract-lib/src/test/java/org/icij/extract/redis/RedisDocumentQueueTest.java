@@ -22,20 +22,20 @@ public class RedisDocumentQueueTest {
 
     @Test
     public void testRemoveDuplicates() throws Exception {
-        queue.put(factory.create(get("/foo/bar")));
-        queue.put(factory.create(get("/foo/baz")));
-        queue.put(factory.create(get("/foo/bar")));
-        queue.put(factory.create(get("/foo/bar")));
+        queue.put(get("/foo/bar"));
+        queue.put(get("/foo/baz"));
+        queue.put(get("/foo/bar"));
+        queue.put(get("/foo/bar"));
 
-        assertThat(queue.removeDuplicatePaths()).isEqualTo(2);
+        assertThat(queue.removeDuplicates()).isEqualTo(2);
 
         assertThat(queue.size()).isEqualTo(2);
     }
 
     @Test
     public void testRemoveExtracted() throws Exception {
-        queue.put(factory.create(get("/foo/bar")));
-        queue.put(factory.create(get("/foo/baz")));
+        queue.put(get("/foo/bar"));
+        queue.put(get("/foo/baz"));
 
         assertThat(new QueueFilterBuilder()
                 .filter(queue)

@@ -1,13 +1,13 @@
 package org.icij.extract.report;
 
-import java.nio.file.Paths;
-
-import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.extractor.ExtractionStatus;
-import org.junit.Test;
 import org.junit.Assert;
+import org.junit.Test;
+
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class ReporterTest {
 
@@ -33,9 +33,9 @@ public class ReporterTest {
 	private final DocumentFactory factory = new DocumentFactory().withIdentifier(new PathIdentifier());
 
 	@Test
-	public void testSave() throws Throwable {
-		final TikaDocument a = factory.create(Paths.get("/path/to/a"));
-		final TikaDocument b = factory.create(Paths.get("/path/to/b"));
+	public void testSave() {
+		final Path a = Paths.get("/path/to/a");
+		final Path b = Paths.get("/path/to/b");
 
 		final ReportMap reportMap = new HashMapReportMap();
 		final Reporter reporter = new Reporter(reportMap);

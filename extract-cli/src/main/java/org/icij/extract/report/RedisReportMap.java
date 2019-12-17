@@ -1,7 +1,6 @@
 package org.icij.extract.report;
 
 import org.icij.extract.document.DocumentFactory;
-import org.icij.extract.document.TikaDocument;
 import org.icij.extract.redis.*;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
@@ -20,6 +19,7 @@ import org.redisson.connection.ConnectionManager;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -33,7 +33,7 @@ import java.util.Collections;
 @Option(name = "charset", description = "Set the output encoding for text and document attributes. Defaults to UTF-8.",
 		parameter = "name")
 @OptionsClass(ConnectionManager.class)
-public class RedisReportMap extends RedissonMap<TikaDocument, Report> implements ReportMap {
+public class RedisReportMap extends RedissonMap<Path, Report> implements ReportMap {
 
 	/**
 	 * The default name for a report in Redis.
@@ -91,8 +91,8 @@ public class RedisReportMap extends RedissonMap<TikaDocument, Report> implements
 		private final Encoder resultEncoder = new ResultEncoder();
 
 		ReportCodec(final DocumentFactory factory, final Charset charset) {
-			this.documentDecoder = new DocumentDecoder(factory, charset);
-			this.documentEncoder = new DocumentEncoder(charset);
+			this.documentDecoder = new PathDecoder(charset);
+			this.documentEncoder = new PathEncoder(charset);
 		}
 
 		@Override

@@ -1,17 +1,14 @@
 package org.icij.extract.tasks;
 
-import org.icij.extract.document.TikaDocument;
 import org.icij.extract.report.ReportMap;
 import org.icij.extract.report.ReportMapFactory;
-
-import java.util.Iterator;
+import org.icij.task.MonitorableTask;
+import org.icij.task.annotation.OptionsClass;
+import org.icij.task.annotation.Task;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-
-import org.icij.task.annotation.OptionsClass;
-import org.icij.task.annotation.Task;
-import org.icij.task.MonitorableTask;
+import java.util.Iterator;
 
 /**
  * A command that removes nonexistent file paths from a report, returning the number of paths removed.
@@ -27,11 +24,11 @@ public class CleanReportTask extends MonitorableTask<Integer> {
 		int i = 0;
 
 		try (final ReportMap reportMap = new ReportMapFactory(options).createShared()) {
-			final Iterator<TikaDocument> iterator = reportMap.keySet().iterator();
+			final Iterator<Path> iterator = reportMap.keySet().iterator();
 
 			monitor.hintRemaining(reportMap.size());
 			while (iterator.hasNext()) {
-				Path path = iterator.next().getPath();
+				Path path = iterator.next();
 
 				if (Files.notExists(path)) {
 					iterator.remove();

@@ -1,22 +1,19 @@
 package org.icij.extract;
 
-import org.icij.extract.document.DocumentFactory;
-import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.queue.ArrayDocumentQueue;
 import org.icij.extract.queue.DocumentQueue;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Objects;
 
 import static java.nio.file.Paths.get;
+import static java.util.Arrays.asList;
 import static java.util.Arrays.stream;
-import static java.util.stream.Collectors.toList;
 import static org.fest.assertions.Assertions.assertThat;
 
 public class QueueFilterBuilderTest {
-    private final DocumentFactory factory = new DocumentFactory().withIdentifier(new PathIdentifier());
-
     @Test
     public void test_filter_zero_results() throws IOException {
         ExtractedStreamer streamer = createStreamer();
@@ -32,7 +29,7 @@ public class QueueFilterBuilderTest {
 
         assertThat(new QueueFilterBuilder().filter(tikaDocuments).with(streamer).execute()).isEqualTo(2);
 
-        assertThat(tikaDocuments.poll()).isEqualTo(factory.create(get("/foo/liz")));
+        assertThat(Objects.requireNonNull(tikaDocuments.poll()).toString()).isEqualTo("/foo/liz");
     }
 
     private ExtractedStreamer createStreamer(Path... pathList) {
@@ -41,7 +38,7 @@ public class QueueFilterBuilderTest {
 
     private DocumentQueue createDocumentQueue(Path... pathList) {
         ArrayDocumentQueue tikaDocuments = new ArrayDocumentQueue(pathList.length);
-        tikaDocuments.addAll(stream(pathList).map(factory::create).collect(toList()));
+        tikaDocuments.addAll(asList(pathList));
         return tikaDocuments;
     }
 }

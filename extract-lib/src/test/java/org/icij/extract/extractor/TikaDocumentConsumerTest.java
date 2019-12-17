@@ -1,6 +1,5 @@
 package org.icij.extract.extractor;
 
-import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.report.HashMapReportMap;
@@ -14,6 +13,7 @@ import org.junit.Test;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.net.URISyntaxException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
 
@@ -21,8 +21,8 @@ public class TikaDocumentConsumerTest {
 
 	private final DocumentFactory factory = new DocumentFactory().withIdentifier(new PathIdentifier());
 
-	private TikaDocument getFile() throws URISyntaxException {
-		return factory.create(Paths.get(getClass().getResource("/documents/text/plain.txt").toURI()));
+	private Path getFile() throws URISyntaxException {
+		return Paths.get(getClass().getResource("/documents/text/plain.txt").toURI());
 	}
 
 	@Test
@@ -33,7 +33,7 @@ public class TikaDocumentConsumerTest {
 		final PrintStream print = new PrintStream(output);
 		final Spewer spewer = new PrintStreamSpewer(print, new FieldNames());
 		final DocumentConsumer consumer = new DocumentConsumer(spewer, extractor, 1);
-		final TikaDocument tikaDocument = getFile();
+		final Path tikaDocument = getFile();
 
 		spewer.outputMetadata(false);
 		consumer.accept(tikaDocument);
@@ -48,7 +48,7 @@ public class TikaDocumentConsumerTest {
 		final Spewer spewer = new PrintStreamSpewer(new PrintStream(new ByteArrayOutputStream()), new FieldNames());
 		final DocumentConsumer consumer = new DocumentConsumer(spewer, new Extractor(), 1);
 		final Reporter reporter = new Reporter(new HashMapReportMap());
-		final TikaDocument tikaDocument = getFile();
+		final Path tikaDocument = getFile();
 
 		// Assert that no reporter is set by default.
 		Assert.assertNull(consumer.getReporter());

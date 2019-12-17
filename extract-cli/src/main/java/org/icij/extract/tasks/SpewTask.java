@@ -24,7 +24,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.management.ManagementFactory;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -103,7 +102,7 @@ public class SpewTask extends DefaultTask<Long> {
 		final Long drained;
 
 		if (null != paths && paths.length > 0) {
-			final Scanner scanner = new Scanner(factory, queue, new BooleanSealableLatch(), null).configure(options);
+			final Scanner scanner = new Scanner(queue, new BooleanSealableLatch(), null).configure(options);
 			final List<Future<Long>> scanning = scanner.scan(paths);
 
 			// Set the latch that will be waited on for polling, then start draining in the background.

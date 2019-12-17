@@ -1,18 +1,16 @@
 package org.icij.extract.json;
 
-import org.icij.extract.document.DocumentFactory;
-import org.icij.extract.report.Report;
-import org.icij.extract.report.ReportMap;
-import org.icij.extract.extractor.ExtractionStatus;
-
-import java.io.IOException;
-
-import java.nio.file.Paths;
-
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import org.icij.extract.document.DocumentFactory;
+import org.icij.extract.extractor.ExtractionStatus;
+import org.icij.extract.report.Report;
+import org.icij.extract.report.ReportMap;
+
+import java.io.IOException;
+import java.nio.file.Paths;
 
 /**
  * Deserializes a {@link ReportMap} from JSON.
@@ -35,7 +33,7 @@ public class ReportDeserializer extends JsonDeserializer<ReportMap> {
 
 		jsonParser.nextToken(); // Skip over the start of the object.
 		while (jsonParser.nextToken() != JsonToken.END_OBJECT && jsonParser.nextValue() != null) {
-			reportMap.put(factory.create(Paths.get(jsonParser.getCurrentName())),
+			reportMap.put(Paths.get(jsonParser.getCurrentName()),
 					new Report(ExtractionStatus.parse(jsonParser.getValueAsInt())));
 		}
 

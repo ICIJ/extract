@@ -11,10 +11,11 @@ import org.icij.task.annotation.OptionsClass;
 import javax.sql.DataSource;
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.file.Path;
 
 @Option(name = "queueTable", description = "The queue table Defaults to \"document_queue\".", parameter = "name")
 @OptionsClass(SQLDocumentQueueCodec.class)
-public class MySQLDocumentQueue extends MySQLBlockingQueue<TikaDocument> implements DocumentQueue {
+public class MySQLDocumentQueue extends MySQLBlockingQueue<Path> implements DocumentQueue {
 
 	public MySQLDocumentQueue(final DataSource dataSource, final DocumentFactory factory,
 	                          final Options<String> options) {
@@ -22,7 +23,7 @@ public class MySQLDocumentQueue extends MySQLBlockingQueue<TikaDocument> impleme
 				options.get("queueTable").value().orElse("documents"));
 	}
 
-	public MySQLDocumentQueue(final DataSource dataSource, final SQLQueueCodec<TikaDocument> codec, final String table) {
+	public MySQLDocumentQueue(final DataSource dataSource, final SQLQueueCodec<Path> codec, final String table) {
 		super(dataSource, codec, table);
 	}
 

@@ -3,8 +3,6 @@ package org.icij.extract;
 import org.icij.concurrent.ExecutorProxy;
 import org.icij.concurrent.SealableLatch;
 import org.icij.event.Notifiable;
-import org.icij.extract.document.DocumentFactory;
-import org.icij.extract.document.TikaDocument;
 import org.icij.extract.io.file.DosHiddenFileMatcher;
 import org.icij.extract.io.file.PosixHiddenFileMatcher;
 import org.icij.extract.io.file.SystemFileMatcher;
@@ -68,12 +66,11 @@ import static org.icij.extract.ScannerVisitor.MAX_DEPTH;
 public class Scanner extends ExecutorProxy {
     private static final Logger logger = LoggerFactory.getLogger(Scanner.class);
 
-    protected final BlockingQueue<TikaDocument> queue;
+    protected final BlockingQueue<Path> queue;
 
 	private final ArrayDeque<String> includeGlobs = new ArrayDeque<>();
 	private final ArrayDeque<String> excludeGlobs = new ArrayDeque<>();
 
-	private final DocumentFactory factory;
 	private final SealableLatch latch;
 	private final Notifiable notifiable;
 
@@ -83,26 +80,24 @@ public class Scanner extends ExecutorProxy {
 	private boolean ignoreSystemFiles = true;
 	private Options<String> options = new Options<>();
 
-	public Scanner(final DocumentFactory factory, final BlockingQueue<TikaDocument> queue) {
-		this(factory, queue, null, null);
+	public Scanner(final BlockingQueue<Path> queue) {
+		this(queue, null, null);
 	}
 
-	public Scanner(final DocumentFactory factory, final BlockingQueue<TikaDocument> queue, final SealableLatch latch) {
-		this(factory, queue, latch, null);
+	public Scanner(final BlockingQueue<Path> queue, final SealableLatch latch) {
+		this(queue, latch, null);
 	}
 
 	/**
 	 * Creates a {@code Scanner} that sends all results straight to the underlying {@link BlockingQueue} on a
 	 * single thread.
-	 *
-	 * @param queue results from the scanner will be put on this queue
+	 *  @param queue results from the scanner will be put on this queue
 	 * @param latch signalled when a document is queued
 	 * @param notifiable receives notifications when new file documents are queued
 	 */
-	public Scanner(final DocumentFactory factory, final BlockingQueue<TikaDocument> queue, final SealableLatch latch, final
+	public Scanner(final BlockingQueue<Path> queue, final SealableLatch latch, final
 	Notifiable notifiable) {
 		super(Executors.newSingleThreadExecutor());
-		this.factory = factory;
 		this.queue = queue;
 		this.notifiable = notifiable;
 		this.latch = latch;
@@ -248,7 +243,7 @@ public class Scanner extends ExecutorProxy {
 	}
 
 	public ScannerVisitor createScannerVisitor(Path path) {
-		final ScannerVisitor visitor = new ScannerVisitor(path, queue, factory, options).
+		final ScannerVisitor visitor = new ScannerVisitor(path, queue, options).
 				withMonitor(notifiable).withLatch(latch);
 		configureScannerVisitor(path, visitor);
 		return visitor;
@@ -306,7 +301,7 @@ public class Scanner extends ExecutorProxy {
 	}
 
 	public long getNumberOfFiles(final Path path) throws IOException {
-		CountingVisitor scannerVisitor = new CountingVisitor(path, null, null, options);
+		CountingVisitor scannerVisitor = new CountingVisitor(path, null, options);
 		this.configureScannerVisitor(path, scannerVisitor);
 		Files.walkFileTree(path, scannerVisitor);
 		return scannerVisitor.nbFiles.get();
@@ -314,8 +309,8 @@ public class Scanner extends ExecutorProxy {
 
 	static class CountingVisitor extends ScannerVisitor {
 		final AtomicLong nbFiles = new AtomicLong(0);
-		public CountingVisitor(Path path, BlockingQueue<TikaDocument> queue, DocumentFactory factory, Options<String> options) {
-			super(path, queue, factory, options);
+		public CountingVisitor(Path path, BlockingQueue<Path> queue, Options<String> options) {
+			super(path, queue, options);
 		}
 		@Override void queue(Path file, BasicFileAttributes attributes) {nbFiles.incrementAndGet();}
 	}

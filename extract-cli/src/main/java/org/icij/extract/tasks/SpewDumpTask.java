@@ -45,7 +45,7 @@ public class SpewDumpTask extends DefaultTask<Void> {
 
 				for (TikaDocument tikaDocument : tikaDocuments) {
 					logger.info(String.format("Spewed \"%s\".", tikaDocument.getPath()));
-					reporter.save(tikaDocument, ExtractionStatus.SUCCESS);
+					reporter.save(tikaDocument.getPath(), ExtractionStatus.SUCCESS);
 				}
 			}
 		}

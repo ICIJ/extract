@@ -2,31 +2,27 @@ package org.icij.extract.queue;
 
 import org.icij.concurrent.BooleanSealableLatch;
 import org.icij.concurrent.SealableLatch;
-import org.icij.extract.document.TikaDocument;
-import org.icij.extract.document.DocumentFactory;
-import org.icij.extract.document.PathIdentifier;
 import org.icij.time.HumanDuration;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.Consumer;
 
 public class TikaDocumentQueueDrainerTest {
 
-	private final DocumentFactory factory = new DocumentFactory().withIdentifier(new PathIdentifier());
+	private static class MockConsumer implements Consumer<Path> {
 
-	private static class MockConsumer implements Consumer<TikaDocument> {
-
-		private final Deque<TikaDocument> accepted = new ArrayDeque<>();
+		private final Deque<Path> accepted = new ArrayDeque<>();
 
 		@Override
-		public void accept(final TikaDocument tikaDocument) {
-			accepted.add(tikaDocument);
+		public void accept(final Path path) {
+			accepted.add(path);
 		}
 
-		Deque<TikaDocument> getAccepted() {
+		Deque<Path> getAccepted() {
 			return accepted;
 		}
 	}
@@ -35,7 +31,7 @@ public class TikaDocumentQueueDrainerTest {
 		final DocumentQueue queue = new ArrayDocumentQueue(26);
 
 		for (char a = 'a'; a <= 'z'; a++) {
-			queue.add(factory.create(Paths.get(Character.toString(a))));
+			queue.add(Paths.get(Character.toString(a)));
 		}
 
 		return queue;
@@ -44,7 +40,7 @@ public class TikaDocumentQueueDrainerTest {
 	@Test
 	public void testDefaultPollTimeoutIs0() {
 		final DocumentQueue queue = createQueue();
-		final Consumer<TikaDocument> consumer = new MockConsumer();
+		final Consumer<Path> consumer = new MockConsumer();
 		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer);
 
 		Assert.assertEquals(0, drainer.getPollTimeout().getSeconds());
@@ -57,7 +53,7 @@ public class TikaDocumentQueueDrainerTest {
 		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer);
 
 		final long drained = drainer.drain().get();
-		final Queue<TikaDocument> accepted = consumer.getAccepted();
+		final Queue<Path> accepted = consumer.getAccepted();
 
 		Assert.assertEquals(26, drained);
 		Assert.assertEquals(26, accepted.size());
@@ -73,10 +69,10 @@ public class TikaDocumentQueueDrainerTest {
 		final DocumentQueue queue = createQueue();
 		final MockConsumer consumer = new MockConsumer();
 		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer);
-		final TikaDocument poison = factory.create(Paths.get("c"));
+		final Path poison = Paths.get("c");
 
 		final long drained = drainer.drain(poison).get();
-		final Queue<TikaDocument> accepted = consumer.getAccepted();
+		final Queue<Path> accepted = consumer.getAccepted();
 
 		Assert.assertEquals(2, drained);
 		Assert.assertEquals(2, accepted.size());
@@ -90,7 +86,7 @@ public class TikaDocumentQueueDrainerTest {
 		final DocumentQueue queue = createQueue();
 		final MockConsumer consumer = new MockConsumer();
 		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer);
-		final TikaDocument poison = factory.create(Paths.get("1"));
+		final Path poison = Paths.get("1");
 
 		drainer.clearPollTimeout();
 		Assert.assertNull(drainer.getPollTimeout());
@@ -100,13 +96,13 @@ public class TikaDocumentQueueDrainerTest {
 
 			@Override
 			public void run() {
-				queue.add(factory.create(Paths.get("0")));
+				queue.add(Paths.get("0"));
 				queue.add(poison);
 			}
 		}, 1000);
 
 		final long drained = drainer.drain(poison).get();
-		final Deque<TikaDocument> accepted = consumer.getAccepted();
+		final Deque<Path> accepted = consumer.getAccepted();
 
 		Assert.assertEquals(27, drained);
 		Assert.assertEquals(27, accepted.size());
@@ -128,12 +124,12 @@ public class TikaDocumentQueueDrainerTest {
 
 			@Override
 			public void run() {
-				queue.add(factory.create(Paths.get("0")));
+				queue.add(Paths.get("0"));
 			}
 		}, 1000);
 
 		final long drained = drainer.drain().get();
-		final Deque<TikaDocument> accepted = consumer.getAccepted();
+		final Deque<Path> accepted = consumer.getAccepted();
 
 		Assert.assertEquals(27, drained);
 		Assert.assertEquals(27, accepted.size());
@@ -157,9 +153,9 @@ public class TikaDocumentQueueDrainerTest {
 			@Override
 			public void run() {
 				try {
-					queue.put(factory.create(Paths.get("0")));
+					queue.put(Paths.get("0"));
 					latch.signal();
-					queue.put(factory.create(Paths.get("1")));
+					queue.put(Paths.get("1"));
 					Thread.sleep(1000);
 				} catch (InterruptedException e) {
 					Assert.fail(e.getMessage());
@@ -171,7 +167,7 @@ public class TikaDocumentQueueDrainerTest {
 		}, 1000);
 
 		final long drained = drainer.drain().get();
-		final Deque<TikaDocument> accepted = consumer.getAccepted();
+		final Deque<Path> accepted = consumer.getAccepted();
 
 		Assert.assertEquals(28, drained);
 		Assert.assertEquals(28, accepted.size());
