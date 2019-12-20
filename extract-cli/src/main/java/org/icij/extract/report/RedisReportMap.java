@@ -62,7 +62,7 @@ public class RedisReportMap extends RedissonMap<Path, Report> implements ReportM
 	private RedisReportMap(final DocumentFactory factory, final RedissonClient redissonClient, final String name,
 						   final Charset charset) {
 		super(new ReportCodec(factory, charset), new CommandSyncService(ConfigSupport.createConnectionManager(new Config(redissonClient.getConfig()))),
-				null == name ? DEFAULT_NAME : name, redissonClient, null);
+				null == name ? DEFAULT_NAME : name, redissonClient, null, null);
 		this.redissonClient = redissonClient;
 	}
 
