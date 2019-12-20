@@ -66,7 +66,11 @@ public class RedissonClientFactory {
 		// TODO: Create a hash of config options so that only one manager is used per unique server. This should
 		// improve contention.
 		Config config = new Config();
-		config.useSingleServer().setAddress(address).setTimeout(timeout);
+		config.useSingleServer().
+				setConnectionPoolSize(1).
+				setConnectionMinimumIdleSize(1).
+				setAddress(address).
+				setTimeout(timeout);
         return Redisson.create(config);
 	}
 }

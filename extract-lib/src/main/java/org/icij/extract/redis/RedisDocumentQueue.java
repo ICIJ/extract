@@ -89,6 +89,11 @@ public class RedisDocumentQueue extends RedissonBlockingQueue<Path> implements D
 		redissonClient.shutdown();
 	}
 
+	@Override
+	public String toString() {
+		return "RedisDocumentQueue{name=" + getName() + '}';
+	}
+
 	/**
 	 * Codec for a queue of paths to documents.
 	 */
