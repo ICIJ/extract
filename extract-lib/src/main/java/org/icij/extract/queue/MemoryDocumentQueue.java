@@ -35,9 +35,7 @@ public class MemoryDocumentQueue extends ArrayBlockingQueue<Path> implements Doc
 	}
 
 	@Override
-	public void close() {
-		clear();
-	}
+	public void close() {}
 
 	@Override
 	public String getName() {
