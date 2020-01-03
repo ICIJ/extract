@@ -28,7 +28,7 @@ public class TikaDocumentQueueDrainerTest {
 	}
 
 	private DocumentQueue createQueue() {
-		final DocumentQueue queue = new MemoryDocumentQueue(26);
+		final DocumentQueue queue = new MemoryDocumentQueue("extract:queue", 26);
 
 		for (char a = 'a'; a <= 'z'; a++) {
 			queue.add(Paths.get(Character.toString(a)));

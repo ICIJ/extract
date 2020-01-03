@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.assertEquals;
 
 public class ScannerTest {
-	private final DocumentQueue queue = new MemoryDocumentQueue(100);
+	private final DocumentQueue queue = new MemoryDocumentQueue("extract:queue", 100);
 	private Scanner scanner = new Scanner(queue);
 
 	@Test

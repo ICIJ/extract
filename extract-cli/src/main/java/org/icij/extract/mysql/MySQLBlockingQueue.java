@@ -12,8 +12,8 @@ import java.util.Set;
 
 public class MySQLBlockingQueue<E> extends SQLBlockingQueue<E> {
 
-	private final String table;
-	private final SQLQueueCodec<E> codec;
+	protected final String table;
+	protected final SQLQueueCodec<E> codec;
 
 	public MySQLBlockingQueue(final DataSource dataSource, final SQLQueueCodec<E> codec, final String table) {
 		super(dataSource, codec, new MySQLLock(dataSource, table));

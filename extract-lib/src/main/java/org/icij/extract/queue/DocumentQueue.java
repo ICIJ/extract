@@ -13,6 +13,8 @@ import java.util.concurrent.BlockingQueue;
  * @since 2.0.0
  */
 public interface DocumentQueue extends BlockingQueue<Path>, AutoCloseable {
+    String getName();
+
     default boolean remove(Object o, int count) {
         boolean removed = false;
         if (count == 0) {

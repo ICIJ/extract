@@ -4,4 +4,5 @@ import java.nio.file.Path;
 import java.util.Set;
 
 public interface DocumentSet extends Set<Path>, AutoCloseable {
+    String getName();
 }

@@ -1,7 +1,6 @@
 package org.icij.extract.queue;
 
 import org.icij.extract.document.DocumentFactory;
-import org.icij.extract.document.TikaDocument;
 import org.icij.extract.mysql.MySQLBlockingQueue;
 import org.icij.extract.mysql.SQLQueueCodec;
 import org.icij.task.Options;
@@ -32,5 +31,10 @@ public class MySQLDocumentQueue extends MySQLBlockingQueue<Path> implements Docu
 		if (source instanceof Closeable) {
 			((Closeable) source).close();
 		}
+	}
+
+	@Override
+	public String getName() {
+		return table;
 	}
 }
