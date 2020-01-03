@@ -1,7 +1,7 @@
 package org.icij.extract;
 
 import org.icij.concurrent.BooleanSealableLatch;
-import org.icij.extract.queue.ArrayDocumentQueue;
+import org.icij.extract.queue.MemoryDocumentQueue;
 import org.icij.extract.queue.DocumentQueue;
 import org.junit.After;
 import org.junit.Assert;
@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.assertEquals;
 
 public class ScannerTest {
-	private final DocumentQueue queue = new ArrayDocumentQueue(100);
+	private final DocumentQueue queue = new MemoryDocumentQueue(100);
 	private Scanner scanner = new Scanner(queue);
 
 	@Test
