@@ -13,11 +13,11 @@ import java.util.concurrent.ArrayBlockingQueue;
  */
 @Option(name = "queueBuffer", description = "The size of the internal file path buffer used by the queue.",
 		parameter = "size")
-public class ArrayDocumentQueue extends ArrayBlockingQueue<Path> implements DocumentQueue {
+public class MemoryDocumentQueue extends ArrayBlockingQueue<Path> implements DocumentQueue {
 
 	private static final long serialVersionUID = -7491630465350342533L;
 
-	ArrayDocumentQueue(final Options<String> options) {
+	MemoryDocumentQueue(final Options<String> options) {
 		this(options.get("queueBuffer").parse().asInteger().orElse(1024));
 	}
 
@@ -26,7 +26,7 @@ public class ArrayDocumentQueue extends ArrayBlockingQueue<Path> implements Docu
 	 *
 	 * @param capacity the capacity of the queue
 	 */
-	public ArrayDocumentQueue(final int capacity) {
+	public MemoryDocumentQueue(final int capacity) {
 		super(capacity);
 	}
 

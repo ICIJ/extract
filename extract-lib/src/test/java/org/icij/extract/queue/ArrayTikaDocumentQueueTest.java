@@ -12,7 +12,7 @@ import static org.fest.assertions.Assertions.assertThat;
 public class ArrayTikaDocumentQueueTest {
     @Test
     public void testCloseClearsTheQueue() {
-        final DocumentQueue queue = new ArrayDocumentQueue(1);
+        final DocumentQueue queue = new MemoryDocumentQueue(1);
 
         Assert.assertEquals(0, queue.size());
         queue.add(get("essay.txt"));
@@ -56,7 +56,7 @@ public class ArrayTikaDocumentQueueTest {
     }
 
     private DocumentQueue createQueue(Path... paths) {
-        final DocumentQueue queue = new ArrayDocumentQueue(4);
+        final DocumentQueue queue = new MemoryDocumentQueue(4);
         queue.addAll(asList(paths));
         return queue;
     }

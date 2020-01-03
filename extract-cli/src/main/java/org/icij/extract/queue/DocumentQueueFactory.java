@@ -18,7 +18,7 @@ import org.icij.task.annotation.OptionsClass;
 		parameter = "type",	code = "q")
 @OptionsClass(DocumentFactory.class)
 @OptionsClass(DataSourceFactory.class)
-@OptionsClass(ArrayDocumentQueue.class)
+@OptionsClass(MemoryDocumentQueue.class)
 @OptionsClass(RedisDocumentQueue.class)
 @OptionsClass(MySQLDocumentQueue.class)
 public class DocumentQueueFactory {
@@ -72,7 +72,7 @@ public class DocumentQueueFactory {
 	 */
 	public DocumentQueue create() throws IllegalArgumentException {
 		if (DocumentQueueType.ARRAY == type) {
-			return new ArrayDocumentQueue(options);
+			return new MemoryDocumentQueue(options);
 		}
 
 		return createShared();
