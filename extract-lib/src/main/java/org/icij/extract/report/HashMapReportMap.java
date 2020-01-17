@@ -25,7 +25,5 @@ public class HashMapReportMap extends ConcurrentHashMap<Path, Report> implements
 	}
 
 	@Override
-	public void close() {
-		super.clear();
-	}
+	public void close() {}
 }
