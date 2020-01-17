@@ -4,6 +4,7 @@ import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
 
 import org.icij.extract.mysql.DataSourceFactory;
+import org.icij.extract.redis.RedisReportMap;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
@@ -87,7 +88,7 @@ public class ReportMapFactory {
 		}
 
 		if (ReportMapType.REDIS == type) {
-			return new RedisReportMap(documentFactory, options);
+			return new RedisReportMap(options);
 		}
 
 		if (ReportMapType.MYSQL == type) {
