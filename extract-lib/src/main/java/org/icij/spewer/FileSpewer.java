@@ -60,8 +60,50 @@ public class FileSpewer extends Spewer implements Serializable {
 		this.outputDirectory = outputDirectory;
 	}
 
+	private void writeMetadata(final TikaDocument tikaDocument) throws IOException {
+		final Metadata metadata = tikaDocument.getMetadata();
+		Path outputPath = getOutputPath(tikaDocument);
+		outputPath = outputPath.getFileSystem().getPath(outputPath.toString() + ".json");
+
+		logger.info(String.format("Outputting metadata to file: \"%s\".", outputPath));
+
+		try (final JsonGenerator jsonGenerator = new JsonFactory().createGenerator(outputPath.toFile(), JsonEncoding.UTF8)) {
+			jsonGenerator.useDefaultPrettyPrinter();
+			jsonGenerator.writeStartObject();
+
+			new MetadataTransformer(metadata, fields).transform(jsonGenerator::writeStringField, (name, values)-> {
+				jsonGenerator.writeArrayFieldStart(name);
+				for (String value: values) {
+					jsonGenerator.writeString(value);
+				}
+				jsonGenerator.writeEndArray();
+			});
+
+			jsonGenerator.writeEndObject();
+			jsonGenerator.writeRaw('\n');
+		} catch (IOException e) {
+			throw new TaggedIOException(e, this);
+		}
+	}
+
+	private Path getOutputPath(final TikaDocument tikaDocument) {
+		final Path path = tikaDocument.getPath();
+
+		// Join the file path to the output directory path to parse the output path.
+		// If the file path is absolute, the leading slash must be removed.
+		if (null != outputDirectory) {
+			if (path.isAbsolute()) {
+				return outputDirectory.resolve(path.toString().substring(1));
+			}
+
+			return outputDirectory.resolve(path);
+		}
+
+		return path;
+	}
+
 	@Override
-	public void write(final TikaDocument tikaDocument) throws IOException {
+	protected void writeDocument(TikaDocument tikaDocument, TikaDocument parent, TikaDocument root, int level) throws IOException {
 		final Path outputPath = getOutputPath(tikaDocument);
 
 		// Add the output extension.
@@ -107,52 +149,6 @@ public class FileSpewer extends Spewer implements Serializable {
 		}
 	}
 
-	private void writeMetadata(final TikaDocument tikaDocument) throws IOException {
-		final Metadata metadata = tikaDocument.getMetadata();
-		Path outputPath = getOutputPath(tikaDocument);
-		outputPath = outputPath.getFileSystem().getPath(outputPath.toString() + ".json");
-
-		logger.info(String.format("Outputting metadata to file: \"%s\".", outputPath));
-
-		try (final JsonGenerator jsonGenerator = new JsonFactory().createGenerator(outputPath.toFile(),
-				JsonEncoding.UTF8)) {
-			jsonGenerator.useDefaultPrettyPrinter();
-			jsonGenerator.writeStartObject();
-
-			new MetadataTransformer(metadata, fields).transform(jsonGenerator::writeStringField, (name, values)-> {
-				jsonGenerator.writeArrayFieldStart(name);
-				jsonGenerator.writeStartArray();
-
-				for (String value: values) {
-					jsonGenerator.writeString(value);
-				}
-			});
-
-			jsonGenerator.writeEndObject();
-			jsonGenerator.writeRaw('\n');
-		} catch (IOException e) {
-			throw new TaggedIOException(new IOException("Unable to output JSON."), this);
-		}
-	}
-
-	private Path getOutputPath(final TikaDocument tikaDocument) {
-		final Path path = tikaDocument.getPath();
-
-		// Join the file path to the output directory path to parse the output path.
-		// If the file path is absolute, the leading slash must be removed.
-		if (null != outputDirectory) {
-			if (path.isAbsolute()) {
-				return outputDirectory.resolve(path.toString().substring(1));
-			}
-
-			return outputDirectory.resolve(path);
-		}
-
-		return path;
-	}
-
 	@Override
-	protected void writeDocument(TikaDocument doc, TikaDocument parent, TikaDocument root, int level) {
-		throw new UnsupportedOperationException("Not implemented.");
-	}
+	public void close() {}
 }
