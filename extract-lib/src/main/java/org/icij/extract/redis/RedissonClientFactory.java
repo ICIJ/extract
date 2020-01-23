@@ -13,11 +13,14 @@ import org.redisson.config.Config;
  */
 @Option(name = "redisAddress", description = "Set the Redis backend address. Defaults to 127.0.0.1:6379.", parameter
 		= "address")
+@Option(name = "redisPoolSize", description = "Set the Redis backend pool size per collection.", parameter
+		= "poolSize")
 @Option(name = "redisTimeout", description = "The client timeout for Redis operations.", parameter = "timeout")
 public class RedissonClientFactory {
 
 	private String address = null;
 	private int timeout = -1;
+	private int poolSize = 1;
 
 	/**
 	 * Create a new connection manager by query the given set of options.
@@ -28,6 +31,17 @@ public class RedissonClientFactory {
 	public RedissonClientFactory withOptions(final Options<String> options) {
 		withAddress(options.valueIfPresent("redisAddress").orElse(null));
 		options.ifPresent("redisTimeout", o -> o.parse().asInteger()).ifPresent(this::withTimeout);
+		options.ifPresent("redisPoolSize", o -> o.parse().asInteger()).ifPresent(this::withPoolSize);
+		return this;
+	}
+
+	/**
+	 * Sets the size of the pool for this client
+	 * @param poolSize
+	 * @return chainable factory
+	 */
+	private RedissonClientFactory withPoolSize(final int poolSize) {
+		this.poolSize = poolSize;
 		return this;
 	}
 
@@ -67,7 +81,7 @@ public class RedissonClientFactory {
 		// improve contention.
 		Config config = new Config();
 		config.useSingleServer().
-				setConnectionPoolSize(1).
+				setConnectionPoolSize(poolSize).
 				setConnectionMinimumIdleSize(1).
 				setAddress(address).
 				setTimeout(timeout);

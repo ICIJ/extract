@@ -7,6 +7,7 @@ import org.junit.Test;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 
 import static org.fest.assertions.Assertions.assertThat;
 
@@ -32,6 +33,16 @@ public class RedisReportMapTest {
         assertThat(reportMap.get(key).getStatus()).isEqualTo(ExtractionStatus.FAILURE_NOT_PARSED);
         assertThat(reportMap.get(key).getException().get().getClass()).isEqualTo(RuntimeException.class);
         assertThat(reportMap.get(key).getException().get().getMessage()).isEqualTo("an error occurred");
+    }
+
+    @Test
+    public void test_insert_override_previous_value() {
+        Path key = Paths.get("/my/path");
+
+        assertThat(reportMap.fastPut(key, new Report(ExtractionStatus.FAILURE_NOT_PARSED, new RuntimeException("an error occurred")))).isTrue();
+        reportMap.putAll(new HashMap<Path, Report>() {{put(key, new Report(ExtractionStatus.SUCCESS));}});
+
+        assertThat(reportMap.get(key).getStatus()).isEqualTo(ExtractionStatus.SUCCESS);
     }
 
     @After
