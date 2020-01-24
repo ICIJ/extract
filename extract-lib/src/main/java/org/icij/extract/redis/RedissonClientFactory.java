@@ -82,7 +82,7 @@ public class RedissonClientFactory {
 		Config config = new Config();
 		config.useSingleServer().
 				setConnectionPoolSize(poolSize).
-				setConnectionMinimumIdleSize(1).
+				setConnectionMinimumIdleSize(poolSize).
 				setAddress(address).
 				setTimeout(timeout);
         return Redisson.create(config);
