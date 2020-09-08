@@ -2,7 +2,6 @@ package org.icij.spewer;
 
 import org.apache.commons.io.TaggedIOException;
 import org.apache.tika.metadata.Metadata;
-import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
 import org.icij.extract.parser.ParsingReader;
 
@@ -25,6 +24,24 @@ public class PrintStreamSpewer extends Spewer implements Serializable {
 		this.stream = stream;
 	}
 
+	@Override
+	protected void writeDocument(TikaDocument tikaDocument, TikaDocument parent, TikaDocument root, int level) throws IOException {
+		if (outputMetadata) {
+			writeMetadata(tikaDocument);
+		}
+
+		// A PrintStream should never throw an IOException: the exception would always come from the input stream.
+		// There's no need to use a TaggedOutputStream or catch IOExceptions.
+		copy(tikaDocument.getReader(), stream);
+
+		// Add an extra newline to signify the end of the text.
+		stream.println();
+
+		if (stream.checkError()) {
+			throw new TaggedIOException(new IOException("Error writing to print stream."), this);
+		}
+	}
+
 	private void writeMetadata(final TikaDocument tikaDocument) throws IOException {
 		final Metadata metadata = tikaDocument.getMetadata();
 
@@ -43,28 +60,5 @@ public class PrintStreamSpewer extends Spewer implements Serializable {
 
 		// Add an extra newline to signify the end of the metadata.
 		stream.println();
-	}
-
-	@Override
-	protected void writeDocument(TikaDocument tikaDocument, TikaDocument parent, TikaDocument root, int level) throws IOException {
-		if (outputMetadata) {
-			writeMetadata(tikaDocument);
-		}
-
-		// A PrintStream should never throw an IOException: the exception would always come from the input stream.
-		// There's no need to use a TaggedOutputStream or catch IOExceptions.
-		copy(tikaDocument.getReader(), stream);
-
-		// Add an extra newline to signify the end of the text.
-		stream.println();
-
-		if (stream.checkError()) {
-			throw new TaggedIOException(new IOException("Error writing to print stream."), this);
-		}
-
-		// Write out child documents, if any.
-		for (EmbeddedTikaDocument embed: tikaDocument.getEmbeds()) {
-			write(embed);
-		}
 	}
 }
