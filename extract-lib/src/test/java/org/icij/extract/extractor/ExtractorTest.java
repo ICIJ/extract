@@ -21,12 +21,13 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 
 public class ExtractorTest {
-	@Rule
-	public final ExpectedException thrown = ExpectedException.none();
+	@Rule public final ExpectedException thrown = ExpectedException.none();
+	private Extractor extractor;
+
+	@Before public void setUp() { extractor = new Extractor();}
 
 	@Test
 	public void testOcr() throws Throwable {
-		final Extractor extractor = new Extractor();
 		String text;
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
 		try (Reader reader = tikaDocument.getReader()) {
@@ -39,7 +40,6 @@ public class ExtractorTest {
 
 	@Test
 	public void testDisableOcr() throws Throwable {
-		final Extractor extractor = new Extractor();
 		extractor.disableOcr();
 
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
@@ -52,7 +52,6 @@ public class ExtractorTest {
 
 	@Test
 	public void testRtfFile() throws Throwable {
-		final Extractor extractor = new Extractor();
 		String text;
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/text/doc.rtf").getPath()));
 		try (Reader reader = tikaDocument.getReader()) {
@@ -65,8 +64,6 @@ public class ExtractorTest {
 
 	@Test
 	public void testFileNotFound() throws Throwable {
-		final Extractor extractor = new Extractor();
-
 		thrown.expect(NoSuchFileException.class);
 		thrown.expectMessage("nothing");
 
@@ -75,9 +72,6 @@ public class ExtractorTest {
 
 	@Test
 	public void testEncryptedPdf() throws Throwable {
-		final Extractor extractor = new Extractor();
-
-
 		thrown.expect(IOException.class);
 		thrown.expectMessage("");
 		thrown.expectCause(new CauseMatcher(EncryptedDocumentException.class, "Unable to process: document is encrypted"));
@@ -97,8 +91,6 @@ public class ExtractorTest {
 
 	@Test
 	public void testGarbage() throws Throwable {
-		final Extractor extractor = new Extractor();
-
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/garbage.bin").getPath()));
 
 
@@ -138,8 +130,6 @@ public class ExtractorTest {
 
 	@Test
 	public void testEmbeds() throws Throwable {
-		final Extractor extractor = new Extractor();
-
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
 		String text;
 
@@ -153,8 +143,6 @@ public class ExtractorTest {
 
 	@Test
 	public void testIgnoreEmbeds() throws Throwable {
-		final Extractor extractor = new Extractor();
-
 		extractor.setEmbedHandling(Extractor.EmbedHandling.IGNORE);
 		Assert.assertEquals(extractor.getEmbedHandling(), Extractor.EmbedHandling.IGNORE);
 
@@ -172,7 +160,6 @@ public class ExtractorTest {
 
 	@Test
 	public void testDisableOcrOnEmbed() throws Throwable {
-		final Extractor extractor = new Extractor();
 		extractor.disableOcr();
 
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
@@ -189,7 +176,6 @@ public class ExtractorTest {
 
 	@Test
 	public void testHtmlOutput() throws Throwable {
-		final Extractor extractor = new Extractor();
 		extractor.setOutputFormat(Extractor.OutputFormat.HTML);
 
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/text/utf16.txt").getPath()));
@@ -205,8 +191,6 @@ public class ExtractorTest {
 
 	@Test
 	public void testHtmlOutputWithEmbeddedEmbeds() throws Throwable {
-		final Extractor extractor = new Extractor();
-
 		extractor.setOutputFormat(Extractor.OutputFormat.HTML);
 		Assert.assertEquals(extractor.getOutputFormat(), Extractor.OutputFormat.HTML);
 
