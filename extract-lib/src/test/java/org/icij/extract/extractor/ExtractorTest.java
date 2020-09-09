@@ -20,7 +20,6 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.util.HashMap;
 
-@FixMethodOrder
 public class ExtractorTest {
 	@Rule
 	public final ExpectedException thrown = ExpectedException.none();
@@ -189,7 +188,6 @@ public class ExtractorTest {
 	}
 
 	@Test
-	@Ignore
 	public void testHtmlOutput() throws Throwable {
 		final Extractor extractor = new Extractor();
 		extractor.setOutputFormat(Extractor.OutputFormat.HTML);
@@ -206,25 +204,6 @@ public class ExtractorTest {
 	}
 
 	@Test
-	@Ignore
-	public void testHtmlOutputWithEmbeds() throws Throwable {
-		final Extractor extractor = new Extractor();
-		extractor.setOutputFormat(Extractor.OutputFormat.HTML);
-
-		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
-
-		String text;
-
-		try (final Reader reader = tikaDocument.getReader()) {
-			text = Spewer.toString(reader);
-		}
-
-		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
-		Assert.assertEquals(getExpected("/expected/embedded-pdf.html"), text);
-	}
-
-	@Test
-	@Ignore
 	public void testHtmlOutputWithEmbeddedEmbeds() throws Throwable {
 		final Extractor extractor = new Extractor();
 
