@@ -60,8 +60,7 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 		}
 	}
 
-	void delegateParsing(final InputStream input, final ContentHandler handler, final Metadata metadata)
-			throws IOException, SAXException {
+	void delegateParsing(final InputStream input, final ContentHandler handler, final Metadata metadata) throws IOException, SAXException {
 		try (final TikaInputStream tis = TikaInputStream.get(new CloseShieldInputStream(input))) {
 			if (input instanceof TikaInputStream) {
 				final Object container = ((TikaInputStream) input).getOpenContainer();

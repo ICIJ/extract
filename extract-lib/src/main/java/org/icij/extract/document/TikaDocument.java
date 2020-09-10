@@ -202,7 +202,7 @@ public class TikaDocument {
 
 	@Override
 	public String toString() {
-		return path.toString();
+		return path.toString() + " - " + getMetadata("resourceName");
 	}
 
 	@FunctionalInterface
