@@ -5,20 +5,25 @@ import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.TikaDocument;
+import org.icij.spewer.FieldNames;
+import org.icij.spewer.PrintStreamSpewer;
 import org.icij.spewer.Spewer;
 import org.icij.task.Options;
 import org.icij.test.CauseMatcher;
 import org.icij.test.RegexMatcher;
-import org.junit.*;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.util.HashMap;
+
+import static org.fest.assertions.Assertions.assertThat;
 
 public class ExtractorTest {
 	@Rule public final ExpectedException thrown = ExpectedException.none();
@@ -197,13 +202,37 @@ public class ExtractorTest {
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
 
 		String text;
-
 		try (final Reader reader = tikaDocument.getReader()) {
 			text = Spewer.toString(reader);
 		}
 
 		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals(getExpected("/expected/embedded-data-uri-pdf.html"), text);
+	}
+	@Test
+	public void testRecursiveEmbedded() throws Exception {
+		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/recursive_embedded.docx").getPath()));
+
+		/* we have to use a spewer and not just extract and check the structure of the tikaDocument
+		 because the principle is to stream the embedded documents to avoid mounting all the documents in memory.
+		 That could be an issue for big documents like mailboxes, zips or tarballs.
+
+		 see https://cwiki.apache.org/confluence/display/tika/RecursiveMetadata#Jukka.27s_RecursiveMetadata_Parser
+		 "A downside to the wrapper is that it breaks the Tika goal of streaming output"
+
+		 so we just use a print stream spewer and check that all the tree has been parsed */
+		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+		new PrintStreamSpewer(new PrintStream(outputStream), new FieldNames()).write(tikaDocument);
+		String allContents = new String(outputStream.toByteArray());
+
+		assertThat(allContents).contains("embed_0");
+		assertThat(allContents).contains("embed_1a");
+		assertThat(allContents).contains("embed_1b");
+		assertThat(allContents).contains("embed_2a");
+		assertThat(allContents).contains("embed_2b");
+		assertThat(allContents).contains("embed_3");
+		assertThat(allContents).contains("dissolve the political bands");
+		assertThat(allContents).contains("embed_4");
 	}
 
 	private String getExpected(final String file) throws IOException {
