@@ -6,6 +6,7 @@ import org.apache.tika.metadata.Metadata;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.TikaDocument;
 import org.icij.spewer.FieldNames;
+import org.icij.spewer.FileSpewer;
 import org.icij.spewer.PrintStreamSpewer;
 import org.icij.spewer.Spewer;
 import org.icij.task.Options;
@@ -16,6 +17,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -27,6 +29,8 @@ import static org.fest.assertions.Assertions.assertThat;
 
 public class ExtractorTest {
 	@Rule public final ExpectedException thrown = ExpectedException.none();
+	@Rule public final TemporaryFolder folder = new TemporaryFolder();
+
 	private Extractor extractor;
 
 	@Before public void setUp() { extractor = new Extractor();}
@@ -209,6 +213,7 @@ public class ExtractorTest {
 		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals(getExpected("/expected/embedded-data-uri-pdf.html"), text);
 	}
+
 	@Test
 	public void testRecursiveEmbedded() throws Exception {
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/recursive_embedded.docx").getPath()));
@@ -233,6 +238,35 @@ public class ExtractorTest {
 		assertThat(allContents).contains("embed_3");
 		assertThat(allContents).contains("dissolve the political bands");
 		assertThat(allContents).contains("embed_4");
+	}
+
+	@Test
+	public void testEmbeddedWithDuplicates() throws Exception {
+		extractor.disableOcr();
+		extractor.setEmbedOutputPath(folder.newFolder("embeds").toPath());
+		/*
+		embedded_with_duplicate.tgz :
+			2020-09-11 08:56 level1/
+			2020-09-08 15:10 level1/one_pixel_level1.jpg
+			2020-09-08 15:11 level1/file.txt          |
+			2020-09-08 15:11 level1/level2.tgz        |
+			2020-09-08 15:10 		level2/          same
+			2020-09-08 15:10 		level2/file.txt   |
+			2020-09-08 15:10 		level2/one_pixel.jpg
+		 */
+		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/embedded_with_duplicate.tgz").getPath()));
+		FileSpewer fileSpewer = new FileSpewer(new FieldNames());
+		fileSpewer.setOutputDirectory(folder.getRoot().toPath());
+		fileSpewer.write(tikaDocument);
+
+		/* should find
+		 hash(embedded_with_duplicate.tgz)
+		 hash(embedded_with_duplicate.tar)
+		 hash(level1/file.txt)
+		 hash(level1/level2.tgz)
+		 hash(level1/level2/file.txt)
+		 hash(level1/one_pixel_level1.jpg) = hash(level1/level2/one_pixel.jpg) */
+		assertThat(folder.getRoot().toPath().resolve("embeds").toFile().listFiles()).hasSize(6);
 	}
 
 	private String getExpected(final String file) throws IOException {
