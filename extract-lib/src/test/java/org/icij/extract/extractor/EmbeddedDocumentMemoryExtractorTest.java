@@ -68,7 +68,7 @@ public class EmbeddedDocumentMemoryExtractorTest {
     @Test
     public void test_embedded_file_extraction_level_2_sha384() throws Exception {
         TikaDocument tikaDocument384 = new DocumentFactory().withIdentifier(new DigestIdentifier("SHA-384", Charset.defaultCharset())).
-                        create(getClass().getResource("/documents/recursive_embedded.docx"));
+                create(getClass().getResource("/documents/recursive_embedded.docx"));
         TikaDocumentSource textContent = new EmbeddedDocumentMemoryExtractor(new UpdatableDigester("prj", "SHA-384")).
                 extract(tikaDocument384, "ad1892526e4c1c1c967390da3a8354b6926b03680156d7d76274e6971248be965bc15998a0260f19b801012227f03fae");
 
@@ -81,9 +81,9 @@ public class EmbeddedDocumentMemoryExtractorTest {
         final Extractor extractor = new Extractor();
         extractor.setDigester(new CommonsDigester(1024 * 1024 * 20, "SHA256"));
         TikaDocument tikaDocument256 = new DocumentFactory().withIdentifier(new DigestIdentifier("SHA-256", Charset.defaultCharset())).
-                        create(getClass().getResource("/documents/embedded_file_bug.eml"));
+                create(getClass().getResource("/documents/embedded_file_bug.eml"));
 
-        TikaDocumentSource pngFile = new EmbeddedDocumentMemoryExtractor(new CommonsDigester(1024*1024*20, "SHA256"), "SHA-256").
+        TikaDocumentSource pngFile = new EmbeddedDocumentMemoryExtractor(new CommonsDigester(1024 * 1024 * 20, "SHA256"), "SHA-256", false).
                 extract(tikaDocument256, "adfa536a06e9517b61e75fce4751fa4c0b73616f0f8e64fc95518d20811a589f");
 
         assertThat(pngFile).isNotNull();
@@ -106,5 +106,58 @@ public class EmbeddedDocumentMemoryExtractorTest {
         assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(0).getId())).isNotNull();
         assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(1).getId())).isNotNull();
         assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(1).getEmbeds().get(0).getId())).isNotNull();
+    }
+
+    @Test
+    public void test_extract_embedded_without_ocr() throws Exception {
+        EmbeddedDocumentMemoryExtractor contentExtractor = new EmbeddedDocumentMemoryExtractor(
+                new CommonsDigester(20 * 1024 * 1024, CommonsDigester.DigestAlgorithm.SHA256.toString()), "SHA-256", false);
+
+        TikaDocumentSource actual = contentExtractor.extract(documentFactory.create(Paths.get(getClass().getResource("/documents/embedded_with_duplicate.tgz").getPath())),
+                "f69680093a1c466d628c7b352a449e8e8a0ce291f61837f9bed9d55ff3658544");
+
+        assertThat(new String(actual.content).replace("\n", "")).isEqualTo("level2");
+    }
+
+    @Test
+    public void test_hash_with_ocr_and_without_ocr_is_the_same() throws Exception {
+        EmbeddedDocumentMemoryExtractor ocrExtractor = new EmbeddedDocumentMemoryExtractor(
+                new CommonsDigester(20 * 1024 * 1024, CommonsDigester.DigestAlgorithm.SHA256.toString()), "SHA-256", true);
+        EmbeddedDocumentMemoryExtractor noOcrExtractor = new EmbeddedDocumentMemoryExtractor(
+                new CommonsDigester(20 * 1024 * 1024, CommonsDigester.DigestAlgorithm.SHA256.toString()), "SHA-256", false);
+
+        assertThat(ocrExtractor.extract(documentFactory.create(Paths.get(getClass().getResource("/documents/embedded_with_duplicate.tgz").getPath())),
+                "f35a3e02f71564f653db8d0115fa5caaff27341f5767096242fd90ad6392b81d")).isNotNull();
+        assertThat(noOcrExtractor.extract(documentFactory.create(Paths.get(getClass().getResource("/documents/embedded_with_duplicate.tgz").getPath())),
+                "f35a3e02f71564f653db8d0115fa5caaff27341f5767096242fd90ad6392b81d")).isNotNull();
+
+        /* should work like this ?
+        InputStreamDigester inputStreamDigester = new InputStreamDigester(20 * 1024 * 1024, "SHA-256", Hex::encodeHexString);
+        Metadata metadata = new Metadata();
+        inputStreamDigester.digest(new ByteArrayInputStream(hexToBin(onePixelJpg)), metadata, new ParseContext());
+        assertThat("f35a3e02f71564f653db8d0115fa5caaff27341f5767096242fd90ad6392b81d").isEqualTo(metadata.get("X-TIKA:digest:SHA-256"));
+        */
+    }
+
+    final String onePixelJpg =
+            "ffd8 ffdb 0043 0001 0101 0101 0101 0101 0101 0101 0101 0101 0101 0101 0101 0101 0101 " +
+                    "0101 0101 0101 0101 0101 0101 0101 0101 0101 0101 0101 0101 0101 0101 0101 0101 0101 " +
+                    "0101 01ff c200 0b08 0001 0001 0101 1100 ffc4 0014 0001 0000 0000 0000 0000 0000 0000 " +
+                    "0000 0003 ffda 0008 0101 00000070 0000 0001 3fff d9";
+
+
+    public static byte[] hexToBin(String inputHexadecimal) {
+        String str = inputHexadecimal.replaceAll(" ", "");
+        int len = str.length();
+        byte[] out = new byte[len / 2];
+        int endIndx;
+
+        for (int i = 0; i < len; i = i + 2) {
+            endIndx = i + 2;
+            if (endIndx > len)
+                endIndx = len - 1;
+            out[i / 2] = (byte) Integer.parseInt(str.substring(i, endIndx), 16);
+        }
+        return out;
     }
 }
