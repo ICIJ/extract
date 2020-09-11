@@ -1,5 +1,6 @@
 package org.icij.extract.extractor;
 
+import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.CloseShieldInputStream;
 import org.apache.tika.io.TikaInputStream;
@@ -16,10 +17,7 @@ import org.icij.extract.document.TikaDocumentSource;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
-import java.io.ByteArrayOutputStream;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.charset.Charset;
 import java.security.NoSuchAlgorithmException;
 import java.util.LinkedList;
@@ -31,12 +29,10 @@ public class EmbeddedDocumentMemoryExtractor {
     private final DigestingParser.Digester digester;
     private final String algorithm;
 
-    public EmbeddedDocumentMemoryExtractor(final UpdatableDigester digester) {
-        this(digester, digester.algorithm);
-    }
+    public EmbeddedDocumentMemoryExtractor(final UpdatableDigester digester) { this(digester, digester.algorithm, true);}
 
-    public EmbeddedDocumentMemoryExtractor(final DigestingParser.Digester digester, String algorithm) {
-        this.parser = new DigestingParser(new AutoDetectParser(), digester);
+    public EmbeddedDocumentMemoryExtractor(final DigestingParser.Digester digester, String algorithm, boolean ocr) {
+        this.parser = new DigestingParser(ocr?new AutoDetectParser():createParserWithoutOCR(), digester);
         this.digester = digester;
         this.algorithm = algorithm;
     }
@@ -103,6 +99,18 @@ public class EmbeddedDocumentMemoryExtractor {
             return ofNullable(document).orElseThrow(() ->
                     new ContentNotFoundException(documentStack.get(0).getPath().toString(), digestToFind)
             );
+        }
+    }
+
+    private Parser createParserWithoutOCR() {
+        try {
+            return new AutoDetectParser(new TikaConfig(new ByteArrayInputStream(("" +
+                    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+                    "<properties><parsers><parser class=\"org.apache.tika.parser.DefaultParser\">" +
+                    "<parser-exclude class=\"org.apache.tika.parser.ocr.TesseractOCRParser\"/>" +
+                    "</parser></parsers></properties>").getBytes())));
+        } catch (TikaException | IOException | SAXException e) {
+            throw new RuntimeException(e);
         }
     }
 
