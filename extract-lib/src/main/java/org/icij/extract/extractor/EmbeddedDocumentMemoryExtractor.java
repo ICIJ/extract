@@ -29,7 +29,7 @@ public class EmbeddedDocumentMemoryExtractor {
     private final DigestingParser.Digester digester;
     private final String algorithm;
 
-    public EmbeddedDocumentMemoryExtractor(final UpdatableDigester digester) { this(digester, digester.algorithm, true);}
+    public EmbeddedDocumentMemoryExtractor(final UpdatableDigester digester) { this(digester, digester.algorithm, false);}
 
     public EmbeddedDocumentMemoryExtractor(final DigestingParser.Digester digester, String algorithm, boolean ocr) {
         this.parser = new DigestingParser(ocr?new AutoDetectParser():createParserWithoutOCR(), digester);
