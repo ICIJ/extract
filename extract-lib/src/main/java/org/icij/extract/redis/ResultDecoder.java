@@ -20,7 +20,7 @@ import java.io.ObjectInputStream;
 public class ResultDecoder implements Decoder<Object> {
 	Logger logger = LoggerFactory.getLogger(getClass());
 	@Override
-	public Object decode(final ByteBuf buffer, final State state) throws IOException {
+	public Object decode(final ByteBuf buffer, final State state) {
 		String result = new String (new char[] {(char) buffer.readByte()});
 		ExtractionStatus extractionStatus = ExtractionStatus.parse(result);
 		if (buffer.capacity() == 1) {
@@ -31,9 +31,9 @@ public class ResultDecoder implements Decoder<Object> {
 			try (ObjectInputStream objectInputStream = new ObjectInputStream(new ByteBufInputStream(exceptionPayload))) {
 				Exception ex = (Exception) objectInputStream.readObject();
 				return new Report(extractionStatus, ex);
-			} catch (ClassNotFoundException e) {
+			} catch (ClassNotFoundException|IOException e) {
 				logger.warn("cannot read object : ", e);
-				return new Report(extractionStatus);
+				return new Report(extractionStatus, e);
 			}
 		}
 	}
