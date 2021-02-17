@@ -5,6 +5,11 @@ import org.icij.task.annotation.Option;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
+import org.redisson.config.SingleServerConfig;
+
+import java.net.URI;
+
+import static java.util.Optional.ofNullable;
 
 /**
  * Factory for creating a Redis client.
@@ -73,18 +78,28 @@ public class RedissonClientFactory {
 	 * @return a new connection manager
 	 */
 	public RedissonClient create() {
-		final String address = null == this.address ? "redis://127.0.0.1:6379" : this.address;
-		final int timeout = this.timeout < 0 ? 60 * 1000 : this.timeout;
+		Config config = createConfig();
+		updateConfig(config);
+		return Redisson.create(config);
+	}
 
-		// TODO: support all the other types supported by the RedissonClientFactory.
-		// TODO: Create a hash of config options so that only one manager is used per unique server. This should
-		// improve contention.
-		Config config = new Config();
-		config.useSingleServer().
+	void updateConfig(Config config) {
+		final String address = null == this.address ? "redis://127.0.0.1:6379" : this.address;
+		URI url = URI.create(address);
+		String[] userPass = ofNullable(url.getUserInfo()).orElse("").split(":");
+		final int timeout = this.timeout < 0 ? 60 * 1000 : this.timeout;
+		SingleServerConfig singleServerConfig = config.useSingleServer();
+		singleServerConfig.
 				setConnectionPoolSize(poolSize).
 				setConnectionMinimumIdleSize(poolSize).
 				setAddress(address).
 				setTimeout(timeout);
-        return Redisson.create(config);
+		if (userPass.length == 2) {
+			singleServerConfig.setPassword(userPass[1]);
+		}
+	}
+
+	Config createConfig() {
+		return new Config();
 	}
 }
