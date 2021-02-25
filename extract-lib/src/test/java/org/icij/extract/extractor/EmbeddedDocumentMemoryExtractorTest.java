@@ -109,6 +109,27 @@ public class EmbeddedDocumentMemoryExtractorTest {
     }
 
     @Test
+    public void test_embedded_bug_732() throws Exception {
+        Extractor extractor = new Extractor(documentFactory);
+        extractor.setDigester(new UpdatableDigester("prj", "SHA-256"));
+        TikaDocument extracted = extractor.extract(Paths.get(getClass().getResource("/documents/3rd-level-bug-732.msg").getPath()));
+        try (Reader reader = extracted.getReader()) {
+            Spewer.toString(reader);
+        }
+
+        EmbeddedDocumentMemoryExtractor contentExtractor = new EmbeddedDocumentMemoryExtractor(
+                new UpdatableDigester("prj", "SHA-256"));
+
+        assertThat(extracted.getEmbeds()).hasSize(1);
+        assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(0).getId())).isNotNull();
+        assertThat(extracted.getEmbeds().get(0).getEmbeds()).hasSize(1);
+        assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(0).getEmbeds().get(0).getId())).isNotNull();
+        assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(0).getEmbeds().get(0).getEmbeds().get(0).getId())).isNotNull();
+        assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(0).getEmbeds().get(0).getEmbeds().get(0).getId()).
+                metadata.get("resourceName")).contains("POD Layout ICIJ 2020.pdf");
+    }
+
+    @Test
     public void test_extract_embedded_without_ocr() throws Exception {
         EmbeddedDocumentMemoryExtractor contentExtractor = new EmbeddedDocumentMemoryExtractor(
                 new CommonsDigester(20 * 1024 * 1024, CommonsDigester.DigestAlgorithm.SHA256.toString()), "SHA-256", false);

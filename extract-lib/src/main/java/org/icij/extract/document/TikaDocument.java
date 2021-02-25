@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public class TikaDocument {
@@ -199,6 +200,13 @@ public class TikaDocument {
 
 	@Override
 	public int hashCode() { return Objects.hash(id.get());}
+
+	public void apply(Consumer<TikaDocument> consumer) {
+		consumer.accept(this);
+		for (EmbeddedTikaDocument doc: getEmbeds()) {
+			doc.apply(consumer);
+		}
+  	}
 
 	@Override
 	public String toString() {
