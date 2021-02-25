@@ -71,6 +71,13 @@ public class EmbeddedDocumentMemoryExtractor {
             EmbeddedTikaDocument embed = this.documentStack.getLast().addEmbed(metadata);
 
             try (final TikaInputStream tis = TikaInputStream.get(new CloseShieldInputStream(stream))) {
+                if (stream instanceof TikaInputStream) {
+                    final Object container = ((TikaInputStream) stream).getOpenContainer();
+
+                    if (container != null) {
+                        tis.setOpenContainer(container);
+                    }
+                }
                 digester.digest(tis, metadata, context);
                 tis.reset();
                 String digest;
