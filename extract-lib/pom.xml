@@ -82,7 +82,7 @@
         <dependency>
             <groupId>org.apache.tika</groupId>
             <artifactId>tika-parsers</artifactId>
-            <version>1.24.1</version>
+            <version>1.22</version>
             <exclusions>
                 <exclusion>
                     <groupId>commons-logging</groupId>
@@ -124,7 +124,7 @@
         <dependency>
             <groupId>com.pff</groupId>
             <artifactId>java-libpst</artifactId>
-            <version>0.9.3</version>
+            <version>0.8.1</version>
         </dependency>
 
         <!-- Optional dependency for parsing SQLite files. -->
