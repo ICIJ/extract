@@ -58,8 +58,6 @@
         <maven.compiler.target>1.8</maven.compiler.target>
 
         <app.main.class>org.icij.extract.cli.Main</app.main.class>
-        <solr.version>7.1.0</solr.version>
-        <solr.version>7.1.0</solr.version>
         <slf4j.version>1.7.27</slf4j.version>
         <maven-compiler.version>3.6.0</maven-compiler.version>
         <maven-dependency.version>2.10</maven-dependency.version>
