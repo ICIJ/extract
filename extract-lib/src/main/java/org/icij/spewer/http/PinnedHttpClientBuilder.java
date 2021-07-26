@@ -6,6 +6,14 @@ import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.client.CredentialsProvider; //NEW
+import org.apache.http.auth.UsernamePasswordCredentials; //NEW 
+import org.apache.http.impl.client.BasicCredentialsProvider; //NEW
+import org.apache.http.auth.AuthScope; //NEW
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
@@ -23,17 +31,37 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Locale;
+import org.apache.http.HttpException;
+import org.apache.http.HttpHost;
+import org.apache.http.HttpRequest;
+import org.apache.http.HttpRequestInterceptor;
+import org.apache.http.auth.AuthState;
+import org.apache.http.auth.Credentials;
+import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.impl.auth.BasicScheme;
+import org.apache.http.protocol.HttpContext;
+import org.apache.http.protocol.HttpCoreContext;
+
 
 /**
  * Extends {@link HttpClientBuilder} with the ability to pin a certificate and a hostname.
  */
+ 
+ 
 public class PinnedHttpClientBuilder extends HttpClientBuilder {
 
 	private HostnameVerifier hostnameVerifier = null;
 	private SSLContext sslContext = null;
+        private String indexPassword = null;
+        private String indexUsername = null;
+        private Logger logger = LoggerFactory.getLogger(getClass());
 
 	public static PinnedHttpClientBuilder createWithDefaults() {
-		final PinnedHttpClientBuilder builder = new PinnedHttpClientBuilder();
+                final PinnedHttpClientBuilder builder = new PinnedHttpClientBuilder();
+//		final CredentialsProvider provider = new BasicCredentialsProvider(); //NEW
+//		final UsernamePasswordCredentials credentials = new UsernamePasswordCredentials(
+//            "solr","SolrRocks"); //NEW
+//		provider.setCredentials(AuthScope.ANY, credentials);                //NEW
 
 		builder
 			.setMaxConnPerRoute(32)
@@ -47,8 +75,42 @@ public class PinnedHttpClientBuilder extends HttpClientBuilder {
 	public PinnedHttpClientBuilder() {
 		super();
 	}
-
-	public PinnedHttpClientBuilder setVerifyHostname(final String verifyHostname) {
+	
+        public PinnedHttpClientBuilder setUserPassword(final String username, final String password) {
+            if (null == password) {
+			indexPassword = null;
+			return this;
+                } else {
+                        indexPassword= password;
+            }
+            if (null == username) {
+			indexUsername = null;
+			return this;
+                } else {
+                        indexUsername= username;
+            }
+            
+            return this;
+        }
+        public PinnedHttpClientBuilder setCredentials(){
+            if (null != indexUsername && null != indexPassword ){
+            logger.info("Setting username and password");
+//            final PinnedHttpClientBuilder builder = new PinnedHttpClientBuilder();
+            final CredentialsProvider provider = new BasicCredentialsProvider(); 
+            final UsernamePasswordCredentials credentials = new UsernamePasswordCredentials(
+            indexUsername,indexPassword); //
+	    provider.setCredentials(AuthScope.ANY, credentials);
+            this.addInterceptorFirst(new PreemptiveAuthInterceptor());
+            this.setDefaultCredentialsProvider(provider);
+            }
+            else {
+            logger.info("Username and password not set. No authentication set");
+            }
+            return this;//NEW
+        }
+        
+   
+        public PinnedHttpClientBuilder setVerifyHostname(final String verifyHostname) {
 		if (null == verifyHostname) {
 			hostnameVerifier = null;
 			return this;
@@ -147,5 +209,26 @@ public class PinnedHttpClientBuilder extends HttpClientBuilder {
 		public final boolean verify(final String host, final SSLSession session) {
 			return defaultVerifier.verify(verifyHostname, session);
 		}
-	}
+        }
+        static class PreemptiveAuthInterceptor implements HttpRequestInterceptor {
+
+            public void process(final HttpRequest request, final HttpContext context) throws HttpException, IOException {
+            AuthState authState = (AuthState) context.getAttribute(HttpClientContext.TARGET_AUTH_STATE);
+            // If no auth scheme available yet, try to initialize it
+            // preemptively
+            if (authState.getAuthScheme() == null) {
+                CredentialsProvider credsProvider = (CredentialsProvider) 
+                        context.getAttribute(HttpClientContext.CREDS_PROVIDER);
+                HttpHost targetHost = (HttpHost) context.getAttribute(HttpCoreContext.HTTP_TARGET_HOST);
+                AuthScope authScope = new AuthScope(targetHost.getHostName(), targetHost.getPort());
+                Credentials creds = credsProvider.getCredentials(authScope);
+                if(creds == null){
+               }
+                authState.update(new BasicScheme(), creds);
+            }
+
+            }
+        }
+        
+            
 }
