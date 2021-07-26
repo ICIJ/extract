@@ -1,28 +1,27 @@
 package org.icij.extract.extractor;
 
-import java.io.*;
-
+import org.apache.tika.exception.EncryptedDocumentException;
+import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.ParsingEmbeddedDocumentExtractor;
+import org.apache.tika.io.CloseShieldInputStream;
+import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
-import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.DelegatingParser;
 import org.apache.tika.parser.ParseContext;
-import org.apache.tika.io.TikaInputStream;
-import org.apache.tika.io.CloseShieldInputStream;
+import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.EmbeddedContentHandler;
-import org.apache.tika.exception.TikaException;
-import org.apache.tika.exception.EncryptedDocumentException;
-
 import org.apache.tika.utils.ExceptionUtils;
 import org.icij.extract.document.TikaDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.xml.sax.ContentHandler;
-import org.xml.sax.helpers.AttributesImpl;
 import org.xml.sax.SAXException;
+import org.xml.sax.helpers.AttributesImpl;
+
+import java.io.IOException;
+import java.io.InputStream;
 
 import static org.apache.tika.sax.XHTMLContentHandler.XHTML;
 
@@ -35,7 +34,7 @@ import static org.apache.tika.sax.XHTMLContentHandler.XHTML;
  */
 public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 
-	private static final Logger logger = LoggerFactory.getLogger(EmbedParser.class);
+	static final Logger logger = LoggerFactory.getLogger(EmbedParser.class);
     private static final Parser DELEGATING_PARSER = new DelegatingParser();
 
 	final TikaDocument root;
@@ -61,8 +60,7 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 		}
 	}
 
-	void delegateParsing(final InputStream input, final ContentHandler handler, final Metadata metadata)
-			throws IOException, SAXException {
+	void delegateParsing(final InputStream input, final ContentHandler handler, final Metadata metadata) throws IOException, SAXException {
 		try (final TikaInputStream tis = TikaInputStream.get(new CloseShieldInputStream(input))) {
 			if (input instanceof TikaInputStream) {
 				final Object container = ((TikaInputStream) input).getOpenContainer();

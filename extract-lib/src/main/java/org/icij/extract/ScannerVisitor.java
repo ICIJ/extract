@@ -2,8 +2,6 @@ package org.icij.extract;
 
 import org.icij.concurrent.SealableLatch;
 import org.icij.event.Notifiable;
-import org.icij.extract.document.TikaDocument;
-import org.icij.extract.document.DocumentFactory;
 import org.icij.task.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,32 +15,30 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 
-public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<Path> {
-    static final String FOLLOW_SYMLINKS = "followSymlinks";
-    static final String MAX_DEPTH = "maxDepth";
+public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<Long> {
+    public static final String FOLLOW_SYMLINKS = "followSymlinks";
+    public static final String MAX_DEPTH = "maxDepth";
     private Logger logger = LoggerFactory.getLogger(getClass());
     private final ArrayDeque<PathMatcher> includeMatchers = new ArrayDeque<>();
     private final ArrayDeque<PathMatcher> excludeMatchers = new ArrayDeque<>();
 
     private final Path path;
-    private final BlockingQueue<TikaDocument> queue;
-    private final DocumentFactory factory;
+    private final BlockingQueue<Path> queue;
 
     private boolean followLinks = false;
     private int maxDepth = Integer.MAX_VALUE;
     private SealableLatch latch;
     private Notifiable notifiable;
-    private int queued = 0;
+    private long queued = 0;
 
     /**
      * Instantiate a new task for scanning the given path.
      *
      * @param path the path to scan
      */
-    public ScannerVisitor(final Path path, final BlockingQueue<TikaDocument> queue, final DocumentFactory factory, Options<String> options) {
+    public ScannerVisitor(final Path path, final BlockingQueue<Path> queue, Options<String> options) {
         this.path = path;
         this.queue = queue;
-        this.factory = factory;
         options.ifPresent(FOLLOW_SYMLINKS, o -> o.parse().asBoolean()).ifPresent(this::followSymLinks);
         options.ifPresent(MAX_DEPTH, o -> o.parse().asInteger()).ifPresent(this::setMaxDepth);
     }
@@ -57,7 +53,7 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
      * @return the path at which scanning started
      */
     @Override
-    public Path call() throws Exception {
+    public Long call() throws Exception {
         final Set<FileVisitOption> options;
 
         if (followLinks) {
@@ -80,7 +76,7 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
         }
 
         logger.info(String.format("Completed scan of: \"%s\".", path));
-        return path;
+        return queued;
     }
 
     /**
@@ -89,9 +85,7 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
      * @throws InterruptedException if interrupted while waiting for a queue slot
      */
     void queue(final Path file, final BasicFileAttributes attributes) throws InterruptedException {
-        final TikaDocument tikaDocument = factory.create(file, attributes);
-
-        queue.put(tikaDocument);
+        queue.put(file);
         queued++;
 
         if (null != latch) {

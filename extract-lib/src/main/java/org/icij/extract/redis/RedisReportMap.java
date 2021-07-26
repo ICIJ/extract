@@ -1,11 +1,11 @@
-package org.icij.extract.report;
+package org.icij.extract.redis;
 
-import org.icij.extract.document.DocumentFactory;
-import org.icij.extract.document.TikaDocument;
-import org.icij.extract.redis.*;
+import org.icij.extract.report.Report;
+import org.icij.extract.report.ReportMap;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
+import org.redisson.Redisson;
 import org.redisson.RedissonMap;
 import org.redisson.api.RedissonClient;
 import org.redisson.client.RedisOutOfMemoryException;
@@ -13,15 +13,15 @@ import org.redisson.client.codec.BaseCodec;
 import org.redisson.client.protocol.Decoder;
 import org.redisson.client.protocol.Encoder;
 import org.redisson.command.CommandSyncService;
-import org.redisson.config.Config;
-import org.redisson.config.ConfigSupport;
 import org.redisson.connection.ConnectionManager;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 
 /**
  * A {@link ReportMap} using Redis as a backend.
@@ -33,7 +33,7 @@ import java.util.Collections;
 @Option(name = "charset", description = "Set the output encoding for text and document attributes. Defaults to UTF-8.",
 		parameter = "name")
 @OptionsClass(ConnectionManager.class)
-public class RedisReportMap extends RedissonMap<TikaDocument, Report> implements ReportMap {
+public class RedisReportMap extends RedissonMap<Path, Report> implements ReportMap {
 
 	/**
 	 * The default name for a report in Redis.
@@ -43,12 +43,25 @@ public class RedisReportMap extends RedissonMap<TikaDocument, Report> implements
 	private final RedissonClient redissonClient;
 
 	/**
+	 *
+	 * @param mapName name of the map in redis
+	 * @param redisAddress redis url i.e. redis://127.0.0.1:6379
+	 */
+	public RedisReportMap(final String mapName, final String redisAddress) {
+		this(Options.from(new HashMap<String, String>() {{
+			put("reportName", mapName);
+			put("redisAddress", redisAddress);
+			put("charset", "UTF-8");
+		}}));
+	}
+
+	/**
 	 * Create a Redis-backed report using the provided configuration.
 	 *
 	 * @param options options for connecting to Redis
 	 */
-	RedisReportMap(final DocumentFactory factory, final Options<String> options) {
-		this(factory, new RedissonClientFactory().withOptions(options).create(),
+	public RedisReportMap(final Options<String> options) {
+		this(new RedissonClientFactory().withOptions(options).create(),
 				options.get("reportName").value().orElse(DEFAULT_NAME),
 				options.get("charset").parse().asCharset().orElse(StandardCharsets.UTF_8));
 	}
@@ -59,10 +72,10 @@ public class RedisReportMap extends RedissonMap<TikaDocument, Report> implements
 	 * @param redissonClient instantiated using {@link RedissonClientFactory}
 	 * @param name the name of the report
 	 */
-	private RedisReportMap(final DocumentFactory factory, final RedissonClient redissonClient, final String name,
+	private RedisReportMap(final RedissonClient redissonClient, final String name,
 						   final Charset charset) {
-		super(new ReportCodec(factory, charset), new CommandSyncService(ConfigSupport.createConnectionManager(new Config(redissonClient.getConfig()))),
-				null == name ? DEFAULT_NAME : name, redissonClient, null);
+		super(new ReportCodec(charset), new CommandSyncService(((Redisson)redissonClient).getConnectionManager()),
+				null == name ? DEFAULT_NAME : name, redissonClient, null, null);
 		this.redissonClient = redissonClient;
 	}
 
@@ -80,19 +93,15 @@ public class RedisReportMap extends RedissonMap<TikaDocument, Report> implements
 		redissonClient.shutdown();
 	}
 
-	/**
-	 * Codec for a map of string keys to integer values.
-	 */
 	static class ReportCodec extends BaseCodec {
-
 		private final Decoder<Object> documentDecoder;
 		private final Encoder documentEncoder;
 		private final Decoder<Object> resultDecoder = new ResultDecoder();
 		private final Encoder resultEncoder = new ResultEncoder();
 
-		ReportCodec(final DocumentFactory factory, final Charset charset) {
-			this.documentDecoder = new DocumentDecoder(factory, charset);
-			this.documentEncoder = new DocumentEncoder(charset);
+		ReportCodec(final Charset charset) {
+			this.documentDecoder = new PathDecoder(charset);
+			this.documentEncoder = new PathEncoder(charset);
 		}
 
 		@Override

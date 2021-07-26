@@ -27,7 +27,7 @@ import static org.apache.tika.sax.XHTMLContentHandler.XHTML;
  *     			final String open = uuid + "/";
  *     			final String close = "/" + uuid;
  *     			context.set(Parser.class, EmptyParser.INSTANCE);
- *     			context.set(EmbeddedDocumentExtractor.class, new EmbedLinker(document, tmp, open, close));
+ *     			context.set(EmbeddedDocumentMemoryExtractor.class, new EmbedLinker(document, tmp, open, close));
  *     			reader = new EmbeddingHTMLParsingReader(document, open, close, parser, input, metadata, context);
  * </code>
  *

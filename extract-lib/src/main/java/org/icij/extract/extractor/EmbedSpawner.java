@@ -28,7 +28,7 @@ public class EmbedSpawner extends EmbedParser {
 
 	private final Path outputPath;
 	private final Function<Writer, ContentHandler> handlerFunction;
-	private LinkedList<TikaDocument> tikaDocumentStack = new LinkedList<>();
+	private final LinkedList<TikaDocument> tikaDocumentStack = new LinkedList<>();
 	private int untitled = 0;
 
 	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
@@ -45,8 +45,7 @@ public class EmbedSpawner extends EmbedParser {
 
 		// There's no need to spawn inline embeds, like images in PDFs. These should be concatenated to the main
 		// document as usual.
-		if (TikaCoreProperties.EmbeddedResourceType.INLINE.toString().equals(metadata
-				.get(TikaCoreProperties.EMBEDDED_RESOURCE_TYPE))) {
+		if (TikaCoreProperties.EmbeddedResourceType.INLINE.toString().equals(metadata.get(TikaCoreProperties.EMBEDDED_RESOURCE_TYPE))) {
 			final ContentHandler embedHandler = new EmbeddedContentHandler(new BodyContentHandler(handler));
 
 			if (outputHtml) {
@@ -59,14 +58,13 @@ public class EmbedSpawner extends EmbedParser {
 				writeEnd(handler);
 			}
 		} else {
-			try (final TikaInputStream tis = TikaInputStream.get(input)) {
-				spawnEmbedded(tis, metadata);
-			}
+			// we must not close the input with (try(TikaInputStream.get(input){...}) because
+			// it closes the stream and stops tika to get next entries in the PackageParser
+			spawnEmbedded(TikaInputStream.get(input), metadata);
 		}
 	}
 
 	private void spawnEmbedded(final TikaInputStream tis, final Metadata metadata) throws IOException {
-
 		// Create a Writer that will receive the parser output for the embed file, for later retrieval.
 		final ByteArrayOutputStream output = new ByteArrayOutputStream(8192);
 		final Writer writer = new OutputStreamWriter(output, StandardCharsets.UTF_8);
@@ -78,8 +76,7 @@ public class EmbedSpawner extends EmbedParser {
 		// Call setReader on the embed object with a plain reader for this temp file.
 		// When all parsing finishes, close temporary resources.
 		// Note that getPath should still return the path to the original file.
-		embed.setReader(() -> new InputStreamReader(new ByteArrayInputStream(output.toByteArray()),
-				StandardCharsets.UTF_8));
+		embed.setReader(() -> new InputStreamReader(new ByteArrayInputStream(output.toByteArray()), StandardCharsets.UTF_8));
 
 		String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
 		if (null == name || name.isEmpty()) {
@@ -87,7 +84,6 @@ public class EmbedSpawner extends EmbedParser {
 		}
 
 		try {
-
 			// Trigger spooling of the file to disk so that it can be copied.
 			// This needs to be done before parsing starts and the same TIS object must be passed to writeEmbed,
 			// otherwise it will be spooled twice.
@@ -108,7 +104,6 @@ public class EmbedSpawner extends EmbedParser {
 		tikaDocumentStack.add(embed);
 
 		try {
-
 			// Pass the same TIS, otherwise the EmbedParser will attempt to spool the input again and fail, because it's
 			// already been consumed.
 			delegateParsing(tis, embedHandler, metadata);

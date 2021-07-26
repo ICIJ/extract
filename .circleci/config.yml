@@ -3,6 +3,8 @@ jobs:
   build:
     docker:
       - image: circleci/openjdk:8-jdk
+      - image: redis:4.0.1-alpine
+        name: redis
 
     working_directory: ~/repo
 
@@ -24,7 +26,9 @@ jobs:
 
       - run:
           name: Install tesseract-ocr
-          command: sudo apt-get install -y tesseract-ocr
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y tesseract-ocr
 
       - save_cache:
           paths:

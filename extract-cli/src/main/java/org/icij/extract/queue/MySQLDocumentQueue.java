@@ -1,11 +1,8 @@
 package org.icij.extract.queue;
 
-import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
-
-import org.icij.kaxxa.sql.concurrent.MySQLBlockingQueue;
-import org.icij.kaxxa.sql.SQLQueueCodec;
-
+import org.icij.extract.mysql.MySQLBlockingQueue;
+import org.icij.extract.mysql.SQLQueueCodec;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
@@ -13,10 +10,11 @@ import org.icij.task.annotation.OptionsClass;
 import javax.sql.DataSource;
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.file.Path;
 
 @Option(name = "queueTable", description = "The queue table Defaults to \"document_queue\".", parameter = "name")
 @OptionsClass(SQLDocumentQueueCodec.class)
-public class MySQLDocumentQueue extends MySQLBlockingQueue<TikaDocument> implements DocumentQueue {
+public class MySQLDocumentQueue extends MySQLBlockingQueue<Path> implements DocumentQueue {
 
 	public MySQLDocumentQueue(final DataSource dataSource, final DocumentFactory factory,
 	                          final Options<String> options) {
@@ -24,7 +22,7 @@ public class MySQLDocumentQueue extends MySQLBlockingQueue<TikaDocument> impleme
 				options.get("queueTable").value().orElse("documents"));
 	}
 
-	public MySQLDocumentQueue(final DataSource dataSource, final SQLQueueCodec<TikaDocument> codec, final String table) {
+	public MySQLDocumentQueue(final DataSource dataSource, final SQLQueueCodec<Path> codec, final String table) {
 		super(dataSource, codec, table);
 	}
 
@@ -33,5 +31,10 @@ public class MySQLDocumentQueue extends MySQLBlockingQueue<TikaDocument> impleme
 		if (source instanceof Closeable) {
 			((Closeable) source).close();
 		}
+	}
+
+	@Override
+	public String getName() {
+		return table;
 	}
 }

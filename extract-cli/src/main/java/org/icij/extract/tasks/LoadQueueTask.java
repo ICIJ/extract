@@ -1,25 +1,23 @@
 package org.icij.extract.tasks;
 
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVRecord;
-import org.apache.commons.io.input.CloseShieldInputStream;
-
-import org.icij.extract.document.DocumentFactory;
-import org.icij.extract.queue.DocumentQueue;
-import org.icij.extract.json.DocumentQueueDeserializer;
-import org.icij.extract.queue.DocumentQueueFactory;
-
-import java.io.*;
-import java.nio.file.Paths;
-
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVRecord;
+import org.apache.commons.io.input.CloseShieldInputStream;
+import org.icij.extract.document.DocumentFactory;
+import org.icij.extract.json.DocumentQueueDeserializer;
+import org.icij.extract.queue.DocumentQueue;
+import org.icij.extract.queue.DocumentQueueFactory;
 import org.icij.task.DefaultTask;
 import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
 import org.icij.task.annotation.Task;
+
+import java.io.*;
+import java.nio.file.Paths;
 
 /**
  * A command that loads a {@link DocumentQueue} from JSON.
@@ -107,7 +105,7 @@ public class LoadQueueTask extends DefaultTask<Void> {
 		final String pathField = options.get("pathField").value().orElse("path");
 
 		for (CSVRecord record : CSVFormat.RFC4180.withHeader().parse(new InputStreamReader(input))) {
-			queue.add(factory.create(Paths.get(record.get(pathField))));
+			queue.add(Paths.get(record.get(pathField)));
 		}
 	}
 
