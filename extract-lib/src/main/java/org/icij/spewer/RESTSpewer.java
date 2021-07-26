@@ -13,7 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.Reader;
 import java.io.Serializable;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -34,13 +33,13 @@ public class RESTSpewer extends Spewer implements Serializable {
 	}
 
 	@Override
-	public void write(final TikaDocument tikaDocument, final Reader reader) throws IOException {
+	public void write(final TikaDocument tikaDocument) throws IOException {
 		final HttpPut put = new HttpPut(uri.resolve(tikaDocument.getId()));
 		final List<NameValuePair> params = new ArrayList<>();
 
 		params.add(new BasicNameValuePair(fields.forId(), tikaDocument.getId()));
 		params.add(new BasicNameValuePair(fields.forPath(), tikaDocument.getPath().toString()));
-		params.add(new BasicNameValuePair(fields.forText(), toString(reader)));
+		params.add(new BasicNameValuePair(fields.forText(), toString(tikaDocument.getReader())));
 
 		if (outputMetadata) {
 			parametrizeMetadata(tikaDocument.getMetadata(), params);
@@ -50,7 +49,6 @@ public class RESTSpewer extends Spewer implements Serializable {
 		put(put);
 	}
 
-	@Override
 	public void writeMetadata(final TikaDocument tikaDocument) throws IOException {
 		final HttpPut put = new HttpPut(uri.resolve(tikaDocument.getId()));
 		final List<NameValuePair> params = new ArrayList<>();
@@ -60,7 +58,6 @@ public class RESTSpewer extends Spewer implements Serializable {
 		put(put);
 	}
 
-	@Override
 	public void close() throws IOException {
 		client.close();
 	}
@@ -84,5 +81,10 @@ public class RESTSpewer extends Spewer implements Serializable {
 				throw new TaggedIOException(new IOException(String.format("Unexpected response code: %d", code)), this);
 			}
 		}
+	}
+
+	@Override
+	protected void writeDocument(TikaDocument doc, TikaDocument parent, TikaDocument root, int level) {
+		throw new UnsupportedOperationException("not implemented");
 	}
 }

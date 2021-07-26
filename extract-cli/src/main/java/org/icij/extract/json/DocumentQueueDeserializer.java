@@ -31,7 +31,7 @@ public class DocumentQueueDeserializer extends JsonDeserializer<DocumentQueue> {
 
 		jsonParser.nextToken(); // Skip over the start of the array.
 		while (jsonParser.nextToken() != JsonToken.END_ARRAY && jsonParser.nextValue() != null) {
-			queue.add(factory.create(Paths.get(jsonParser.getValueAsString())));
+			queue.add(Paths.get(jsonParser.getValueAsString()));
 		}
 
 		return queue;

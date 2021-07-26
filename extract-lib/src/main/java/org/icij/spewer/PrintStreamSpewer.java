@@ -3,12 +3,10 @@ package org.icij.spewer;
 import org.apache.commons.io.TaggedIOException;
 import org.apache.tika.metadata.Metadata;
 import org.icij.extract.document.TikaDocument;
-import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.parser.ParsingReader;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.io.Reader;
 import java.io.Serializable;
 
 /**
@@ -27,14 +25,14 @@ public class PrintStreamSpewer extends Spewer implements Serializable {
 	}
 
 	@Override
-	public void write(final TikaDocument tikaDocument, final Reader reader) throws IOException {
+	protected void writeDocument(TikaDocument tikaDocument, TikaDocument parent, TikaDocument root, int level) throws IOException {
 		if (outputMetadata) {
 			writeMetadata(tikaDocument);
 		}
 
 		// A PrintStream should never throw an IOException: the exception would always come from the input stream.
 		// There's no need to use a TaggedOutputStream or catch IOExceptions.
-		copy(reader, stream);
+		copy(tikaDocument.getReader(), stream);
 
 		// Add an extra newline to signify the end of the text.
 		stream.println();
@@ -42,17 +40,9 @@ public class PrintStreamSpewer extends Spewer implements Serializable {
 		if (stream.checkError()) {
 			throw new TaggedIOException(new IOException("Error writing to print stream."), this);
 		}
-
-		// Write out child documents, if any.
-		for (EmbeddedTikaDocument embed: tikaDocument.getEmbeds()) {
-			try (final Reader embedReader = embed.getReader()) {
-				write(embed, embedReader);
-			}
-		}
 	}
 
-	@Override
-	public void writeMetadata(final TikaDocument tikaDocument) throws IOException {
+	private void writeMetadata(final TikaDocument tikaDocument) throws IOException {
 		final Metadata metadata = tikaDocument.getMetadata();
 
 		// Set the path field.
@@ -70,12 +60,5 @@ public class PrintStreamSpewer extends Spewer implements Serializable {
 
 		// Add an extra newline to signify the end of the metadata.
 		stream.println();
-	}
-
-	@Override
-	public void close() throws IOException {
-		if (!stream.equals(System.out) && !stream.equals(System.err)) {
-			stream.close();
-		}
 	}
 }

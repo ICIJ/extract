@@ -11,7 +11,7 @@ import static java.util.Locale.ENGLISH;
 
 public class DigestIdentifier extends AbstractIdentifier {
 
-	DigestIdentifier(final String algorithm, final Charset charset) {
+	public DigestIdentifier(final String algorithm, final Charset charset) {
 		super(algorithm, charset);
 	}
 

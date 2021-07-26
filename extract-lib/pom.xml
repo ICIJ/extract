@@ -5,7 +5,7 @@
     <parent>
         <artifactId>extract</artifactId>
         <groupId>org.icij.extract</groupId>
-        <version>2.0.5</version>
+        <version>3.7.2</version>
     </parent>
 
     <artifactId>extract-lib</artifactId>
@@ -82,13 +82,13 @@
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
-            <version>4.5.4</version>
+            <version>4.5.13</version>
         </dependency>
 
         <dependency>
             <groupId>org.apache.tika</groupId>
             <artifactId>tika-parsers</artifactId>
-            <version>1.18</version>
+            <version>1.22</version>
             <exclusions>
                 <exclusion>
                     <groupId>commons-logging</groupId>
@@ -112,19 +112,25 @@
         <dependency>
             <groupId>org.redisson</groupId>
             <artifactId>redisson</artifactId>
-            <version>3.7.1</version>
+            <version>3.11.6</version>
         </dependency>
 
         <dependency>
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
-            <version>1.10</version>
+            <version>1.13</version>
         </dependency>
 
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-csv</artifactId>
             <version>1.4</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.pff</groupId>
+            <artifactId>java-libpst</artifactId>
+            <version>0.8.1</version>
         </dependency>
 
         <!-- Optional dependency for parsing SQLite files. -->
@@ -167,8 +173,21 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.12</version>
+            <version>4.13.1</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+             <groupId>org.mockito</groupId>
+             <artifactId>mockito-all</artifactId>
+             <version>2.0.2-beta</version>
+             <scope>test</scope>
+         </dependency>
+        <dependency>
+            <groupId>org.easytesting</groupId>
+            <artifactId>fest-assert</artifactId>
+            <version>1.4</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 </project>

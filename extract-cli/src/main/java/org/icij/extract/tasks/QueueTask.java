@@ -1,19 +1,16 @@
 package org.icij.extract.tasks;
 
+import org.icij.extract.Scanner;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.queue.DocumentQueue;
-import org.icij.extract.Scanner;
-
 import org.icij.extract.queue.DocumentQueueFactory;
-
-import java.nio.file.Path;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-
 import org.icij.task.MonitorableTask;
 import org.icij.task.annotation.OptionsClass;
 import org.icij.task.annotation.Task;
+
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Task that scans paths for files to add to a queue.
@@ -36,7 +33,7 @@ public class QueueTask extends MonitorableTask<Long> {
 		try (final DocumentQueue queue = new DocumentQueueFactory(options)
 				.withDocumentFactory(factory)
 				.createShared()) {
-			return queue(new Scanner(factory, queue, null, monitor).configure(options), paths);
+			return queue(new Scanner(queue, null, monitor).configure(options), paths);
 		}
 	}
 
@@ -60,7 +57,7 @@ public class QueueTask extends MonitorableTask<Long> {
 
 		// Block until each scan has completed. These jobs will complete in serial or parallel depending on the
 		// executor used by the scanner.
-		for (Future<Path> scan : scanner.scan(paths)) {
+		for (Future<Long> scan : scanner.scan(paths)) {
 			scan.get();
 		}
 

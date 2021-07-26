@@ -1,7 +1,6 @@
 package org.icij.extract.report;
 
-import org.icij.extract.document.TikaDocument;
-
+import java.nio.file.Path;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -9,7 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  *
  */
-public class HashMapReportMap extends ConcurrentHashMap<TikaDocument, Report> implements ReportMap {
+public class HashMapReportMap extends ConcurrentHashMap<Path, Report> implements ReportMap {
 
 	private static final long serialVersionUID = -1686535587329141323L;
 
@@ -21,12 +20,10 @@ public class HashMapReportMap extends ConcurrentHashMap<TikaDocument, Report> im
 	}
 
 	@Override
-	public boolean fastPut(final TikaDocument key, final Report value) {
+	public boolean fastPut(final Path key, final Report value) {
 		return put(key, value) != null;
 	}
 
 	@Override
-	public void close() {
-		super.clear();
-	}
+	public void close() {}
 }

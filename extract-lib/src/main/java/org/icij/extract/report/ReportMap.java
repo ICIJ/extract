@@ -1,7 +1,6 @@
 package org.icij.extract.report;
 
-import org.icij.extract.document.TikaDocument;
-
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentMap;
 
@@ -10,7 +9,7 @@ import java.util.concurrent.ConcurrentMap;
  *
  *
  */
-public interface ReportMap extends ConcurrentMap<TikaDocument, Report>, AutoCloseable {
+public interface ReportMap extends ConcurrentMap<Path, Report>, AutoCloseable {
 
 	/**
 	 *  Allow implementations to define a faster method for putting values into the map that doesn't require the
@@ -21,7 +20,7 @@ public interface ReportMap extends ConcurrentMap<TikaDocument, Report>, AutoClos
 	 * @param value the new status
 	 * @return true if the field was new when the value was set; false if it was updated
 	 */
-	boolean fastPut(final TikaDocument key, final Report value);
+	boolean fastPut(final Path key, final Report value);
 
 	/**
 	 * Allow implementations to define a list of exception classes that when caught, would indicate to the caller

@@ -1,9 +1,9 @@
 package org.icij.extract.queue;
 
 import org.apache.tika.metadata.Metadata;
-import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.DocumentFactory;
-import org.icij.kaxxa.sql.SQLQueueCodec;
+import org.icij.extract.document.TikaDocument;
+import org.icij.extract.mysql.SQLQueueCodec;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 
@@ -25,7 +25,7 @@ import java.util.Map;
 @Option(name = "queueStatusKey", description = "The table key for storing the queue status.", parameter = "name")
 @Option(name = "queueWaitingStatus", description = "The status value for waiting documents.", parameter = "value")
 @Option(name = "queueProcessedStatus", description = "The status value for non-waiting documents.", parameter = "value")
-public class SQLDocumentQueueCodec implements SQLQueueCodec<TikaDocument> {
+public class SQLDocumentQueueCodec implements SQLQueueCodec<Path> {
 
 	private final DocumentFactory factory;
 	private final String idKey;
@@ -81,7 +81,7 @@ public class SQLDocumentQueueCodec implements SQLQueueCodec<TikaDocument> {
 	}
 
 	@Override
-	public TikaDocument decodeValue(final ResultSet rs) throws SQLException {
+	public Path decodeValue(final ResultSet rs) throws SQLException {
 		final Path path = Paths.get(rs.getString(pathKey));
 		final Long size = rs.getLong(sizeKey);
 		final TikaDocument tikaDocument;
@@ -96,7 +96,7 @@ public class SQLDocumentQueueCodec implements SQLQueueCodec<TikaDocument> {
 			tikaDocument.setForeignId(rs.getString(foreignIdKey));
 		}
 
-		return tikaDocument;
+		return tikaDocument.getPath();
 	}
 
 	@Override

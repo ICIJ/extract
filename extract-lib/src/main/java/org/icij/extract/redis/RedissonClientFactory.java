@@ -5,6 +5,11 @@ import org.icij.task.annotation.Option;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
+import org.redisson.config.SingleServerConfig;
+
+import java.net.URI;
+
+import static java.util.Optional.ofNullable;
 
 /**
  * Factory for creating a Redis client.
@@ -13,11 +18,14 @@ import org.redisson.config.Config;
  */
 @Option(name = "redisAddress", description = "Set the Redis backend address. Defaults to 127.0.0.1:6379.", parameter
 		= "address")
+@Option(name = "redisPoolSize", description = "Set the Redis backend pool size per collection.", parameter
+		= "poolSize")
 @Option(name = "redisTimeout", description = "The client timeout for Redis operations.", parameter = "timeout")
 public class RedissonClientFactory {
 
 	private String address = null;
 	private int timeout = -1;
+	private int poolSize = 1;
 
 	/**
 	 * Create a new connection manager by query the given set of options.
@@ -28,6 +36,17 @@ public class RedissonClientFactory {
 	public RedissonClientFactory withOptions(final Options<String> options) {
 		withAddress(options.valueIfPresent("redisAddress").orElse(null));
 		options.ifPresent("redisTimeout", o -> o.parse().asInteger()).ifPresent(this::withTimeout);
+		options.ifPresent("redisPoolSize", o -> o.parse().asInteger()).ifPresent(this::withPoolSize);
+		return this;
+	}
+
+	/**
+	 * Sets the size of the pool for this client
+	 * @param poolSize
+	 * @return chainable factory
+	 */
+	private RedissonClientFactory withPoolSize(final int poolSize) {
+		this.poolSize = poolSize;
 		return this;
 	}
 
@@ -59,14 +78,28 @@ public class RedissonClientFactory {
 	 * @return a new connection manager
 	 */
 	public RedissonClient create() {
-		final String address = null == this.address ? "redis://127.0.0.1:6379" : this.address;
-		final int timeout = this.timeout < 0 ? 60 * 1000 : this.timeout;
+		Config config = createConfig();
+		updateConfig(config);
+		return Redisson.create(config);
+	}
 
-		// TODO: support all the other types supported by the RedissonClientFactory.
-		// TODO: Create a hash of config options so that only one manager is used per unique server. This should
-		// improve contention.
-		Config config = new Config();
-		config.useSingleServer().setAddress(address).setTimeout(timeout);
-        return Redisson.create(config);
+	void updateConfig(Config config) {
+		final String address = null == this.address ? "redis://127.0.0.1:6379" : this.address;
+		URI url = URI.create(address);
+		String[] userPass = ofNullable(url.getUserInfo()).orElse("").split(":");
+		final int timeout = this.timeout < 0 ? 60 * 1000 : this.timeout;
+		SingleServerConfig singleServerConfig = config.useSingleServer();
+		singleServerConfig.
+				setConnectionPoolSize(poolSize).
+				setConnectionMinimumIdleSize(poolSize).
+				setAddress(address).
+				setTimeout(timeout);
+		if (userPass.length == 2) {
+			singleServerConfig.setPassword(userPass[1]);
+		}
+	}
+
+	Config createConfig() {
+		return new Config();
 	}
 }
