@@ -121,7 +121,7 @@ public class EmbeddedDocumentMemoryExtractor {
         }
     }
 
-    static class ContentNotFoundException extends NullPointerException {
+    public static class ContentNotFoundException extends NullPointerException {
         ContentNotFoundException(String rootId, String embedId) {
             super("<" + embedId + "> embedded document not found in root document " + rootId);
         }
