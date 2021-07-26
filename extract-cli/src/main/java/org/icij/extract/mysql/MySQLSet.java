@@ -1,6 +1,6 @@
 package org.icij.extract.mysql;
 
-import com.mysql.cj.core.exceptions.MysqlErrorNumbers;
+import com.mysql.cj.exceptions.MysqlErrorNumbers;
 
 import javax.sql.DataSource;
 import java.sql.PreparedStatement;
