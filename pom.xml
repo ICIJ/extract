@@ -59,7 +59,8 @@
 
         <app.main.class>org.icij.extract.cli.Main</app.main.class>
         <solr.version>7.1.0</solr.version>
-
+        <solr.version>7.1.0</solr.version>
+        <slf4j.version>1.7.27</slf4j.version>
         <maven-compiler.version>3.6.0</maven-compiler.version>
         <maven-dependency.version>2.10</maven-dependency.version>
         <maven-jar.version>2.6</maven-jar.version>
@@ -76,7 +77,12 @@
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>1.7.25</version>
+                <version>${slf4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-simple</artifactId>
+                <version>${slf4j.version}</version>
             </dependency>
             <dependency>
                 <groupId>ch.qos.logback</groupId>
