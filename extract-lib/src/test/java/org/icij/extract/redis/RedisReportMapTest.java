@@ -12,6 +12,7 @@ import org.redisson.RedissonMap;
 import org.redisson.api.RedissonClient;
 import org.redisson.client.protocol.Encoder;
 import org.redisson.command.CommandSyncService;
+import org.redisson.liveobject.core.RedissonObjectBuilder;
 
 import java.io.StreamCorruptedException;
 import java.nio.charset.Charset;
@@ -63,7 +64,7 @@ public class RedisReportMapTest {
                     }
                 };
             }
-        }, new CommandSyncService(((Redisson) redissonClient).getConnectionManager()), "test:report", redissonClient, null, null);
+        }, new CommandSyncService(((Redisson) redissonClient).getConnectionManager(), new RedissonObjectBuilder(redissonClient)), "test:report", redissonClient, null, null);
 
         Path key = Paths.get("/my/path");
         assertThat(badReportMap.fastPut(key, new Report(ExtractionStatus.FAILURE_NOT_PARSED, new RuntimeException("an error occurred")))).isTrue();

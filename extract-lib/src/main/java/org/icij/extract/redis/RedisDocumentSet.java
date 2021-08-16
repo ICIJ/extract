@@ -6,6 +6,7 @@ import org.redisson.Redisson;
 import org.redisson.RedissonSet;
 import org.redisson.api.RedissonClient;
 import org.redisson.command.CommandSyncService;
+import org.redisson.liveobject.core.RedissonObjectBuilder;
 
 import java.nio.charset.Charset;
 import java.nio.file.Path;
@@ -36,7 +37,7 @@ public class RedisDocumentSet extends RedissonSet<Path> implements DocumentSet {
 
     private RedisDocumentSet(RedissonClient redissonClient, String name, Charset charset) {
         super(new RedisDocumentQueue.PathQueueCodec(charset),
-        				new CommandSyncService(((Redisson)redissonClient).getConnectionManager()),
+        				new CommandSyncService(((Redisson)redissonClient).getConnectionManager(), new RedissonObjectBuilder(redissonClient)),
         				null == name ? DEFAULT_NAME : name, redissonClient);
         this.redissonClient = redissonClient;
     }

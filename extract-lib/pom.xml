@@ -5,7 +5,7 @@
     <parent>
         <artifactId>extract</artifactId>
         <groupId>org.icij.extract</groupId>
-        <version>3.8.0</version>
+        <version>3.8.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>extract-lib</artifactId>
@@ -112,7 +112,7 @@
         <dependency>
             <groupId>org.redisson</groupId>
             <artifactId>redisson</artifactId>
-            <version>3.11.6</version>
+            <version>3.16.1</version>
         </dependency>
 
         <dependency>

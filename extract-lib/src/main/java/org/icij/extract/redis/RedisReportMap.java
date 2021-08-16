@@ -14,6 +14,7 @@ import org.redisson.client.protocol.Decoder;
 import org.redisson.client.protocol.Encoder;
 import org.redisson.command.CommandSyncService;
 import org.redisson.connection.ConnectionManager;
+import org.redisson.liveobject.core.RedissonObjectBuilder;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -74,7 +75,7 @@ public class RedisReportMap extends RedissonMap<Path, Report> implements ReportM
 	 */
 	private RedisReportMap(final RedissonClient redissonClient, final String name,
 						   final Charset charset) {
-		super(new ReportCodec(charset), new CommandSyncService(((Redisson)redissonClient).getConnectionManager()),
+		super(new ReportCodec(charset), new CommandSyncService(((Redisson)redissonClient).getConnectionManager(), new RedissonObjectBuilder(redissonClient)),
 				null == name ? DEFAULT_NAME : name, redissonClient, null, null);
 		this.redissonClient = redissonClient;
 	}
