@@ -1,33 +1,29 @@
-package org.icij.extract.extractor;
+package org.icij.extract.cleaner;
 
-import org.icij.extract.document.DigestIdentifier;
-import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.TikaDocument;
-import org.icij.extract.document.TikaDocumentSource;
+import org.icij.extract.extractor.Extractor;
 import org.icij.spewer.Spewer;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.Reader;
-import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import static org.fest.assertions.Assertions.assertThat;
 
 public class MetadataCleanerTest {
     @Rule public TemporaryFolder fs = new TemporaryFolder();
-    DocumentFactory documentFactory = new DocumentFactory().withIdentifier(new DigestIdentifier("SHA-256", Charset.defaultCharset()));
-    private Extractor extractor = new Extractor();
+    private final Extractor extractor = new Extractor();
 
     @Test
     public void test_remove_metadata_for_pdf_file() throws Exception {
-        TikaDocument tikaDocument = documentFactory.create(getClass().getResource("/documents/ocr/embedded.pdf"));
-        TikaDocumentSource extractedDocument = new MetadataCleaner().extract(tikaDocument);
+        DocumentSource extractedDocument = new MetadataCleaner().clean(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").toURI()));
 
         Path cleanedPdf = fs.newFile("doc.pdf").toPath();
-        Files.write(cleanedPdf, extractedDocument.content);
+        Files.write(cleanedPdf, extractedDocument.getContent());
 
         TikaDocument pdfExtracted = extractor.extract(cleanedPdf);
         try (Reader reader = pdfExtracted.getReader()) {
