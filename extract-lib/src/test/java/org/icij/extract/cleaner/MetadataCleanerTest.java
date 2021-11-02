@@ -31,4 +31,18 @@ public class MetadataCleanerTest {
         }
         assertThat(pdfExtracted.getMetadata().names()).excludes("meta:save-date", "meta:creation-date");
     }
+
+    @Test
+    public void test_remove_metadata_for_word_document_file() throws Exception {
+        DocumentSource extractedDocument = new MetadataCleaner().clean(Paths.get(getClass().getResource("/documents/office_document.doc").toURI()));
+
+        Path cleanedDoc = fs.newFile("doc.doc").toPath();
+        Files.write(cleanedDoc, extractedDocument.getContent());
+
+        TikaDocument docExtracted = extractor.extract(cleanedDoc);
+        try (Reader reader = docExtracted.getReader()) {
+            Spewer.toString(reader);
+        }
+        assertThat(docExtracted.getMetadata().names()).excludes("meta:save-date", "meta:creation-date", "Author", "Creation-Date");
+    }
 }

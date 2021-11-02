@@ -2,21 +2,22 @@ package org.icij.extract.cleaner;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDDocumentInformation;
+import org.apache.poi.hpsf.SummaryInformation;
+import org.apache.poi.hwpf.HWPFDocument;
 import org.apache.tika.detect.DefaultDetector;
 import org.apache.tika.detect.Detector;
 import org.apache.tika.io.CloseShieldInputStream;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.mime.MediaType;
+import org.apache.tika.parser.microsoft.OfficeParser;
 
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
 
@@ -24,7 +25,7 @@ public class MetadataCleaner {
     private final ContentCleaner cleaner;
 
     public MetadataCleaner() {
-        this.cleaner = new ContentCleaner(asList(new PdfMetadataCleaner()));
+        this.cleaner = new ContentCleaner(asList(new PdfMetadataCleaner(), new OfficeMetadataCleaner()));
     }
 
     public DocumentSource clean(Path document) throws IOException {
@@ -48,7 +49,10 @@ public class MetadataCleaner {
 
         @Override
         public Set<MediaType> getSupportedTypes(CleanContext context) {
-            return MediaType.set("application/pdf");
+            Set<MediaType> mediaTypes = new HashSet<>();
+            mediaTypes.addAll(MediaType.set("application/pdf"));
+            mediaTypes.addAll(Arrays.stream(OfficeParser.POIFSDocumentType.values()).map(OfficeParser.POIFSDocumentType::getType).collect(Collectors.toSet()));
+            return mediaTypes;
         }
 
         @Override
@@ -90,6 +94,34 @@ public class MetadataCleaner {
                 document.save(documentSource.getOutputStream());
             }
             document.close();
+        }
+    }
+
+    static class OfficeMetadataCleaner implements Cleaner {
+        @Override
+        public Set<MediaType> getSupportedTypes(CleanContext context) {
+            return MediaType.set("application/msword");
+        }
+
+        @Override
+        public void clean(InputStream stream, DocumentSource documentSource, Metadata metadata, CleanContext context) throws IOException {
+            HWPFDocument document = new HWPFDocument(stream);
+            removeSummaryInformationMetadata(document.getSummaryInformation());
+            document.write(documentSource.getOutputStream());
+        }
+
+        private void removeSummaryInformationMetadata(SummaryInformation summaryInformation) {
+            summaryInformation.removeAuthor();
+            summaryInformation.removeLastAuthor();
+            summaryInformation.removeSubject();
+            summaryInformation.removeComments();
+            summaryInformation.removeCreateDateTime();
+            summaryInformation.removeEditTime();
+            summaryInformation.removeLastSaveDateTime();
+            summaryInformation.removeApplicationName();
+            summaryInformation.removeRevNumber();
+            summaryInformation.removeLastPrinted();
+            summaryInformation.removeKeywords();
         }
     }
 }
