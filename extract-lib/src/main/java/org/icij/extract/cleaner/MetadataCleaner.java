@@ -25,7 +25,7 @@ public class MetadataCleaner {
     private final ContentCleaner cleaner;
 
     public MetadataCleaner() {
-        this.cleaner = new ContentCleaner(asList(new PdfMetadataCleaner(), new OfficeMetadataCleaner()));
+        this.cleaner = new ContentCleaner(asList(new PdfMetadataCleaner(), new OfficeWordMetadataCleaner()));
     }
 
     public DocumentSource clean(Path document) throws IOException {
@@ -51,7 +51,7 @@ public class MetadataCleaner {
         public Set<MediaType> getSupportedTypes(CleanContext context) {
             Set<MediaType> mediaTypes = new HashSet<>();
             mediaTypes.addAll(MediaType.set("application/pdf"));
-            mediaTypes.addAll(Arrays.stream(OfficeParser.POIFSDocumentType.values()).map(OfficeParser.POIFSDocumentType::getType).collect(Collectors.toSet()));
+            mediaTypes.addAll(MediaType.set("application/msword"));
             return mediaTypes;
         }
 
@@ -97,7 +97,7 @@ public class MetadataCleaner {
         }
     }
 
-    static class OfficeMetadataCleaner implements Cleaner {
+    static class OfficeWordMetadataCleaner implements Cleaner {
         @Override
         public Set<MediaType> getSupportedTypes(CleanContext context) {
             return MediaType.set("application/msword");
