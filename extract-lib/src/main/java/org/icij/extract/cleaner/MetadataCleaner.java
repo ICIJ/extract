@@ -15,6 +15,8 @@ import org.apache.tika.parser.microsoft.OfficeParser;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -111,17 +113,20 @@ public class MetadataCleaner {
         }
 
         private void removeSummaryInformationMetadata(SummaryInformation summaryInformation) {
-            summaryInformation.removeAuthor();
-            summaryInformation.removeLastAuthor();
-            summaryInformation.removeSubject();
-            summaryInformation.removeComments();
-            summaryInformation.removeCreateDateTime();
-            summaryInformation.removeEditTime();
-            summaryInformation.removeLastSaveDateTime();
-            summaryInformation.removeApplicationName();
-            summaryInformation.removeRevNumber();
-            summaryInformation.removeLastPrinted();
-            summaryInformation.removeKeywords();
+            List<Method> methods = Arrays.stream(summaryInformation.getClass().getMethods()).filter(method -> method.getName().startsWith("remove")).collect(Collectors.toList());
+            methods.forEach(method -> {
+                try {
+                    method.invoke(summaryInformation);
+                } catch (IllegalAccessException|InvocationTargetException e) {
+                    throw new InternalCleanerException(e) ;
+                }
+            });
+        }
+    }
+
+    static class InternalCleanerException extends RuntimeException {
+        public InternalCleanerException(Exception e) {
+            super(e);
         }
     }
 }
