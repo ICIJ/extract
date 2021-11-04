@@ -7,7 +7,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
 import java.io.Reader;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -44,5 +46,26 @@ public class MetadataCleanerTest {
             Spewer.toString(reader);
         }
         assertThat(docExtracted.getMetadata().names()).excludes("meta:save-date", "meta:creation-date", "Author", "Creation-Date");
+    }
+
+    @Test
+    public void test_do_not_alter_if_document_type_is_not_supported() throws Exception {
+        DocumentSource extractedDocument = new MetadataCleaner().clean(Paths.get(getClass().getResource("/documents/embedded_file_bug.eml").toURI()));
+
+        assertThat(extractedDocument.getContent().length).isEqualTo(16187);
+    }
+
+    @Test
+    public void test_remove_metadata_for_inputstream() throws Exception {
+        DocumentSource extractedDocument = new MetadataCleaner().clean(getClass().getResource("/documents/ocr/embedded.pdf").openStream());
+
+        Path cleanedPdf = fs.newFile("doc.pdf").toPath();
+        Files.write(cleanedPdf, extractedDocument.getContent());
+
+        TikaDocument pdfExtracted = extractor.extract(cleanedPdf);
+        try (Reader reader = pdfExtracted.getReader()) {
+            Spewer.toString(reader);
+        }
+        assertThat(pdfExtracted.getMetadata().names()).excludes("meta:save-date", "meta:creation-date");
     }
 }

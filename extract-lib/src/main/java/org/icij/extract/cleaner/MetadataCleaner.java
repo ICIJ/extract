@@ -31,56 +31,21 @@ public class MetadataCleaner {
     }
 
     public DocumentSource clean(Path document) throws IOException {
+        return clean(new FileInputStream(document.toFile()));
+    }
+
+    public DocumentSource clean(InputStream inputStream) throws IOException {
         CleanContext context = new CleanContext();
         context.set(Cleaner.class, cleaner);
         final DocumentSource documentSource = new DocumentSource();
         Metadata metadata = new Metadata();
 
-        cleaner.clean(new FileInputStream(document.toFile()), documentSource, metadata, context);
+        cleaner.clean(inputStream, documentSource, metadata, context);
 
         return documentSource;
     }
 
-    static class ContentCleaner implements Cleaner {
-        private final List<Cleaner> cleanerList;
-        Detector detector = new DefaultDetector();
-
-        public ContentCleaner(List<Cleaner> cleanerList) {
-            this.cleanerList = cleanerList;
-        }
-
-        @Override
-        public Set<MediaType> getSupportedTypes(CleanContext context) {
-            Set<MediaType> mediaTypes = new HashSet<>();
-            mediaTypes.addAll(MediaType.set("application/pdf"));
-            mediaTypes.addAll(MediaType.set("application/msword"));
-            return mediaTypes;
-        }
-
-        @Override
-        public void clean(InputStream stream, DocumentSource documentSource, Metadata metadata, CleanContext context) throws IOException {
-            try (TikaInputStream tis = TikaInputStream.get(new CloseShieldInputStream(stream))) {
-                MediaType type = detector.detect(tis, metadata);
-
-                if (getSupportedTypes(context).contains(type)) {
-                    Cleaner cleaner = getCleaners(context).get(type);
-                    cleaner.clean(tis, documentSource, metadata, context);
-                }
-            }
-        }
-
-        public Map<MediaType, Cleaner> getCleaners(CleanContext context) {
-            Map<MediaType, Cleaner> map = new HashMap<>();
-            for (Cleaner cleaner : cleanerList) {
-                for (MediaType type : cleaner.getSupportedTypes(context)) {
-                    map.put(type, cleaner);
-                }
-            }
-            return map;
-        }
-    }
-
-    static class PdfMetadataCleaner implements Cleaner {
+    public static class PdfMetadataCleaner implements Cleaner {
         @Override
         public Set<MediaType> getSupportedTypes(CleanContext context) {
             return MediaType.set("application/pdf");
@@ -99,7 +64,7 @@ public class MetadataCleaner {
         }
     }
 
-    static class OfficeWordMetadataCleaner implements Cleaner {
+    public static class OfficeWordMetadataCleaner implements Cleaner {
         @Override
         public Set<MediaType> getSupportedTypes(CleanContext context) {
             return MediaType.set("application/msword");
