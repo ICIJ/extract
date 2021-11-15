@@ -15,24 +15,21 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
+import static org.fest.assertions.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 
 public class ScannerTest {
 	private final DocumentQueue queue = new MemoryDocumentQueue("extract:queue", 100);
-	private Scanner scanner = new Scanner(queue);
+	private final Scanner scanner = new Scanner(queue);
 
 	@Test
 	public void testScanDirectory() throws Throwable {
 		final Path root = Paths.get(getClass().getResource("/documents/text/").toURI());
 
-		// Block until every single path has been scanned and queued.
-		final Future<Long> job = scanner.scan(root);
+		assertEquals(3L, (long)scanner.scan(root).get());
 
-		assertEquals(3L, (long)job.get());
-		shutdownScanner(scanner);
-
-		// Assert that the queue contains at least one file, manually.
 		Assert.assertTrue(Files.exists(root.resolve("plain.txt")));
 		Assert.assertTrue(String.format("Queued file path must start with root path \"%s\".", root),
 				queue.contains(root.resolve("plain.txt")));
@@ -53,28 +50,18 @@ public class ScannerTest {
 		scanner.ignoreSystemFiles(true);
 		final Path rootFiles = Paths.get(getClass().getResource("/documents/").toURI());
 		assertEquals(13, scanner.getNumberOfFiles(rootFiles));
-
-		shutdownScanner(scanner);
 	}
 
 	@Test
 	public void testScanDirectoryWithIncludeGlob() throws Throwable {
 		final Path root = Paths.get(getClass().getResource("/documents/").toURI());
-
 		scanner.include("**.txt");
 
-		// Block until every single path has been scanned and queued.
 		final Future<Long> job = scanner.scan(root);
 
 		assertEquals(2, (long)job.get());
-		shutdownScanner(scanner);
-
-		// Assert that the queue contains at least one file, manually.
-		final Path garbage = root.resolve("garbage.bin");
-
-		Assert.assertTrue(Files.exists(garbage));
-		Assert.assertFalse(queue.contains(garbage));
 		Assert.assertTrue(queue.contains(root.resolve("text/plain.txt")));
+		Assert.assertTrue(queue.contains(root.resolve("text/utf16.txt")));
 	}
 
 	@Test
@@ -83,29 +70,18 @@ public class ScannerTest {
 
 		// Test exclude paths by extension.
 		scanner.exclude("**.bin");
-
 		// Test excluding directories.
 		scanner.exclude("**/ocr");
+		scanner.scan(root).get();
 
-		// Block until every single path has been scanned and queued.
-		final Future<Long> job = scanner.scan(root);
-
-		assertEquals((long)job.get(), 10);
-		shutdownScanner(scanner);
-
-		// Assert that the queue contains at least one file, manually.
 		final Path garbage = root.resolve("garbage.bin");
-		final Path ocrTiff = root.resolve("ocr/simple.tiff");
-
-		// Test paths excluded by extension.
 		Assert.assertTrue(Files.exists(garbage));
 		Assert.assertFalse(queue.contains(garbage));
 
-		// Test whether entire directory was excluded.
+		final Path ocrTiff = root.resolve("ocr/simple.tiff");
 		Assert.assertTrue(Files.exists(ocrTiff));
 		Assert.assertFalse(queue.contains(ocrTiff));
 
-		// Test whether at least one other file was included.
 		Assert.assertTrue(queue.contains(root.resolve("text/plain.txt")));
 	}
 
@@ -116,17 +92,12 @@ public class ScannerTest {
 		scanner.followSymLinks(true);
 		Assert.assertTrue(scanner.followSymLinks());
 
-		// Create the link.
 		final Path documents = root.resolve("documents");
-
 		if (Files.notExists(documents)) {
 			Files.createSymbolicLink(documents, root.resolve("../documents"));
 		}
 
-		final Future<Long> job = scanner.scan(root);
-
-		assertEquals((long)job.get(), 14);
-		shutdownScanner(scanner);
+		scanner.scan(root).get();
 
 		// Assert that the queue doesn't contain the symlink, but contains linked files.
 		Assert.assertTrue(Files.isSymbolicLink(documents));
@@ -141,22 +112,14 @@ public class ScannerTest {
 		final Path hidden = root.resolve(".hidden");
 
 		scanner.ignoreHiddenFiles(true);
-		Assert.assertTrue(scanner.ignoreHiddenFiles());
+		scanner.scan(root).get();
 
-		// Block until every single path has been scanned and queued.
-		assertEquals(12, (long)scanner.scan(root).get());
-
-		// Assert that the queue does not contain the hidden file.
 		Assert.assertTrue(Files.exists(hidden));
 		Assert.assertFalse(queue.contains(hidden));
 
-		// Now test if hidden files are scanned.
 		scanner.ignoreHiddenFiles(false);
-		Assert.assertFalse(scanner.ignoreHiddenFiles());
-
-		assertEquals(13, (long)scanner.scan(root).get());
+		scanner.scan(root).get();
 		Assert.assertTrue(queue.contains(hidden));
-		shutdownScanner(scanner);
 	}
 
 	@Test
@@ -165,9 +128,7 @@ public class ScannerTest {
 		final Path system = root.resolve("lost+found/trashed");
 
 		Assert.assertTrue(scanner.ignoreSystemFiles());
-
-		// Block until every single path has been scanned and queued.
-		assertEquals(13, (long)scanner.scan(root).get());
+		scanner.scan(root).get();
 
 		// Assert that the queue does not contain the system file.
 		Assert.assertTrue(Files.exists(system));
@@ -175,27 +136,20 @@ public class ScannerTest {
 
 		// Now test if system files are scanned.
 		scanner.ignoreSystemFiles(false);
-		Assert.assertFalse(scanner.ignoreSystemFiles());
-
-		assertEquals(14, (long)scanner.scan(root).get());
+		scanner.scan(root).get();
 		Assert.assertTrue(queue.contains(system));
-		shutdownScanner(scanner);
 	}
 
 	@Test
 	public void testMaxDepth() throws Throwable {
 		final Path root = Paths.get(getClass().getResource("/documents/").toURI());
-
 		scanner.setMaxDepth(1);
-		assertEquals(1, scanner.getMaxDepth());
 
-		// Block until every single path has been scanned and queued.
-		assertEquals(10, (long)scanner.scan(root).get());
+		scanner.scan(root).get();
 
-		Assert.assertTrue(Files.exists(root.resolve("text/plain.txt")));
-		Assert.assertFalse(queue.contains(root.resolve("text/plain.txt")));
-		Assert.assertTrue(queue.contains(root.resolve("garbage.bin")));
-		shutdownScanner(scanner);
+		for(Path p: queue.stream().collect(Collectors.toList())) {
+			assertThat(root.relativize(p).toString().contains("/")).isFalse();
+		}
 	}
 
 	@Test
@@ -220,12 +174,15 @@ public class ScannerTest {
 		shutdownScanner(scanner);
 	}
 
+	@After
+	public void tearDown() throws InterruptedException {
+		queue.clear();
+		shutdownScanner(scanner);
+	}
+
 	private void shutdownScanner(final Scanner scanner) throws InterruptedException {
 		scanner.shutdown();
 		scanner.awaitTermination(1, TimeUnit.SECONDS);
 	}
-
-	@After
-	public void tearDown() { queue.clear();}
 
 }
