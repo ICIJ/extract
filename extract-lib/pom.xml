@@ -63,6 +63,9 @@
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+                    <additionalJOptions><additionalJOption>-Xdoclint:none</additionalJOption></additionalJOptions>
+                </configuration>
             </plugin>
         </plugins>
     </build>
