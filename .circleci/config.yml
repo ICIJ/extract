@@ -63,6 +63,11 @@ jobs:
           command: mvn -s .circleci/maven-release-settings.xml deploy -Dmaven.test.skip=true
           no_output_timeout: 30m
 
+      - save_cache:
+          paths:
+            - ~/.m2
+          key: v1-dependencies-{{ checksum "pom.xml" }}
+
 
 workflows:
   version: 2
