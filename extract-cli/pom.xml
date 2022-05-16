@@ -14,7 +14,7 @@
     <properties>
         <app.main.class>org.icij.extract.cli.Main</app.main.class>
         <solr.version>8.8.2</solr.version>
-        <jackson.version>2.10.0.pr1</jackson.version>
+        <jackson.version>2.12.6.1</jackson.version>
     </properties>
 
     <repositories>
