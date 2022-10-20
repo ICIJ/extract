@@ -5,14 +5,12 @@ import org.apache.tika.metadata.*;
 
 import java.io.IOException;
 import java.io.Serializable;
-
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.TemporalAccessor;
-
 import java.util.*;
 import java.util.stream.Stream;
 
@@ -30,14 +28,14 @@ public class MetadataTransformer implements Serializable {
 			// Deduplicate content types (Tika seems to add these sometimes, especially for RTF files).
 			Metadata.CONTENT_TYPE.toLowerCase(Locale.ENGLISH),
 
-				// Deduplicate titles (appear in bad HTML files).
-				TikaCoreProperties.TITLE.getName().toLowerCase(Locale.ENGLISH),
+			// Deduplicate titles (appear in bad HTML files).
+			TikaCoreProperties.TITLE.getName().toLowerCase(Locale.ENGLISH),
 
-				// Deduplicate these properties contained in some MSHTML documents.
-				TITLE,
-				"originator",
-				"generator",
-				"progid");
+			// Deduplicate these properties contained in some MSHTML documents.
+			TITLE,
+			"originator",
+			"generator",
+			"progid");
 	}
 
 	private static final long serialVersionUID = -6643888792096975746L;
@@ -106,6 +104,14 @@ public class MetadataTransformer implements Serializable {
 					transform(entry.getKey(), values[0], single);
 				}
 			}
+			String dctermsDate = metadata.get(DublinCore.CREATED);
+			if( dctermsDate != null ) {
+				single.accept("tika_metadata_creation_date", dctermsDate);
+				Instant dctermsDateInstant = getInstant(dctermsDate, null);
+				if ( dctermsDateInstant != null) {
+					single.accept("tika_metadata_creation_date_iso8601", dctermsDateInstant.toString());
+				}
+			}
 		} catch (IOException e) {
 			throw new TaggedIOException(e, getClass());
 		}
@@ -161,18 +167,29 @@ public class MetadataTransformer implements Serializable {
 
 	private void transformDate(final String name, final ValueConsumer consumer) throws IOException {
 		final Date date = metadata.getDate(dateProperties.get(name));
-		Instant instant = null;
 
+		String strDate = metadata.get(name);
+		Instant instant = getInstant(strDate, date);
+
+		if (null != instant) {
+			consumer.accept(fields.forMetadataISODate(name), instant.toString());
+		} else {
+			throw new IOException(String.format("Unable to parse date \"%s\" from field " +
+					"\"%s\" for ISO 8601 formatting.", strDate, name));
+		}
+	}
+
+	private Instant getInstant(String strDate, Date date) {
+		Instant instant = null;
 		if (null != date) {
 			instant = date.toInstant();
 		} else {
-
 			// Try some other formats.
 			for (DateTimeFormatter format: dateFormats) {
 				final TemporalAccessor accessor;
 
 				try {
-					accessor = format.parseBest(metadata.get(name), Instant::from, LocalDateTime::from);
+					accessor = format.parseBest(strDate, Instant::from, LocalDateTime::from);
 				} catch (final DateTimeParseException e) {
 					continue;
 				}
@@ -188,13 +205,7 @@ public class MetadataTransformer implements Serializable {
 				break;
 			}
 		}
-
-		if (null != instant) {
-			consumer.accept(fields.forMetadataISODate(name), instant.toString());
-		} else {
-			throw new IOException(String.format("Unable to parse date \"%s\" from field " +
-					"\"%s\" for ISO 8601 formatting.", metadata.get(name), name));
-		}
+		return instant;
 	}
 
 	@FunctionalInterface
