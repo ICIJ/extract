@@ -5,6 +5,7 @@ import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.PathIdentifier;
@@ -66,7 +67,7 @@ public class EmbedLinker implements EmbeddedDocumentExtractor {
 	@Override
 	public void parseEmbedded(final InputStream input, final ContentHandler handler, final Metadata metadata, final
 	boolean outputHtml) throws SAXException, IOException {
-		String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
+		String name = metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY);
 
 		if (null == name || name.isEmpty()) {
 			name = String.format("untitled file %d", ++untitled);

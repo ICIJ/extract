@@ -28,7 +28,7 @@ public interface Identifier {
 	String generateForEmbed(final EmbeddedTikaDocument document) throws Exception;
 
 	static String getKey(String algorithm) {
-		return TikaCoreProperties.TIKA_META_PREFIX + "digest" + Metadata.NAMESPACE_PREFIX_DELIMITER + algorithm
+		return TikaCoreProperties.TIKA_META_PREFIX + "digest" + TikaCoreProperties.NAMESPACE_PREFIX_DELIMITER + algorithm
 				.replace("-", "");
 	}
 

@@ -1,6 +1,7 @@
 package org.icij.extract.document;
 
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 
 import javax.xml.bind.DatatypeConverter;
 
@@ -31,8 +32,8 @@ public class DigestIdentifier extends AbstractIdentifier {
 		// - the embedded relationship ID
 		// - the embedded document name
 		final Metadata metadata = embed.getMetadata();
-		final String embeddedRelationshipId = metadata.get(Metadata.EMBEDDED_RELATIONSHIP_ID);
-		final String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
+		final String embeddedRelationshipId = metadata.get(TikaCoreProperties.EMBEDDED_RELATIONSHIP_ID);
+		final String name = metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY);
 		final String hash = hash(embed);
 
 		if (null == hash) {

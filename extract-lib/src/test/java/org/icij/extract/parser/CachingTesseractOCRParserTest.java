@@ -2,7 +2,6 @@ package org.icij.extract.parser;
 
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.ParseContext;
-import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.WriteOutContentHandler;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -17,6 +16,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class CachingTesseractOCRParserTest {
@@ -46,7 +46,7 @@ public class CachingTesseractOCRParserTest {
 		Writer writer = new StringWriter();
 		final AtomicInteger hit = new AtomicInteger(), miss = new AtomicInteger();
 
-		final Parser parser = new CachingTesseractOCRParser(tmpDir) {
+		final CachingTesseractOCRParser parser = new CachingTesseractOCRParser(tmpDir) {
 
 			private static final long serialVersionUID = 6551690243986921730L;
 
@@ -61,6 +61,7 @@ public class CachingTesseractOCRParserTest {
 			}
 		};
 
+		parser.initialize(new HashMap<>());
 		try (final InputStream in = Files.newInputStream(simple)) {
 			parser.parse(in, new WriteOutContentHandler(writer), new Metadata(), new ParseContext());
 		}

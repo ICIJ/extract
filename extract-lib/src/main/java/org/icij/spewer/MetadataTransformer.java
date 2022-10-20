@@ -21,19 +21,24 @@ public class MetadataTransformer implements Serializable {
 	private static final List<DateTimeFormatter> dateFormats = new ArrayList<>();
 	private static final Map<String, Property> dateProperties = new HashMap<>();
 	@SuppressWarnings("deprecation")
-	private static final List<String> deduplicateProperties = Arrays.asList(
+	private static final List<String> deduplicateProperties;
+	private static final String TITLE = "title";
+
+	static {
+		deduplicateProperties = Arrays.asList(
 
 			// Deduplicate content types (Tika seems to add these sometimes, especially for RTF files).
 			Metadata.CONTENT_TYPE.toLowerCase(Locale.ENGLISH),
 
-			// Deduplicate titles (appear in bad HTML files).
-			TikaCoreProperties.TITLE.getName().toLowerCase(Locale.ENGLISH),
-			Metadata.TITLE.toLowerCase(Locale.ENGLISH),
+				// Deduplicate titles (appear in bad HTML files).
+				TikaCoreProperties.TITLE.getName().toLowerCase(Locale.ENGLISH),
 
-			// Deduplicate these properties contained in some MSHTML documents.
-			"originator",
-			"generator",
-			"progid");
+				// Deduplicate these properties contained in some MSHTML documents.
+				TITLE,
+				"originator",
+				"generator",
+				"progid");
+	}
 
 	private static final long serialVersionUID = -6643888792096975746L;
 
@@ -49,15 +54,11 @@ public class MetadataTransformer implements Serializable {
 				Office.CREATION_DATE,
 				Office.SAVE_DATE,
 				Office.PRINT_DATE,
-				MSOffice.CREATION_DATE,
-				MSOffice.LAST_SAVED,
-				MSOffice.LAST_PRINTED,
 				PDF.DOC_INFO_CREATED,
 				PDF.DOC_INFO_MODIFICATION_DATE,
 				TIFF.ORIGINAL_DATE,
-				Metadata.DATE,
-				Property.externalDate(Metadata.MODIFIED),
-				HttpHeaders.LAST_MODIFIED).forEach(property -> dateProperties.put(property.getName(), property));
+				Property.externalDate(TikaCoreProperties.MODIFIED.getName()))
+				.forEach(property -> dateProperties.put(property.getName(), property));
 	}
 
 	private final Metadata metadata;
@@ -84,7 +85,7 @@ public class MetadataTransformer implements Serializable {
 
 			// The title field should not be considered multivalued until TIKA-2274 is resolved.
 			//noinspection deprecation
-			if (values.length > 1 && name.equals(Metadata.TITLE)) {
+			if (values.length > 1 && name.equals(TITLE)) {
 				values = Arrays.copyOfRange(values, 0, 1);
 			}
 

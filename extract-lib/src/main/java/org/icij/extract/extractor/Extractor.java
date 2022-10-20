@@ -12,8 +12,8 @@ import org.apache.tika.parser.html.HtmlMapper;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.ocr.TesseractOCRParser;
 import org.apache.tika.parser.pdf.PDFParserConfig;
-import org.apache.tika.parser.utils.CommonsDigester;
-import org.apache.tika.parser.utils.CommonsDigester.DigestAlgorithm;
+import org.apache.tika.parser.digestutils.CommonsDigester;
+import org.apache.tika.parser.digestutils.CommonsDigester.DigestAlgorithm;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
 import org.apache.tika.sax.WriteOutContentHandler;
 import org.icij.extract.document.DocumentFactory;
@@ -122,7 +122,6 @@ public class Extractor {
 
 		// Set a long OCR timeout by default, because Tika's is too short.
 		setOcrTimeout(Duration.ofDays(1));
-		ocrConfig.setEnableImageProcessing(0); // See TIKA-2167. Image processing causes OCR to fail.
 
 		// English text recognition by default.
 		ocrConfig.setLanguage("eng");
@@ -220,7 +219,7 @@ public class Extractor {
 	 * @param ocrTimeout the duration in seconds
 	 */
 	private void setOcrTimeout(final int ocrTimeout) {
-		ocrConfig.setTimeout(ocrTimeout);
+		ocrConfig.setTimeoutSeconds(ocrTimeout);
 	}
 
 	/**
