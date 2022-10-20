@@ -1,6 +1,5 @@
 package org.icij.extract.spewer;
 
-import org.icij.extract.spewer.SolrSpewer;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -8,9 +7,9 @@ import org.apache.solr.client.solrj.response.UpdateResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
-import org.apache.tika.metadata.Metadata;
-import org.icij.extract.document.TikaDocument;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.icij.extract.document.EmbeddedTikaDocument;
+import org.icij.extract.document.TikaDocument;
 import org.icij.spewer.FieldNames;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
@@ -91,7 +90,7 @@ public class MergingSolrSpewer extends SolrSpewer {
 			SolrServerException {
 		final SolrDocument existingDocument;
 		final SolrQuery params = new SolrQuery();
-		final String resourceNameKey = fields.forMetadata(Metadata.RESOURCE_NAME_KEY);
+		final String resourceNameKey = fields.forMetadata(TikaCoreProperties.RESOURCE_NAME_KEY);
 
 		// The tikaDocument must be retrieved from the real-time-get (RTG) handler, otherwise we'd have to commit every
 		// time a tikaDocument is added.
@@ -126,7 +125,7 @@ public class MergingSolrSpewer extends SolrSpewer {
 
 		// Merge the resource name field.
 		if (tikaDocument.getMetadata() != null) {
-			mergeField(resourceNameKey, tikaDocument.getMetadata().get(Metadata.RESOURCE_NAME_KEY), existingDocument,
+			mergeField(resourceNameKey, tikaDocument.getMetadata().get(TikaCoreProperties.RESOURCE_NAME_KEY), existingDocument,
 					inputDocument);
 		}
 	}

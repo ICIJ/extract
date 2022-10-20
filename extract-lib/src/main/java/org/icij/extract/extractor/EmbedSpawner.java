@@ -78,7 +78,7 @@ public class EmbedSpawner extends EmbedParser {
 		// Note that getPath should still return the path to the original file.
 		embed.setReader(() -> new InputStreamReader(new ByteArrayInputStream(output.toByteArray()), StandardCharsets.UTF_8));
 
-		String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
+		String name = metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY);
 		if (null == name || name.isEmpty()) {
 			name = String.format("untitled_%d", ++untitled);
 		}

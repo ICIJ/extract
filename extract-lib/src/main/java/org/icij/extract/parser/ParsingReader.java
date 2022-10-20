@@ -20,6 +20,7 @@ import java.io.*;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
@@ -95,7 +96,7 @@ public class ParsingReader extends Reader {
 		final Metadata metadata = new Metadata();
 
 		if (name != null && name.length() > 0) {
-			metadata.set(Metadata.RESOURCE_NAME_KEY, name);
+			metadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, name);
 		}
 
 		return metadata;
@@ -251,7 +252,7 @@ public class ParsingReader extends Reader {
 		 */
 		@Override
 		public void execute(final Runnable task) {
-			String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
+			String name = metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY);
 			
 			if (name != null) {
 				name = "ICIJ Extract: " + name;

@@ -1,7 +1,6 @@
 package org.icij.extract.extractor;
 
 import org.apache.tika.exception.TikaException;
-import org.apache.tika.io.IOExceptionWithCause;
 import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
@@ -126,7 +125,7 @@ public abstract class UpdatableInputStreamDigester implements DigestingParser.Di
                 try {
                     tmp.dispose();
                 } catch (TikaException e) {
-                    throw new IOExceptionWithCause(e);
+                    throw new IOException(e);
                 }
             }
         }
@@ -135,7 +134,7 @@ public abstract class UpdatableInputStreamDigester implements DigestingParser.Di
 
     private String getMetadataKey() {
         return TikaCoreProperties.TIKA_META_PREFIX +
-                "digest" + Metadata.NAMESPACE_PREFIX_DELIMITER +
+                "digest" + TikaCoreProperties.NAMESPACE_PREFIX_DELIMITER +
                 algorithmKeyName;
     }
 

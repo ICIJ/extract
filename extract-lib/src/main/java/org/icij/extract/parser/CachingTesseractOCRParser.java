@@ -42,18 +42,6 @@ public class CachingTesseractOCRParser extends TesseractOCRParser {
 		}
 	}
 
-	@Override
-	public void parseInline(final InputStream in, final XHTMLContentHandler xhtml, final ParseContext context,
-	                        final TesseractOCRConfig config)
-			throws IOException, SAXException, TikaException {
-		if (null != outputPath) {
-			cachedParse(in, xhtml, new Metadata(), context, null == config ?
-					context.get(TesseractOCRConfig.class, DEFAULT_CONFIG) : config, true);
-		} else {
-			super.parseInline(in, xhtml, context, config);
-		}
-	}
-
 	protected void cacheHit() {
 	}
 
@@ -72,7 +60,7 @@ public class CachingTesseractOCRParser extends TesseractOCRParser {
 				xhtml = new XHTMLContentHandler(handler, metadata);
 			}
 
-			super.parseInline(in, xhtml, context, config);
+			super.parse(in, xhtml, metadata, context);
 		} else {
 			super.parse(in, handler, metadata, context);
 		}
@@ -84,7 +72,7 @@ public class CachingTesseractOCRParser extends TesseractOCRParser {
 		final ContentHandler tee = new TeeContentHandler(handler, new WriteOutContentHandler(writer));
 
 		if (inline) {
-			super.parseInline(tis, new XHTMLContentHandler(tee, metadata), context, config);
+			super.parse(tis, new XHTMLContentHandler(tee, metadata), metadata, context);
 		} else {
 			super.parse(tis, tee, metadata, context);
 		}
@@ -117,7 +105,7 @@ public class CachingTesseractOCRParser extends TesseractOCRParser {
 
 	private boolean acquireLock(final TesseractOCRConfig config, final Path cacheLock)
 			throws IOException, InterruptedException {
-		for (int i = 0, l = config.getTimeout() + 1; i < l; i++) {
+		for (int i = 0, l = config.getTimeoutSeconds() + 1; i < l; i++) {
 			try {
 				Files.createFile(cacheLock);
 				return true;

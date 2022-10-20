@@ -1,9 +1,9 @@
 package org.icij.extract.extractor;
 
+import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.ParsingEmbeddedDocumentExtractor;
-import org.apache.tika.io.CloseShieldInputStream;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
@@ -61,7 +61,7 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 	}
 
 	void delegateParsing(final InputStream input, final ContentHandler handler, final Metadata metadata) throws IOException, SAXException {
-		try (final TikaInputStream tis = TikaInputStream.get(new CloseShieldInputStream(input))) {
+		try (final TikaInputStream tis = TikaInputStream.get(CloseShieldInputStream.wrap(input))) {
 			if (input instanceof TikaInputStream) {
 				final Object container = ((TikaInputStream) input).getOpenContainer();
 
@@ -74,12 +74,12 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 			DELEGATING_PARSER.parse(tis, handler, metadata, context);
 		} catch (final EncryptedDocumentException e) {
 			logger.error("Unable to decrypt encrypted document embedded in document: \"{}\" ({}) (in \"{}\").",
-					metadata.get(Metadata.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root, e);
+					metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root, e);
 			metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM,
 					ExceptionUtils.getFilteredStackTrace(e));
 		} catch (final TikaException e) {
 			logger.error("Unable to parse embedded document: \"{}\" ({}) (in \"{}\").",
-					metadata.get(Metadata.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root, e);
+					metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root, e);
 			metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM,
 					ExceptionUtils.getFilteredStackTrace(e));
 		}
@@ -87,7 +87,7 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 
 	void writeStart(final ContentHandler handler, final Metadata metadata) throws SAXException {
 		final AttributesImpl attributes = new AttributesImpl();
-		final String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
+		final String name = metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY);
 
 		attributes.addAttribute("", "class", "class", "CDATA", "package-entry");
 		handler.startElement(XHTML, "div", "div", attributes);

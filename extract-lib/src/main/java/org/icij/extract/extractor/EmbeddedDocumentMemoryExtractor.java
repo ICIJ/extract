@@ -1,8 +1,8 @@
 package org.icij.extract.extractor;
 
+import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.TikaException;
-import org.apache.tika.io.CloseShieldInputStream;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
@@ -70,7 +70,7 @@ public class EmbeddedDocumentMemoryExtractor {
             if (document != null) return;
             EmbeddedTikaDocument embed = this.documentStack.getLast().addEmbed(metadata);
 
-            try (final TikaInputStream tis = TikaInputStream.get(new CloseShieldInputStream(stream))) {
+            try (final TikaInputStream tis = TikaInputStream.get(CloseShieldInputStream.wrap(stream))) {
                 if (stream instanceof TikaInputStream) {
                     final Object container = ((TikaInputStream) stream).getOpenContainer();
 
