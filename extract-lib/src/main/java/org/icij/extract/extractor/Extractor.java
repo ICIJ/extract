@@ -16,6 +16,7 @@ import org.apache.tika.parser.digestutils.CommonsDigester;
 import org.apache.tika.parser.digestutils.CommonsDigester.DigestAlgorithm;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
 import org.apache.tika.sax.WriteOutContentHandler;
+import org.icij.extract.document.DigestIdentifier;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
@@ -232,11 +233,16 @@ public class Extractor {
 	}
 
 	public void setDigestAlgorithm(final String digestAlgorithm) {
-		digester = new CommonsDigester(20 * 1024 * 1024, digestAlgorithm);
+		setDigester(new CommonsDigester(20 * 1024 * 1024, digestAlgorithm));
 	}
 
 	public void setDigester(final DigestingParser.Digester digester) {
 		this.digester = digester;
+	}
+
+	public void setDigester(final UpdatableDigester digester) {
+		this.digester = digester;
+		this.documentFactory.withIdentifier(DocumentFactory.MethodName.TIKA_DIGEST, digester.algorithm);
 	}
 
 	/**

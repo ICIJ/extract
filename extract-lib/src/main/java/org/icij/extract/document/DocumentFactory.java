@@ -7,6 +7,7 @@ import org.icij.task.annotation.Option;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -32,6 +33,10 @@ public class DocumentFactory {
 
 	private Identifier identifier = null;
 
+	private Charset	charset = StandardCharsets.UTF_8;
+
+	public enum MethodName { PATH, PATH_DIGEST, TIKA_DIGEST }
+
 	public DocumentFactory(final Options<String> options) {
 		configure(options);
 	}
@@ -41,28 +46,32 @@ public class DocumentFactory {
 	}
 
 	public DocumentFactory configure(final Options<String> options) {
+		charset = Charset.forName(options.valueIfPresent("charset").orElse(this.charset.toString()));
+
 		final String algorithm = options.valueIfPresent("idDigestMethod").orElse("SHA-256");
-		final Charset charset = Charset.forName(options.valueIfPresent("charset").orElse("UTF-8"));
 		final Optional<String> method = options.valueIfPresent("idMethod");
 
 		if (method.isPresent()) {
-			switch (method.get()) {
-				case "path":
-					this.identifier = new PathIdentifier();
-					break;
-				case "path-digest":
-					this.identifier = new PathDigestIdentifier(algorithm, charset);
-					break;
-				case "tika-digest":
-					this.identifier = new DigestIdentifier(algorithm, charset);
-					break;
-				default:
-					throw new IllegalArgumentException(String.format("\"%s\" is not a valid identifier.", method.get()));
-			}
-		} else {
-			identifier = new DigestIdentifier(algorithm, charset);
+			return withIdentifier(MethodName.valueOf(method.get().toUpperCase()), algorithm);
 		}
+		identifier = new DigestIdentifier(algorithm, charset);
+		return this;
+	}
 
+	public DocumentFactory withIdentifier(final MethodName name, final String algorithm) {
+		switch (name) {
+			case PATH:
+				this.identifier = new PathIdentifier();
+				break;
+			case PATH_DIGEST:
+				this.identifier = new PathDigestIdentifier(algorithm, charset);
+				break;
+			case TIKA_DIGEST:
+				this.identifier = new DigestIdentifier(algorithm, charset);
+				break;
+			default:
+				throw new IllegalArgumentException(String.format("\"%s\" is not a valid identifier.", name));
+		}
 		return this;
 	}
 
@@ -71,6 +80,7 @@ public class DocumentFactory {
 		this.identifier = identifier;
 		return this;
 	}
+
 
 	public TikaDocument create(final String id, final Path path) {
 		return new TikaDocument(id, identifier, path);

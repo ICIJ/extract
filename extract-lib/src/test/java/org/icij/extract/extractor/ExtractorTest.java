@@ -138,6 +138,16 @@ public class ExtractorTest {
 	}
 
 	@Test
+	public void testDocumentUseCorrectDigestIdentifier () throws Exception {
+		DocumentFactory documentFactory = new DocumentFactory();
+		final Extractor extractor = new Extractor(documentFactory);
+		extractor.setDigester(new UpdatableDigester("project1", "SHA-384") {});
+		TikaDocument tikaDocument1 = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
+
+		Assert.assertNotNull(tikaDocument1.getId());
+	}
+
+	@Test
 	public void testEmbeds() throws Throwable {
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
 		String text;
