@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.HashMap;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -29,11 +30,14 @@ import java.util.Optional;
 		"the ID method.", parameter = "name")
 @Option(name = "charset", description = "Set the output encoding for text and document attributes. Defaults to UTF-8.",
 		parameter = "name")
+@Option(name = "language", description = "Optional parameter to specify the language of the document.", parameter = "name")
 public class DocumentFactory {
 
 	private Identifier identifier = null;
 
 	private Charset	charset = StandardCharsets.UTF_8;
+
+	private String language = null;
 
 	public enum MethodName { PATH, PATH_DIGEST, TIKA_DIGEST }
 
@@ -47,6 +51,7 @@ public class DocumentFactory {
 
 	public DocumentFactory configure(final Options<String> options) {
 		charset = Charset.forName(options.valueIfPresent("charset").orElse(this.charset.toString()));
+		language = options.valueIfPresent("language").orElse(null);
 
 		final String algorithm = options.valueIfPresent("idDigestMethod").orElse("SHA-256");
 		final Optional<String> method = options.valueIfPresent("idMethod");
@@ -56,6 +61,10 @@ public class DocumentFactory {
 		}
 		identifier = new DigestIdentifier(algorithm, charset);
 		return this;
+	}
+
+	public DocumentFactory configure () {
+		return this.configure(Options.from(new HashMap<>()));
 	}
 
 	public DocumentFactory withIdentifier(final MethodName name, final String algorithm) {
@@ -83,22 +92,22 @@ public class DocumentFactory {
 
 
 	public TikaDocument create(final String id, final Path path) {
-		return new TikaDocument(id, identifier, path);
+		return new TikaDocument(id, identifier, path, language);
 	}
 
 	public TikaDocument create(final String id, final Path path, final long size) {
 		final Metadata metadata = new Metadata();
 
 		metadata.set(Metadata.CONTENT_LENGTH, Long.toString(size));
-		return new TikaDocument(id, identifier, path, metadata);
+		return new TikaDocument(id, identifier, path, language, metadata);
 	}
 
 	public TikaDocument create(final String id, final Path path, final Metadata metadata) {
-		return new TikaDocument(id, identifier, path, metadata);
+		return new TikaDocument(id, identifier, path, language, metadata);
 	}
 
 	public TikaDocument create(final Path path) {
-		return new TikaDocument(identifier, path);
+		return new TikaDocument(identifier, path, language);
 	}
 
 	public TikaDocument create(final Path path, final BasicFileAttributes attributes) {
@@ -109,7 +118,7 @@ public class DocumentFactory {
 		final Metadata metadata = new Metadata();
 
 		metadata.set(Metadata.CONTENT_LENGTH, Long.toString(size));
-		return new TikaDocument(identifier, path, metadata);
+		return new TikaDocument(identifier, path, language, metadata);
 	}
 
 	public TikaDocument create(final String path) {
@@ -121,7 +130,7 @@ public class DocumentFactory {
 	}
 
 	public TikaDocument create(final Path path, final Metadata metadata) {
-		return new TikaDocument(identifier, path, metadata);
+		return new TikaDocument(identifier, path, language, metadata);
 	}
 
 	public TikaDocument create(final URL url) throws URISyntaxException {

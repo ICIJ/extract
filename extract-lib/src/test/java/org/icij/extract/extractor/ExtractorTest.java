@@ -148,6 +148,26 @@ public class ExtractorTest {
 	}
 
 	@Test
+	public void testDocumentUseCorrectLanguage () throws IOException {
+		DocumentFactory documentFactory = new DocumentFactory().configure(Options.from(new HashMap<String, String>() {{
+					put("language", "zho");
+				}}));
+		final Extractor extractor = new Extractor(documentFactory);
+		TikaDocument tikaDocument1 = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
+
+		Assert.assertEquals(tikaDocument1.getLanguage(), "zho");
+	}
+
+	@Test
+	public void testDocumentHasNoLanguage () throws IOException {
+		DocumentFactory documentFactory = new DocumentFactory().configure();
+		final Extractor extractor = new Extractor(documentFactory);
+		TikaDocument tikaDocument1 = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
+
+		Assert.assertNull(tikaDocument1.getLanguage());
+	}
+
+	@Test
 	public void testEmbeds() throws Throwable {
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
 		String text;
