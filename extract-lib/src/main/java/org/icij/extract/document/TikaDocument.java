@@ -21,18 +21,36 @@ public class TikaDocument {
 	public static Property LAST_MODIFIED = Property.internalDate("Last-Modified");
 	public static String LOCATION = "Location";
 
-
 	private final Path path;
 	private Supplier<String> id;
+	private String language = null;
 	private String foreignId = null;
 	private final Metadata metadata;
-
 	private Identifier identifier;
 	private List<EmbeddedTikaDocument> embeds = new LinkedList<>();
 	private Map<String, EmbeddedTikaDocument> lookup = new HashMap<>();
-
 	private Reader reader = null;
 	private ReaderGenerator readerGenerator = null;
+
+	/**
+	 * Instantiate a document with a pre-generated ID. In this case, the ID generator is only used when adding
+	 * embedded documents to this parent.
+	 *
+	 * @param id a pre-generated ID
+	 * @param identifier an identifier generator
+	 * @param path the path to the document
+	 * @param language the language of the document
+	 * @param metadata document metadata
+	 */
+	public TikaDocument(final String id, final Identifier identifier, final Path path, final String language,  final Metadata metadata) {
+		Objects.requireNonNull(path, "The path must not be null.");
+
+		this.metadata = metadata;
+		this.path = path;
+		this.identifier = identifier;
+		this.language = language;
+		this.id = ()-> id;
+	}
 
 	/**
 	 * Instantiate a document with a pre-generated ID. In this case, the ID generator is only used when adding
@@ -53,10 +71,17 @@ public class TikaDocument {
 	}
 
 	/**
-	 * @see TikaDocument (String, Identifier, Path, Metadata)
+	 * @see TikaDocument (String, Identifier, Path, String, Metadata)
 	 */
 	public TikaDocument(final String id, final Identifier identifier, final Path path) {
 		this(id, identifier, path, new Metadata());
+	}
+
+	/**
+	 * @see TikaDocument (String, Identifier, Path, String, Metadata)
+	 */
+	public TikaDocument(final String id, final Identifier identifier, final Path path, final String language) {
+		this(id, identifier, path, language, new Metadata());
 	}
 
 	/**
@@ -90,10 +115,30 @@ public class TikaDocument {
 	}
 
 	/**
+	 * Instantiate a document when the ID has not yet been generated.
+	 *
+	 * @param identifier for generating the ID
+	 * @param path the path to the document
+	 * @param language the language of the document
+	 * @param metadata document metadata
+	 */
+	public TikaDocument(final Identifier identifier, final Path path, final String language, final Metadata metadata) {
+		this(identifier, path, metadata);
+		this.language = language;
+	}
+
+	/**
 	 * @see TikaDocument (Identifier, Path, Metadata)
 	 */
 	public TikaDocument(final Identifier identifier, final Path path) {
 		this(identifier, path, new Metadata());
+	}
+
+	/**
+	 * @see TikaDocument (Identifier, Path,  language, Metadata)
+	 */
+	public TikaDocument(final Identifier identifier, final Path path, final String language) {
+		this(identifier, path, language, new Metadata());
 	}
 
 	String generateId() throws Exception {
@@ -102,6 +147,10 @@ public class TikaDocument {
 
 	public String getId() {
 		return id.get();
+	}
+
+	public String getLanguage() {
+		return language;
 	}
 
 	public String getHash() {
