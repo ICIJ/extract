@@ -160,9 +160,10 @@ public class SolrSpewer extends Spewer implements Serializable {
 			in.close();
 
 			final TikaDocument[] tikaDocuments = inputDocument
-					.getFieldValues(fields.forPath()).stream().map(p -> new TikaDocument(inputDocument
-					.getFieldValue(fields.forId()).toString(), null, Paths.get(p.toString()), null))
-			.toArray(TikaDocument[]::new);
+					.getFieldValues(fields.forPath()).stream().map(p -> {
+						return new TikaDocument(inputDocument.getFieldValue(fields.forId()).toString(), null, Paths.get(p.toString()), null, null);
+					})
+					.toArray(TikaDocument[]::new);
 
 			write(tikaDocuments[0], inputDocument);
 
