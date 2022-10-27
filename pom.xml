@@ -31,12 +31,8 @@
 
     <developers>
         <developer>
-            <name>Matthew Caruana Galizia</name>
-            <email>mcaruana@icij.org</email>
-        </developer>
-        <developer>
-            <name>Bruno Thomas</name>
-            <email>bthomas@icij.org</email>
+            <name>The International Consortium of Investigative Journalists</name>
+            <email>engineering@icij.org</email>
         </developer>
     </developers>
 
