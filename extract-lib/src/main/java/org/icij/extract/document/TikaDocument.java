@@ -10,6 +10,8 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import static org.apache.tika.metadata.TikaCoreProperties.RESOURCE_NAME_KEY;
+
 public class TikaDocument {
 	public static String CONTENT_ENCODING = "Content-Encoding";
 	public static String CONTENT_LANGUAGE = "Content-Language";
@@ -94,6 +96,10 @@ public class TikaDocument {
 	public TikaDocument(final Identifier identifier, final Path path, final Metadata metadata) {
 		Objects.requireNonNull(identifier, "The identifier generator must not be null.");
 		Objects.requireNonNull(path, "The path must not be null.");
+
+		if (metadata.get(RESOURCE_NAME_KEY) == null) {
+			metadata.add(RESOURCE_NAME_KEY, path.toFile().getName());
+		}
 
 		this.metadata = metadata;
 		this.path = path;

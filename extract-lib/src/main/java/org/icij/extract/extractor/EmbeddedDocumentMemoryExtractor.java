@@ -55,7 +55,7 @@ public class EmbeddedDocumentMemoryExtractor {
         private final DigestingParser.Digester digester;
         private final String algorithm;
         private TikaDocumentSource document = null;
-        private LinkedList<TikaDocument> documentStack = new LinkedList<>();
+        private final LinkedList<TikaDocument> documentStack = new LinkedList<>();
 
         private DigestEmbeddedDocumentExtractor(final TikaDocument rootDocument, final String digest, ParseContext context, DigestingParser.Digester digester, String algorithm) {
             super(rootDocument, context);
