@@ -33,7 +33,7 @@ public class FileSpewerTest {
         String[] list = folder.getRoot().list();
         assertThat(list).isNotEmpty();
         assertThat(list).contains("test.txt.json", "test.txt.txt");
-        assertThat( readAllLines(folder.getRoot().toPath().resolve("test.txt.json"), Charset.defaultCharset())).contains("{ }");
+        assertThat( readAllLines(folder.getRoot().toPath().resolve("test.txt.json"), Charset.defaultCharset())).contains("  \"tika_metadata_resourcename\" : \"test.txt\"");
         assertThat( readAllLines(folder.getRoot().toPath().resolve("test.txt.txt"), Charset.defaultCharset())).contains("this is a content");
     }
 
