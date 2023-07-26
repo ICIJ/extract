@@ -135,7 +135,7 @@ public class EmbeddedDocumentMemoryExtractorTest {
                 new CommonsDigester(20 * 1024 * 1024, CommonsDigester.DigestAlgorithm.SHA256.toString()), "SHA-256", false);
 
         TikaDocumentSource actual = contentExtractor.extract(documentFactory.create(Paths.get(getClass().getResource("/documents/embedded_with_duplicate.tgz").getPath())),
-                "f69680093a1c466d628c7b352a449e8e8a0ce291f61837f9bed9d55ff3658544");
+                "2519f5fc76b8e243c8b0ae42cbee55afd3b0c0ffe67d31a5a8f2a9b13f2998e8");
 
         assertThat(new String(actual.content).replace("\n", "")).isEqualTo("level2");
     }
@@ -148,9 +148,9 @@ public class EmbeddedDocumentMemoryExtractorTest {
                 new CommonsDigester(20 * 1024 * 1024, CommonsDigester.DigestAlgorithm.SHA256.toString()), "SHA-256", false);
 
         assertThat(ocrExtractor.extract(documentFactory.create(Paths.get(getClass().getResource("/documents/embedded_with_duplicate.tgz").getPath())),
-                "f35a3e02f71564f653db8d0115fa5caaff27341f5767096242fd90ad6392b81d")).isNotNull();
+                "d4f96c1c29d838a99e95b72bfd949f2cf802afddefa1e1d92e358e15bac5abcd")).isNotNull();
         assertThat(noOcrExtractor.extract(documentFactory.create(Paths.get(getClass().getResource("/documents/embedded_with_duplicate.tgz").getPath())),
-                "f35a3e02f71564f653db8d0115fa5caaff27341f5767096242fd90ad6392b81d")).isNotNull();
+                "d4f96c1c29d838a99e95b72bfd949f2cf802afddefa1e1d92e358e15bac5abcd")).isNotNull();
 
         /* should work like this ?
         InputStreamDigester inputStreamDigester = new InputStreamDigester(20 * 1024 * 1024, "SHA-256", Hex::encodeHexString);
