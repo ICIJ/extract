@@ -79,9 +79,8 @@ public class EmbeddedDocumentMemoryExtractor {
                     }
                 }
                 digester.digest(tis, metadata, context);
-                if (stream.getClass().cast(stream).markSupported()) { // Avoid mark/reset error for unsupported inputstreams
-                    tis.reset();
-                }
+                tis.mark(0); // Marking the position before resetting
+                tis.reset();
                 String digest;
                 try {
                     digest = new DigestIdentifier(algorithm, Charset.defaultCharset()).generateForEmbed(embed);
