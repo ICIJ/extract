@@ -26,4 +26,10 @@ public class HashMapReportMap extends ConcurrentHashMap<Path, Report> implements
 
 	@Override
 	public void close() {}
+
+	@Override
+	public boolean delete() {
+		clear();
+		return size() == 0;
+	}
 }
