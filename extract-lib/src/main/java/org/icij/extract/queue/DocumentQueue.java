@@ -14,6 +14,7 @@ import java.util.concurrent.BlockingQueue;
  */
 public interface DocumentQueue extends BlockingQueue<Path>, AutoCloseable {
     String getName();
+    boolean delete();
 
     default boolean remove(Object o, int count) {
         boolean removed = false;
