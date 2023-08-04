@@ -174,6 +174,12 @@ public class MySQLConcurrentMap<K, V> extends SQLConcurrentMap<K, V> {
 				(CheckedConsumer<PreparedStatement>) PreparedStatement::executeUpdate);
 	}
 
+	public boolean delete() {
+		return dataSource.withStatementUnchecked("TRUNCATE FROM " + table + ";", q -> {
+			return q.executeUpdate() > 0;
+		});
+	}
+
 	@Override
 	public boolean remove(final Object key, final Object value) {
 		return dataSource.withConnectionUnchecked(c -> {
