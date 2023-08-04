@@ -95,6 +95,7 @@ public class RedisDocumentQueue extends RedissonBlockingQueue<Path> implements D
 		return "RedisDocumentQueue{name=" + getName() + '}';
 	}
 
+
 	/**
 	 * Codec for a queue of paths to documents.
 	 */

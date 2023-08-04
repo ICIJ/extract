@@ -23,6 +23,16 @@ public class ArrayTikaDocumentQueueTest {
     }
 
     @Test
+    public void testDeleteClearsTheQueue() {
+        final DocumentQueue queue = createQueue(get("/foo/bar"));
+
+        Assert.assertEquals(1, queue.size());
+        queue.delete();
+        Assert.assertEquals(0, queue.size());
+    }
+
+
+    @Test
     public void testRemoveDuplicates() {
         final DocumentQueue queue = createQueue(get("/foo/bar"), get("/foo/baz"), get("/foo/bar"));
 

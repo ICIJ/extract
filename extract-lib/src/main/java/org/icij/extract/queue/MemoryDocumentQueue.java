@@ -34,6 +34,11 @@ public class MemoryDocumentQueue extends ArrayBlockingQueue<Path> implements Doc
 		this.queueName = queueName;
 	}
 
+	public boolean delete() {
+		this.clear();
+		return true;
+	}
+
 	@Override
 	public void close() {}
 
