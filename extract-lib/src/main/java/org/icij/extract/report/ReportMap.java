@@ -22,6 +22,8 @@ public interface ReportMap extends ConcurrentMap<Path, Report>, AutoCloseable {
 	 */
 	boolean fastPut(final Path key, final Report value);
 
+	boolean delete();
+
 	/**
 	 * Allow implementations to define a list of exception classes that when caught, would indicate to the caller
 	 * that arguments should be journaled and flushed later.
@@ -31,4 +33,5 @@ public interface ReportMap extends ConcurrentMap<Path, Report>, AutoCloseable {
 	default Collection<Class<? extends Exception>> journalableExceptions() {
 		return null;
 	}
+
 }
