@@ -27,5 +27,16 @@ public class RedisDocumentQueueTest {
         assertThat(queue.size()).isEqualTo(2);
     }
 
+    @Test
+    public void testDelete() throws Exception {
+        queue.put(get("/foo/bar"));
+        queue.put(get("/foo/baz"));
+        queue.put(get("/foo/bar"));
+        queue.put(get("/foo/bar"));
+        assertThat(queue.size()).isEqualTo(4);
+        queue.delete();
+        assertThat(queue.size()).isEqualTo(0);
+    }
+
     @After public void tearDown() { queue.delete();}
 }

@@ -21,6 +21,12 @@ public class MySQLBlockingQueue<E> extends SQLBlockingQueue<E> {
 		this.codec = codec;
 	}
 
+	public boolean delete() {
+		return source.withStatementUnchecked("TRUNCATE FROM " + table, q -> {
+			return q.executeUpdate() > 0;
+		});
+	}
+
 	@Override
 	public boolean remove(final Object o) {
 		Objects.requireNonNull(o);
