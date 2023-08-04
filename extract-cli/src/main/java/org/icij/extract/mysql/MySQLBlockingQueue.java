@@ -22,7 +22,7 @@ public class MySQLBlockingQueue<E> extends SQLBlockingQueue<E> {
 	}
 
 	public boolean delete() {
-		return source.withStatementUnchecked("TRUNCATE FROM " + table, q -> {
+		return source.withStatementUnchecked("TRUNCATE FROM " + table + ";", q -> {
 			return q.executeUpdate() > 0;
 		});
 	}
