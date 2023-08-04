@@ -83,6 +83,18 @@ public class RedisReportMapTest {
         assertThat(reportMap.get(key).getStatus()).isEqualTo(ExtractionStatus.SUCCESS);
     }
 
+    @Test
+    public void test_delete_success() {
+        Path key = Paths.get("/my/path");
+        reportMap.fastPut(key, new Report(ExtractionStatus.SUCCESS));
+        assertThat(reportMap.size()).isEqualTo(1);
+        assertThat(reportMap.delete()).isTrue();
+        assertThat(reportMap.size()).isEqualTo(0);
+    }
+
+
+
+
     @After
     public void tearDown() {
         reportMap.delete();
