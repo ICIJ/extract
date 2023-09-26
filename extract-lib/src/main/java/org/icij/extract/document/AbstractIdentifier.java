@@ -31,4 +31,13 @@ public abstract class AbstractIdentifier implements Identifier {
 	public String retrieveHash(final Metadata metadata) {
 		return metadata.get(key);
 	}
+
+
+	@Override
+	public String toString() {
+		return "Identifier{" +
+				"algorithm='" + algorithm + '\'' +
+				", charset=" + charset +
+				'}';
+	}
 }

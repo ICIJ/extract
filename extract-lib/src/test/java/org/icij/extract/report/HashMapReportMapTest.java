@@ -1,7 +1,7 @@
 package org.icij.extract.report;
 
 import org.icij.extract.extractor.ExtractionStatus;
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
