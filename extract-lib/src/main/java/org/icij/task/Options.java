@@ -4,6 +4,7 @@ import java.util.*;
 import java.util.function.Function;
 
 import static java.lang.String.join;
+import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 
 public class Options<T> implements Iterable<Option<T>> {
@@ -19,6 +20,10 @@ public class Options<T> implements Iterable<Option<T>> {
 
     public Option<T> get(final String name) {
         return map.get(name);
+    }
+
+    public Option<String> get(final String name, final String defaultValue) {
+        return (Option<String>) ofNullable(map.get(name)).orElse((Option<T>) new Option<>(name, StringOptionParser::new).update(defaultValue));
     }
 
     public Option<T> get(final Option<T> option) {

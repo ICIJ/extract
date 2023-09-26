@@ -6,17 +6,21 @@ import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.io.TikaInputStream;
-import org.apache.tika.parser.*;
+import org.apache.tika.parser.AutoDetectParser;
+import org.apache.tika.parser.CompositeParser;
+import org.apache.tika.parser.DigestingParser;
+import org.apache.tika.parser.EmptyParser;
+import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.Parser;
+import org.apache.tika.parser.digestutils.CommonsDigester;
+import org.apache.tika.parser.digestutils.CommonsDigester.DigestAlgorithm;
 import org.apache.tika.parser.html.DefaultHtmlMapper;
 import org.apache.tika.parser.html.HtmlMapper;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.ocr.TesseractOCRParser;
 import org.apache.tika.parser.pdf.PDFParserConfig;
-import org.apache.tika.parser.digestutils.CommonsDigester;
-import org.apache.tika.parser.digestutils.CommonsDigester.DigestAlgorithm;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
 import org.apache.tika.sax.WriteOutContentHandler;
-import org.icij.extract.document.DigestIdentifier;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
@@ -38,6 +42,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -52,417 +57,418 @@ import static java.lang.System.currentTimeMillis;
  *
  * @since 1.0.0-beta
  */
-@Option(name = "digestMethod", description = "The hash digest method used for documents, for example \"SHA256\".", parameter = "name")
+@Option(name = "digestAlgorithm", description = "The hash digest method used for documents, for example \"SHA256\".", parameter = "name")
+@Option(name = "digestProjectName", description = "Include the given project name in the document hash.", parameter = "name")
 @Option(name = "outputFormat", description = "Set the output format. Either \"text\" or \"HTML\". " +
-		"Defaults to text output.", parameter = "type")
+        "Defaults to text output.", parameter = "type")
 @Option(name = "embedHandling", description = "Set the embed handling mode. Either \"ignore\", " +
-		"\"concatenate\" or \"spawn\". When set to concatenate, embeds are parsed and the output is " +
-		"in-lined into the main output." +
-		"Defaults to spawning, which spawns new documents for each embedded document encountered.", parameter = "type")
+        "\"concatenate\" or \"spawn\". When set to concatenate, embeds are parsed and the output is " +
+        "in-lined into the main output." +
+        "Defaults to spawning, which spawns new documents for each embedded document encountered.", parameter = "type")
 @Option(name = "embedOutput", description = "Path to a directory for outputting attachments en masse.",
-		parameter = "path")
+        parameter = "path")
 @Option(name = "ocrCache", description = "Output path for OCR cache files.", parameter = "path")
 @Option(name = "ocrLanguage", description = "Set the languages used by Tesseract. Multiple  languages may be " +
-		"specified, separated by plus characters. Tesseract uses 3-character ISO 639-2 language codes.", parameter =
-		"language")
+        "specified, separated by plus characters. Tesseract uses 3-character ISO 639-2 language codes.", parameter =
+        "language")
 @Option(name = "ocrTimeout", description = "Set the timeout for the Tesseract process to finish e.g. \"5s\" or \"1m\"" +
-		". Defaults to 12 hours.", parameter = "duration")
+        ". Defaults to 12 hours.", parameter = "duration")
 @Option(name = "ocr", description = "Enable or disable automatic OCR. On by default.")
 public class Extractor {
 
-	public enum OutputFormat {
-		HTML, TEXT;
+    public enum OutputFormat {
+        HTML, TEXT;
 
-		public static OutputFormat parse(final String outputFormat) {
-			return valueOf(outputFormat.toUpperCase(Locale.ROOT));
-		}
-	}
+        public static OutputFormat parse(final String outputFormat) {
+            return valueOf(outputFormat.toUpperCase(Locale.ROOT));
+        }
+    }
 
-	public enum EmbedHandling {
-		CONCATENATE, SPAWN, IGNORE;
+    public enum EmbedHandling {
+        CONCATENATE, SPAWN, IGNORE;
 
-		public static EmbedHandling parse(final String outputFormat) {
-			return valueOf(outputFormat.toUpperCase(Locale.ROOT));
-		}
+        public static EmbedHandling parse(final String outputFormat) {
+            return valueOf(outputFormat.toUpperCase(Locale.ROOT));
+        }
 
-		public static EmbedHandling getDefault() {
-			return SPAWN;
-		}
-	}
+        public static EmbedHandling getDefault() {
+            return SPAWN;
+        }
+    }
 
-	private static final Logger logger = LoggerFactory.getLogger(Extractor.class);
+    private static final Logger logger = LoggerFactory.getLogger(Extractor.class);
 
-	private boolean ocrDisabled = false;
-	private DigestingParser.Digester digester = null;
+    private boolean ocrDisabled = false;
+    private DigestingParser.Digester digester = null;
 
-	private Parser defaultParser = TikaConfig.getDefaultConfig().getParser();
-	private final TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
-	private final PDFParserConfig pdfConfig = new PDFParserConfig();
-	private final DocumentFactory documentFactory;
+    private Parser defaultParser = TikaConfig.getDefaultConfig().getParser();
+    private final TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
+    private final PDFParserConfig pdfConfig = new PDFParserConfig();
+    private final DocumentFactory documentFactory;
 
-	private OutputFormat outputFormat = OutputFormat.TEXT;
-	private EmbedHandling embedHandling = EmbedHandling.getDefault();
-	private Path embedOutput = null;
+    private OutputFormat outputFormat = OutputFormat.TEXT;
+    private EmbedHandling embedHandling = EmbedHandling.getDefault();
+    private Path embedOutput = null;
 
-	/**
-	 * Create a new extractor, which will OCR images by default if Tesseract is available locally, extract inline
-	 * images from PDF files and OCR them and use PDFBox's non-sequential PDF parser.
-	 */
-	public Extractor(final DocumentFactory factory) {
-		this.documentFactory = factory;
-		// Calculate the SHA256 digest by default.
-		setDigestAlgorithm(DigestAlgorithm.SHA256.toString());
+    /**
+     * Create a new extractor, which will OCR images by default if Tesseract is available locally, extract inline
+     * images from PDF files and OCR them and use PDFBox's non-sequential PDF parser.
+     */
+    public Extractor(final DocumentFactory factory) {
+        this.documentFactory = factory;
+        // Calculate the SHA256 digest by default.
+        setDigestAlgorithm(DigestAlgorithm.SHA256.toString());
 
-		// Run OCR on images contained within PDFs and not on pages.
-		pdfConfig.setExtractInlineImages(true);
-		pdfConfig.setOcrStrategy(PDFParserConfig.OCR_STRATEGY.NO_OCR);
+        // Run OCR on images contained within PDFs and not on pages.
+        pdfConfig.setExtractInlineImages(true);
+        pdfConfig.setOcrStrategy(PDFParserConfig.OCR_STRATEGY.NO_OCR);
 
-		// By default, only the object IDs are used for determining uniqueness.
-		// In scanned documents under test from the Panama registry, different embedded images had the same ID, leading to incomplete OCRing when uniqueness detection was turned on.
-		pdfConfig.setExtractUniqueInlineImagesOnly(false);
+        // By default, only the object IDs are used for determining uniqueness.
+        // In scanned documents under test from the Panama registry, different embedded images had the same ID, leading to incomplete OCRing when uniqueness detection was turned on.
+        pdfConfig.setExtractUniqueInlineImagesOnly(false);
 
-		// Set a long OCR timeout by default, because Tika's is too short.
-		setOcrTimeout(Duration.ofDays(1));
+        // Set a long OCR timeout by default, because Tika's is too short.
+        setOcrTimeout(Duration.ofDays(1));
 
-		// English text recognition by default.
-		ocrConfig.setLanguage("eng");
-	}
+        // English text recognition by default.
+        ocrConfig.setLanguage("eng");
+    }
 
-	public Extractor() {
-		this(new DocumentFactory().withIdentifier(new PathIdentifier()));
-	}
+    public Extractor() {
+        this(new DocumentFactory().withIdentifier(new PathIdentifier()));
+    }
 
-	public Extractor configure(final Options<String> options) {
-		documentFactory.configure(options);
-		options.get("outputFormat").parse().asEnum(OutputFormat::parse).ifPresent(this::setOutputFormat);
-		options.get("embedHandling").parse().asEnum(EmbedHandling::parse).ifPresent(this::setEmbedHandling);
-		options.get("embedOutput").parse().asPath().ifPresent(this::setEmbedOutputPath);
-		options.get("ocrLanguage").value().ifPresent(this::setOcrLanguage);
-		options.get("ocrTimeout").parse().asDuration().ifPresent(this::setOcrTimeout);
-		options.get("digestMethod").value().ifPresent(this::setDigestAlgorithm);
+    public Extractor configure(final Options<String> options) {
+        options.get("outputFormat", "TEXT").parse().asEnum(OutputFormat::parse).ifPresent(this::setOutputFormat);
+        options.get("embedHandling", "SPAWN").parse().asEnum(EmbedHandling::parse).ifPresent(this::setEmbedHandling);
+        options.get("embedOutput", "./").parse().asPath().ifPresent(this::setEmbedOutputPath);
+        options.get("ocrLanguage", "eng").value().ifPresent(this::setOcrLanguage);
+        options.get("ocrTimeout", "12h").parse().asDuration().ifPresent(this::setOcrTimeout);
 
-		if (options.get("ocr").parse().isOff()) {
-			disableOcr();
-		}
+        String algorithm = options.valueIfPresent("digestAlgorithm").orElse("SHA-256");
+        setDigestAlgorithm(algorithm);
 
-		options.get("ocrCache").parse().asPath().ifPresent(path -> replaceParser(TesseractOCRParser.class,
-				new CachingTesseractOCRParser(path)));
+        options.valueIfPresent("digestProjectName")
+                .ifPresent(digestProjectName -> this.setDigester(new UpdatableDigester(digestProjectName, algorithm)));
 
-		return this;
-	}
+        if (options.get("ocr", String.valueOf(!this.ocrDisabled)).parse().isOff()) {
+            disableOcr();
+        }
 
-	/**
-	 * Set the output format.
-	 *
-	 * @param outputFormat the output format
-	 */
-	public void setOutputFormat(final OutputFormat outputFormat) {
-		this.outputFormat = outputFormat;
-	}
+        options.valueIfPresent("ocrCache").ifPresent(path -> replaceParser(TesseractOCRParser.class,
+                new CachingTesseractOCRParser(Paths.get(path))));
+        logger.info("extractor configured with digester {} and {}", digester.getClass(), documentFactory);
 
-	/**
-	 * Get the extraction output format.
-	 *
-	 * @return the output format
-	 */
-	public OutputFormat getOutputFormat() {
-		return outputFormat;
-	}
+        return this;
+    }
 
-	/**
-	 * Set the embed handling mode.
-	 *
-	 * @param embedHandling the embed handling mode
-	 */
-	public void setEmbedHandling(final EmbedHandling embedHandling) {
-		this.embedHandling = embedHandling;
-	}
+    /**
+     * Set the output format.
+     *
+     * @param outputFormat the output format
+     */
+    public void setOutputFormat(final OutputFormat outputFormat) {
+        this.outputFormat = outputFormat;
+    }
 
-	/**
-	 * Get the embed handling mode.
-	 *
-	 * @return the embed handling mode.
-	 */
-	public EmbedHandling getEmbedHandling() {
-		return embedHandling;
-	}
+    /**
+     * Get the extraction output format.
+     *
+     * @return the output format
+     */
+    public OutputFormat getOutputFormat() {
+        return outputFormat;
+    }
 
-	/**
-	 * Set the output directory path for embed files.
-	 *
-	 * @param embedOutput the embed output path
-	 */
-	public void setEmbedOutputPath(final Path embedOutput) {
-		this.embedOutput = embedOutput;
-	}
+    /**
+     * Set the embed handling mode.
+     *
+     * @param embedHandling the embed handling mode
+     */
+    public void setEmbedHandling(final EmbedHandling embedHandling) {
+        this.embedHandling = embedHandling;
+    }
 
-	/**
-	 * Get the output directory path for embed files.
-	 *
-	 * @return the embed output path.
-	 */
-	public Path getEmbedOutputPath() {
-		return embedOutput;
-	}
+    /**
+     * Get the embed handling mode.
+     *
+     * @return the embed handling mode.
+     */
+    public EmbedHandling getEmbedHandling() {
+        return embedHandling;
+    }
 
-	/**
-	 * Set the languages used by Tesseract.
-	 *
-	 * @param ocrLanguage the languages to use, for example "eng" or "ita+spa"
-	 */
-	public void setOcrLanguage(final String ocrLanguage) {
-		ocrConfig.setLanguage(ocrLanguage);
-	}
+    /**
+     * Set the output directory path for embed files.
+     *
+     * @param embedOutput the embed output path
+     */
+    public void setEmbedOutputPath(final Path embedOutput) {
+        this.embedOutput = embedOutput;
+    }
 
-	/**
-	 * Instructs Tesseract to attempt OCR for no longer than the given duration in seconds.
-	 *
-	 * @param ocrTimeout the duration in seconds
-	 */
-	private void setOcrTimeout(final int ocrTimeout) {
-		ocrConfig.setTimeoutSeconds(ocrTimeout);
-	}
+    /**
+     * Get the output directory path for embed files.
+     *
+     * @return the embed output path.
+     */
+    public Path getEmbedOutputPath() {
+        return embedOutput;
+    }
 
-	/**
-	 * Instructs Tesseract to attempt OCR for no longer than the given duration.
-	 *
-	 * @param duration the duration before timeout
-	 */
-	public void setOcrTimeout(final Duration duration) {
-		setOcrTimeout(Math.toIntExact(duration.getSeconds()));
-	}
+    /**
+     * Set the languages used by Tesseract.
+     *
+     * @param ocrLanguage the languages to use, for example "eng" or "ita+spa"
+     */
+    public void setOcrLanguage(final String ocrLanguage) {
+        ocrConfig.setLanguage(ocrLanguage);
+    }
 
-	public void setDigestAlgorithm(final String digestAlgorithm) {
-		setDigester(new CommonsDigester(20 * 1024 * 1024, digestAlgorithm));
-	}
+    /**
+     * Instructs Tesseract to attempt OCR for no longer than the given duration in seconds.
+     *
+     * @param ocrTimeout the duration in seconds
+     */
+    private void setOcrTimeout(final int ocrTimeout) {
+        ocrConfig.setTimeoutSeconds(ocrTimeout);
+    }
 
-	public void setDigester(final DigestingParser.Digester digester) {
-		this.digester = digester;
-	}
+    /**
+     * Instructs Tesseract to attempt OCR for no longer than the given duration.
+     *
+     * @param duration the duration before timeout
+     */
+    public void setOcrTimeout(final Duration duration) {
+        setOcrTimeout(Math.toIntExact(duration.getSeconds()));
+    }
 
-	public void setDigester(final UpdatableDigester digester) {
-		this.digester = digester;
-		this.documentFactory.withIdentifier(DocumentFactory.MethodName.TIKA_DIGEST, digester.algorithm);
-	}
+    public void setDigestAlgorithm(final String digestAlgorithm) {
+        setDigester(new CommonsDigester(20 * 1024 * 1024, digestAlgorithm.replace("-", "")));
+    }
 
-	/**
-	 * Disable OCR. This method only has an effect if Tesseract is installed.
-	 */
-	public void disableOcr() {
-		if (!ocrDisabled) {
-			excludeParser(TesseractOCRParser.class);
-			ocrDisabled = true;
-			pdfConfig.setExtractInlineImages(false);
-		}
-	}
+    public void setDigester(final DigestingParser.Digester digester) {
+        this.digester = digester;
+    }
 
-	/**
-	 * Extract and spew content from a document. Internally, as with {@link #extract(Path)},
-	 * this method creates a {@link TikaInputStream} from the path of the given document.
-	 *
-	 * @param path document to extract from
-	 * @param spewer endpoint to write to
-	 * @throws IOException if there was an error reading or writing the document
-	 */
-	public void extract(final Path path, final Spewer spewer) throws IOException {
-		long before = currentTimeMillis();
-		TikaDocument document = extract(path);
-		logger.info("{} extracted in {}ms", path, currentTimeMillis() - before);
-		spewer.write(document);
-	}
+    /**
+     * Disable OCR. This method only has an effect if Tesseract is installed.
+     */
+    public void disableOcr() {
+        if (!ocrDisabled) {
+            excludeParser(TesseractOCRParser.class);
+            ocrDisabled = true;
+            pdfConfig.setExtractInlineImages(false);
+        }
+    }
 
-	/**
-	 * Extract and spew content from a document. This method is the same as {@link #extract(Path, Spewer)} with
-	 * the exception that the document will be skipped if the reporter returns {@literal false} for a call to
-	 * {@link Reporter#skip(Path)}.
-	 *
-	 * If the document is not skipped, then the result of the extraction is passed to the reporter in a call to
-	 * {@link Reporter#save(Path, ExtractionStatus, Exception)}.
-	 *
-	 * @param path document to extract from
-	 * @param spewer endpoint to write to
-	 * @param reporter used to check whether the document should be skipped and save extraction status
-	 */
-	public void extract(final Path path, final Spewer spewer, final Reporter reporter) {
-		Objects.requireNonNull(reporter);
+    /**
+     * Extract and spew content from a document. Internally, as with {@link #extract(Path)},
+     * this method creates a {@link TikaInputStream} from the path of the given document.
+     *
+     * @param path   document to extract from
+     * @param spewer endpoint to write to
+     * @throws IOException if there was an error reading or writing the document
+     */
+    public void extract(final Path path, final Spewer spewer) throws IOException {
+        long before = currentTimeMillis();
+        TikaDocument document = extract(path);
+        logger.info("{} extracted in {}ms", path, currentTimeMillis() - before);
+        spewer.write(document);
+    }
 
-		if (reporter.skip(path)) {
-			logger.info(String.format("File already extracted; skipping: \"%s\".", path));
-			return;
-		}
+    /**
+     * Extract and spew content from a document. This method is the same as {@link #extract(Path, Spewer)} with
+     * the exception that the document will be skipped if the reporter returns {@literal false} for a call to
+     * {@link Reporter#skip(Path)}.
+     * <p>
+     * If the document is not skipped, then the result of the extraction is passed to the reporter in a call to
+     * {@link Reporter#save(Path, ExtractionStatus, Exception)}.
+     *
+     * @param path     document to extract from
+     * @param spewer   endpoint to write to
+     * @param reporter used to check whether the document should be skipped and save extraction status
+     */
+    public void extract(final Path path, final Spewer spewer, final Reporter reporter) {
+        Objects.requireNonNull(reporter);
 
-		ExtractionStatus status = ExtractionStatus.SUCCESS;
-		Exception exception = null;
+        if (reporter.skip(path)) {
+            logger.info(String.format("File already extracted; skipping: \"%s\".", path));
+            return;
+        }
 
-		try {
-			extract(path, spewer);
-		} catch (final Exception e) {
-			status = status(e, spewer);
-			log(e, status, path);
-			exception = e;
-		}
+        ExtractionStatus status = ExtractionStatus.SUCCESS;
+        Exception exception = null;
 
-		// For tagged IO exceptions, discard the tag, which is either unwanted or not serializable.
-		if (null != exception && (exception instanceof TaggedIOException)) {
-			exception = ((TaggedIOException) exception).getCause();
-		}
+        try {
+            extract(path, spewer);
+        } catch (final Exception e) {
+            status = status(e, spewer);
+            log(e, status, path);
+            exception = e;
+        }
 
-		reporter.save(path, status, exception);
-	}
+        // For tagged IO exceptions, discard the tag, which is either unwanted or not serializable.
+        if (null != exception && (exception instanceof TaggedIOException)) {
+            exception = ((TaggedIOException) exception).getCause();
+        }
 
-	private void log(final Exception e, final ExtractionStatus status, final Path file) {
-		switch (status) {
-			case FAILURE_NOT_SAVED:
-				logger.error(String.format("The extraction result could not be outputted: \"%s\".", file),
-						e.getCause());
-				break;
-			case FAILURE_NOT_FOUND:
-				logger.error(String.format("File not found: \"%s\".", file), e);
-				break;
-			case FAILURE_NOT_DECRYPTED:
-				logger.warn(String.format("Skipping encrypted file: \"%s\".", file), e);
-				break;
-			case FAILURE_NOT_PARSED:
-				logger.error(String.format("The file could not be parsed: \"%s\".", file), e);
-				break;
-			case FAILURE_UNREADABLE:
-				logger.error(String.format("The file stream could not be read: \"%s\".", file), e);
-				break;
-			default:
-				logger.error(String.format("Unknown exception during extraction or output: \"%s\".", file), e);
-				break;
-		}
-	}
+        reporter.save(path, status, exception);
+    }
 
-	/**
-	 * Convert the given {@link Exception} into an {@link ExtractionStatus} for addition to a report.
-	 *
-	 * Logs an appropriate message depending on the exception.
-	 *
-	 * @param e the exception to convert and log
-	 * @return the resulting status
-	 */
-	private ExtractionStatus status(final Exception e, final Spewer spewer) {
-		if (TaggedIOException.isTaggedWith(e, spewer)) {
-			return ExtractionStatus.FAILURE_NOT_SAVED;
-		}
+    private void log(final Exception e, final ExtractionStatus status, final Path file) {
+        switch (status) {
+            case FAILURE_NOT_SAVED:
+                logger.error(String.format("The extraction result could not be outputted: \"%s\".", file),
+                        e.getCause());
+                break;
+            case FAILURE_NOT_FOUND:
+                logger.error(String.format("File not found: \"%s\".", file), e);
+                break;
+            case FAILURE_NOT_DECRYPTED:
+                logger.warn(String.format("Skipping encrypted file: \"%s\".", file), e);
+                break;
+            case FAILURE_NOT_PARSED:
+                logger.error(String.format("The file could not be parsed: \"%s\".", file), e);
+                break;
+            case FAILURE_UNREADABLE:
+                logger.error(String.format("The file stream could not be read: \"%s\".", file), e);
+                break;
+            default:
+                logger.error(String.format("Unknown exception during extraction or output: \"%s\".", file), e);
+                break;
+        }
+    }
 
-		if (TaggedIOException.isTaggedWith(e, MetadataTransformer.class)) {
-			return ExtractionStatus.FAILURE_NOT_PARSED;
-		}
+    /**
+     * Convert the given {@link Exception} into an {@link ExtractionStatus} for addition to a report.
+     * <p>
+     * Logs an appropriate message depending on the exception.
+     *
+     * @param e the exception to convert and log
+     * @return the resulting status
+     */
+    private ExtractionStatus status(final Exception e, final Spewer spewer) {
+        if (TaggedIOException.isTaggedWith(e, spewer)) {
+            return ExtractionStatus.FAILURE_NOT_SAVED;
+        }
 
-		if (e instanceof FileNotFoundException) {
-			return ExtractionStatus.FAILURE_NOT_FOUND;
-		}
+        if (TaggedIOException.isTaggedWith(e, MetadataTransformer.class)) {
+            return ExtractionStatus.FAILURE_NOT_PARSED;
+        }
 
-		if (!(e instanceof IOException)) {
-			return ExtractionStatus.FAILURE_UNKNOWN;
-		}
+        if (e instanceof FileNotFoundException) {
+            return ExtractionStatus.FAILURE_NOT_FOUND;
+        }
 
-		final Throwable cause = e.getCause();
+        if (!(e instanceof IOException)) {
+            return ExtractionStatus.FAILURE_UNKNOWN;
+        }
 
-		if (cause instanceof EncryptedDocumentException) {
-			return ExtractionStatus.FAILURE_NOT_DECRYPTED;
-		}
+        final Throwable cause = e.getCause();
 
-		// TIKA-198: IOExceptions thrown by parsers will be wrapped in a TikaException.
-		// This helps us differentiate input stream exceptions from output stream exceptions.
-		// https://issues.apache.org/jira/browse/TIKA-198
-		if (cause instanceof TikaException) {
-			return ExtractionStatus.FAILURE_NOT_PARSED;
-		}
+        if (cause instanceof EncryptedDocumentException) {
+            return ExtractionStatus.FAILURE_NOT_DECRYPTED;
+        }
 
-		return ExtractionStatus.FAILURE_UNREADABLE;
-	}
+        // TIKA-198: IOExceptions thrown by parsers will be wrapped in a TikaException.
+        // This helps us differentiate input stream exceptions from output stream exceptions.
+        // https://issues.apache.org/jira/browse/TIKA-198
+        if (cause instanceof TikaException) {
+            return ExtractionStatus.FAILURE_NOT_PARSED;
+        }
 
-	/**
-	 * Create a pull-parser from the given {@link TikaInputStream}.
-	 *
-	 * @param path the stream to extract from
-	 * @return A pull-parsing reader.
-	 */
-	public TikaDocument extract(final Path path) throws IOException {
-		final TikaDocument rootDocument = documentFactory.create(path);
-		TikaInputStream tikaInputStream = TikaInputStream.get(path, rootDocument.getMetadata());
-		final ParseContext context = new ParseContext();
-		final AutoDetectParser autoDetectParser = new AutoDetectParser(defaultParser);
+        return ExtractionStatus.FAILURE_UNREADABLE;
+    }
 
-		// Set a fallback parser that outputs an empty tikaDocument for empty files,
-		// otherwise throws an exception.
-		autoDetectParser.setFallback(FallbackParser.INSTANCE);
-		final Parser parser;
+    /**
+     * Create a pull-parser from the given {@link TikaInputStream}.
+     *
+     * @param path the stream to extract from
+     * @return A pull-parsing reader.
+     */
+    public TikaDocument extract(final Path path) throws IOException {
+        final TikaDocument rootDocument = documentFactory.create(path);
+        TikaInputStream tikaInputStream = TikaInputStream.get(path, rootDocument.getMetadata());
+        final ParseContext context = new ParseContext();
+        final AutoDetectParser autoDetectParser = new AutoDetectParser(defaultParser);
 
-		if (null != digester) {
-			parser = new DigestingParser(autoDetectParser, digester);
-		} else {
-			parser = autoDetectParser;
-		}
+        // Set a fallback parser that outputs an empty tikaDocument for empty files,
+        // otherwise throws an exception.
+        autoDetectParser.setFallback(FallbackParser.INSTANCE);
+        final Parser parser;
 
-		if (!ocrDisabled) {
-			context.set(TesseractOCRConfig.class, ocrConfig);
-		}
+        if (null != digester) {
+            parser = new DigestingParser(autoDetectParser, digester);
+        } else {
+            parser = autoDetectParser;
+        }
 
-		context.set(PDFParserConfig.class, pdfConfig);
+        if (!ocrDisabled) {
+            context.set(TesseractOCRConfig.class, ocrConfig);
+        }
 
-		// Only include "safe" tags in the HTML output from Tika's HTML parser.
-		// This excludes script tags and objects.
-		context.set(HtmlMapper.class, DefaultHtmlMapper.INSTANCE);
+        context.set(PDFParserConfig.class, pdfConfig);
 
-		final Reader reader;
-		final Function<Writer, ContentHandler> handler;
+        // Only include "safe" tags in the HTML output from Tika's HTML parser.
+        // This excludes script tags and objects.
+        context.set(HtmlMapper.class, DefaultHtmlMapper.INSTANCE);
 
-		if (OutputFormat.HTML == outputFormat) {
-			handler = (writer) -> new ExpandedTitleContentHandler(new HTML5Serializer(writer));
-		} else {
+        final Reader reader;
+        final Function<Writer, ContentHandler> handler;
 
-			// The default BodyContentHandler is used when constructing the ParsingReader for text output, but
-			// because only the body of embeds is pushed to the content handler further down the line, we can't
-			// expect a body tag.
-			handler = WriteOutContentHandler::new;
-		}
+        if (OutputFormat.HTML == outputFormat) {
+            handler = (writer) -> new ExpandedTitleContentHandler(new HTML5Serializer(writer));
+        } else {
 
-		if (EmbedHandling.SPAWN == embedHandling) {
-			context.set(Parser.class, parser);
-			context.set(EmbeddedDocumentExtractor.class, new EmbedSpawner(rootDocument, context, embedOutput, handler));
-		} else if (EmbedHandling.CONCATENATE == embedHandling) {
-			context.set(Parser.class, parser);
-			context.set(EmbeddedDocumentExtractor.class, new EmbedParser(rootDocument, context));
-		} else {
-			context.set(Parser.class, EmptyParser.INSTANCE);
-			context.set(EmbeddedDocumentExtractor.class, new EmbedBlocker());
-		}
+            // The default BodyContentHandler is used when constructing the ParsingReader for text output, but
+            // because only the body of embeds is pushed to the content handler further down the line, we can't
+            // expect a body tag.
+            handler = WriteOutContentHandler::new;
+        }
 
-		// the constructor of ParsingReader actually parses the document in background
-		if (OutputFormat.HTML == outputFormat) {
-			reader = new ParsingReader(parser, tikaInputStream, rootDocument.getMetadata(), context, handler);
-		} else {
-			reader = new org.apache.tika.parser.ParsingReader(parser, tikaInputStream, rootDocument.getMetadata(), context);
-		}
-		rootDocument.setReader(reader);
+        if (EmbedHandling.SPAWN == embedHandling) {
+            context.set(Parser.class, parser);
+            context.set(EmbeddedDocumentExtractor.class, new EmbedSpawner(rootDocument, context, embedOutput, handler));
+        } else if (EmbedHandling.CONCATENATE == embedHandling) {
+            context.set(Parser.class, parser);
+            context.set(EmbeddedDocumentExtractor.class, new EmbedParser(rootDocument, context));
+        } else {
+            context.set(Parser.class, EmptyParser.INSTANCE);
+            context.set(EmbeddedDocumentExtractor.class, new EmbedBlocker());
+        }
 
-		return rootDocument;
-	}
+        // the constructor of ParsingReader actually parses the document in background
+        if (OutputFormat.HTML == outputFormat) {
+            reader = new ParsingReader(parser, tikaInputStream, rootDocument.getMetadata(), context, handler);
+        } else {
+            reader = new org.apache.tika.parser.ParsingReader(parser, tikaInputStream, rootDocument.getMetadata(), context);
+        }
+        rootDocument.setReader(reader);
 
-	private void excludeParser(final Class<? extends Parser> exclude) {
-		replaceParser(exclude, null);
-	}
+        return rootDocument;
+    }
 
-	private void replaceParser(final Class<? extends Parser> exclude, final Parser replacement) {
-		if (defaultParser instanceof CompositeParser) {
-			final CompositeParser composite = (CompositeParser) defaultParser;
-			final List<Parser> parsers = new ArrayList<>();
+    private void excludeParser(final Class<? extends Parser> exclude) {
+        replaceParser(exclude, null);
+    }
 
-			composite.getAllComponentParsers().forEach(parser -> {
-				if (parser.getClass().equals(exclude) || exclude.isAssignableFrom(parser.getClass())) {
-					if (null != replacement) {
-						parsers.add(replacement);
-					}
-				} else {
-					parsers.add(parser);
-				}
-			});
+    private void replaceParser(final Class<? extends Parser> exclude, final Parser replacement) {
+        if (defaultParser instanceof CompositeParser) {
+            final CompositeParser composite = (CompositeParser) defaultParser;
+            final List<Parser> parsers = new ArrayList<>();
 
-			defaultParser = new CompositeParser(composite.getMediaTypeRegistry(), parsers);
-		}
-	}
+            composite.getAllComponentParsers().forEach(parser -> {
+                if (parser.getClass().equals(exclude) || exclude.isAssignableFrom(parser.getClass())) {
+                    if (null != replacement) {
+                        parsers.add(replacement);
+                    }
+                } else {
+                    parsers.add(parser);
+                }
+            });
+
+            defaultParser = new CompositeParser(composite.getMediaTypeRegistry(), parsers);
+        }
+    }
 }

@@ -121,15 +121,23 @@ public class ExtractorTest {
 
 	@Test
 	public void testByProjectDigester() throws Exception {
-		DocumentFactory documentFactory = new DocumentFactory().configure(Options.from(new HashMap<String, String>() {{
-					put("idDigestMethod", "SHA-384");
-				}}));
+		DocumentFactory documentFactory = new DocumentFactory().configure(Options.from(new HashMap<>() {{
+			put("digestAlgorithm", "SHA-384");
+		}}));
 		final Extractor extractor = new Extractor(documentFactory);
-		extractor.setDigestAlgorithm("SHA384");
+		extractor.configure(Options.from(new HashMap<>() {{
+			put("digestAlgorithm", "SHA-384");
+		}}));
 		TikaDocument tikaDocument1 = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
-		extractor.setDigester(new UpdatableDigester("project1", "SHA-384") {});
+		extractor.configure(Options.from(new HashMap<>() {{
+			put("digestAlgorithm", "SHA-384");
+			put("digestProjectName", "project1");
+		}}));
 		TikaDocument tikaDocument2 = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
-		extractor.setDigester(new UpdatableDigester("project2", "SHA-384"));
+		extractor.configure(Options.from(new HashMap<>() {{
+			put("digestAlgorithm", "SHA-384");
+			put("digestProjectName", "project2");
+		}}));
 		TikaDocument tikaDocument3 = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
 
 		Assert.assertNotEquals(tikaDocument1.getId(), tikaDocument2.getId());
@@ -139,9 +147,12 @@ public class ExtractorTest {
 
 	@Test
 	public void testDocumentUseCorrectDigestIdentifier () throws Exception {
-		DocumentFactory documentFactory = new DocumentFactory();
-		final Extractor extractor = new Extractor(documentFactory);
-		extractor.setDigester(new UpdatableDigester("project1", "SHA-384") {});
+		Options<String> digestAlgorithm = Options.from(new HashMap<>() {{
+			put("digestAlgorithm", "SHA-384");
+			put("digestProjectName", "project1");
+		}});
+		DocumentFactory documentFactory = new DocumentFactory().configure(digestAlgorithm);
+		final Extractor extractor = new Extractor(documentFactory).configure(digestAlgorithm);
 		TikaDocument tikaDocument1 = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
 
 		Assert.assertNotNull(tikaDocument1.getId());
@@ -149,9 +160,9 @@ public class ExtractorTest {
 
 	@Test
 	public void testDocumentUseCorrectLanguage () throws IOException {
-		DocumentFactory documentFactory = new DocumentFactory().configure(Options.from(new HashMap<String, String>() {{
-					put("language", "zho");
-				}}));
+		DocumentFactory documentFactory = new DocumentFactory().configure(Options.from(new HashMap<>() {{
+			put("language", "zho");
+		}}));
 		final Extractor extractor = new Extractor(documentFactory);
 		TikaDocument tikaDocument1 = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
 

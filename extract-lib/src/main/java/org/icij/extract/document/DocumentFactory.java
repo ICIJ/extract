@@ -26,7 +26,7 @@ import java.util.Optional;
  */
 @Option(name = "idMethod", description = "The method for determining document IDs, for queues that use them. " +
 		"Defaults to using the path as an ID.", parameter = "name")
-@Option(name = "idDigestMethod", description = "For calculating document ID digests, where applicable depending on " +
+@Option(name = "digestAlgorithm", description = "For calculating document ID digests, where applicable depending on " +
 		"the ID method.", parameter = "name")
 @Option(name = "charset", description = "Set the output encoding for text and document attributes. Defaults to UTF-8.",
 		parameter = "name")
@@ -53,7 +53,7 @@ public class DocumentFactory {
 		charset = Charset.forName(options.valueIfPresent("charset").orElse(this.charset.toString()));
 		language = options.valueIfPresent("language").orElse(null);
 
-		final String algorithm = options.valueIfPresent("idDigestMethod").orElse("SHA-256");
+		final String algorithm = options.valueIfPresent("digestAlgorithm").orElse("SHA-256");
 		final Optional<String> method = options.valueIfPresent("idMethod");
 
 		if (method.isPresent()) {
@@ -135,5 +135,14 @@ public class DocumentFactory {
 
 	public TikaDocument create(final URL url) throws URISyntaxException {
 		return create(Paths.get(url.toURI()));
+	}
+
+	@Override
+	public String toString() {
+		return "DocumentFactory{" +
+				"identifier=" + identifier +
+				", charset=" + charset +
+				", language='" + language + '\'' +
+				'}';
 	}
 }
