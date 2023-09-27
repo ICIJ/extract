@@ -141,9 +141,9 @@ public class Extractor {
     public Extractor configure(final Options<String> options) {
         options.get("outputFormat", "TEXT").parse().asEnum(OutputFormat::parse).ifPresent(this::setOutputFormat);
         options.get("embedHandling", "SPAWN").parse().asEnum(EmbedHandling::parse).ifPresent(this::setEmbedHandling);
-        options.get("embedOutput", "./").parse().asPath().ifPresent(this::setEmbedOutputPath);
         options.get("ocrLanguage", "eng").value().ifPresent(this::setOcrLanguage);
         options.get("ocrTimeout", "12h").parse().asDuration().ifPresent(this::setOcrTimeout);
+        options.valueIfPresent("embedOutput").ifPresent(embedOutput -> setEmbedOutputPath(Paths.get(embedOutput)));
 
         String algorithm = options.valueIfPresent("digestAlgorithm").orElse("SHA-256");
         setDigestAlgorithm(algorithm);
