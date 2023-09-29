@@ -2,23 +2,22 @@ package org.icij.spewer;
 
 import java.io.IOException;
 import java.net.URL;
-import java.nio.charset.Charset;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 
-public class MetadataBlacklist {
-    static final String METADATA_BLACKLIST_FILE = "/metadata_blacklist";
-    private final List<String> blacklist;
+public class MetadataBlockList {
+    static final String METADATA_BLOCK_LIST_FILE = "/metadata_block_list";
+    private final List<String> list;
 
-    public MetadataBlacklist() {
-        blacklist = load(getClass().getResource(METADATA_BLACKLIST_FILE));
+    public MetadataBlockList() {
+        list = load(getClass().getResource(METADATA_BLOCK_LIST_FILE));
     }
 
     public Boolean ok(String value) {
-        return blacklist.stream().allMatch(pattern -> {
+        return list.stream().allMatch(pattern -> {
             String globPattern = "glob:" + pattern;
             return ok(value, globPattern);
         });
