@@ -13,7 +13,7 @@ public class MetadataBlacklist {
     static final String METADATA_BLACKLIST_FILE = "/metadata_blacklist";
     private final List<String> blacklist;
 
-	public MetadataBlacklist() {
+    public MetadataBlacklist() {
         blacklist = load(getClass().getResource(METADATA_BLACKLIST_FILE));
     }
 
