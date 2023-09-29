@@ -4,7 +4,6 @@ import org.apache.commons.io.TaggedIOException;
 import org.apache.tika.metadata.*;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.Serializable;
 
 import java.time.Instant;
@@ -65,7 +64,7 @@ public class MetadataTransformer implements Serializable {
 	private final Metadata metadata;
 	private final FieldNames fields;
 	private final Map<String, String> fieldMap = new HashMap<>();
-	private final MetadataBlacklist metadata_blacklist = new MetadataBlacklist();
+	private final MetadataBlockList metadata_block_list = new MetadataBlockList();
 
 	public MetadataTransformer(final Metadata metadata, final FieldNames fields) {
 		this.metadata = metadata;
@@ -85,8 +84,8 @@ public class MetadataTransformer implements Serializable {
 				continue;
 			}
 
-			// The field name might be blacklisted
-			if (!metadata_blacklist.ok(name)) {
+			// The field name might be blocked
+			if (!metadata_block_list.ok(name)) {
 				continue;
 			}
 

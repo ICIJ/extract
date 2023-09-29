@@ -92,14 +92,14 @@ public class SpewerTest {
 	}
 
     @Test
-    public void testSpewDocumentWithoutBlacklistedMetadata() throws IOException {
+    public void testSpewDocumentWithoutBlockedMetadata() throws IOException {
 		final SpewerStub spewer = new SpewerStub();
 		final TikaDocument tikaDocument = factory.create("test.txt");
 		final Metadata metadata = tikaDocument.getMetadata();
 		metadata.set("bar", "bar");
 		metadata.set("unknown_tag_0x", "foo");
 		spewer.writeMetadata(tikaDocument);
-		// Those value should not be blacklisted
+		// Those value should not be blocked
 		Assert.assertEquals(spewer.metadata.get("tika_metadata_resourcename"), "test.txt");
 		Assert.assertEquals(spewer.metadata.get("tika_metadata_bar"), "bar");
 		// But this one should
