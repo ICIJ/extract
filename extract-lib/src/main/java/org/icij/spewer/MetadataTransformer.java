@@ -84,11 +84,6 @@ public class MetadataTransformer implements Serializable {
 				continue;
 			}
 
-			// The field name might be blocked
-			if (!metadata_block_list.ok(name)) {
-				continue;
-			}
-
 			// The title field should not be considered multivalued until TIKA-2274 is resolved.
 			//noinspection deprecation
 			if (values.length > 1 && name.equals(TITLE)) {
@@ -97,6 +92,11 @@ public class MetadataTransformer implements Serializable {
 
 			// Keep a mapping of the old name around, to enable a reverse lookup later.
 			final String normalisedName = fields.forMetadata(name);
+
+			// The field name might be blocked
+			if (!metadata_block_list.ok(normalisedName)) {
+				continue;
+			}
 
 			fieldMap.putIfAbsent(normalisedName, name);
 			normalised.merge(normalisedName, values, this::concat);
