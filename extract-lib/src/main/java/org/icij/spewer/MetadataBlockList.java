@@ -1,7 +1,12 @@
 package org.icij.spewer;
 
+import org.apache.commons.io.IOUtils;
+
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -9,11 +14,12 @@ import java.util.stream.Collectors;
 
 
 public class MetadataBlockList {
-    static final String METADATA_BLOCK_LIST_FILE = "/metadata_block_list";
+    static final Charset METADATA_BLOCK_LIST_CHARSET = StandardCharsets.UTF_8;
+    static final String METADATA_BLOCK_LIST_FILE = "metadata_block_list.txt";
     private final List<String> list;
 
     public MetadataBlockList() {
-        list = load(getClass().getResource(METADATA_BLOCK_LIST_FILE));
+        list = load(METADATA_BLOCK_LIST_FILE, METADATA_BLOCK_LIST_CHARSET);
     }
 
     public Boolean ok(String value) {
@@ -30,17 +36,21 @@ public class MetadataBlockList {
         return !matcher.matches(valueAsPath);
     }
 
-
-    public static List<String> load(URL resourceUrl) {
-        if (resourceUrl == null) {
+    public static List<String> load(String resourceName, Charset charset) {
+        URL resource = ClassLoader.getSystemClassLoader().getResource(resourceName);
+        if (resource == null) {
             return new ArrayList<>();
         }
-        return load(Paths.get(resourceUrl.getPath()));
+        return load(resource, charset);
     }
 
-    public static List<String> load(Path path) {
-        try {
-            return Files.readAllLines(path).stream().map(String::trim).collect(Collectors.toList());
+    public static List<String> load(URL resource, Charset charset) {
+        try (InputStream is = resource.openStream())  {
+            return IOUtils
+                    .readLines(is, charset)
+                    .stream()
+                    .map(String::trim)
+                    .collect(Collectors.toList());
         } catch (IOException e) {
             return new ArrayList<>();
         }
