@@ -112,7 +112,7 @@ public class EmbeddedDocumentMemoryExtractor {
 
     private Parser createParserWithoutOCR() {
         try {
-            return new AutoDetectParser(new TikaConfig(new ByteArrayInputStream(("" +
+            return new AutoDetectParser(new TikaConfig(new ByteArrayInputStream((
                     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
                     "<properties><parsers><parser class=\"org.apache.tika.parser.DefaultParser\">" +
                     "<parser-exclude class=\"org.apache.tika.parser.ocr.TesseractOCRParser\"/>" +
@@ -123,8 +123,8 @@ public class EmbeddedDocumentMemoryExtractor {
     }
 
     public static class ContentNotFoundException extends NullPointerException {
-        ContentNotFoundException(String rootId, String embedId) {
-            super("<" + embedId + "> embedded document not found in root document " + rootId);
+        public ContentNotFoundException(String rootId, String embedId) {
+            super(String.format("<%s> embedded document not found in root document <%s>", embedId, rootId));
         }
     }
 }
