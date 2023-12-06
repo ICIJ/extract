@@ -33,6 +33,7 @@ public class TikaDocument {
 	private Map<String, EmbeddedTikaDocument> lookup = new HashMap<>();
 	private Reader reader = null;
 	private ReaderGenerator readerGenerator = null;
+	private boolean isDuplicate;
 
 	/**
 	 * Instantiate a document with a pre-generated ID. In this case, the ID generator is only used when adding
@@ -266,6 +267,14 @@ public class TikaDocument {
 	@Override
 	public String toString() {
 		return path.toString() + " - " + getMetadata("resourceName");
+	}
+
+	public boolean isDuplicate() {
+		return isDuplicate;
+	}
+
+	public void setDuplicate(boolean duplicate) {
+		isDuplicate = duplicate;
 	}
 
 	@FunctionalInterface
