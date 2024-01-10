@@ -3,7 +3,6 @@ package org.icij.extract.queue;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 
-import java.nio.file.Path;
 import java.util.concurrent.ArrayBlockingQueue;
 
 /**
@@ -14,7 +13,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 @Option(name = "queueName", description = "The name of the queue.", parameter = "name")
 @Option(name = "queueBuffer", description = "The size of the internal file path buffer used by the queue.",
 		parameter = "size")
-public class MemoryDocumentQueue extends ArrayBlockingQueue<Path> implements DocumentQueue {
+public class MemoryDocumentQueue<T> extends ArrayBlockingQueue<T> implements DocumentQueue<T> {
 
 	private static final long serialVersionUID = -7491630465350342533L;
 	private final String queueName;

@@ -8,7 +8,7 @@ import java.util.Locale;
  *
  */
 public enum DocumentQueueType {
-	ARRAY, REDIS, MYSQL;
+	ARRAY, REDIS, MYSQL, AMQP;
 
 	/**
 	 * Return the name of the queue type.

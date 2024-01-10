@@ -1,9 +1,8 @@
 package org.icij.extract.queue;
 
-import java.nio.file.Path;
 import java.util.LinkedHashSet;
 
-public class MemoryDocumentSet extends LinkedHashSet<Path> implements DocumentSet {
+public class MemoryDocumentSet<T> extends LinkedHashSet<T> implements DocumentSet<T> {
     private final String name;
 
     public MemoryDocumentSet(String name) {

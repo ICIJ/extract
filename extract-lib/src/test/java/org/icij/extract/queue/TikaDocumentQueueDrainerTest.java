@@ -27,8 +27,8 @@ public class TikaDocumentQueueDrainerTest {
 		}
 	}
 
-	private DocumentQueue createQueue() {
-		final DocumentQueue queue = new MemoryDocumentQueue("extract:queue", 26);
+	private DocumentQueue<Path> createQueue() {
+		final DocumentQueue<Path> queue = new MemoryDocumentQueue<>("extract:queue", 26);
 
 		for (char a = 'a'; a <= 'z'; a++) {
 			queue.add(Paths.get(Character.toString(a)));
@@ -39,18 +39,18 @@ public class TikaDocumentQueueDrainerTest {
 
 	@Test
 	public void testDefaultPollTimeoutIs0() {
-		final DocumentQueue queue = createQueue();
+		final DocumentQueue<Path> queue = createQueue();
 		final Consumer<Path> consumer = new MockConsumer();
-		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer);
+		final DocumentQueueDrainer<Path> drainer = new DocumentQueueDrainer<>(queue, consumer);
 
 		Assert.assertEquals(0, drainer.getPollTimeout().getSeconds());
 	}
 
 	@Test
 	public void testDrainsQueue() throws Throwable {
-		final DocumentQueue queue = createQueue();
+		final DocumentQueue<Path> queue = createQueue();
 		final MockConsumer consumer = new MockConsumer();
-		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer);
+		final DocumentQueueDrainer<Path> drainer = new DocumentQueueDrainer<>(queue, consumer);
 
 		final long drained = drainer.drain().get();
 		final Queue<Path> accepted = consumer.getAccepted();
@@ -66,9 +66,9 @@ public class TikaDocumentQueueDrainerTest {
 
 	@Test
 	public void testDrainsQueueUntilPoison() throws Throwable {
-		final DocumentQueue queue = createQueue();
+		final DocumentQueue<Path> queue = createQueue();
 		final MockConsumer consumer = new MockConsumer();
-		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer);
+		final DocumentQueueDrainer<Path> drainer = new DocumentQueueDrainer<>(queue, consumer);
 		final Path poison = Paths.get("c");
 
 		final long drained = drainer.drain(poison).get();
@@ -83,9 +83,9 @@ public class TikaDocumentQueueDrainerTest {
 
 	@Test
 	public void testClearPollTimeout() throws Throwable {
-		final DocumentQueue queue = createQueue();
+		final DocumentQueue<Path> queue = createQueue();
 		final MockConsumer consumer = new MockConsumer();
-		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer);
+		final DocumentQueueDrainer<Path> drainer = new DocumentQueueDrainer<>(queue, consumer);
 		final Path poison = Paths.get("1");
 
 		drainer.clearPollTimeout();
@@ -112,9 +112,9 @@ public class TikaDocumentQueueDrainerTest {
 
 	@Test
 	public void testSetPollTimeout() throws Throwable {
-		final DocumentQueue queue = createQueue();
+		final DocumentQueue<Path> queue = createQueue();
 		final MockConsumer consumer = new MockConsumer();
-		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer);
+		final DocumentQueueDrainer<Path> drainer = new DocumentQueueDrainer<>(queue, consumer);
 
 		drainer.setPollTimeout(HumanDuration.parse("2s"));
 		Assert.assertEquals(2, drainer.getPollTimeout().getSeconds());
@@ -139,9 +139,9 @@ public class TikaDocumentQueueDrainerTest {
 
 	@Test
 	public void testSetLatch() throws Throwable {
-		final DocumentQueue queue = createQueue();
+		final DocumentQueue<Path> queue = createQueue();
 		final MockConsumer consumer = new MockConsumer();
-		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer);
+		final DocumentQueueDrainer<Path> drainer = new DocumentQueueDrainer<>(queue, consumer);
 		final SealableLatch latch = new BooleanSealableLatch();
 
 		drainer.setLatch(latch);

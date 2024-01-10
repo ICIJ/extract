@@ -1,18 +1,15 @@
 package org.icij.extract.queue;
 
-import org.icij.extract.document.TikaDocument;
-
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 
 /**
- * The interface for a queue of {@link TikaDocument} objects.
- *
+ * The interface for a document queue represented by {@link T} objects.
+ * T should provide a unique attribute to identify Documents
  * @since 2.0.0
  */
-public interface DocumentQueue extends BlockingQueue<Path>, AutoCloseable {
+public interface DocumentQueue<T> extends BlockingQueue<T>, AutoCloseable {
     String getName();
     boolean delete();
 
@@ -33,7 +30,7 @@ public interface DocumentQueue extends BlockingQueue<Path>, AutoCloseable {
     }
 
     default int removeDuplicates() {
-        Map<Path, Integer> documents = new HashMap<>();
+        Map<T, Integer> documents = new HashMap<>();
         final int initialSize = size();
         forEach(path -> documents.compute(path, (k, v) -> (v == null) ? 1 : v+1));
         documents.entrySet().stream().filter((e -> e.getValue()>1)).forEach(e -> remove(e.getKey(), e.getValue() - 1));

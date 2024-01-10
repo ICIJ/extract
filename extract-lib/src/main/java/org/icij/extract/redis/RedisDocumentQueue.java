@@ -17,7 +17,6 @@ import org.redisson.liveobject.core.RedissonObjectBuilder;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.nio.file.Path;
 import java.util.HashMap;
 
 /**
@@ -28,7 +27,7 @@ import java.util.HashMap;
 @Option(name = "queueName", description = "The name of the queue.", parameter = "name")
 @Option(name = "charset", description = "Set the output encoding for strings. Defaults to UTF-8.", parameter = "name")
 @OptionsClass(RedissonClientFactory.class)
-public class RedisDocumentQueue extends RedissonBlockingQueue<Path> implements DocumentQueue {
+public class RedisDocumentQueue<T> extends RedissonBlockingQueue<T> implements DocumentQueue<T> {
 	/**
 	 * The default name for a queue in Redis.
 	 */
