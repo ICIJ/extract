@@ -22,11 +22,11 @@ import java.util.function.Consumer;
  */
 @Option(name = "queuePoll", description = "Time to wait when polling the queue e.g. \"5s\" or \"1m\". " +
 		"Defaults to 0.", parameter = "duration")
-public class DocumentQueueDrainer extends ExecutorProxy {
+public class DocumentQueueDrainer<T> extends ExecutorProxy {
 	private static final Duration DEFAULT_TIMEOUT = Duration.ZERO;
 
-	private final DocumentQueue queue;
-	private final Consumer<Path> consumer;
+	private final DocumentQueue<T> queue;
+	private final Consumer<T> consumer;
 
 	private SealableLatch latch = null;
 	private Duration pollTimeout = DEFAULT_TIMEOUT;
@@ -39,13 +39,13 @@ public class DocumentQueueDrainer extends ExecutorProxy {
 	 * @param queue the queue to drain
 	 * @param consumer must accept documents drained from the queue
 	 */
-	public DocumentQueueDrainer(final DocumentQueue queue, final Consumer<Path> consumer) {
+	public DocumentQueueDrainer(final DocumentQueue<T> queue, final Consumer<T> consumer) {
 		super(Executors.newSingleThreadExecutor());
 		this.queue = queue;
 		this.consumer = consumer;
 	}
 
-	public DocumentQueueDrainer configure(final Options<String> options) {
+	public DocumentQueueDrainer<T> configure(final Options<String> options) {
 		options.get("queuePoll").parse().asDuration().ifPresent(this::setPollTimeout);
 		return this;
 	}
@@ -170,13 +170,13 @@ public class DocumentQueueDrainer extends ExecutorProxy {
 		 *
 		 * @throws InterruptedException if interrupted while polling
 		 */
-		private Path poll() throws InterruptedException {
+		private T poll() throws InterruptedException {
 
 			// Store the latch and timeout in local constants so that they be used in a thread-safe way.
 			final Duration pollTimeout = getPollTimeout();
 			final SealableLatch latch = getLatch();
 
-			Path path;
+			T path;
 
 			if (null != latch) {
 				path = queue.poll();
@@ -210,7 +210,7 @@ public class DocumentQueueDrainer extends ExecutorProxy {
 		private long drain() throws InterruptedException {
 			long consumed = 0;
 
-			Path path = poll();
+			T path = poll();
 			while (null != path && (null == poison || !path.equals(poison))) {
 				consumer.accept(path);
 				consumed++;

@@ -14,7 +14,7 @@ import java.nio.file.Path;
 
 @Option(name = "queueTable", description = "The queue table Defaults to \"document_queue\".", parameter = "name")
 @OptionsClass(SQLDocumentQueueCodec.class)
-public class MySQLDocumentQueue extends MySQLBlockingQueue<Path> implements DocumentQueue {
+public class MySQLDocumentQueue extends MySQLBlockingQueue<Path> implements DocumentQueue<Path> {
 
 	public MySQLDocumentQueue(final DataSource dataSource, final DocumentFactory factory,
 	                          final Options<String> options) {

@@ -21,7 +21,7 @@ import static org.fest.assertions.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 
 public class ScannerTest {
-	private final DocumentQueue queue = new MemoryDocumentQueue("extract:queue", 100);
+	private final DocumentQueue<Path> queue = new MemoryDocumentQueue<>("extract:queue", 100);
 	private final Scanner scanner = new Scanner(queue);
 
 	@Test

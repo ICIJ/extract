@@ -9,10 +9,9 @@ import org.redisson.command.CommandSyncService;
 import org.redisson.liveobject.core.RedissonObjectBuilder;
 
 import java.nio.charset.Charset;
-import java.nio.file.Path;
 import java.util.HashMap;
 
-public class RedisDocumentSet extends RedissonSet<Path> implements DocumentSet {
+public class RedisDocumentSet<T> extends RedissonSet<T> implements DocumentSet<T> {
     public static String DEFAULT_NAME = "extract:filter";
 	private final RedissonClient redissonClient;
 
