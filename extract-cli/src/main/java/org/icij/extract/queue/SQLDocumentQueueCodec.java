@@ -25,7 +25,7 @@ import java.util.Map;
 @Option(name = "queueStatusKey", description = "The table key for storing the queue status.", parameter = "name")
 @Option(name = "queueWaitingStatus", description = "The status value for waiting documents.", parameter = "value")
 @Option(name = "queueProcessedStatus", description = "The status value for non-waiting documents.", parameter = "value")
-public class SQLDocumentQueueCodec implements SQLQueueCodec<Path> {
+public class SQLDocumentQueueCodec<T> implements SQLQueueCodec<T> {
 
 	private final DocumentFactory factory;
 	private final String idKey;
@@ -35,8 +35,9 @@ public class SQLDocumentQueueCodec implements SQLQueueCodec<Path> {
 	private final String statusKey;
 	private final String waitingStatus;
 	private final String processedStatus;
+	private final Class<T> clazz;
 
-	SQLDocumentQueueCodec(final DocumentFactory factory, final Options<String> options) {
+	SQLDocumentQueueCodec(final DocumentFactory factory, final Options<String> options, Class<T> clazz) {
 		this.factory = factory;
 		this.idKey = options.get("queueIdKey").value().orElse(null);
 		this.foreignIdKey = options.get("queueForeignIdKey").value().orElse(null);
@@ -45,6 +46,7 @@ public class SQLDocumentQueueCodec implements SQLQueueCodec<Path> {
 		this.statusKey = options.get("queueStatusKey").value().orElse("queue_status");
 		this.waitingStatus = options.get("queueWaitingStatus").value().orElse("waiting");
 		this.processedStatus = options.get("queueProcessedStatus").value().orElse("processed");
+		this.clazz = clazz;
 	}
 
 	@Override
@@ -81,9 +83,9 @@ public class SQLDocumentQueueCodec implements SQLQueueCodec<Path> {
 	}
 
 	@Override
-	public Path decodeValue(final ResultSet rs) throws SQLException {
+	public T decodeValue(final ResultSet rs) throws SQLException {
 		final Path path = Paths.get(rs.getString(pathKey));
-		final Long size = rs.getLong(sizeKey);
+		final long size = rs.getLong(sizeKey);
 		final TikaDocument tikaDocument;
 
 		if (null != idKey) {
@@ -96,7 +98,9 @@ public class SQLDocumentQueueCodec implements SQLQueueCodec<Path> {
 			tikaDocument.setForeignId(rs.getString(foreignIdKey));
 		}
 
-		return tikaDocument.getPath();
+		return clazz.isAssignableFrom(Path.class) ?
+				(T) tikaDocument.getPath() :
+				(T) tikaDocument.getId();
 	}
 
 	@Override

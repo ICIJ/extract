@@ -17,6 +17,7 @@ import org.redisson.liveobject.core.RedissonObjectBuilder;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.file.Path;
 import java.util.HashMap;
 
 /**
@@ -41,11 +42,11 @@ public class RedisDocumentQueue<T> extends RedissonBlockingQueue<T> implements D
 	 * @param queueName name of the redis key
 	 * @param redisAddress redis url i.e. redis://127.0.0.1:6379
 	 */
-	public RedisDocumentQueue(final String queueName, final String redisAddress) {
-		this(Options.from(new HashMap<String, String>() {{
-			put("redisAddress", redisAddress);
-			put("queueName", queueName);
-		}}));
+	public RedisDocumentQueue(final String queueName, final String redisAddress, final Class<T> clazz) {
+		this(Options.from(new HashMap<>() {{
+            put("redisAddress", redisAddress);
+            put("queueName", queueName);
+        }}), clazz);
 	}
 
 	/**
@@ -53,10 +54,10 @@ public class RedisDocumentQueue<T> extends RedissonBlockingQueue<T> implements D
 	 *
 	 * @param options options for connecting to Redis
 	 */
-	public RedisDocumentQueue(final Options<String> options) {
+	public RedisDocumentQueue(final Options<String> options, Class<T> clazz) {
 		this(new RedissonClientFactory().withOptions(options).create(),
 				options.valueIfPresent("queueName").orElse(DEFAULT_NAME),
-				Charset.forName(options.valueIfPresent("charset").orElse("UTF-8")));
+				Charset.forName(options.valueIfPresent("charset").orElse("UTF-8")), clazz);
 	}
 
 	/**
@@ -67,8 +68,8 @@ public class RedisDocumentQueue<T> extends RedissonBlockingQueue<T> implements D
 	 * @param charset the character set for encoding and decoding paths
 	 */
 	private RedisDocumentQueue(final RedissonClient redissonClient,
-	                           final String name, final Charset charset) {
-		this(new PathQueueCodec(charset),
+	                           final String name, final Charset charset, final Class<T> clazz) {
+		this(new QueueCodec<>(charset, clazz),
 				new CommandSyncService(((Redisson)redissonClient).getConnectionManager(), new RedissonObjectBuilder(redissonClient)),
 				null == name ? DEFAULT_NAME : name, redissonClient);
 
@@ -98,29 +99,35 @@ public class RedisDocumentQueue<T> extends RedissonBlockingQueue<T> implements D
 	/**
 	 * Codec for a queue of paths to documents.
 	 */
-	static class PathQueueCodec extends BaseCodec {
+	static class QueueCodec<T> extends BaseCodec {
 
-		private final Decoder<Object> pathDecoder;
+		private final Decoder<Object> decoder;
 		private final Encoder documentEncoder;
 
-		PathQueueCodec(final Charset charset) {
-			pathDecoder = new PathDecoder(charset);
-			documentEncoder = new PathEncoder(charset);
+		QueueCodec(final Charset charset, Class<T> clazz) {
+			decoder = clazz.isAssignableFrom(Path.class) ?
+					new PathDecoder(charset):
+					(buf, state) -> {
+						String str = buf.toString(charset);
+						buf.readerIndex(buf.readableBytes());
+						return str;
+					};
+            documentEncoder = new PathEncoder(charset);
 		}
 
 		@Override
 		public Decoder<Object> getValueDecoder() {
-			return pathDecoder;
+			return decoder;
 		}
 
 		@Override
 		public Decoder<Object> getMapValueDecoder() {
-			return pathDecoder;
+			return decoder;
 		}
 
 		@Override
 		public Decoder<Object> getMapKeyDecoder() {
-			return pathDecoder;
+			return decoder;
 		}
 
 		@Override

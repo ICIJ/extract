@@ -1,21 +1,24 @@
 package org.icij.extract.tasks;
 
-import org.apache.commons.io.output.CloseShieldOutputStream;
-import org.icij.extract.queue.DocumentQueue;
-import org.icij.extract.json.DocumentQueueSerializer;
-import org.icij.extract.queue.DocumentQueueFactory;
-
-import java.io.*;
-
+import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import org.apache.commons.io.output.CloseShieldOutputStream;
+import org.icij.extract.json.DocumentQueueSerializer;
+import org.icij.extract.queue.DocumentQueue;
+import org.icij.extract.queue.DocumentQueueFactory;
 import org.icij.task.MonitorableTask;
-import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
 import org.icij.task.annotation.Task;
+
+import java.io.BufferedOutputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Path;
 
 /**
  * A command that dumps a queue to JSON output.
@@ -30,7 +33,7 @@ public class DumpQueueTask extends MonitorableTask<Void> {
 	@Override
 	public Void call(final String[] arguments) throws Exception {
 		try (final OutputStream output = new BufferedOutputStream(new FileOutputStream(arguments[0]));
-		     final DocumentQueue queue = new DocumentQueueFactory(options).createShared()) {
+		     final DocumentQueue<Path> queue = new DocumentQueueFactory(options).createShared(Path.class)) {
 			monitor.hintRemaining(queue.size());
 			dump(queue, output);
 		} catch (FileNotFoundException e) {
@@ -43,7 +46,7 @@ public class DumpQueueTask extends MonitorableTask<Void> {
 	@Override
 	public Void call() throws Exception {
 		try (final OutputStream output = new BufferedOutputStream(new CloseShieldOutputStream(System.out));
-		final DocumentQueue queue = new DocumentQueueFactory(options).createShared()) {
+		final DocumentQueue<Path> queue = new DocumentQueueFactory(options).createShared(Path.class)) {
 			monitor.hintRemaining(queue.size());
 			dump(queue, output);
 		}
@@ -57,7 +60,7 @@ public class DumpQueueTask extends MonitorableTask<Void> {
 	 * @param queue the queue to dump
 	 * @param output the output stream to dump to
 	 */
-	private void dump(final DocumentQueue queue, final OutputStream output) throws IOException {
+	private void dump(final DocumentQueue<Path> queue, final OutputStream output) throws IOException {
 		final ObjectMapper mapper = new ObjectMapper();
 		final SimpleModule module = new SimpleModule();
 

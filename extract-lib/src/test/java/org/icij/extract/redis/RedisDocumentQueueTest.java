@@ -4,39 +4,54 @@ import org.icij.task.Options;
 import org.junit.After;
 import org.junit.Test;
 
+import java.nio.file.Path;
 import java.util.HashMap;
 
 import static java.nio.file.Paths.get;
 import static org.fest.assertions.Assertions.assertThat;
 
 public class RedisDocumentQueueTest {
-    private RedisDocumentQueue queue = new RedisDocumentQueue(Options.from(new HashMap<String, String>() {{
+    private final RedisDocumentQueue<Path> pathQueue = new RedisDocumentQueue<>(Options.from(new HashMap<>() {{
         put("redisAddress", "redis://redis:6379");
-        put("queueName", "test:queue");
-    }}));
+        put("queueName", "test:path:queue");
+    }}), Path.class);
+    private final RedisDocumentQueue<String> stringQueue = new RedisDocumentQueue<>(Options.from(new HashMap<>() {{
+        put("redisAddress", "redis://redis:6379");
+        put("queueName", "test:string:queue");
+    }}), String.class);
 
     @Test
     public void testRemoveDuplicates() throws Exception {
-        queue.put(get("/foo/bar"));
-        queue.put(get("/foo/baz"));
-        queue.put(get("/foo/bar"));
-        queue.put(get("/foo/bar"));
+        pathQueue.put(get("/foo/bar"));
+        pathQueue.put(get("/foo/baz"));
+        pathQueue.put(get("/foo/bar"));
+        pathQueue.put(get("/foo/bar"));
 
-        assertThat(queue.removeDuplicates()).isEqualTo(2);
+        assertThat(pathQueue.removeDuplicates()).isEqualTo(2);
 
-        assertThat(queue.size()).isEqualTo(2);
+        assertThat(pathQueue.size()).isEqualTo(2);
     }
 
     @Test
     public void testDelete() throws Exception {
-        queue.put(get("/foo/bar"));
-        queue.put(get("/foo/baz"));
-        queue.put(get("/foo/bar"));
-        queue.put(get("/foo/bar"));
-        assertThat(queue.size()).isEqualTo(4);
-        queue.delete();
-        assertThat(queue.size()).isEqualTo(0);
+        pathQueue.put(get("/foo/bar"));
+        pathQueue.put(get("/foo/baz"));
+        pathQueue.put(get("/foo/bar"));
+        pathQueue.put(get("/foo/bar"));
+        assertThat(pathQueue.size()).isEqualTo(4);
+        pathQueue.delete();
+        assertThat(pathQueue.size()).isEqualTo(0);
     }
 
-    @After public void tearDown() { queue.delete();}
+    @Test
+    public void testStringQueue() throws Exception {
+        stringQueue.put("foo");
+        assertThat(stringQueue.take()).isEqualTo("foo");
+        assertThat(stringQueue.size()).isEqualTo(0);
+    }
+
+    @After public void tearDown() {
+        pathQueue.delete();
+        stringQueue.delete();
+    }
 }

@@ -16,7 +16,13 @@ import org.icij.task.annotation.Option;
 import org.icij.task.annotation.OptionsClass;
 import org.icij.task.annotation.Task;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
@@ -36,9 +42,9 @@ public class LoadQueueTask extends DefaultTask<Void> {
 		final DocumentFactory factory = new DocumentFactory().configure(options);
 
 		try (final InputStream input = new CloseShieldInputStream(System.in);
-		     final DocumentQueue queue = new DocumentQueueFactory(options)
+		     final DocumentQueue<Path> queue = new DocumentQueueFactory(options)
 				     .withDocumentFactory(factory)
-				     .createShared()) {
+				     .createShared(Path.class)) {
 			load(factory, queue, input);
 		}
 
@@ -49,9 +55,9 @@ public class LoadQueueTask extends DefaultTask<Void> {
 	public Void call(final String[] arguments) throws Exception {
 		final DocumentFactory factory = new DocumentFactory().configure(options);
 
-		try (final DocumentQueue queue = new DocumentQueueFactory(options)
+		try (final DocumentQueue<Path> queue = new DocumentQueueFactory(options)
 				.withDocumentFactory(factory)
-				.createShared()) {
+				.createShared(Path.class)) {
 			for (String argument : arguments) {
 				load(factory, queue, argument);
 			}
@@ -69,7 +75,7 @@ public class LoadQueueTask extends DefaultTask<Void> {
 	 * @param path the path to load the dump from
 	 * @throws IOException if the dump could not be loaded
 	 */
-	private void load(final DocumentFactory factory, final DocumentQueue queue, final String path) throws IOException {
+	private void load(final DocumentFactory factory, final DocumentQueue<Path> queue, final String path) throws IOException {
 		try (final InputStream input = new BufferedInputStream(new FileInputStream(path))) {
 			load(factory, queue, input);
 		}
@@ -82,11 +88,11 @@ public class LoadQueueTask extends DefaultTask<Void> {
 	 * @param input the input stream to load the dump from
 	 * @throws IOException if the dump could not be loaded
 	 */
-	private void load(final DocumentFactory factory, final DocumentQueue queue, final InputStream input) throws
+	private void load(final DocumentFactory factory, final DocumentQueue<Path> queue, final InputStream input) throws
 			IOException {
 		final String format = options.get("format").value().orElse("json");
 
-		if (format.toLowerCase().equals("csv")) {
+		if (format.equalsIgnoreCase("csv")) {
 			loadFromCSV(factory, queue, input);
 		} else {
 			loadFromJSON(factory, queue, input);
@@ -100,7 +106,7 @@ public class LoadQueueTask extends DefaultTask<Void> {
 	 * @param input the input stream to load the dump from
 	 * @throws IOException if the dump could not be loaded
 	 */
-	private void loadFromCSV(final DocumentFactory factory, final DocumentQueue queue, final InputStream input) throws
+	private void loadFromCSV(final DocumentFactory factory, final DocumentQueue<Path> queue, final InputStream input) throws
 			IOException {
 		final String pathField = options.get("pathField").value().orElse("path");
 
@@ -116,7 +122,7 @@ public class LoadQueueTask extends DefaultTask<Void> {
 	 * @param input the input stream to load the dump from
 	 * @throws IOException if the dump could not be loaded
 	 */
-	private void loadFromJSON(final DocumentFactory factory, final DocumentQueue queue, final InputStream input)
+	private void loadFromJSON(final DocumentFactory factory, final DocumentQueue<Path> queue, final InputStream input)
 			throws IOException {
 		final ObjectMapper mapper = new ObjectMapper();
 		final SimpleModule module = new SimpleModule();
