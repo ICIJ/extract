@@ -8,6 +8,7 @@ import org.icij.task.MonitorableTask;
 import org.icij.task.annotation.OptionsClass;
 import org.icij.task.annotation.Task;
 
+import java.nio.file.Path;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -30,9 +31,9 @@ public class QueueTask extends MonitorableTask<Long> {
 
 		final DocumentFactory factory = new DocumentFactory().configure(options);
 
-		try (final DocumentQueue queue = new DocumentQueueFactory(options)
+		try (final DocumentQueue<Path> queue = new DocumentQueueFactory(options)
 				.withDocumentFactory(factory)
-				.createShared()) {
+				.createShared(Path.class)) {
 			return queue(new Scanner(queue, null, monitor).configure(options), paths);
 		}
 	}

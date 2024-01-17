@@ -70,12 +70,12 @@ public class DocumentQueueFactory {
 	 * @return a {@code Queue} or {@code null}
 	 * @throws IllegalArgumentException if the arguments do not contain a valid queue type
 	 */
-	public DocumentQueue create() throws IllegalArgumentException {
+	public <T> DocumentQueue<T> create(Class<T> clazz) throws IllegalArgumentException {
 		if (DocumentQueueType.ARRAY == type) {
-			return new MemoryDocumentQueue(options);
+			return new MemoryDocumentQueue<>(options);
 		}
 
-		return createShared();
+		return createShared(clazz);
 	}
 
 	/**
@@ -84,13 +84,13 @@ public class DocumentQueueFactory {
 	 * @return a {@code Queue} or {@code null}
 	 * @throws IllegalArgumentException if the given options do not contain a valid shared queue type
 	 */
-	public DocumentQueue createShared() throws IllegalArgumentException {
+	public <T> DocumentQueue<T> createShared(Class<T> clazz) throws IllegalArgumentException {
 		if (null == documentFactory) {
 			documentFactory = new DocumentFactory().configure(options);
 		}
 
 		if (DocumentQueueType.REDIS == type) {
-			return new RedisDocumentQueue(options);
+			return new RedisDocumentQueue<>(options, clazz);
 		}
 
 		if (DocumentQueueType.MYSQL == type) {
@@ -98,7 +98,7 @@ public class DocumentQueueFactory {
 				dataSourceFactory = new DataSourceFactory(options);
 			}
 
-			return new MySQLDocumentQueue(dataSourceFactory.get(), documentFactory, options);
+			return new MySQLDocumentQueue<>(dataSourceFactory.get(), documentFactory, options, clazz);
 		}
 
 		throw new IllegalArgumentException(String.format("\"%s\" is not a valid shared queue type.", type));

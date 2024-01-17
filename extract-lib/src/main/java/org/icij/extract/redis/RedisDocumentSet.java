@@ -21,21 +21,21 @@ public class RedisDocumentSet<T> extends RedissonSet<T> implements DocumentSet<T
    	 * @param setName name of the redis key
    	 * @param redisAddress redis url i.e. redis://127.0.0.1:6379
    	 */
-   	public RedisDocumentSet(final String setName, final String redisAddress) {
-   		this(Options.from(new HashMap<String, String>() {{
-   			put("redisAddress", redisAddress);
-   			put("setName", setName);
-   		}}));
+   	public RedisDocumentSet(final String setName, final String redisAddress, Class<T> clazz) {
+   		this(Options.from(new HashMap<>() {{
+            put("redisAddress", redisAddress);
+            put("setName", setName);
+        }}), clazz);
    	}
 
-    public RedisDocumentSet(Options<String> options) {
+    public RedisDocumentSet(Options<String> options, Class<T> clazz) {
         this(new RedissonClientFactory().withOptions(options).create(),
         				options.valueIfPresent("setName").orElse(DEFAULT_NAME),
-        				Charset.forName(options.valueIfPresent("charset").orElse("UTF-8")));
+        				Charset.forName(options.valueIfPresent("charset").orElse("UTF-8")), clazz);
     }
 
-    private RedisDocumentSet(RedissonClient redissonClient, String name, Charset charset) {
-        super(new RedisDocumentQueue.PathQueueCodec(charset),
+    private RedisDocumentSet(RedissonClient redissonClient, String name, Charset charset, Class<T> clazz) {
+        super(new RedisDocumentQueue.QueueCodec<>(charset, clazz),
         				new CommandSyncService(((Redisson)redissonClient).getConnectionManager(), new RedissonObjectBuilder(redissonClient)),
         				null == name ? DEFAULT_NAME : name, redissonClient);
         this.redissonClient = redissonClient;

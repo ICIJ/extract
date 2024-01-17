@@ -3,6 +3,7 @@ package org.icij.extract.tasks;
 import com.sun.management.OperatingSystemMXBean;
 import org.apache.commons.io.FileUtils;
 import org.icij.concurrent.BooleanSealableLatch;
+import org.icij.extract.Scanner;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.extractor.DocumentConsumer;
 import org.icij.extract.extractor.Extractor;
@@ -10,7 +11,6 @@ import org.icij.extract.mysql.DataSourceFactory;
 import org.icij.extract.queue.DocumentQueue;
 import org.icij.extract.queue.DocumentQueueDrainer;
 import org.icij.extract.queue.DocumentQueueFactory;
-import org.icij.extract.Scanner;
 import org.icij.extract.report.ReportMap;
 import org.icij.extract.report.ReportMapFactory;
 import org.icij.extract.report.Reporter;
@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.management.ManagementFactory;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -72,9 +73,9 @@ public class SpewTask extends DefaultTask<Long> {
 		try (final ReportMap reportMap = new ReportMapFactory(options)
 				.withDocumentFactory(documentFactory)
 				.create();
-			 final DocumentQueue queue = new DocumentQueueFactory(options)
+			 final DocumentQueue<Path> queue = new DocumentQueueFactory(options)
 				     .withDocumentFactory(documentFactory)
-				     .create();
+				     .create(Path.class);
 			 final Spewer spewer = SpewerFactory.createSpewer(options)) {
 
 			return spew(documentFactory, reportMap, spewer, queue, paths, parallelism);
@@ -86,13 +87,13 @@ public class SpewTask extends DefaultTask<Long> {
 		return call(null);
 	}
 
-	private Long spew(final DocumentFactory factory, final ReportMap reportMap, final Spewer spewer, final DocumentQueue
+	private Long spew(final DocumentFactory factory, final ReportMap reportMap, final Spewer spewer, final DocumentQueue<Path>
 			queue, final String[] paths, final int parallelism) throws Exception {
 		logger.info(String.format("Processing up to %d file(s) in parallel.", parallelism));
 
 		final Extractor extractor = new Extractor().configure(options);
 		final DocumentConsumer consumer = new DocumentConsumer(spewer, extractor, parallelism);
-		final DocumentQueueDrainer drainer = new DocumentQueueDrainer(queue, consumer).configure(options);
+		final DocumentQueueDrainer<Path> drainer = new DocumentQueueDrainer<>(queue, consumer).configure(options);
 
 		if (null != reportMap) {
 			consumer.setReporter(new Reporter(reportMap));

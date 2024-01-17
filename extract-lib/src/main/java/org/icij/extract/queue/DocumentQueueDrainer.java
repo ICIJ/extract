@@ -60,8 +60,7 @@ public class DocumentQueueDrainer<T> extends ExecutorProxy {
 	}
 
 	/**
-	 * Causes the consumer to wait until a new file is available, without any timeout.
-	 *
+	 * Causes the consumer to wait until a new file is available, without any timeout
 	 * To not wait at all, call {@link #setPollTimeout(Duration pollTimeout)} with a value of {@code 0}.
 	 */
 	public void clearPollTimeout() {
@@ -79,7 +78,6 @@ public class DocumentQueueDrainer<T> extends ExecutorProxy {
 
 	/**
 	 * If given, the latch should be used to signal that the queue should be polled.
-	 *
 	 * {@linkplain SealableLatch#await()} will be called until polling returns a non-null value or the latch is sealed.
 	 *
 	 * @param latch the latch to await before polling
@@ -139,7 +137,6 @@ public class DocumentQueueDrainer<T> extends ExecutorProxy {
 		/**
 		 * Instantiate a draining task that will drain the queue until {@link DocumentQueue#poll()} returns {@code null},
 		 * or, if a timeout is specified, {@link DocumentQueue#poll(long, TimeUnit)} returns null after waiting.
-		 *
 		 * Note that if not timeout is specified, the draining thread will run until interrupted. If you want to
 		 * signal it to stop, use {@link DrainingTask#DrainingTask(Path)} with a user-defined poison pill.
 		 */
@@ -160,10 +157,8 @@ public class DocumentQueueDrainer<T> extends ExecutorProxy {
 
 		/**
 		 * Poll the queue for a new file.
-		 *
 		 * Will wait for the duration set by {@link #setPollTimeout} or until a file becomes available if no timeout
 		 * is set.
-		 *
 		 * If a {@link SealableLatch} is set, this method will await on that latch before polling and stop when the
 		 * latch is sealed and signalled. Note that even if a signal is received, there is no guarantee that this
 		 * method will not return {@code null} if a shared queue is being used.
@@ -211,7 +206,7 @@ public class DocumentQueueDrainer<T> extends ExecutorProxy {
 			long consumed = 0;
 
 			T path = poll();
-			while (null != path && (null == poison || !path.equals(poison))) {
+			while (null != path && (!path.equals(poison))) {
 				consumer.accept(path);
 				consumed++;
 				path = poll();
