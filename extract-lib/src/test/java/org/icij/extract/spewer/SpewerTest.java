@@ -8,6 +8,7 @@ import org.icij.extract.document.TikaDocument;
 import org.icij.spewer.FieldNames;
 import org.icij.spewer.MetadataTransformer;
 import org.icij.spewer.Spewer;
+import org.icij.task.Options;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -17,11 +18,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import static org.junit.Assert.assertEquals;
+
 public class SpewerTest {
 
 	private final DocumentFactory factory = new DocumentFactory().withIdentifier(new PathIdentifier());
 
-	private class SpewerStub extends Spewer {
+	private static class SpewerStub extends Spewer {
 
 		private static final long serialVersionUID = 6023532612678893344L;
 		final Map<String, String> metadata = new HashMap<>();
@@ -49,7 +52,15 @@ public class SpewerTest {
 
 	@Test
 	public void testDefaultOutputEncodingIsUTF8() {
-		Assert.assertEquals(StandardCharsets.UTF_8, new SpewerStub().getOutputEncoding());
+		assertEquals(StandardCharsets.UTF_8, new SpewerStub().getOutputEncoding());
+	}
+
+	@Test
+	public void testConfigureWithDefaultValues() {
+		Spewer configured = new SpewerStub().configure(Options.from(new HashMap<>()));
+		assertEquals(configured.getOutputEncoding(), StandardCharsets.UTF_8);
+		assertEquals(configured.outputMetadata(), false);
+		assertEquals(configured.getTags(), new HashMap<>());
 	}
 
 	@Test
@@ -57,7 +68,7 @@ public class SpewerTest {
 		final Spewer spewer = new SpewerStub();
 
 		spewer.setOutputEncoding(StandardCharsets.US_ASCII);
-		Assert.assertEquals(StandardCharsets.US_ASCII, spewer.getOutputEncoding());
+		assertEquals(StandardCharsets.US_ASCII, spewer.getOutputEncoding());
 	}
 
 	@Test
@@ -82,8 +93,8 @@ public class SpewerTest {
 			metadata.set(Office.CREATION_DATE, date);
 			spewer.writeMetadata(tikaDocument);
 
-			Assert.assertEquals(date, spewer.metadata.get(fields.forMetadata(Office.CREATION_DATE.getName())));
-			Assert.assertEquals(isoDates[i++],
+			assertEquals(date, spewer.metadata.get(fields.forMetadata(Office.CREATION_DATE.getName())));
+			assertEquals(isoDates[i++],
 					spewer.metadata.get(fields.forMetadataISODate(Office.CREATION_DATE.getName())));
 
 			// Reset the store of written metadata on each iteration.
@@ -100,8 +111,8 @@ public class SpewerTest {
 		metadata.set("unknown_tag_0x", "foo");
 		spewer.writeMetadata(tikaDocument);
 		// Those value should not be blocked
-		Assert.assertEquals(spewer.metadata.get("tika_metadata_resourcename"), "test.txt");
-		Assert.assertEquals(spewer.metadata.get("tika_metadata_bar"), "bar");
+		assertEquals(spewer.metadata.get("tika_metadata_resourcename"), "test.txt");
+		assertEquals(spewer.metadata.get("tika_metadata_bar"), "bar");
 		// But this one should
 		Assert.assertNull(spewer.metadata.getOrDefault("tika_metadata_unknown_tag_0x", null), null);
 	}
