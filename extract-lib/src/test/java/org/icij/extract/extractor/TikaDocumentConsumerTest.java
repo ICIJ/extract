@@ -1,7 +1,5 @@
 package org.icij.extract.extractor;
 
-import org.icij.extract.document.DocumentFactory;
-import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.report.HashMapReportMap;
 import org.icij.extract.report.Reporter;
 import org.icij.spewer.FieldNames;
@@ -16,13 +14,31 @@ import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TikaDocumentConsumerTest {
 
-	private final DocumentFactory factory = new DocumentFactory().withIdentifier(new PathIdentifier());
-
 	private Path getFile() throws URISyntaxException {
 		return Paths.get(getClass().getResource("/documents/text/plain.txt").toURI());
+	}
+
+	@Test
+	public void testSpewerIsClosed() throws InterruptedException {
+		final Extractor extractor = new Extractor();
+		AtomicBoolean closedCalled = new AtomicBoolean(false);
+		final ByteArrayOutputStream output = new ByteArrayOutputStream() {
+			@Override
+			public void close() {
+				closedCalled.set(true);
+			}
+		};
+		final PrintStream print = new PrintStream(output);
+		final Spewer spewer = new PrintStreamSpewer(print, new FieldNames());
+		final DocumentConsumer consumer = new DocumentConsumer(spewer, extractor, 1);
+		consumer.shutdown();
+		Assert.assertTrue(consumer.awaitTermination(1, TimeUnit.MINUTES));
+
+		Assert.assertTrue(closedCalled.get());
 	}
 
 	@Test
@@ -37,6 +53,7 @@ public class TikaDocumentConsumerTest {
 
 		spewer.outputMetadata(false);
 		consumer.accept(tikaDocument);
+		Thread.sleep(1000);
 		consumer.shutdown();
 		Assert.assertTrue(consumer.awaitTermination(1, TimeUnit.MINUTES));
 

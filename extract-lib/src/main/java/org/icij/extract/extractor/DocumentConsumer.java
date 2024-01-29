@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
@@ -130,4 +131,15 @@ public class DocumentConsumer extends ExecutorProxy implements Consumer<Path> {
 			}
 		});
 	}
+
+	@Override
+	public boolean awaitTermination(final long timeout, final TimeUnit unit) throws InterruptedException {
+		boolean result = super.awaitTermination(timeout, unit);
+		try {
+            spewer.close();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+		return result;
+    }
 }
