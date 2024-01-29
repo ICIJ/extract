@@ -6,8 +6,13 @@ import org.icij.extract.parser.ParsingReader;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 
-import javax.naming.OperationNotSupportedException;
-import java.io.*;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Reader;
+import java.io.Serializable;
+import java.io.StringWriter;
+import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -167,7 +172,5 @@ public abstract class Spewer implements AutoCloseable, Serializable {
     }
 
     @Override
-    public void close() throws Exception {
-        throw new OperationNotSupportedException("not implemented");
-    }
+    public void close() throws Exception {}
 }

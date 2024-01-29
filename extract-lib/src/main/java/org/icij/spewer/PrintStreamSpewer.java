@@ -61,4 +61,9 @@ public class PrintStreamSpewer extends Spewer implements Serializable {
 		// Add an extra newline to signify the end of the metadata.
 		stream.println();
 	}
+
+	@Override
+	public void close() throws Exception {
+		stream.close();
+	}
 }
