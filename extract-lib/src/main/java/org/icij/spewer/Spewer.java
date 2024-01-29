@@ -28,11 +28,9 @@ import java.util.Map;
 @Option(name = "charset", description = "Set the output encoding for text and document attributes. Defaults to UTF-8.",
 		parameter = "name")
 public abstract class Spewer implements AutoCloseable, Serializable {
-
     private static final long serialVersionUID = 5169670165236652447L;
 
     protected boolean outputMetadata = true;
-
     private Charset outputEncoding = StandardCharsets.UTF_8;
     protected final Map<String, String> tags = new HashMap<>();
     protected final FieldNames fields;
@@ -43,10 +41,11 @@ public abstract class Spewer implements AutoCloseable, Serializable {
     }
 
     public Spewer configure(final Options<String> options) {
-        options.get("outputMetadata").parse().asBoolean().ifPresent(this::outputMetadata);
-        options.get("charset").value(Charset::forName).ifPresent(this::setOutputEncoding);
-        options.get("tag").values().forEach(this::setTag);
-
+        options.get("outputMetadata", "false").parse().asBoolean().ifPresent(this::outputMetadata);
+        options.get("charset", StandardCharsets.UTF_8.toString()).value(Charset::forName).ifPresent(this::setOutputEncoding);
+        if (null != options.get("tag")) {
+            options.get("tag", ":").values().forEach(this::setTag);
+        }
         return this;
     }
 
@@ -94,6 +93,10 @@ public abstract class Spewer implements AutoCloseable, Serializable {
 
     public void setTags(final Map<String, String> tags) {
         tags.forEach(this::setTag);
+    }
+
+    public Map<String, String> getTags() {
+        return tags;
     }
 
     private void setTag(final String name, final String value) {
