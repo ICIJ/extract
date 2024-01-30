@@ -73,7 +73,7 @@ public class RedisReportMap extends RedissonMap<Path, Report> implements ReportM
 	 * @param redissonClient instantiated using {@link RedissonClientFactory}
 	 * @param name the name of the report
 	 */
-	private RedisReportMap(final RedissonClient redissonClient, final String name,
+	protected RedisReportMap(final RedissonClient redissonClient, final String name,
 						   final Charset charset) {
 		super(new ReportCodec(charset), new CommandSyncService(((Redisson)redissonClient).getConnectionManager(), new RedissonObjectBuilder(redissonClient)),
 				null == name ? DEFAULT_NAME : name, redissonClient, null, null);

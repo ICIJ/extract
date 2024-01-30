@@ -34,7 +34,7 @@ public class RedisDocumentSet<T> extends RedissonSet<T> implements DocumentSet<T
         				Charset.forName(options.valueIfPresent("charset").orElse("UTF-8")), clazz);
     }
 
-    private RedisDocumentSet(RedissonClient redissonClient, String name, Charset charset, Class<T> clazz) {
+    protected RedisDocumentSet(RedissonClient redissonClient, String name, Charset charset, Class<T> clazz) {
         super(new RedisDocumentQueue.QueueCodec<>(charset, clazz),
         				new CommandSyncService(((Redisson)redissonClient).getConnectionManager(), new RedissonObjectBuilder(redissonClient)),
         				null == name ? DEFAULT_NAME : name, redissonClient);
