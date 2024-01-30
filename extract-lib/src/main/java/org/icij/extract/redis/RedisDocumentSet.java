@@ -14,6 +14,7 @@ import java.util.HashMap;
 public class RedisDocumentSet<T> extends RedissonSet<T> implements DocumentSet<T> {
     public static String DEFAULT_NAME = "extract:filter";
 	private final RedissonClient redissonClient;
+	private final boolean shouldShutdownRedisson;
 
 	/**
    	 * Create a Redis-backed set for filtering queues
@@ -31,14 +32,19 @@ public class RedisDocumentSet<T> extends RedissonSet<T> implements DocumentSet<T
     public RedisDocumentSet(Options<String> options, Class<T> clazz) {
         this(new RedissonClientFactory().withOptions(options).create(),
         				options.valueIfPresent("setName").orElse(DEFAULT_NAME),
-        				Charset.forName(options.valueIfPresent("charset").orElse("UTF-8")), clazz);
+        				Charset.forName(options.valueIfPresent("charset").orElse("UTF-8")), clazz, true);
     }
 
-    protected RedisDocumentSet(RedissonClient redissonClient, String name, Charset charset, Class<T> clazz) {
+	protected RedisDocumentSet(RedissonClient redissonClient, String name, Charset charset, Class<T> clazz) {
+	   this(redissonClient, name, charset, clazz, false);
+	}
+
+    protected RedisDocumentSet(RedissonClient redissonClient, String name, Charset charset, Class<T> clazz, boolean shouldShutdownRedisson) {
         super(new RedisDocumentQueue.QueueCodec<>(charset, clazz),
         				new CommandSyncService(((Redisson)redissonClient).getConnectionManager(), new RedissonObjectBuilder(redissonClient)),
         				null == name ? DEFAULT_NAME : name, redissonClient);
         this.redissonClient = redissonClient;
+		this.shouldShutdownRedisson = shouldShutdownRedisson;
     }
 
 	@Override
@@ -48,6 +54,6 @@ public class RedisDocumentSet<T> extends RedissonSet<T> implements DocumentSet<T
 
 	@Override
 	public void close() {
-		redissonClient.shutdown();
+		if (shouldShutdownRedisson) redissonClient.shutdown();
 	}
 }

@@ -42,6 +42,7 @@ public class RedisReportMap extends RedissonMap<Path, Report> implements ReportM
 	private static final String DEFAULT_NAME = "extract:report";
 
 	private final RedissonClient redissonClient;
+	private final boolean shouldShutdownRedisson;
 
 	/**
 	 *
@@ -49,11 +50,11 @@ public class RedisReportMap extends RedissonMap<Path, Report> implements ReportM
 	 * @param redisAddress redis url i.e. redis://127.0.0.1:6379
 	 */
 	public RedisReportMap(final String mapName, final String redisAddress) {
-		this(Options.from(new HashMap<String, String>() {{
-			put("reportName", mapName);
-			put("redisAddress", redisAddress);
-			put("charset", "UTF-8");
-		}}));
+		this(Options.from(new HashMap<>() {{
+            put("reportName", mapName);
+            put("redisAddress", redisAddress);
+            put("charset", "UTF-8");
+        }}));
 	}
 
 	/**
@@ -64,7 +65,11 @@ public class RedisReportMap extends RedissonMap<Path, Report> implements ReportM
 	public RedisReportMap(final Options<String> options) {
 		this(new RedissonClientFactory().withOptions(options).create(),
 				options.get("reportName").value().orElse(DEFAULT_NAME),
-				options.get("charset").parse().asCharset().orElse(StandardCharsets.UTF_8));
+				options.get("charset").parse().asCharset().orElse(StandardCharsets.UTF_8), true);
+	}
+
+	protected RedisReportMap(final RedissonClient redissonClient, final String name, final Charset charset) {
+		this(redissonClient, name, charset, false);
 	}
 
 	/**
@@ -74,10 +79,11 @@ public class RedisReportMap extends RedissonMap<Path, Report> implements ReportM
 	 * @param name the name of the report
 	 */
 	protected RedisReportMap(final RedissonClient redissonClient, final String name,
-						   final Charset charset) {
+						   final Charset charset, boolean shouldShutdownRedisson) {
 		super(new ReportCodec(charset), new CommandSyncService(((Redisson)redissonClient).getConnectionManager(), new RedissonObjectBuilder(redissonClient)),
 				null == name ? DEFAULT_NAME : name, redissonClient, null, null);
 		this.redissonClient = redissonClient;
+		this.shouldShutdownRedisson = shouldShutdownRedisson;
 	}
 
 	/**
@@ -91,7 +97,7 @@ public class RedisReportMap extends RedissonMap<Path, Report> implements ReportM
 
 	@Override
 	public void close() throws IOException {
-		redissonClient.shutdown();
+		if (shouldShutdownRedisson) redissonClient.shutdown();
 	}
 
 	static class ReportCodec extends BaseCodec {

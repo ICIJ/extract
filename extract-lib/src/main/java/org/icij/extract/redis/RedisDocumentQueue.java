@@ -35,6 +35,7 @@ public class RedisDocumentQueue<T> extends RedissonBlockingQueue<T> implements D
 	private static final String DEFAULT_NAME = "extract:queue";
 
 	private final RedissonClient redissonClient;
+	private final boolean shouldShutdownRedisson;
 
 	/**
 	 * Create a Redis-backed queue with path identifier document factory
@@ -57,7 +58,12 @@ public class RedisDocumentQueue<T> extends RedissonBlockingQueue<T> implements D
 	public RedisDocumentQueue(final Options<String> options, Class<T> clazz) {
 		this(new RedissonClientFactory().withOptions(options).create(),
 				options.valueIfPresent("queueName").orElse(DEFAULT_NAME),
-				Charset.forName(options.valueIfPresent("charset").orElse("UTF-8")), clazz);
+				Charset.forName(options.valueIfPresent("charset").orElse("UTF-8")), clazz, true);
+	}
+
+	protected RedisDocumentQueue(final RedissonClient redissonClient,
+								 final String name, final Charset charset, final Class<T> clazz) {
+		this(redissonClient, name, charset, clazz, false);
 	}
 
 	/**
@@ -68,16 +74,17 @@ public class RedisDocumentQueue<T> extends RedissonBlockingQueue<T> implements D
 	 * @param charset the character set for encoding and decoding paths
 	 */
 	protected RedisDocumentQueue(final RedissonClient redissonClient,
-	                           final String name, final Charset charset, final Class<T> clazz) {
+	                           final String name, final Charset charset, final Class<T> clazz, boolean shouldShutdownRedisson) {
 		this(new QueueCodec<>(charset, clazz),
 				new CommandSyncService(((Redisson)redissonClient).getConnectionManager(), new RedissonObjectBuilder(redissonClient)),
-				null == name ? DEFAULT_NAME : name, redissonClient);
+				null == name ? DEFAULT_NAME : name, redissonClient, shouldShutdownRedisson);
 
 	}
 
-	protected RedisDocumentQueue(Codec codec, CommandAsyncExecutor commandExecutor, String name, RedissonClient redisson) {
+	protected RedisDocumentQueue(Codec codec, CommandAsyncExecutor commandExecutor, String name, RedissonClient redisson, boolean shouldShutdownRedisson) {
 		super(codec, commandExecutor, name, redisson);
 		this.redissonClient = redisson;
+		this.shouldShutdownRedisson = shouldShutdownRedisson;
 	}
 
 	@Override
@@ -87,7 +94,7 @@ public class RedisDocumentQueue<T> extends RedissonBlockingQueue<T> implements D
 
 	@Override
 	public void close() throws IOException {
-		redissonClient.shutdown();
+		if (shouldShutdownRedisson) redissonClient.shutdown();
 	}
 
 	@Override
