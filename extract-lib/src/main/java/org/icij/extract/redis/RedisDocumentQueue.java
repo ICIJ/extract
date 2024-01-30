@@ -67,7 +67,7 @@ public class RedisDocumentQueue<T> extends RedissonBlockingQueue<T> implements D
 	 * @param name the name of the queue
 	 * @param charset the character set for encoding and decoding paths
 	 */
-	private RedisDocumentQueue(final RedissonClient redissonClient,
+	protected RedisDocumentQueue(final RedissonClient redissonClient,
 	                           final String name, final Charset charset, final Class<T> clazz) {
 		this(new QueueCodec<>(charset, clazz),
 				new CommandSyncService(((Redisson)redissonClient).getConnectionManager(), new RedissonObjectBuilder(redissonClient)),
@@ -75,7 +75,7 @@ public class RedisDocumentQueue<T> extends RedissonBlockingQueue<T> implements D
 
 	}
 
-	private RedisDocumentQueue(Codec codec, CommandAsyncExecutor commandExecutor, String name, RedissonClient redisson) {
+	protected RedisDocumentQueue(Codec codec, CommandAsyncExecutor commandExecutor, String name, RedissonClient redisson) {
 		super(codec, commandExecutor, name, redisson);
 		this.redissonClient = redisson;
 	}
