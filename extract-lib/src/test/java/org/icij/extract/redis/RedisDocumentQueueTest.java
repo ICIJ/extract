@@ -3,7 +3,11 @@ package org.icij.extract.redis;
 import org.icij.task.Options;
 import org.junit.After;
 import org.junit.Test;
+import org.redisson.RedissonShutdownException;
+import org.redisson.api.RedissonClient;
 
+import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.HashMap;
 
@@ -49,6 +53,27 @@ public class RedisDocumentQueueTest {
         assertThat(stringQueue.take()).isEqualTo("foo");
         assertThat(stringQueue.size()).isEqualTo(0);
     }
+
+    @Test(expected = RedissonShutdownException.class)
+    public void test_close_should_shutdown_redis_if_created() throws IOException {
+        RedisDocumentQueue<String> stringQueue = new RedisDocumentQueue<>(Options.from(new HashMap<>() {{
+            put("redisAddress", "redis://redis:6379");
+            put("queueName", "test:string:queue");
+        }}), String.class);
+        stringQueue.close();
+        stringQueue.offer("foo");
+    }
+
+    @Test
+    public void test_close_should_not_shutdown_redis_if_not_created() throws IOException {
+        RedissonClient redissonClient = new RedissonClientFactory().withOptions(Options.from(new HashMap<>() {{
+            put("redisAddress", "redis://redis:6379");
+        }})).create();
+        try (RedisDocumentQueue<String> ignored = new RedisDocumentQueue<>(redissonClient, "test:report", Charset.defaultCharset(), String.class)) {}
+        assertThat(redissonClient.isShutdown()).isFalse();
+        redissonClient.shutdown();
+    }
+
 
     @After public void tearDown() {
         pathQueue.delete();
