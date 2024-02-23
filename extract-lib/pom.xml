@@ -146,7 +146,7 @@
         <dependency>
             <groupId>org.xerial</groupId>
             <artifactId>sqlite-jdbc</artifactId>
-            <version>3.19.3</version>
+            <version>3.41.2.2</version>
         </dependency>
         <!-- Optional PDFBox dependency for parsing JBIG2 format images in PDF files. -->
         <dependency>
