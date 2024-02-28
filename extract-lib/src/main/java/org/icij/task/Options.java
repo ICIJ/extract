@@ -63,17 +63,17 @@ public class Options<T> implements Iterable<Option<T>> {
         }
     }
 
-    public static Options<String> from(final Map<String, String> stringProperties) {
+    public static Options<String> from(final Map<String, Object> stringProperties) {
         Options<String> options = new Options<>();
         stringProperties.forEach(
-                (key, value) -> options.add(new Option<>(key, StringOptionParser::new).update(value))
+                (key, value) -> options.add(new Option<>(key, StringOptionParser::new).update(String.valueOf(value)))
         );
         return options;
     }
 
     public static Options<String> from(final Properties stringProperties) {
-        Map<String, String> map = new HashMap<>();
-        stringProperties.forEach((key, value) -> map.put((String)key, (String)value));
+        Map<String, Object> map = new HashMap<>();
+        stringProperties.forEach((key, value) -> map.put((String)key, value));
         return from(map);
     }
 
