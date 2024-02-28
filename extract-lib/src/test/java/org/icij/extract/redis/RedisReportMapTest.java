@@ -50,7 +50,7 @@ public class RedisReportMapTest {
 
     @Test
     public void test_insert_error_with_error_in_object_serialization() {
-        Options<String> from = Options.from(new HashMap<String, String>() {{
+        Options<String> from = Options.from(new HashMap<>() {{
             put("redisAddress", "redis://redis:6379");
         }});
         RedissonClient redissonClient = new RedissonClientFactory().withOptions(from).create();
