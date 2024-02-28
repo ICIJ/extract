@@ -26,7 +26,7 @@ public class RedissonClientFactoryTest {
 
     @Test
     public void test_build_with_address() {
-        new DummyRedissonClientFactory().withOptions(Options.from(new HashMap<String, String>() {{
+        new DummyRedissonClientFactory().withOptions(Options.from(new HashMap<>() {{
             put("redisAddress", "redis");
         }})).updateConfig(config);
         verify(singleServerConfig).setAddress("redis");
@@ -34,7 +34,7 @@ public class RedissonClientFactoryTest {
 
     @Test
     public void test_build_with_address_pass() {
-        new DummyRedissonClientFactory().withOptions(Options.from(new HashMap<String, String>() {{
+        new DummyRedissonClientFactory().withOptions(Options.from(new HashMap<>() {{
             put("redisAddress", "rediss://user:pass@redis:25061");
         }})).updateConfig(config);
         verify(singleServerConfig).setAddress("rediss://user:pass@redis:25061");

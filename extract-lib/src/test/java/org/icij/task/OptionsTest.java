@@ -11,7 +11,7 @@ import static org.junit.Assert.assertEquals;
 public class OptionsTest {
     @Test
     public void test_from_map() {
-        Map<String, String> properties = new HashMap<String, String>() {{
+        Map<String, Object> properties = new HashMap<>() {{
             put("key1", "value1");
             put("key2", "value2");
         }};
@@ -46,7 +46,7 @@ public class OptionsTest {
 
     @Test
     public void test_toString() {
-        Options<String> options = Options.from(new HashMap<String, String>() {{
+        Options<String> options = Options.from(new HashMap<>() {{
             put("key1", "value1");
             put("key2", "value2");
         }});
@@ -55,7 +55,7 @@ public class OptionsTest {
 
     @Test
     public void test_options_equals() {
-        HashMap<String, String> stringProperties = new HashMap<String, String>() {{
+        HashMap<String, Object> stringProperties = new HashMap<>() {{
             put("key1", "value1");
             put("key2", "value2");
         }};
@@ -63,16 +63,16 @@ public class OptionsTest {
     }
 
     @Test
-    public void test_createFrom() throws Exception {
-        Options<String> options1 = Options.from(new HashMap<String, String>() {{
+    public void test_createFrom() {
+        Options<String> options1 = Options.from(new HashMap<>() {{
             put("key1", "value1");
             put("key2", "value2");
         }});
-        Options<String> options2 = Options.from(new HashMap<String, String>() {{
+        Options<String> options2 = Options.from(new HashMap<>() {{
             put("key1", "new value1");
         }});
 
-        assertEquals(Options.from(new HashMap<String, String>() {{
+        assertEquals(Options.from(new HashMap<>() {{
                     put("key1", "new value1");
                     put("key2", "value2");
                 }}), options1.createFrom(options2));
