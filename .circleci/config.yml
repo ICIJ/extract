@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: cimg/openjdk:11.0.16
+      - image: cimg/openjdk:17.0
       - image: redis:4.0.1-alpine
         name: redis
 
@@ -40,7 +40,7 @@ jobs:
 
   release:
     docker:
-      - image: cimg/openjdk:11.0.16
+      - image: cimg/openjdk:17.0
 
     environment:
       MAVEN_OPTS: "-Xms512m -Xmx512m -Xss10M"
