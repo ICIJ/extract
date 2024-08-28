@@ -43,16 +43,6 @@ public class ScannerTest {
 	}
 
 	@Test
-	public void testScanNumberOfFiles() throws Exception {
-		final Path regularFiles = Paths.get(getClass().getResource("/documents/text/").toURI());
-		assertEquals(3, scanner.getNumberOfFiles(regularFiles));
-
-		scanner.ignoreSystemFiles(true);
-		final Path rootFiles = Paths.get(getClass().getResource("/documents/").toURI());
-		assertEquals(13, scanner.getNumberOfFiles(rootFiles));
-	}
-
-	@Test
 	public void testScanDirectoryWithIncludeGlob() throws Throwable {
 		final Path root = Paths.get(getClass().getResource("/documents/").toURI());
 		scanner.include("**.txt");

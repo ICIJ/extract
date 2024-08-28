@@ -1,19 +1,34 @@
 package org.icij.spewer;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.TaggedIOException;
-import org.apache.tika.metadata.*;
+import org.apache.tika.metadata.DublinCore;
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.Office;
+import org.apache.tika.metadata.PDF;
+import org.apache.tika.metadata.Property;
+import org.apache.tika.metadata.TIFF;
+import org.apache.tika.metadata.TikaCoreProperties;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-
+import java.nio.file.Files;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.TemporalAccessor;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Stream;
 
 public class MetadataTransformer implements Serializable {
@@ -23,6 +38,7 @@ public class MetadataTransformer implements Serializable {
 	@SuppressWarnings("deprecation")
 	private static final List<String> deduplicateProperties;
 	private static final String TITLE = "title";
+	private static final ObjectMapper MAPPER = new ObjectMapper();
 
 	static {
 		deduplicateProperties = Arrays.asList(
@@ -71,7 +87,45 @@ public class MetadataTransformer implements Serializable {
 		this.fields = fields;
 	}
 
+	public MetadataTransformer(Metadata metadata) {
+		this.metadata = metadata;
+		this.fields = new FieldNames();
+	}
+
+	public static Metadata loadMetadata(File file) throws IOException {
+		return loadMetadata(file, false);
+	}
+
+	public static Metadata loadMetadata(File file, boolean denormalizeKeys) throws IOException {
+		Map<String, String[]> normalizedMap = MAPPER.readValue(Files.readString(file.toPath()), new TypeReference<>() {});
+		Metadata metadata = new Metadata();
+		normalizedMap.forEach((k, v) -> Arrays.stream(v).forEach(s -> metadata.add(denormalizeKeys ? k.replace("tika_metadata_", ""):k, s)));
+		return metadata;
+	}
+
 	public void transform(final ValueConsumer single, final ValueArrayConsumer multiple) throws IOException {
+		final Map<String, String[]> normalised = normalize(metadata);
+
+		try {
+			for (Map.Entry<String, String[]> entry: normalised.entrySet()) {
+				final String[] values = entry.getValue();
+
+				if (values.length > 1) {
+					transform(entry.getKey(), values, multiple);
+				} else {
+					transform(entry.getKey(), values[0], single);
+				}
+			}
+		} catch (IOException e) {
+			throw new TaggedIOException(e, getClass());
+		}
+	}
+
+	private Map<String, String[]> normalize(Metadata metadata) {
+		return normalize(metadata, true);
+	}
+
+	private Map<String, String[]> normalize(Metadata metadata, boolean normalizeKeys) {
 		final Map<String, String[]> normalised = new HashMap<>();
 
 		// Loop over the names twice, first to normalise the names so that "GENERATOR" and "Generator" get normalised
@@ -91,7 +145,7 @@ public class MetadataTransformer implements Serializable {
 			}
 
 			// Keep a mapping of the old name around, to enable a reverse lookup later.
-			final String normalisedName = fields.forMetadata(name);
+			final String normalisedName = normalizeKeys ? fields.forMetadata(name): name;
 
 			// The field name might be blocked
 			if (!metadata_block_list.ok(normalisedName)) {
@@ -101,20 +155,11 @@ public class MetadataTransformer implements Serializable {
 			fieldMap.putIfAbsent(normalisedName, name);
 			normalised.merge(normalisedName, values, this::concat);
 		}
+		return normalised;
+	}
 
-		try {
-			for (Map.Entry<String, String[]> entry: normalised.entrySet()) {
-				final String[] values = entry.getValue();
-
-				if (values.length > 1) {
-					transform(entry.getKey(), values, multiple);
-				} else {
-					transform(entry.getKey(), values[0], single);
-				}
-			}
-		} catch (IOException e) {
-			throw new TaggedIOException(e, getClass());
-		}
+	public String transform() throws JsonProcessingException {
+		return MAPPER.writeValueAsString(normalize(metadata, false));
 	}
 
 	private String[] concat(final String[] a, final String[] b) {

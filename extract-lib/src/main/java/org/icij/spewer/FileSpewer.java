@@ -63,10 +63,14 @@ public class FileSpewer extends Spewer implements Serializable {
 	private void writeMetadata(final TikaDocument tikaDocument) throws IOException {
 		final Metadata metadata = tikaDocument.getMetadata();
 		Path outputPath = getOutputPath(tikaDocument);
-		outputPath = outputPath.getFileSystem().getPath(outputPath.toString() + ".json");
+		outputPath = outputPath.getFileSystem().getPath(outputPath + ".json");
 
 		logger.info(String.format("Outputting metadata to file: \"%s\".", outputPath));
 
+		writeMetadata(outputPath, metadata);
+	}
+
+	private void writeMetadata(Path outputPath, Metadata metadata) throws TaggedIOException {
 		try (final JsonGenerator jsonGenerator = new JsonFactory().createGenerator(outputPath.toFile(), JsonEncoding.UTF8)) {
 			jsonGenerator.useDefaultPrettyPrinter();
 			jsonGenerator.writeStartObject();
