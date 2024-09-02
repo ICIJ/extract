@@ -19,8 +19,10 @@ import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,18 +32,25 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
 import java.util.LinkedList;
+import java.util.function.Supplier;
 
 import static java.util.Optional.ofNullable;
 
-public class EmbeddedDocumentMemoryExtractor {
+public class EmbeddedDocumentExtractor {
     private final Parser parser;
     private final DigestingParser.Digester digester;
     private final String algorithm;
     private final Path artifactPath;
 
-    public EmbeddedDocumentMemoryExtractor(final UpdatableDigester digester, Path artifactPath) { this(digester, digester.algorithm, artifactPath, false);}
+    public EmbeddedDocumentExtractor(UpdatableDigester digester) {
+        this(digester, false);
+    }
 
-    public EmbeddedDocumentMemoryExtractor(final DigestingParser.Digester digester, String algorithm, Path artifactPath, boolean ocr) {
+    public EmbeddedDocumentExtractor(UpdatableDigester digester, boolean ocr) {this(digester, digester.algorithm, null, ocr);}
+
+    public EmbeddedDocumentExtractor(final UpdatableDigester digester, Path artifactPath) { this(digester, digester.algorithm, artifactPath, false);}
+
+    public EmbeddedDocumentExtractor(final DigestingParser.Digester digester, String algorithm, Path artifactPath, boolean ocr) {
         this.parser = new DigestingParser(ocr?new AutoDetectParser():createParserWithoutOCR(), digester);
         this.digester = digester;
         this.artifactPath = artifactPath;
@@ -49,15 +58,17 @@ public class EmbeddedDocumentMemoryExtractor {
     }
 
     public TikaDocumentSource extract(final TikaDocument rootDocument, final String embeddedDocumentDigest) throws SAXException, TikaException, IOException {
-        File cachedFile = getEmbeddedPath(artifactPath, embeddedDocumentDigest).toFile();
-        if (cachedFile.exists()) {
-            return new TikaDocumentSource(MetadataTransformer.loadMetadata(new File(cachedFile + ".json")), cachedFile);
+        if (artifactPath != null) {
+            File cachedFile = getEmbeddedPath(artifactPath, embeddedDocumentDigest).toFile();
+            if (cachedFile.exists()) {
+                return new TikaDocumentSource(MetadataTransformer.loadMetadata(new File(cachedFile + ".json")), DigestEmbeddedDocumentFileExtractor.getFileInputStream(cachedFile));
+            }
         }
         ParseContext context = new ParseContext();
         ContentHandler handler = new BodyContentHandler(-1);
         context.set(Parser.class, parser);
 
-        DigestEmbeddedDocumentExtractor extractor = new DigestEmbeddedDocumentExtractor(rootDocument, embeddedDocumentDigest, context, digester, algorithm, artifactPath);
+        DigestEmbeddedDocumentMemoryExtractor extractor = getExtractor(rootDocument, embeddedDocumentDigest, context, artifactPath);
         context.set(org.apache.tika.extractor.EmbeddedDocumentExtractor.class, extractor);
 
         parser.parse(new FileInputStream(rootDocument.getPath().toFile()), handler, rootDocument.getMetadata(), context);
@@ -65,24 +76,30 @@ public class EmbeddedDocumentMemoryExtractor {
         return extractor.getDocument();
     }
 
+    private DigestEmbeddedDocumentMemoryExtractor getExtractor(TikaDocument rootDocument, String embeddedDocumentDigest, ParseContext context, Path artifactPath) {
+        if (artifactPath != null) {
+            return new DigestEmbeddedDocumentFileExtractor(rootDocument, embeddedDocumentDigest, context, digester, algorithm, artifactPath);
+        } else {
+            return new DigestEmbeddedDocumentMemoryExtractor(rootDocument, embeddedDocumentDigest, context, digester, algorithm);
+        }
+    }
+
     static Path getEmbeddedPath(Path artifactPath, String digest) {
         return artifactPath.resolve(digest.substring(0,2)).resolve(digest.substring(2,4)).resolve(digest).resolve("raw");
     }
 
-    static class DigestEmbeddedDocumentExtractor extends EmbedParser {
+    static class DigestEmbeddedDocumentMemoryExtractor extends EmbedParser {
+        protected TikaDocumentSource document = null;
         private final String digestToFind;
         private final DigestingParser.Digester digester;
         private final String algorithm;
-        private final Path artifactPath;
-        private TikaDocumentSource document = null;
         private final LinkedList<TikaDocument> documentStack = new LinkedList<>();
 
-        private DigestEmbeddedDocumentExtractor(final TikaDocument rootDocument, final String digest, ParseContext context, DigestingParser.Digester digester, String algorithm, Path artifactPath) {
+        private DigestEmbeddedDocumentMemoryExtractor(final TikaDocument rootDocument, final String digest, ParseContext context, DigestingParser.Digester digester, String algorithm) {
             super(rootDocument, context);
             this.digestToFind = digest;
             this.digester = digester;
             this.algorithm = algorithm;
-            this.artifactPath = artifactPath;
             this.documentStack.add(rootDocument);
         }
 
@@ -109,17 +126,8 @@ public class EmbeddedDocumentMemoryExtractor {
                     throw new RuntimeException(e);
                 }
                 if (digestToFind.equals(digest)) {
-                    File embedded = getEmbeddedPath(this.artifactPath, digest).toFile();
-                    Files.createDirectories(Paths.get(embedded.getParent()));
-                    try (FileOutputStream embeddedOutputStream = new FileOutputStream(embedded);
-                         FileOutputStream metadataOutputStream = new FileOutputStream(embedded + ".json")) {
-                        int nbTmpBytesRead;
-                        for (byte[] tmp = new byte[8192]; (nbTmpBytesRead = tis.read(tmp)) > 0; ) {
-                            embeddedOutputStream.write(tmp, 0, nbTmpBytesRead);
-                        }
-                        metadataOutputStream.write(new MetadataTransformer(metadata).transform().getBytes(Charset.defaultCharset()));
-                    }
-                    this.document = new TikaDocumentSource(metadata, embedded);
+                    Supplier<InputStream> inputStreamSupplier = getInputStreamSupplier(metadata, digest, tis);
+                    this.document = new TikaDocumentSource(metadata, inputStreamSupplier);
                 } else {
                     this.documentStack.add(embed);
                     super.delegateParsing(tis, handler, metadata);
@@ -129,10 +137,52 @@ public class EmbeddedDocumentMemoryExtractor {
             }
         }
 
+        protected Supplier<InputStream> getInputStreamSupplier(Metadata metadata, String digest, TikaInputStream tis) throws IOException {
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+            int nbTmpBytesRead;
+            for (byte[] tmp = new byte[8192]; (nbTmpBytesRead = tis.read(tmp)) > 0; ) {
+                buffer.write(tmp, 0, nbTmpBytesRead); // uses the memory
+            }
+            return () -> new ByteArrayInputStream(buffer.toByteArray());
+        }
+
         public TikaDocumentSource getDocument() {
             return ofNullable(document).orElseThrow(() ->
                     new ContentNotFoundException(documentStack.get(0).getPath().toString(), digestToFind)
             );
+        }
+    }
+
+    static class DigestEmbeddedDocumentFileExtractor extends DigestEmbeddedDocumentMemoryExtractor {
+        private final Path artifactPath;
+
+        private DigestEmbeddedDocumentFileExtractor(final TikaDocument rootDocument, final String digest, ParseContext context, DigestingParser.Digester digester, String algorithm, Path artifactPath) {
+            super(rootDocument, digest, context, digester, algorithm);
+            this.artifactPath = artifactPath;
+        }
+
+        protected Supplier<InputStream> getInputStreamSupplier(Metadata metadata, String digest, TikaInputStream tis) throws IOException {
+            File embedded = getEmbeddedPath(this.artifactPath, digest).toFile();
+            Files.createDirectories(Paths.get(embedded.getParent()));
+            try (FileOutputStream embeddedOutputStream = new FileOutputStream(embedded);
+                 FileOutputStream metadataOutputStream = new FileOutputStream(embedded + ".json")) {
+                int nbTmpBytesRead;
+                for (byte[] tmp = new byte[8192]; (nbTmpBytesRead = tis.read(tmp)) > 0; ) {
+                    embeddedOutputStream.write(tmp, 0, nbTmpBytesRead); // streams in a file (using 8K memory buffer)
+                }
+                metadataOutputStream.write(new MetadataTransformer(metadata).transform().getBytes(Charset.defaultCharset()));
+            }
+            return getFileInputStream(embedded);
+        }
+
+        static Supplier<InputStream> getFileInputStream(File embedded) {
+            return () -> {
+                try {
+                    return new FileInputStream(embedded);
+                } catch (FileNotFoundException e) {
+                    throw new IllegalStateException("cannot find embedded file", e);
+                }
+            };
         }
     }
 
