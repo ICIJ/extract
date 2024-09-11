@@ -35,15 +35,21 @@ import static org.apache.tika.sax.XHTMLContentHandler.XHTML;
 public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 
 	static final Logger logger = LoggerFactory.getLogger(EmbedParser.class);
-    private static final Parser DELEGATING_PARSER = new DelegatingParser();
+    protected static final Parser DELEGATING_PARSER = new DelegatingParser();
 
 	final TikaDocument root;
 	protected final ParseContext context;
+	private final Parser delegetingParser;
 
 	EmbedParser(final TikaDocument root, final ParseContext context) {
+		this(root, context, DELEGATING_PARSER);
+	}
+
+	EmbedParser(final TikaDocument root, final ParseContext context, Parser delegetingParser) {
 		super(context);
 		this.root = root;
 		this.context = context;
+		this.delegetingParser = delegetingParser;
 	}
 
 	@Override
@@ -71,7 +77,7 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 			}
 
 			// Use the delegate parser to parse this entry.
-			DELEGATING_PARSER.parse(tis, handler, metadata, context);
+			delegetingParser.parse(tis, handler, metadata, context);
 		} catch (final EncryptedDocumentException e) {
 			logger.error("Unable to decrypt encrypted document embedded in document: \"{}\" ({}) (in \"{}\").",
 					metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root, e);

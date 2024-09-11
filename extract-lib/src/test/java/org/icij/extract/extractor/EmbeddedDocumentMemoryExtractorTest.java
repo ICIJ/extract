@@ -75,6 +75,31 @@ public class EmbeddedDocumentMemoryExtractorTest {
     }
 
     @Test
+    public void test_extract_all_embedded_artifacts_from_root_document() throws Exception {
+        EmbeddedDocumentExtractor extractor = new EmbeddedDocumentExtractor(new UpdatableDigester("prj", "SHA-256"), tmp.getRoot().toPath().resolve("prj"));
+        extractor.extractAll(tikaDocument);
+
+        assertThat(tmp.getRoot().toPath().resolve("prj").toFile()).isDirectory();
+        // recursive_embedded.docx - image1.emf
+        // recursive_embedded.docx - embed1.zip
+        // recursive_embedded.docx - embed1/embed1a.txt
+        // recursive_embedded.docx - embed1/embed1b.txt
+        // recursive_embedded.docx - embed1/embed2.zip
+        // recursive_embedded.docx - embed2/embed2a.txt
+        // recursive_embedded.docx - embed2/embed2b.txt
+        // recursive_embedded.docx - embed2/embed3.zip
+        // recursive_embedded.docx - embed3/embed3.txt
+        // recursive_embedded.docx - embed3/embed4.zip
+        // recursive_embedded.docx - embed4.txt
+        assertThat(tmp.getRoot().toPath().resolve("prj").toFile().listFiles()).hasSize(11);
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void test_extract_all_embedded_artifacts_from_root_document_without_path() throws Exception {
+        new EmbeddedDocumentExtractor(new UpdatableDigester("prj", "SHA-256")).extractAll(null);
+    }
+
+    @Test
     public void test_embedded_file_extraction_level_2() throws Exception {
         TikaDocumentSource textContent = new EmbeddedDocumentExtractor(new UpdatableDigester("prj", "SHA-256"), tmp.getRoot().toPath()).
                 extract(tikaDocument, "13d7b88767d478c03a3f9b01649297f254b3f0845ca1728658d7f7b922d28a32");
