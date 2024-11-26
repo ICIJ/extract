@@ -83,6 +83,17 @@ public class RedissonClientFactory {
 		return Redisson.create(config);
 	}
 
+	/**
+	 * Create a new connection manager for a single server using the supplied address.
+	 *
+	 * @return a new connection manager
+	 */
+	public CloseableRedissonClient createCloseable() {
+		Config config = createConfig();
+		updateConfig(config);
+		return new CloseableRedissonClient(config);
+	}
+
 	void updateConfig(Config config) {
 		final String address = null == this.address ? "redis://127.0.0.1:6379" : this.address;
 		URI url = URI.create(address);
