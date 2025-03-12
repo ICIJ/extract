@@ -399,7 +399,7 @@ public class Extractor {
         final Parser parser;
 
         if (null != digester) {
-            parser = new DigestingParser(autoDetectParser, digester);
+            parser = new DigestingParser(autoDetectParser, digester, false);
         } else {
             parser = autoDetectParser;
         }

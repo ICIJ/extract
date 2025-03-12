@@ -55,7 +55,7 @@ public class EmbeddedDocumentExtractor {
     }
 
     public EmbeddedDocumentExtractor(final DigestingParser.Digester digester, String algorithm, Path artifactPath, boolean ocr) {
-        this.parser = new DigestingParser(ocr ? new AutoDetectParser() : createParserWithoutOCR(), digester);
+        this.parser = new DigestingParser(ocr ? new AutoDetectParser() : createParserWithoutOCR(), digester, false);
         this.digester = digester;
         this.artifactPath = artifactPath;
         this.algorithm = algorithm;
