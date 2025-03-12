@@ -1,5 +1,8 @@
 package org.icij.extract.cleaner;
 
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.io.RandomAccessRead;
+import org.apache.pdfbox.io.RandomAccessReadBuffer;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDDocumentInformation;
 import org.apache.poi.hpsf.SummaryInformation;
@@ -50,14 +53,15 @@ public class MetadataCleaner {
 
         @Override
         public void clean(InputStream stream, DocumentSource documentSource, Metadata metadata, CleanContext context) throws IOException {
-            PDDocument document = PDDocument.load(stream);
-            PDDocumentInformation information = document.getDocumentInformation();
-            document.getDocumentCatalog().setMetadata(null);
-            if (information != null) {
-                document.setDocumentInformation(new PDDocumentInformation());
-                document.save(documentSource.getOutputStream());
+            try (RandomAccessRead readBuffer = new RandomAccessReadBuffer(stream);
+                 PDDocument document = Loader.loadPDF(readBuffer)) {
+                PDDocumentInformation information = document.getDocumentInformation();
+                document.getDocumentCatalog().setMetadata(null);
+                if (information != null) {
+                    document.setDocumentInformation(new PDDocumentInformation());
+                    document.save(documentSource.getOutputStream());
+                }
             }
-            document.close();
         }
     }
 

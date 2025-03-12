@@ -119,7 +119,7 @@ public abstract class UpdatableInputStreamDigester implements DigestingParser.Di
         } else {
             TemporaryResources tmp = new TemporaryResources();
             try {
-                TikaInputStream tmpTikaInputStream = TikaInputStream.get(is, tmp);
+                TikaInputStream tmpTikaInputStream = TikaInputStream.get(is, tmp, metadata);
                 digestFile(tmpTikaInputStream.getFile(), metadata);
             } finally {
                 try {
