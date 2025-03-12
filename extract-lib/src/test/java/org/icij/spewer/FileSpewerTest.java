@@ -49,7 +49,7 @@ public class FileSpewerTest {
         assertThat(list).isNotEmpty();
         assertThat(list).contains("home");
         assertThat(readAllLines(get(folder.getRoot().toPath().resolve(path.toString().substring(1)).toString() + ".json"), Charset.defaultCharset())).
-                hasSize(9);
+                hasSize(11);
         assertThat(readAllLines(get(folder.getRoot().toPath().resolve(path.toString().substring(1)).toString() + ".txt"), Charset.defaultCharset())).
                 contains("This is a test.");
     }
