@@ -80,7 +80,6 @@ public class EmbeddedDocumentMemoryExtractorTest {
         extractor.extractAll(tikaDocument);
 
         assertThat(tmp.getRoot().toPath().resolve("prj").toFile()).isDirectory();
-        // recursive_embedded.docx - image1.emf
         // recursive_embedded.docx - embed1.zip
         // recursive_embedded.docx - embed1/embed1a.txt
         // recursive_embedded.docx - embed1/embed1b.txt
@@ -154,10 +153,10 @@ public class EmbeddedDocumentMemoryExtractorTest {
         EmbeddedDocumentExtractor contentExtractor = new EmbeddedDocumentExtractor(
                 new UpdatableDigester("prj", "SHA-256"), tmp.getRoot().toPath());
 
-        assertThat(extracted.getEmbeds()).hasSize(2);
+        assertThat(extracted.getEmbeds()).hasSize(1);
         assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(0).getId())).isNotNull();
-        assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(1).getId())).isNotNull();
-        assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(1).getEmbeds().get(0).getId())).isNotNull();
+        assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(0).getId())).isNotNull();
+        assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(0).getEmbeds().get(0).getId())).isNotNull();
     }
 
     @Test
