@@ -1,5 +1,6 @@
 package org.icij.extract.extractor;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
@@ -19,12 +20,18 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintStream;
+import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.List;
 
+import static java.lang.Math.toIntExact;
 import static org.fest.assertions.Assertions.assertThat;
 
 public class ExtractorTest {
@@ -310,9 +317,39 @@ public class ExtractorTest {
 		assertThat(folder.getRoot().toPath().resolve("embeds").toFile().listFiles()).hasSize(6);
 	}
 
+	@Test
+	public void testPageExtractionForPdf() throws Exception {
+		TikaDocument doc = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
+		List<Pair<Long, Long>> pageIndices = extractor.extractPageIndices(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
+
+		String text;
+		try (final Reader reader = doc.getReader()) {
+			text = Spewer.toString(reader);
+		}
+
+		assertThat(pageIndices).isNotNull();
+		assertThat(pageIndices).isEqualTo(List.of(Pair.of(0L, 16L), Pair.of(17L,33L)));
+		assertThat(text).hasSize(33 + 1);
+
+		String expectedPage = """
+		
+		HEAVY
+		METAL
+		
+		
+		
+		""";
+		assertThat(getPage(pageIndices.get(0), text)).isEqualTo(expectedPage);
+		assertThat(getPage(pageIndices.get(1), text)).isEqualTo(expectedPage);
+	}
+
 	private String getExpected(final String file) throws IOException {
 		try (final Reader input = new InputStreamReader(getClass().getResourceAsStream(file), StandardCharsets.UTF_8)) {
 			return Spewer.toString(input);
 		}
+	}
+
+	private String getPage(Pair<Long, Long> startEndIndices, String fullText) {
+		return fullText.substring(toIntExact(startEndIndices.getLeft()), toIntExact(startEndIndices.getRight()));
 	}
 }
