@@ -1,6 +1,8 @@
 package org.icij.extract.extractor;
 
 import org.apache.commons.io.TaggedIOException;
+import org.apache.commons.lang3.NotImplementedException;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
@@ -19,15 +21,15 @@ import org.apache.tika.parser.html.HtmlMapper;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.ocr.TesseractOCRParser;
 import org.apache.tika.parser.pdf.PDFParserConfig;
+import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
-import org.apache.tika.sax.WriteOutContentHandler;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
 import org.icij.extract.parser.CachingTesseractOCRParser;
 import org.icij.extract.parser.FallbackParser;
 import org.icij.extract.parser.HTML5Serializer;
-import org.icij.extract.parser.ParsingReader;
+import org.icij.extract.parser.ParsingReaderWithContentHandler;
 import org.icij.extract.report.Reporter;
 import org.icij.spewer.MetadataTransformer;
 import org.icij.spewer.Spewer;
@@ -388,6 +390,16 @@ public class Extractor {
      * @return A pull-parsing reader.
      */
     public TikaDocument extract(final Path path) throws IOException {
+        final Function<Writer, ContentHandler> handler;
+        if (OutputFormat.HTML == outputFormat) {
+            handler = (writer) -> new ExpandedTitleContentHandler(new HTML5Serializer(writer));
+        } else {
+            handler = BodyContentHandler::new;
+        }
+        return getTikaDocument(path, handler);
+    }
+
+    private TikaDocument getTikaDocument(Path path, final Function<Writer, ContentHandler> handlerProvider) throws IOException {
         final TikaDocument rootDocument = documentFactory.create(path);
         TikaInputStream tikaInputStream = TikaInputStream.get(path, rootDocument.getMetadata());
         final ParseContext context = new ParseContext();
@@ -414,22 +426,9 @@ public class Extractor {
         // This excludes script tags and objects.
         context.set(HtmlMapper.class, DefaultHtmlMapper.INSTANCE);
 
-        final Reader reader;
-        final Function<Writer, ContentHandler> handler;
-
-        if (OutputFormat.HTML == outputFormat) {
-            handler = (writer) -> new ExpandedTitleContentHandler(new HTML5Serializer(writer));
-        } else {
-
-            // The default BodyContentHandler is used when constructing the ParsingReader for text output, but
-            // because only the body of embeds is pushed to the content handler further down the line, we can't
-            // expect a body tag.
-            handler = WriteOutContentHandler::new;
-        }
-
         if (EmbedHandling.SPAWN == embedHandling) {
             context.set(Parser.class, parser);
-            context.set(EmbeddedDocumentExtractor.class, new EmbedSpawner(rootDocument, context, embedOutput, handler));
+            context.set(EmbeddedDocumentExtractor.class, new EmbedSpawner(rootDocument, context, embedOutput, handlerProvider));
         } else if (EmbedHandling.CONCATENATE == embedHandling) {
             context.set(Parser.class, parser);
             context.set(EmbeddedDocumentExtractor.class, new EmbedParser(rootDocument, context));
@@ -438,15 +437,30 @@ public class Extractor {
             context.set(EmbeddedDocumentExtractor.class, new EmbedBlocker());
         }
 
-        // the constructor of ParsingReader actually parses the document in background
-        if (OutputFormat.HTML == outputFormat) {
-            reader = new ParsingReader(parser, tikaInputStream, rootDocument.getMetadata(), context, handler);
-        } else {
-            reader = new org.apache.tika.parser.ParsingReader(parser, tikaInputStream, rootDocument.getMetadata(), context);
-        }
+        final Reader reader = new ParsingReaderWithContentHandler(parser, tikaInputStream, rootDocument.getMetadata(), context, handlerProvider);
         rootDocument.setReader(reader);
 
         return rootDocument;
+    }
+
+    public List<Pair<Long, Long>> extractPageIndices(final Path path) throws IOException {
+        final Function<Writer, ContentHandler> handlerProvider;
+        PageIndicesContentHandler contentHandler;
+        if (OutputFormat.HTML == outputFormat) {
+            contentHandler = new PageIndicesContentHandler(new ExpandedTitleContentHandler(new HTML5Serializer(Writer.nullWriter())));
+        } else {
+            contentHandler = new PageIndicesContentHandler(new BodyContentHandler(Writer.nullWriter()));
+        }
+        handlerProvider = (writer) -> contentHandler;
+        TikaDocument tikaDocument = getTikaDocument(path, handlerProvider);
+        try (final Reader reader = tikaDocument.getReader()) {
+            Spewer.copy(reader, Writer.nullWriter());
+        }
+        return contentHandler.getPageIndices();
+    }
+
+    public List<Pair<Long, Long>> extractPageIndices(final Path path, final String embeddedDocId) throws IOException {
+        throw new NotImplementedException("TODO");
     }
 
     private void excludeParser(final Class<? extends Parser> exclude) {
