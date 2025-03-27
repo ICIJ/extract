@@ -74,8 +74,10 @@ public class PageIndicesContentHandler extends ContentHandlerDecorator {
     protected void endPage() {
         if (startPageCalled) {
             startPageCalled = false;
-        } else {
-            pageIndices.remove(pageIndices.size() - 1); // replacing the last page with extension
+        } else if (!pageIndices.isEmpty()) {
+            // endPage() is being called several times
+            // so we are replacing the last page with additional characters
+            pageIndices.remove(pageIndices.size() - 1);
         }
         pageIndices.add(Pair.of(pageStartIndex, charIndex));
     }
