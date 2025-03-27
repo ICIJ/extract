@@ -1,11 +1,11 @@
 package org.icij.extract.extractor;
 
 import org.apache.commons.io.TaggedIOException;
-import org.apache.commons.lang3.NotImplementedException;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
+import org.apache.tika.extractor.DocumentSelector;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.parser.AutoDetectParser;
@@ -77,7 +77,6 @@ import static java.lang.System.currentTimeMillis;
         ". Defaults to 12 hours.", parameter = "duration")
 @Option(name = "ocr", description = "Enable or disable automatic OCR. On by default.")
 public class Extractor {
-
     public enum OutputFormat {
         HTML, TEXT;
 
@@ -396,10 +395,30 @@ public class Extractor {
         } else {
             handler = BodyContentHandler::new;
         }
-        return getTikaDocument(path, handler);
+        return getTikaDocument(path, handler, metadata -> true);
     }
 
-    private TikaDocument getTikaDocument(Path path, final Function<Writer, ContentHandler> handlerProvider) throws IOException {
+    public List<Pair<Long, Long>> extractPageIndices(final Path path) throws IOException {
+        return extractPageIndices(path, metadata -> true);
+    }
+
+    public List<Pair<Long, Long>> extractPageIndices(final Path path, DocumentSelector documentSelector) throws IOException {
+        final Function<Writer, ContentHandler> handlerProvider;
+        PageIndicesContentHandler contentHandler;
+        if (OutputFormat.HTML == outputFormat) {
+            contentHandler = new PageIndicesContentHandler(new ExpandedTitleContentHandler(new HTML5Serializer(Writer.nullWriter())));
+        } else {
+            contentHandler = new PageIndicesContentHandler(new BodyContentHandler(Writer.nullWriter()));
+        }
+        handlerProvider = (writer) -> contentHandler;
+        TikaDocument tikaDocument = getTikaDocument(path, handlerProvider, documentSelector);
+        try (final Reader reader = tikaDocument.getReader()) {
+            Spewer.copy(reader, Writer.nullWriter());
+        }
+        return contentHandler.getPageIndices();
+    }
+
+    private TikaDocument getTikaDocument(Path path, final Function<Writer, ContentHandler> handlerProvider, DocumentSelector documentSelector) throws IOException {
         final TikaDocument rootDocument = documentFactory.create(path);
         TikaInputStream tikaInputStream = TikaInputStream.get(path, rootDocument.getMetadata());
         final ParseContext context = new ParseContext();
@@ -426,6 +445,8 @@ public class Extractor {
         // This excludes script tags and objects.
         context.set(HtmlMapper.class, DefaultHtmlMapper.INSTANCE);
 
+        context.set(DocumentSelector.class, documentSelector);
+
         if (EmbedHandling.SPAWN == embedHandling) {
             context.set(Parser.class, parser);
             context.set(EmbeddedDocumentExtractor.class, new EmbedSpawner(rootDocument, context, embedOutput, handlerProvider));
@@ -441,26 +462,6 @@ public class Extractor {
         rootDocument.setReader(reader);
 
         return rootDocument;
-    }
-
-    public List<Pair<Long, Long>> extractPageIndices(final Path path) throws IOException {
-        final Function<Writer, ContentHandler> handlerProvider;
-        PageIndicesContentHandler contentHandler;
-        if (OutputFormat.HTML == outputFormat) {
-            contentHandler = new PageIndicesContentHandler(new ExpandedTitleContentHandler(new HTML5Serializer(Writer.nullWriter())));
-        } else {
-            contentHandler = new PageIndicesContentHandler(new BodyContentHandler(Writer.nullWriter()));
-        }
-        handlerProvider = (writer) -> contentHandler;
-        TikaDocument tikaDocument = getTikaDocument(path, handlerProvider);
-        try (final Reader reader = tikaDocument.getReader()) {
-            Spewer.copy(reader, Writer.nullWriter());
-        }
-        return contentHandler.getPageIndices();
-    }
-
-    public List<Pair<Long, Long>> extractPageIndices(final Path path, final String embeddedDocId) throws IOException {
-        throw new NotImplementedException("TODO");
     }
 
     private void excludeParser(final Class<? extends Parser> exclude) {

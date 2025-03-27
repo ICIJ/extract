@@ -30,6 +30,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static java.lang.Math.toIntExact;
 import static org.fest.assertions.Assertions.assertThat;
@@ -341,6 +342,20 @@ public class ExtractorTest {
 		""";
 		assertThat(getPage(pageIndices.get(0), text)).isEqualTo(expectedPage);
 		assertThat(getPage(pageIndices.get(1), text)).isEqualTo(expectedPage);
+	}
+
+	@Test
+	public void testPageExtractionForEmbeddedPdf() throws Exception {
+		DocumentFactory documentFactory = new DocumentFactory().configure(Options.from(Map.of("digestAlgorithm", "SHA-256")));
+		final Extractor extractor = new Extractor(documentFactory);
+		extractor.configure(Options.from(Map.of("digestAlgorithm", "SHA-256")));
+
+		List<Pair<Long, Long>> pageIndices = extractor.extractPageIndices(
+				Paths.get(getClass().getResource("/documents/ocr/email_with_2_pdfs.eml").getPath()),
+				metadata -> "embedded.pdf".equals(metadata.get("resourceName")) || "INLINE".equals(metadata.get("embeddedResourceType")));
+
+		assertThat(pageIndices).isNotNull();
+		assertThat(pageIndices).isEqualTo(List.of(Pair.of(0L, 16L), Pair.of(17L,33L)));
 	}
 
 	private String getExpected(final String file) throws IOException {
