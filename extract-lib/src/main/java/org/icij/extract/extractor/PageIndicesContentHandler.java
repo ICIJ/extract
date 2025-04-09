@@ -18,15 +18,25 @@ import java.util.List;
 public class PageIndicesContentHandler extends ContentHandlerDecorator {
     final static private String pageTag = "div";
     final static private String pageClass = "page";
-    private boolean firstPageStarted = false;
+    /**
+     * this is a hack to simulate the text.trim() that is done in ElasticsearchSpewer
+     */
+    private boolean firstCharReceived = false;
+    private boolean firstPage = true;
     private long charIndex = 0;
     private long pageStartIndex = 0;
     private boolean startPageCalled = false;
+    private boolean documentStarted;
+    private boolean startDocumentCalled = false;
 
     private final List<Pair<Long, Long>> pageIndices = new LinkedList<>();
 
     public PageIndicesContentHandler(ContentHandler handler) {
+        this(handler, true);
+    }
+    public PageIndicesContentHandler(ContentHandler handler, boolean notEmbedded) {
         super(handler);
+        this.documentStarted = notEmbedded;
     }
 
     public List<Pair<Long, Long>> getPageIndices() {
@@ -34,10 +44,28 @@ public class PageIndicesContentHandler extends ContentHandlerDecorator {
     }
 
     @Override
+    public void startDocument() throws SAXException {
+        super.startDocument();
+        if (startDocumentCalled && !documentStarted) {
+            documentStarted = true;
+        }
+        startDocumentCalled = true;
+    }
+
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException {
         super.startElement(uri, localName, qName, atts);
         if (pageTag.endsWith(qName) && pageClass.equals(atts.getValue("class"))) {
             startPage();
+        }
+    }
+
+    @Override
+    public void characters(char[] ch, int start, int length) throws SAXException {
+        super.characters(ch, start, length);
+        firstCharReceived = documentStarted;
+        if (documentStarted) {
+            charIndex += length;
         }
     }
 
@@ -50,25 +78,20 @@ public class PageIndicesContentHandler extends ContentHandlerDecorator {
     }
 
     @Override
-    public void characters(char[] ch, int start, int length) throws SAXException {
-        super.characters(ch, start, length);
-        if (firstPageStarted) {
-            charIndex += length;
-        }
-    }
-
-    @Override
     public void ignorableWhitespace(char[] ch, int start, int length) throws SAXException {
         super.ignorableWhitespace(ch, start, length);
-        if (firstPageStarted) {
+        if (firstCharReceived && documentStarted) {
             charIndex += length;
         }
     }
 
     protected void startPage() {
-        firstPageStarted = true;
         startPageCalled = true;
-        pageStartIndex = charIndex;
+        if (firstPage) {
+            firstPage = false;
+        } else {
+            pageStartIndex = charIndex;
+        }
     }
 
     protected void endPage() {
@@ -79,6 +102,8 @@ public class PageIndicesContentHandler extends ContentHandlerDecorator {
             // so we are replacing the last page with additional characters
             pageIndices.remove(pageIndices.size() - 1);
         }
-        pageIndices.add(Pair.of(pageStartIndex, charIndex));
+        if (charIndex != 0) {
+            pageIndices.add(Pair.of(pageStartIndex, charIndex));
+        }
     }
 }
