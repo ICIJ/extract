@@ -8,6 +8,7 @@ import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.DocumentSelector;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.io.TikaInputStream;
+import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.CompositeParser;
 import org.apache.tika.parser.DigestingParser;
@@ -21,8 +22,8 @@ import org.apache.tika.parser.html.HtmlMapper;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.ocr.TesseractOCRParser;
 import org.apache.tika.parser.pdf.PDFParserConfig;
-import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
+import org.apache.tika.sax.WriteOutContentHandler;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
@@ -393,7 +394,7 @@ public class Extractor {
         if (OutputFormat.HTML == outputFormat) {
             handler = (writer) -> new ExpandedTitleContentHandler(new HTML5Serializer(writer));
         } else {
-            handler = BodyContentHandler::new;
+            handler = WriteOutContentHandler::new;
         }
         return getTikaDocument(path, handler, metadata -> true);
     }
@@ -405,10 +406,11 @@ public class Extractor {
     public List<Pair<Long, Long>> extractPageIndices(final Path path, DocumentSelector documentSelector) throws IOException {
         final Function<Writer, ContentHandler> handlerProvider;
         PageIndicesContentHandler contentHandler;
+        boolean notEmbedded = documentSelector.select(new Metadata());
         if (OutputFormat.HTML == outputFormat) {
-            contentHandler = new PageIndicesContentHandler(new ExpandedTitleContentHandler(new HTML5Serializer(Writer.nullWriter())));
+            contentHandler = new PageIndicesContentHandler(new ExpandedTitleContentHandler(new HTML5Serializer(Writer.nullWriter())), notEmbedded);
         } else {
-            contentHandler = new PageIndicesContentHandler(new BodyContentHandler(Writer.nullWriter()));
+            contentHandler = new PageIndicesContentHandler(new WriteOutContentHandler(Writer.nullWriter()), notEmbedded);
         }
         handlerProvider = (writer) -> contentHandler;
         TikaDocument tikaDocument = getTikaDocument(path, handlerProvider, documentSelector);

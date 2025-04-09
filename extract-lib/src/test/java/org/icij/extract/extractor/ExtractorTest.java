@@ -5,6 +5,7 @@ import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.icij.extract.document.DocumentFactory;
+import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
 import org.icij.spewer.FieldNames;
 import org.icij.spewer.FileSpewer;
@@ -30,7 +31,6 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static java.lang.Math.toIntExact;
 import static org.fest.assertions.Assertions.assertThat;
@@ -196,7 +196,7 @@ public class ExtractorTest {
 		}
 
 		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
-		Assert.assertThat(text, RegexMatcher.matchesRegex("^\\s+HEAVY\\sMETAL\\s+HEAVY\\sMETAL\\s+$"));
+		Assert.assertThat(text, RegexMatcher.matchesRegex("^\\s+simple.tiff\\n\\n\\nHEAVY\\sMETAL\\s+HEAVY\\sMETAL\\s+$"));
 	}
 
 	@Test
@@ -325,12 +325,14 @@ public class ExtractorTest {
 
 		String text;
 		try (final Reader reader = doc.getReader()) {
-			text = Spewer.toString(reader);
+			// this is a hack to simulate the text.trim() that is done in ElasticsearchSpewer in datashare
+			text = Spewer.toString(reader).trim();
 		}
-
+		System.out.println(text);
 		assertThat(pageIndices).isNotNull();
-		assertThat(pageIndices).isEqualTo(List.of(Pair.of(0L, 16L), Pair.of(17L,33L)));
-		assertThat(text).hasSize(33 + 1);
+		assertThat(pageIndices).isEqualTo(List.of(Pair.of(0L, 29L), Pair.of(30L,46L)));
+
+		assertThat(text).hasSize(42); // text with "simple.tiff" but trimmed
 
 		String expectedPage = """
 		
@@ -340,22 +342,31 @@ public class ExtractorTest {
 		
 		
 		""";
-		assertThat(getPage(pageIndices.get(0), text)).isEqualTo(expectedPage);
-		assertThat(getPage(pageIndices.get(1), text)).isEqualTo(expectedPage);
+		assertThat(getPage(pageIndices.get(0), text)).isEqualTo("simple.tiff\n\n" + expectedPage); // begin doc: simple.tiff is trimmed
+		assertThat(getPage(pageIndices.get(1), text)).isEqualTo(expectedPage.stripTrailing()); // end doc: trim the end of last page
 	}
 
 	@Test
 	public void testPageExtractionForEmbeddedPdf() throws Exception {
-		DocumentFactory documentFactory = new DocumentFactory().configure(Options.from(Map.of("digestAlgorithm", "SHA-256")));
-		final Extractor extractor = new Extractor(documentFactory);
-		extractor.configure(Options.from(Map.of("digestAlgorithm", "SHA-256")));
+		TikaDocument doc = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()));
+		extractor.setEmbedHandling(Extractor.EmbedHandling.SPAWN);
+
+		String text;
+		try (final Reader reader = doc.getReader()) {
+			Spewer.toString(reader);
+		}
+		EmbeddedTikaDocument embeddedTikaDocument = doc.getEmbeds().get(0);
+		try (final Reader reader = embeddedTikaDocument.getReader()) {
+			text = Spewer.toString(reader);
+		}
 
 		List<Pair<Long, Long>> pageIndices = extractor.extractPageIndices(
-				Paths.get(getClass().getResource("/documents/ocr/email_with_2_pdfs.eml").getPath()),
+				Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()),
 				metadata -> "embedded.pdf".equals(metadata.get("resourceName")) || "INLINE".equals(metadata.get("embeddedResourceType")));
 
 		assertThat(pageIndices).isNotNull();
-		assertThat(pageIndices).isEqualTo(List.of(Pair.of(0L, 16L), Pair.of(17L,33L)));
+		System.out.println(text);
+		assertThat(pageIndices).isEqualTo(List.of(Pair.of(0L, 29L), Pair.of(30L,48L)));
 	}
 
 	private String getExpected(final String file) throws IOException {
@@ -365,6 +376,6 @@ public class ExtractorTest {
 	}
 
 	private String getPage(Pair<Long, Long> startEndIndices, String fullText) {
-		return fullText.substring(toIntExact(startEndIndices.getLeft()), toIntExact(startEndIndices.getRight()));
+		return fullText.substring(toIntExact(startEndIndices.getLeft()), toIntExact(Math.min(startEndIndices.getRight(), fullText.length())));
 	}
 }
