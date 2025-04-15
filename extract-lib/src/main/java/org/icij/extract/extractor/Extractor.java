@@ -1,5 +1,6 @@
 package org.icij.extract.extractor;
 
+import java.lang.reflect.InvocationTargetException;
 import org.apache.commons.io.TaggedIOException;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tika.config.TikaConfig;
@@ -19,8 +20,6 @@ import org.apache.tika.parser.digestutils.CommonsDigester;
 import org.apache.tika.parser.digestutils.CommonsDigester.DigestAlgorithm;
 import org.apache.tika.parser.html.DefaultHtmlMapper;
 import org.apache.tika.parser.html.HtmlMapper;
-import org.apache.tika.parser.ocr.TesseractOCRConfig;
-import org.apache.tika.parser.ocr.TesseractOCRParser;
 import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
 import org.apache.tika.sax.WriteOutContentHandler;
@@ -28,9 +27,12 @@ import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
 import org.icij.extract.parser.CacheParserDecorator;
+import org.icij.extract.parser.OCRConfigAdapter;
 import org.icij.extract.parser.FallbackParser;
 import org.icij.extract.parser.HTML5Serializer;
+import org.icij.extract.parser.OCRConfig;
 import org.icij.extract.parser.ParsingReaderWithContentHandler;
+import org.icij.extract.parser.TesseractOCRConfigAdapter;
 import org.icij.extract.report.Reporter;
 import org.icij.spewer.MetadataTransformer;
 import org.icij.spewer.Spewer;
@@ -104,7 +106,7 @@ public class Extractor {
     private DigestingParser.Digester digester = null;
 
     private Parser defaultParser = TikaConfig.getDefaultConfig().getParser();
-    private final TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
+    private OCRConfigAdapter ocrConfigAdapter;
     private final PDFParserConfig pdfConfig = new PDFParserConfig();
     private final DocumentFactory documentFactory;
 
@@ -129,11 +131,8 @@ public class Extractor {
         // In scanned documents under test from the Panama registry, different embedded images had the same ID, leading to incomplete OCRing when uniqueness detection was turned on.
         pdfConfig.setExtractUniqueInlineImagesOnly(false);
 
-        // Set a long OCR timeout by default, because Tika's is too short.
-        setOcrTimeout(Duration.ofDays(1));
-
         // English text recognition by default.
-        ocrConfig.setLanguage("eng");
+        ocrConfigAdapter = new TesseractOCRConfigAdapter();
     }
 
     public Extractor() {
@@ -143,6 +142,21 @@ public class Extractor {
     public Extractor configure(final Options<String> options) {
         options.get("outputFormat", "TEXT").parse().asEnum(OutputFormat::parse).ifPresent(this::setOutputFormat);
         options.get("embedHandling", "SPAWN").parse().asEnum(EmbedHandling::parse).ifPresent(this::setEmbedHandling);
+        options.get("ocrType", String.valueOf(OCRConfig.TESSERACT))
+            .parse()
+            .asEnum(OCRConfig::parse)
+            .map(parser -> {
+                try {
+                    return parser.newAdapter();
+                } catch (NoSuchMethodException e) {
+                    String msg = "no default, no args constructor found for " + parser.getAdapterClass().getName();
+                    throw new RuntimeException(msg, e);
+                } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
+                    String msg = "failed to create instance from the default, public, no args, constructor of " + parser.getAdapterClass().getName();
+                    throw new RuntimeException(msg, e);
+                }
+            })
+            .ifPresent(this::setOcrConfigAdapter);
         options.get("ocrLanguage", "eng").value().ifPresent(this::setOcrLanguage);
         options.get("ocrTimeout", "12h").parse().asDuration().ifPresent(this::setOcrTimeout);
         options.valueIfPresent("embedOutput").ifPresent(embedOutput -> setEmbedOutputPath(Paths.get(embedOutput)));
@@ -158,7 +172,7 @@ public class Extractor {
         }
 
         options.valueIfPresent("ocrCache").ifPresent(
-            path -> replaceParser(TesseractOCRParser.class, parser -> new CacheParserDecorator(parser, Paths.get(path)))
+            path -> replaceParser(ocrConfigAdapter.getParserClass(), parser -> new CacheParserDecorator(parser, Paths.get(path)))
         );
         logger.info("extractor configured with digester {} and {}", digester.getClass(), documentFactory);
 
@@ -190,6 +204,10 @@ public class Extractor {
      */
     public void setEmbedHandling(final EmbedHandling embedHandling) {
         this.embedHandling = embedHandling;
+    }
+
+    public void setOcrConfigAdapter(final OCRConfigAdapter<?, ?> ocrConfigAdapter) {
+        this.ocrConfigAdapter = ocrConfigAdapter;
     }
 
     /**
@@ -225,7 +243,7 @@ public class Extractor {
      * @param ocrLanguage the languages to use, for example "eng" or "ita+spa"
      */
     public void setOcrLanguage(final String ocrLanguage) {
-        ocrConfig.setLanguage(ocrLanguage);
+        ocrConfigAdapter.setLanguages(ocrLanguage.split("\\+"));
     }
 
     /**
@@ -234,7 +252,7 @@ public class Extractor {
      * @param ocrTimeout the duration in seconds
      */
     private void setOcrTimeout(final int ocrTimeout) {
-        ocrConfig.setTimeoutSeconds(ocrTimeout);
+        ocrConfigAdapter.setParsingTimeoutS(ocrTimeout);
     }
 
     /**
@@ -259,7 +277,7 @@ public class Extractor {
      */
     public void disableOcr() {
         if (!ocrDisabled) {
-            excludeParser(TesseractOCRParser.class);
+            excludeParser(ocrConfigAdapter.getParserClass());
             ocrDisabled = true;
             pdfConfig.setExtractInlineImages(false);
         }
@@ -439,7 +457,7 @@ public class Extractor {
         }
 
         if (!ocrDisabled) {
-            context.set(TesseractOCRConfig.class, ocrConfig);
+            context.set(ocrConfigAdapter.getParserClass(), ocrConfigAdapter.getConfig());
         }
 
         context.set(PDFParserConfig.class, pdfConfig);
