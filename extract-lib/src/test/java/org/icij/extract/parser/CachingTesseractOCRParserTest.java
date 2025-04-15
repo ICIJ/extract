@@ -1,6 +1,8 @@
 package org.icij.extract.parser;
 
+import java.io.Serial;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.parser.EmptyParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.sax.WriteOutContentHandler;
 import org.junit.AfterClass;
@@ -16,7 +18,6 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class CachingTesseractOCRParserTest {
@@ -39,6 +40,7 @@ public class CachingTesseractOCRParserTest {
 		} catch (final IOException ignored) { }});
 	}
 
+
 	@Test
 	public void testWriteToCache() throws Throwable {
 		final Path simple = Paths.get(this.simple.toURI());
@@ -46,8 +48,10 @@ public class CachingTesseractOCRParserTest {
 		Writer writer = new StringWriter();
 		final AtomicInteger hit = new AtomicInteger(), miss = new AtomicInteger();
 
-		final CachingTesseractOCRParser parser = new CachingTesseractOCRParser(tmpDir) {
+		EmptyParser inner = new EmptyParser();
+		final CacheParserDecorator decorated = new CacheParserDecorator(inner, tmpDir) {
 
+			@Serial
 			private static final long serialVersionUID = 6551690243986921730L;
 
 			@Override
@@ -61,9 +65,8 @@ public class CachingTesseractOCRParserTest {
 			}
 		};
 
-		parser.initialize(new HashMap<>());
 		try (final InputStream in = Files.newInputStream(simple)) {
-			parser.parse(in, new WriteOutContentHandler(writer), new Metadata(), new ParseContext());
+			decorated.parse(in, new WriteOutContentHandler(writer), new Metadata(), new ParseContext());
 		}
 
 		Assert.assertEquals("HEAVY\nMETAL", writer.toString().trim());
@@ -73,7 +76,7 @@ public class CachingTesseractOCRParserTest {
 		// Try again from the cache.
 		writer = new StringWriter();
 		try (final InputStream in = Files.newInputStream(simple)) {
-			parser.parse(in, new WriteOutContentHandler(writer), new Metadata(), new ParseContext());
+			decorated.parse(in, new WriteOutContentHandler(writer), new Metadata(), new ParseContext());
 		}
 
 		Assert.assertEquals("HEAVY\nMETAL", writer.toString().trim());
