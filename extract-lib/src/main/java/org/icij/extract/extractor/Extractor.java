@@ -26,7 +26,7 @@ import org.apache.tika.sax.ExpandedTitleContentHandler;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
-import org.icij.extract.parser.CachingTesseractOCRParser;
+import org.icij.extract.parser.CacheParserDecorator;
 import org.icij.extract.parser.FallbackParser;
 import org.icij.extract.parser.HTML5Serializer;
 import org.icij.extract.parser.ParsingReaderWithContentHandler;
@@ -157,8 +157,9 @@ public class Extractor {
             disableOcr();
         }
 
-        options.valueIfPresent("ocrCache").ifPresent(path -> replaceParser(TesseractOCRParser.class,
-                new CachingTesseractOCRParser(Paths.get(path))));
+        options.valueIfPresent("ocrCache").ifPresent(
+            path -> replaceParser(TesseractOCRParser.class, parser -> new CacheParserDecorator(parser, Paths.get(path)))
+        );
         logger.info("extractor configured with digester {} and {}", digester.getClass(), documentFactory);
 
         return this;
@@ -311,7 +312,7 @@ public class Extractor {
         }
 
         // For tagged IO exceptions, discard the tag, which is either unwanted or not serializable.
-        if (null != exception && (exception instanceof TaggedIOException)) {
+        if ((exception instanceof TaggedIOException)) {
             exception = ((TaggedIOException) exception).getCause();
         }
 
@@ -467,15 +468,14 @@ public class Extractor {
         replaceParser(exclude, null);
     }
 
-    private void replaceParser(final Class<? extends Parser> exclude, final Parser replacement) {
-        if (defaultParser instanceof CompositeParser) {
-            final CompositeParser composite = (CompositeParser) defaultParser;
+    private void replaceParser(final Class<? extends Parser> exclude, final Function<Parser, Parser> parserFn) {
+        if (defaultParser instanceof CompositeParser composite) {
             final List<Parser> parsers = new ArrayList<>();
 
             composite.getAllComponentParsers().forEach(parser -> {
                 if (parser.getClass().equals(exclude) || exclude.isAssignableFrom(parser.getClass())) {
-                    if (null != replacement) {
-                        parsers.add(replacement);
+                    if (parserFn != null) {
+                        parsers.add(parserFn.apply(parser));
                     }
                 } else {
                     parsers.add(parser);
