@@ -5,8 +5,8 @@ import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.ParseContext;
-import org.apache.tika.parser.ocr.TesseractOCRConfig;
-import org.apache.tika.parser.ocr.TesseractOCRParser;
+import org.apache.tika.parser.Parser;
+import org.apache.tika.parser.ParserDecorator;
 import org.apache.tika.sax.TeeContentHandler;
 import org.apache.tika.sax.WriteOutContentHandler;
 import org.apache.tika.sax.XHTMLContentHandler;
@@ -19,27 +19,27 @@ import java.util.concurrent.TimeUnit;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-public class CachingTesseractOCRParser extends TesseractOCRParser {
+public class CacheParserDecorator extends ParserDecorator {
 
+	@Serial
 	private static final long serialVersionUID = -5718575465763633880L;
 
-	private static final TesseractOCRConfig DEFAULT_CONFIG = new TesseractOCRConfig();
+	private final Path cachePath;
+	private final int acquireLockTimeoutS;
 
-	private final Path outputPath;
+	public CacheParserDecorator(Parser parser, final Path cachePath) {
+		this(parser, cachePath, 120);
+	}
 
-	public CachingTesseractOCRParser(final Path outputPath) {
-		this.outputPath = outputPath;
+	public CacheParserDecorator(Parser parser, final Path cachePath, int acquireLockTimeoutS) {
+		super(parser);
+		this.cachePath = cachePath;
+		this.acquireLockTimeoutS = acquireLockTimeoutS;
 	}
 
 	@Override
-	public void parse(final InputStream in, final ContentHandler handler, final Metadata metadata,
-	                  final ParseContext context)
-			throws IOException, SAXException, TikaException {
-		if (null != outputPath) {
-			cachedParse(in, handler, metadata, context, context.get(TesseractOCRConfig.class, DEFAULT_CONFIG), false);
-		} else {
-			super.parse(in, handler, metadata, context);
-		}
+	public void parse(InputStream stream, ContentHandler handler, Metadata metadata, ParseContext context) throws IOException, SAXException, TikaException {
+		cachedParse(stream, handler, metadata, context, false);
 	}
 
 	protected void cacheHit() {
@@ -48,8 +48,7 @@ public class CachingTesseractOCRParser extends TesseractOCRParser {
 	protected void cacheMiss() {
 	}
 
-	private void fallbackParse(final InputStream in, final ContentHandler handler, final Metadata metadata,
-	                         final ParseContext context, final TesseractOCRConfig config, final boolean inline)
+	private void fallbackParse(final InputStream in, final ContentHandler handler, final Metadata metadata, final ParseContext context, final boolean inline)
 			throws SAXException, IOException, TikaException {
 		if (inline) {
 			final XHTMLContentHandler xhtml;
@@ -67,7 +66,7 @@ public class CachingTesseractOCRParser extends TesseractOCRParser {
 	}
 
 	private void parseToCache(final TikaInputStream tis, final ContentHandler handler, final Metadata metadata,
-	                          final ParseContext context, final TesseractOCRConfig config, final boolean inline,
+	                          final ParseContext context, final boolean inline,
 	                          final Writer writer) throws SAXException, IOException, TikaException {
 		final ContentHandler tee = new TeeContentHandler(handler, new WriteOutContentHandler(writer));
 
@@ -103,9 +102,9 @@ public class CachingTesseractOCRParser extends TesseractOCRParser {
 		}
 	}
 
-	private boolean acquireLock(final TesseractOCRConfig config, final Path cacheLock)
+	private boolean acquireLock(final Path cacheLock)
 			throws IOException, InterruptedException {
-		for (int i = 0, l = config.getTimeoutSeconds() + 1; i < l; i++) {
+		for (int i = 0, l = acquireLockTimeoutS + 1; i < l; i++) {
 			try {
 				Files.createFile(cacheLock);
 				return true;
@@ -118,17 +117,17 @@ public class CachingTesseractOCRParser extends TesseractOCRParser {
 	}
 
 	private void cachedParse(final InputStream in, final ContentHandler handler, final Metadata metadata,
-	                         final ParseContext context, TesseractOCRConfig config, final boolean inline)
+	                         final ParseContext context, final boolean inline)
 			throws IOException, SAXException, TikaException {
 		try (final TikaInputStream tis = TikaInputStream.get(in)) {
-			cachedParse(tis, handler, metadata, context, config, inline);
+			cachedParse(tis, handler, metadata, context, inline);
 		} catch (final InterruptedException e) {
 			throw new TikaException("Interrupted.", e);
 		}
 	}
 
 	private void cachedParse(final TikaInputStream tis, final ContentHandler handler, final Metadata metadata,
-	                        final ParseContext context, final TesseractOCRConfig config, final boolean inline)
+	                        final ParseContext context, final boolean inline)
 			throws IOException, SAXException, TikaException, InterruptedException {
 		final String hash;
 
@@ -136,13 +135,13 @@ public class CachingTesseractOCRParser extends TesseractOCRParser {
 			hash = DigestUtils.sha256Hex(buffered);
 		}
 
-		final Path cachePath = outputPath.resolve(hash);
-		final Path cacheLock = outputPath.resolve(hash + ".lock");
+		final Path cachePath = this.cachePath.resolve(hash);
+		final Path cacheLock = this.cachePath.resolve(hash + ".lock");
 
 		// Acquire a lock both for reading and for writing.
 		// If the lock can't be acquired, parse without caching.
-		if (!acquireLock(config, cacheLock)) {
-			fallbackParse(tis, handler, metadata, context, config, inline);
+		if (!acquireLock(cacheLock)) {
+			fallbackParse(tis, handler, metadata, context, inline);
 			return;
 		}
 
@@ -151,13 +150,13 @@ public class CachingTesseractOCRParser extends TesseractOCRParser {
 			cacheHit();
 			readFromCache(reader, handler, metadata);
 		} catch (final NoSuchFileException e) {
-			final Path cacheTemp = outputPath.resolve(hash + ".tmp");
+			final Path cacheTemp = this.cachePath.resolve(hash + ".tmp");
 
 			// Write to a temporary file and only move to the final path if parsing completes successfully.
 			// This way we ensure that we don't cache partial results from Tesseract if there's an error.
 			try (final Writer writer = Files.newBufferedWriter(cacheTemp, UTF_8, StandardOpenOption.CREATE)) {
 				cacheMiss();
-				parseToCache(tis, handler, metadata, context, config, inline, writer);
+				parseToCache(tis, handler, metadata, context, inline, writer);
 			}
 
 			Files.move(cacheTemp, cachePath, StandardCopyOption.ATOMIC_MOVE);
