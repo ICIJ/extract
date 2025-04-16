@@ -196,7 +196,7 @@ public class ExtractorTest {
 		}
 
 		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
-		Assert.assertThat(text, RegexMatcher.matchesRegex("^\\s+simple.tiff\\n\\n\\nHEAVY\\sMETAL\\s+HEAVY\\sMETAL\\s+$"));
+		Assert.assertThat(text, RegexMatcher.matchesRegex("^\\s+HEAVY\\sMETAL\\s+HEAVY\\sMETAL\\s+$"));
 	}
 
 	@Test
@@ -326,13 +326,12 @@ public class ExtractorTest {
 		String text;
 		try (final Reader reader = doc.getReader()) {
 			// this is a hack to simulate the text.trim() that is done in ElasticsearchSpewer in datashare
-			text = Spewer.toString(reader).trim();
+			text = Spewer.toString(reader);
 		}
-		System.out.println(text);
 		assertThat(pageIndices).isNotNull();
-		assertThat(pageIndices).isEqualTo(List.of(Pair.of(0L, 29L), Pair.of(30L,46L)));
+		assertThat(pageIndices).isEqualTo(List.of(Pair.of(0L, 16L), Pair.of(17L,33L)));
 
-		assertThat(text).hasSize(42); // text with "simple.tiff" but trimmed
+		assertThat(text).hasSize(34);
 
 		String expectedPage = """
 		
@@ -342,8 +341,8 @@ public class ExtractorTest {
 		
 		
 		""";
-		assertThat(getPage(pageIndices.get(0), text)).isEqualTo("simple.tiff\n\n" + expectedPage); // begin doc: simple.tiff is trimmed
-		assertThat(getPage(pageIndices.get(1), text)).isEqualTo(expectedPage.stripTrailing()); // end doc: trim the end of last page
+		assertThat(getPage(pageIndices.get(0), text)).isEqualTo(expectedPage);
+		assertThat(getPage(pageIndices.get(1), text)).isEqualTo(expectedPage);
 	}
 
 	@Test
@@ -357,7 +356,7 @@ public class ExtractorTest {
 		}
 		EmbeddedTikaDocument embeddedTikaDocument = doc.getEmbeds().get(0);
 		try (final Reader reader = embeddedTikaDocument.getReader()) {
-			text = Spewer.toString(reader);
+			Spewer.toString(reader);
 		}
 
 		List<Pair<Long, Long>> pageIndices = extractor.extractPageIndices(
@@ -365,8 +364,7 @@ public class ExtractorTest {
 				metadata -> "embedded.pdf".equals(metadata.get("resourceName")) || "INLINE".equals(metadata.get("embeddedResourceType")));
 
 		assertThat(pageIndices).isNotNull();
-		System.out.println(text);
-		assertThat(pageIndices).isEqualTo(List.of(Pair.of(0L, 29L), Pair.of(30L,48L)));
+		assertThat(pageIndices).isEqualTo(List.of(Pair.of(0L, 29L), Pair.of(30L,47L)));
 	}
 
 	private String getExpected(final String file) throws IOException {

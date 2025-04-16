@@ -22,8 +22,8 @@ import org.apache.tika.parser.html.HtmlMapper;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.ocr.TesseractOCRParser;
 import org.apache.tika.parser.pdf.PDFParserConfig;
+import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
-import org.apache.tika.sax.WriteOutContentHandler;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
@@ -394,7 +394,7 @@ public class Extractor {
         if (OutputFormat.HTML == outputFormat) {
             handler = (writer) -> new ExpandedTitleContentHandler(new HTML5Serializer(writer));
         } else {
-            handler = WriteOutContentHandler::new;
+            handler = BodyContentHandler::new;
         }
         return getTikaDocument(path, handler, metadata -> true);
     }
@@ -410,7 +410,7 @@ public class Extractor {
         if (OutputFormat.HTML == outputFormat) {
             contentHandler = new PageIndicesContentHandler(new ExpandedTitleContentHandler(new HTML5Serializer(Writer.nullWriter())), notEmbedded);
         } else {
-            contentHandler = new PageIndicesContentHandler(new WriteOutContentHandler(Writer.nullWriter()), notEmbedded);
+            contentHandler = new PageIndicesContentHandler(new BodyContentHandler(Writer.nullWriter()), notEmbedded);
         }
         handlerProvider = (writer) -> contentHandler;
         TikaDocument tikaDocument = getTikaDocument(path, handlerProvider, documentSelector);
