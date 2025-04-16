@@ -28,6 +28,7 @@ public class PageIndicesContentHandler extends ContentHandlerDecorator {
     private boolean startPageCalled = false;
     private boolean documentStarted;
     private boolean startDocumentCalled = false;
+    private boolean bodyStarted = false;
 
     private final List<Pair<Long, Long>> pageIndices = new LinkedList<>();
 
@@ -55,6 +56,9 @@ public class PageIndicesContentHandler extends ContentHandlerDecorator {
     @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException {
         super.startElement(uri, localName, qName, atts);
+        if ("body".equals(qName)) {
+            bodyStarted = true;
+        }
         if (pageTag.endsWith(qName) && pageClass.equals(atts.getValue("class"))) {
             startPage();
         }
@@ -64,7 +68,7 @@ public class PageIndicesContentHandler extends ContentHandlerDecorator {
     public void characters(char[] ch, int start, int length) throws SAXException {
         super.characters(ch, start, length);
         firstCharReceived = documentStarted;
-        if (documentStarted) {
+        if (documentStarted && bodyStarted) {
             charIndex += length;
         }
     }
@@ -72,6 +76,9 @@ public class PageIndicesContentHandler extends ContentHandlerDecorator {
     @Override
     public void endElement(String uri, String localName, String qName) throws SAXException {
         super.endElement(uri, localName, qName);
+        if ("body".equals(qName)) {
+            bodyStarted = false;
+        }
         if (pageTag.endsWith(qName)) {
             endPage();
         }
@@ -80,7 +87,7 @@ public class PageIndicesContentHandler extends ContentHandlerDecorator {
     @Override
     public void ignorableWhitespace(char[] ch, int start, int length) throws SAXException {
         super.ignorableWhitespace(ch, start, length);
-        if (firstCharReceived && documentStarted) {
+        if (firstCharReceived && documentStarted && bodyStarted) {
             charIndex += length;
         }
     }
