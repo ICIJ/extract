@@ -1,6 +1,7 @@
 package org.icij.extract.extractor;
 
-import java.lang.reflect.InvocationTargetException;
+import java.util.Collections;
+import java.util.stream.Stream;
 import org.apache.commons.io.TaggedIOException;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.commons.lang3.tuple.Pair;
@@ -22,16 +23,17 @@ import org.apache.tika.parser.html.HtmlMapper;
 import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
+import org.apache.tika.utils.ServiceLoaderUtils;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
 import org.icij.extract.parser.CacheParserDecorator;
-import org.icij.extract.parser.OCRConfigAdapter;
+import org.icij.extract.ocr.OCRConfigAdapter;
 import org.icij.extract.parser.FallbackParser;
 import org.icij.extract.parser.HTML5Serializer;
-import org.icij.extract.parser.OCRConfig;
+import org.icij.extract.ocr.OCRConfigRegistry;
 import org.icij.extract.parser.ParsingReaderWithContentHandler;
-import org.icij.extract.parser.TesseractOCRConfigAdapter;
+import org.icij.extract.ocr.TesseractOCRConfigAdapter;
 import org.icij.extract.report.Reporter;
 import org.icij.spewer.MetadataTransformer;
 import org.icij.spewer.Spewer;
@@ -55,6 +57,7 @@ import java.util.Objects;
 import java.util.function.Function;
 
 import static java.lang.System.currentTimeMillis;
+import static org.icij.extract.LambdaExceptionUtils.rethrowFunction;
 
 /**
  * A reusable class that sets up Tika parsers based on runtime options.
@@ -106,7 +109,7 @@ public class Extractor {
     private DigestingParser.Digester digester = null;
 
     private Parser defaultParser = TikaConfig.getDefaultConfig().getParser();
-    private OCRConfigAdapter ocrConfigAdapter;
+    private OCRConfigAdapter ocrConfig;
     private final PDFParserConfig pdfConfig = new PDFParserConfig();
     private final DocumentFactory documentFactory;
 
@@ -132,31 +135,23 @@ public class Extractor {
         pdfConfig.setExtractUniqueInlineImagesOnly(false);
 
         // English text recognition by default.
-        ocrConfigAdapter = new TesseractOCRConfigAdapter();
+        ocrConfig = new TesseractOCRConfigAdapter();
+        ocrConfig.setLanguages("eng");
+        ocrConfig.setOcrTimeout(Duration.ofDays(1));
     }
 
     public Extractor() {
         this(new DocumentFactory().withIdentifier(new PathIdentifier()));
     }
 
-    public Extractor configure(final Options<String> options) {
+    public Extractor configure(final Options<String> options) throws ReflectiveOperationException {
         options.get("outputFormat", "TEXT").parse().asEnum(OutputFormat::parse).ifPresent(this::setOutputFormat);
         options.get("embedHandling", "SPAWN").parse().asEnum(EmbedHandling::parse).ifPresent(this::setEmbedHandling);
-        options.get("ocrType", String.valueOf(OCRConfig.TESSERACT))
+        options.get("ocrType", String.valueOf(OCRConfigRegistry.TESSERACT))
             .parse()
-            .asEnum(OCRConfig::parse)
-            .map(parser -> {
-                try {
-                    return parser.newAdapter();
-                } catch (NoSuchMethodException e) {
-                    String msg = "no default, no args constructor found for " + parser.getAdapterClass().getName();
-                    throw new RuntimeException(msg, e);
-                } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
-                    String msg = "failed to create instance from the default, public, no args, constructor of " + parser.getAdapterClass().getName();
-                    throw new RuntimeException(msg, e);
-                }
-            })
-            .ifPresent(this::setOcrConfigAdapter);
+            .asEnum(OCRConfigRegistry::parse)
+            .map(rethrowFunction(OCRConfigRegistry::newAdapter))
+            .ifPresent(this::setOcrConfig);
         options.get("ocrLanguage", "eng").value().ifPresent(this::setOcrLanguage);
         options.get("ocrTimeout", "12h").parse().asDuration().ifPresent(this::setOcrTimeout);
         options.valueIfPresent("embedOutput").ifPresent(embedOutput -> setEmbedOutputPath(Paths.get(embedOutput)));
@@ -172,7 +167,7 @@ public class Extractor {
         }
 
         options.valueIfPresent("ocrCache").ifPresent(
-            path -> replaceParser(ocrConfigAdapter.getParserClass(), parser -> new CacheParserDecorator(parser, Paths.get(path)))
+            path -> replaceParser(ocrConfig.getParserClass(), parser -> new CacheParserDecorator(parser, Paths.get(path)))
         );
         logger.info("extractor configured with digester {} and {}", digester.getClass(), documentFactory);
 
@@ -206,8 +201,8 @@ public class Extractor {
         this.embedHandling = embedHandling;
     }
 
-    public void setOcrConfigAdapter(final OCRConfigAdapter<?, ?> ocrConfigAdapter) {
-        this.ocrConfigAdapter = ocrConfigAdapter;
+    public void setOcrConfig(final OCRConfigAdapter<?, ?> ocrConfig) {
+        this.ocrConfig = ocrConfig;
     }
 
     /**
@@ -243,7 +238,7 @@ public class Extractor {
      * @param ocrLanguage the languages to use, for example "eng" or "ita+spa"
      */
     public void setOcrLanguage(final String ocrLanguage) {
-        ocrConfigAdapter.setLanguages(ocrLanguage.split("\\+"));
+        ocrConfig.setLanguages(ocrLanguage.split("\\+"));
     }
 
     /**
@@ -252,7 +247,7 @@ public class Extractor {
      * @param ocrTimeout the duration in seconds
      */
     private void setOcrTimeout(final int ocrTimeout) {
-        ocrConfigAdapter.setParsingTimeoutS(ocrTimeout);
+        ocrConfig.setParsingTimeoutS(ocrTimeout);
     }
 
     /**
@@ -277,7 +272,7 @@ public class Extractor {
      */
     public void disableOcr() {
         if (!ocrDisabled) {
-            excludeParser(ocrConfigAdapter.getParserClass());
+            excludeParser(ocrConfig.getParserClass());
             ocrDisabled = true;
             pdfConfig.setExtractInlineImages(false);
         }
@@ -436,7 +431,7 @@ public class Extractor {
         }
 
         if (!ocrDisabled) {
-            context.set(ocrConfigAdapter.getParserClass(), ocrConfigAdapter.getConfig());
+            context.set(ocrConfig.getParserClass(), ocrConfig.getConfig());
         }
 
         context.set(PDFParserConfig.class, pdfConfig);
@@ -486,21 +481,40 @@ public class Extractor {
         replaceParser(exclude, null);
     }
 
-    private void replaceParser(final Class<? extends Parser> exclude, final Function<Parser, Parser> parserFn) {
-        if (defaultParser instanceof CompositeParser composite) {
+    public static CompositeParser replaceParser(Parser parser, final Class<? extends Parser> exclude, final Function<Parser, Parser> parserFn) {
+        if (parser instanceof CompositeParser composite) {
             final List<Parser> parsers = new ArrayList<>();
-
-            composite.getAllComponentParsers().forEach(parser -> {
-                if (parser.getClass().equals(exclude) || exclude.isAssignableFrom(parser.getClass())) {
+            getAllSubParsers(composite).forEach(p -> {
+                if (p.getClass().equals(exclude) || exclude.isAssignableFrom(p.getClass())) {
                     if (parserFn != null) {
-                        parsers.add(parserFn.apply(parser));
+                        parsers.add(parserFn.apply(p));
                     }
                 } else {
-                    parsers.add(parser);
+                    parsers.add(p);
                 }
             });
-
-            defaultParser = new CompositeParser(composite.getMediaTypeRegistry(), parsers);
+            ServiceLoaderUtils.sortLoadedClasses(parsers);
+            //reverse the order of parsers so that custom ones come last
+            //this will prevent them from being overwritten in getParsers(ParseContext ..)
+            Collections.reverse(parsers);
+            return new CompositeParser(composite.getMediaTypeRegistry(), parsers);
         }
+        return null;
+    }
+
+    public static Stream<Parser> getAllSubParsers(CompositeParser compositeParser) {
+        return compositeParser.getAllComponentParsers().stream().flatMap(
+            sub -> {
+                if (sub instanceof CompositeParser composite) {
+                    return getAllSubParsers(composite);
+                } else {
+                    return Stream.of(sub);
+                }
+            }
+        );
+    }
+
+    private void replaceParser(final Class<? extends Parser> exclude, final Function<Parser, Parser> parserFn) {
+        defaultParser = replaceParser(defaultParser, exclude, parserFn);
     }
 }

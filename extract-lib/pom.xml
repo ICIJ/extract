@@ -138,6 +138,19 @@
             <version>0.5.5</version>
         </dependency>
 
+        <!-- tess4j parsing  -->
+        <dependency>
+            <groupId>net.sourceforge.tess4j</groupId>
+            <artifactId>tess4j</artifactId>
+            <version>5.15.0</version>
+            <exclusions>
+                <exclusion>
+                    <artifactId>log4j-over-slf4j</artifactId>
+                    <groupId>org.slf4j</groupId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
         <!--test dependencies-->
         <dependency>
             <groupId>ch.qos.logback</groupId>
