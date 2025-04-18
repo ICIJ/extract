@@ -25,10 +25,19 @@ jobs:
           - v1-dependencies-
 
       - run:
-          name: Install tesseract-ocr
+          name: Install leptonica and tesseract-ocr
           command: |
+            sudo apt-get install apt-transport-https
+            wget https://github.com/DanBloomberg/leptonica/releases/download/1.85.0/leptonica-1.85.0.tar.gz
+            tar zxvf leptonica-1.85.0.tar.gz
+            cd leptonica-1.85.0
+            ./configure
+            make
+            sudo make install
+            echo "deb https://notesalexp.org/tesseract-ocr5/$(lsb_release -cs)/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/notesalexp.list > /dev/null
+            wget -O - https://notesalexp.org/debian/alexp_key.asc | sudo apt-key add -
             sudo apt-get update
-            sudo apt-get install -y tesseract-ocr
+            sudo apt-get install -y libtesseract5 tesseract-ocr tesseract-ocr-eng libpng-dev libjpeg-dev libtiff5-dev libwebp-dev libopenjp2-7-dev libgif-dev
 
       - save_cache:
           paths:
@@ -36,7 +45,7 @@ jobs:
           key: v1-dependencies-{{ checksum "pom.xml" }}
 
       # run tests!
-      - run: mvn test
+      - run: LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH mvn test
 
   release:
     docker:
