@@ -1,4 +1,4 @@
-package org.icij.extract.parser;
+package org.icij.extract.ocr;
 
 import java.io.Serializable;
 import java.time.Duration;

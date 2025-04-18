@@ -20,7 +20,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class CachingTesseractOCRParserTest {
+public class CacheParserDecoratorTest {
 
 	private static final Path tmpDir = Paths.get(System.getProperty("java.io.tmpdir"), "tesseract-cache");
 

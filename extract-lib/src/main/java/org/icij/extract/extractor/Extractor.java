@@ -1,6 +1,8 @@
 package org.icij.extract.extractor;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.Collections;
+import java.util.stream.Stream;
 import org.apache.commons.io.TaggedIOException;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tika.config.TikaConfig;
@@ -23,16 +25,17 @@ import org.apache.tika.parser.html.HtmlMapper;
 import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
 import org.apache.tika.sax.WriteOutContentHandler;
+import org.apache.tika.utils.ServiceLoaderUtils;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
 import org.icij.extract.parser.CacheParserDecorator;
-import org.icij.extract.parser.OCRConfigAdapter;
+import org.icij.extract.ocr.OCRConfigAdapter;
 import org.icij.extract.parser.FallbackParser;
 import org.icij.extract.parser.HTML5Serializer;
-import org.icij.extract.parser.OCRConfig;
+import org.icij.extract.ocr.OCRConfig;
 import org.icij.extract.parser.ParsingReaderWithContentHandler;
-import org.icij.extract.parser.TesseractOCRConfigAdapter;
+import org.icij.extract.ocr.TesseractOCRConfigAdapter;
 import org.icij.extract.report.Reporter;
 import org.icij.spewer.MetadataTransformer;
 import org.icij.spewer.Spewer;
@@ -489,21 +492,40 @@ public class Extractor {
         replaceParser(exclude, null);
     }
 
-    private void replaceParser(final Class<? extends Parser> exclude, final Function<Parser, Parser> parserFn) {
-        if (defaultParser instanceof CompositeParser composite) {
+    public static CompositeParser replaceParser(Parser parser, final Class<? extends Parser> exclude, final Function<Parser, Parser> parserFn) {
+        if (parser instanceof CompositeParser composite) {
             final List<Parser> parsers = new ArrayList<>();
-
-            composite.getAllComponentParsers().forEach(parser -> {
-                if (parser.getClass().equals(exclude) || exclude.isAssignableFrom(parser.getClass())) {
+            getAllSubParsers(composite).forEach(p -> {
+                if (p.getClass().equals(exclude) || exclude.isAssignableFrom(p.getClass())) {
                     if (parserFn != null) {
-                        parsers.add(parserFn.apply(parser));
+                        parsers.add(parserFn.apply(p));
                     }
                 } else {
-                    parsers.add(parser);
+                    parsers.add(p);
                 }
             });
-
-            defaultParser = new CompositeParser(composite.getMediaTypeRegistry(), parsers);
+            ServiceLoaderUtils.sortLoadedClasses(parsers);
+            //reverse the order of parsers so that custom ones come last
+            //this will prevent them from being overwritten in getParsers(ParseContext ..)
+            Collections.reverse(parsers);
+            return new CompositeParser(composite.getMediaTypeRegistry(), parsers);
         }
+        return null;
+    }
+
+    public static Stream<Parser> getAllSubParsers(CompositeParser compositeParser) {
+        return compositeParser.getAllComponentParsers().stream().flatMap(
+            sub -> {
+                if (sub instanceof CompositeParser composite) {
+                    return getAllSubParsers(composite);
+                } else {
+                    return Stream.of(sub);
+                }
+            }
+        );
+    }
+
+    private void replaceParser(final Class<? extends Parser> exclude, final Function<Parser, Parser> parserFn) {
+        defaultParser = replaceParser(defaultParser, exclude, parserFn);
     }
 }

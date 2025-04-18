@@ -1,4 +1,4 @@
-package org.icij.extract.parser;
+package org.icij.extract.ocr;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Locale;
@@ -6,12 +6,16 @@ import java.util.Locale;
 public enum OCRConfig {
     // TODO: ideally we'd like to do something cleaner than this registry leveraging the SPI and other java extension
     //  features
-    TESSERACT;
+    TESSERACT,
+    TESS4J;
 
     public Class<?> getAdapterClass() {
         switch (this) {
             case TESSERACT -> {
                 return TesseractOCRConfigAdapter.class;
+            }
+            case TESS4J -> {
+                return Tess4JOCRConfigAdapter.class;
             }
             default -> throw new IllegalArgumentException();
         }

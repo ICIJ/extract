@@ -1,4 +1,4 @@
-package org.icij.extract.parser;
+package org.icij.extract.ocr;
 
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.ocr.TesseractOCRParser;
