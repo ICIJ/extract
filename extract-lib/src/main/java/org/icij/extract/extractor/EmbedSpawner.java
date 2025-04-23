@@ -1,11 +1,6 @@
 package org.icij.extract.extractor;
 
-import org.apache.poi.poifs.filesystem.DirectoryEntry;
-import org.apache.poi.poifs.filesystem.DocumentEntry;
-import org.apache.poi.poifs.filesystem.DocumentInputStream;
-import org.apache.poi.poifs.filesystem.Entry;
-import org.apache.poi.poifs.filesystem.POIFSFileSystem;
-import org.apache.tika.extractor.DocumentSelector;
+import org.apache.poi.poifs.filesystem.*;
 import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
@@ -21,19 +16,9 @@ import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.util.LinkedList;
 import java.util.function.Function;
 
@@ -60,9 +45,6 @@ public class EmbedSpawner extends EmbedParser {
 
 		// There's no need to spawn inline embeds, like images in PDFs. These should be concatenated to the main
 		// document as usual.
-		if (context.get(DocumentSelector.class) != null && context.get(DocumentSelector.class).select(metadata)) {
-			handler.startDocument();
-		}
 		if (TikaCoreProperties.EmbeddedResourceType.INLINE.toString().equals(metadata.get(TikaCoreProperties.EMBEDDED_RESOURCE_TYPE))) {
 			final ContentHandler embedHandler = new EmbeddedContentHandler(new BodyContentHandler(handler));
 
