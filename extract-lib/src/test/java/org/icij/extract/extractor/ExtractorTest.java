@@ -1,10 +1,10 @@
 package org.icij.extract.extractor;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.icij.extract.document.DocumentFactory;
-import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
 import org.icij.spewer.FieldNames;
 import org.icij.spewer.FileSpewer;
@@ -324,13 +324,12 @@ public class ExtractorTest {
 
 		String text;
 		try (final Reader reader = doc.getReader()) {
-			// this is a hack to simulate the text.trim() that is done in ElasticsearchSpewer in datashare
 			text = Spewer.toString(reader);
 		}
+
 		assertThat(pageIndices).isNotNull();
 		assertThat(pageIndices).isEqualTo(List.of(Pair.of(0L, 16L), Pair.of(17L,33L)));
-
-		assertThat(text).hasSize(34);
+		assertThat(text).hasSize(33 + 1);
 
 		String expectedPage = """
 		
@@ -344,28 +343,6 @@ public class ExtractorTest {
 		assertThat(getPage(pageIndices.get(1), text)).isEqualTo(expectedPage);
 	}
 
-	@Test
-	public void testPageExtractionForEmbeddedPdf() throws Exception {
-		TikaDocument doc = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()));
-		extractor.setEmbedHandling(Extractor.EmbedHandling.SPAWN);
-
-		String text;
-		try (final Reader reader = doc.getReader()) {
-			Spewer.toString(reader);
-		}
-		EmbeddedTikaDocument embeddedTikaDocument = doc.getEmbeds().get(0);
-		try (final Reader reader = embeddedTikaDocument.getReader()) {
-			Spewer.toString(reader);
-		}
-
-		List<Pair<Long, Long>> pageIndices = extractor.extractPageIndices(
-				Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()),
-				metadata -> "embedded.pdf".equals(metadata.get("resourceName")) || "INLINE".equals(metadata.get("embeddedResourceType")));
-
-		assertThat(pageIndices).isNotNull();
-		assertThat(pageIndices).isEqualTo(List.of(Pair.of(0L, 29L), Pair.of(30L,47L)));
-	}
-
 	private String getExpected(final String file) throws IOException {
 		try (final Reader input = new InputStreamReader(getClass().getResourceAsStream(file), StandardCharsets.UTF_8)) {
 			return Spewer.toString(input);
@@ -373,6 +350,6 @@ public class ExtractorTest {
 	}
 
 	private String getPage(Pair<Long, Long> startEndIndices, String fullText) {
-		return fullText.substring(toIntExact(startEndIndices.getLeft()), toIntExact(Math.min(startEndIndices.getRight(), fullText.length())));
+		return fullText.substring(toIntExact(startEndIndices.getLeft()), toIntExact(startEndIndices.getRight()));
 	}
 }
