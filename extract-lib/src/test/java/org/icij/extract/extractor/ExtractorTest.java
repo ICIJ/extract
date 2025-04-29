@@ -55,6 +55,22 @@ public class ExtractorTest {
 	}
 
 	@Test
+	public void testExtractorShouldSupportMultipleLanguage() throws Throwable {
+		// When
+		extractor.setOcrLanguage("eng+spa");
+		String text;
+		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
+		try (Reader reader = tikaDocument.getReader()) {
+			text = Spewer.toString(reader);
+		}
+
+		Assert.assertEquals("image/tiff", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals("HEAVY\nMETAL", text.trim());
+		// We expect a null language, downstream component will be responsible to guess the language from the content
+		assertThat(tikaDocument.getLanguage()).isNull();
+	}
+
+	@Test
 	public void testDisableOcr() throws Throwable {
 		extractor.disableOcr();
 
