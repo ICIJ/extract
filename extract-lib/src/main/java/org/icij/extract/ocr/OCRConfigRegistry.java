@@ -1,6 +1,5 @@
 package org.icij.extract.ocr;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.Locale;
 
 public enum OCRConfigRegistry {
@@ -21,11 +20,20 @@ public enum OCRConfigRegistry {
         }
     }
 
-    public OCRConfigAdapter<?, ?> newAdapter() throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
-        return (OCRConfigAdapter<?, ?>) this.getAdapterClass().getConstructor().newInstance();
+    public OCRConfigAdapter<?, ?> newAdapter() {
+        try {
+            return (OCRConfigAdapter<?, ?>) this.getAdapterClass().getConstructor().newInstance();
+        } catch (ReflectiveOperationException e) {
+            throw new OCRConfigRegistryAdapterException(e);
+        }
     }
 
     public static OCRConfigRegistry parse(final String ocrType) {
         return valueOf(ocrType.toUpperCase(Locale.ROOT));
+    }
+    public static class OCRConfigRegistryAdapterException extends RuntimeException {
+        public OCRConfigRegistryAdapterException(Throwable cause) {
+            super(cause);
+        }
     }
 }

@@ -144,7 +144,7 @@ public class Extractor {
         this(new DocumentFactory().withIdentifier(new PathIdentifier()));
     }
 
-    public Extractor configure(final Options<String> options) throws ReflectiveOperationException {
+    public Extractor configure(final Options<String> options) {
         options.get("outputFormat", "TEXT").parse().asEnum(OutputFormat::parse).ifPresent(this::setOutputFormat);
         options.get("embedHandling", "SPAWN").parse().asEnum(EmbedHandling::parse).ifPresent(this::setEmbedHandling);
         options.get("ocrType", String.valueOf(OCRConfigRegistry.TESSERACT))
