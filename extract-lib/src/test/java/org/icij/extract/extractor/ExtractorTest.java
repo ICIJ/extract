@@ -5,6 +5,7 @@ import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.icij.extract.document.DocumentFactory;
+import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
 import org.icij.spewer.FieldNames;
 import org.icij.spewer.FileSpewer;
@@ -334,14 +335,14 @@ public class ExtractorTest {
 	}
 
 	@Test
-	public void testPageExtractionForPdf() throws Exception {
+	public void testPageIndicesExtractionForPdf() throws Exception {
 		TikaDocument doc = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
-		List<Pair<Long, Long>> pageIndices = extractor.extractPageIndices(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
-
 		String text;
 		try (final Reader reader = doc.getReader()) {
 			text = Spewer.toString(reader);
 		}
+
+		List<Pair<Long, Long>> pageIndices = extractor.extractPageIndices(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
 
 		assertThat(pageIndices).isNotNull();
 		assertThat(pageIndices).isEqualTo(List.of(Pair.of(0L, 16L), Pair.of(17L,33L)));
@@ -357,6 +358,44 @@ public class ExtractorTest {
 		""";
 		assertThat(getPage(pageIndices.get(0), text)).isEqualTo(expectedPage);
 		assertThat(getPage(pageIndices.get(1), text)).isEqualTo(expectedPage);
+	}
+
+	@Test
+	public void testPageExtractionForPdf() throws Exception {
+		List<String> pages = extractor.extractPages(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
+
+		assertThat(pages).hasSize(2);
+		String expectedPage = """
+		
+		HEAVY
+		METAL
+		
+		
+		
+		""";
+		assertThat(pages.get(0)).isEqualTo(expectedPage);
+		assertThat(pages.get(1)).isEqualTo(expectedPage);
+	}
+
+	@Test
+	public void testPageExtractionForEmbeddedPdf() throws Exception {
+		TikaDocument doc = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()));
+		extractor.setEmbedHandling(Extractor.EmbedHandling.SPAWN);
+
+		try (final Reader reader = doc.getReader()) {
+			Spewer.toString(reader);
+		}
+		EmbeddedTikaDocument embeddedTikaDocument = doc.getEmbeds().get(0);
+		try (final Reader reader = embeddedTikaDocument.getReader()) {
+			Spewer.toString(reader);
+		}
+
+		List<Pair<Long, Long>> pageIndices = extractor.extractPageIndices(
+				Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()),
+				metadata -> "embedded.pdf".equals(metadata.get("resourceName")) || "INLINE".equals(metadata.get("embeddedResourceType")));
+
+		assertThat(pageIndices).isNotNull();
+		assertThat(pageIndices).isEqualTo(List.of(Pair.of(0L, 29L), Pair.of(30L,47L)));
 	}
 
 	private String getExpected(final String file) throws IOException {
