@@ -1,8 +1,6 @@
 package org.icij.extract.extractor;
 
 import org.apache.commons.io.TaggedIOException;
-import org.apache.commons.lang3.NotImplementedException;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;

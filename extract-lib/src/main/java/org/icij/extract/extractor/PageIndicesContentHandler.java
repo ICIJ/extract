@@ -1,6 +1,5 @@
 package org.icij.extract.extractor;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tika.sax.ContentHandlerDecorator;
 import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
@@ -120,7 +119,7 @@ public class PageIndicesContentHandler extends ContentHandlerDecorator {
             pageIndices.remove(pageIndices.size() - 1);
         }
         if (charIndex != 0) {
-            pageIndices.add(Pair.of(pageStartIndex, charIndex));
+            pageIndices.add(new Pair<>(pageStartIndex, charIndex));
         }
         return memoizedStartPageCalled;
     }
