@@ -1,6 +1,5 @@
 package org.icij.extract.extractor;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
