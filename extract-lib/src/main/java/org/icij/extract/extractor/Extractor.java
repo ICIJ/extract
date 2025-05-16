@@ -81,6 +81,7 @@ import static org.icij.extract.LambdaExceptionUtils.rethrowFunction;
 @Option(name = "ocrTimeout", description = "Set the timeout for the Tesseract process to finish e.g. \"5s\" or \"1m\"" +
         ". Defaults to 12 hours.", parameter = "duration")
 @Option(name = "ocr", description = "Enable or disable automatic OCR. On by default.")
+@Option(name = "ocrType", description = "Name of the OCR to use TESSERACT, TESS4J")
 public class Extractor {
 
     public enum OutputFormat {
@@ -109,7 +110,7 @@ public class Extractor {
     private DigestingParser.Digester digester = null;
 
     private Parser defaultParser = TikaConfig.getDefaultConfig().getParser();
-    private OCRConfigAdapter ocrConfig;
+    protected OCRConfigAdapter ocrConfig;
     private final PDFParserConfig pdfConfig = new PDFParserConfig();
     private final DocumentFactory documentFactory;
 
