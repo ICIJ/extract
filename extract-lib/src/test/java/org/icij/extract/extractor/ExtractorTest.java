@@ -1,11 +1,14 @@
 package org.icij.extract.extractor;
 
+import java.util.Map;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
+import org.icij.extract.ocr.Tess4JOCRConfigAdapter;
+import org.icij.extract.ocr.Tess4JOCRParser;
 import org.icij.spewer.FieldNames;
 import org.icij.spewer.FileSpewer;
 import org.icij.spewer.PrintStreamSpewer;
@@ -395,6 +398,16 @@ public class ExtractorTest {
 
 		assertThat(pageIndices).isNotNull();
 		assertThat(pageIndices).isEqualTo(List.of(Pair.of(0L, 29L), Pair.of(30L,47L)));
+	}
+
+	@Test
+	public void testOcrTypeFromOption() {
+		Options<String> options = Options.from(Map.of("ocrType", "TESS4J"));
+
+		extractor.configure(options);
+
+		assertThat(extractor.ocrConfig.getClass()).isEqualTo(Tess4JOCRConfigAdapter.class);
+		assertThat(extractor.ocrConfig.getParserClass()).isEqualTo(Tess4JOCRParser.class);
 	}
 
 	private String getExpected(final String file) throws IOException {
