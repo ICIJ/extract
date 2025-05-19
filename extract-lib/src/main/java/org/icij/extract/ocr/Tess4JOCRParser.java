@@ -101,6 +101,8 @@ public class Tess4JOCRParser extends ParserWithConfidence implements Parser, Aut
         }
     }
 
+    public Tess4JOCRParser() {
+    }
 
     private static final Set<MediaType> SUPPORTED_TYPES = Set.of(
         MediaType.image("ocr-png"),

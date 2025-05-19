@@ -1,5 +1,6 @@
 package org.icij.extract.ocr;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.Locale;
 
 public enum OCRConfigRegistry {
@@ -21,10 +22,15 @@ public enum OCRConfigRegistry {
     }
 
     public OCRConfigAdapter<?, ?> newAdapter() {
+        Class<?> adapterClass = this.getAdapterClass();
         try {
-            return (OCRConfigAdapter<?, ?>) this.getAdapterClass().getConstructor().newInstance();
-        } catch (ReflectiveOperationException e) {
-            throw new OCRConfigRegistryAdapterException(e);
+            return (OCRConfigAdapter<?, ?>) adapterClass.getConstructor().newInstance();
+        } catch (IllegalAccessException e) {
+            throw new OCRConfigRegistryAdapterException(adapterClass + " no-arg constructor is not accessible", e);
+        } catch (NoSuchMethodException e) {
+            throw new OCRConfigRegistryAdapterException(adapterClass + " has no no-arg constructor", e);
+        } catch (InvocationTargetException | InstantiationException e) {
+            throw new OCRConfigRegistryAdapterException ("failed to instanciate " + adapterClass + " using has no no-arg constructor", e);
         }
     }
 
@@ -32,8 +38,8 @@ public enum OCRConfigRegistry {
         return valueOf(ocrType.toUpperCase(Locale.ROOT));
     }
     public static class OCRConfigRegistryAdapterException extends RuntimeException {
-        public OCRConfigRegistryAdapterException(Throwable cause) {
-            super(cause);
+        public OCRConfigRegistryAdapterException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 }

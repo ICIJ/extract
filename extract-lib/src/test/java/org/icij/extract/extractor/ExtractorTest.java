@@ -1,6 +1,7 @@
 package org.icij.extract.extractor;
 
 import java.util.Map;
+import java.util.Optional;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
@@ -36,6 +37,7 @@ import java.util.List;
 
 import static java.lang.Math.toIntExact;
 import static org.fest.assertions.Assertions.assertThat;
+import static org.icij.extract.ocr.ParserWithConfidence.OCR_CONFIDENCE;
 
 public class ExtractorTest {
 	@Rule public final ExpectedException thrown = ExpectedException.none();
@@ -263,6 +265,16 @@ public class ExtractorTest {
 
 		Assert.assertEquals("text/plain; charset=UTF-16LE", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals(getExpected("/expected/utf16-txt.html"), text);
+	}
+
+	@Test
+	public void test_ocr_confidence() throws Exception {
+		extractor.configure(Options.from(Map.of("ocrType", "TESS4J")));
+
+		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/test.jpeg").getPath()));
+
+		assertThat(Optional.ofNullable(tikaDocument.getMetadata().get(OCR_CONFIDENCE)).map(Float::parseFloat).orElse(0.0f))
+			.isGreaterThan(0.0f);
 	}
 
 	@Test

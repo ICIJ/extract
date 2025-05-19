@@ -1,5 +1,6 @@
 package org.icij.extract.extractor;
 
+import java.lang.reflect.InvocationTargetException;
 import org.apache.commons.io.TaggedIOException;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.EncryptedDocumentException;
@@ -18,6 +19,7 @@ import org.apache.tika.parser.digestutils.CommonsDigester;
 import org.apache.tika.parser.digestutils.CommonsDigester.DigestAlgorithm;
 import org.apache.tika.parser.html.DefaultHtmlMapper;
 import org.apache.tika.parser.html.HtmlMapper;
+import org.apache.tika.parser.ocr.TesseractOCRParser;
 import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
@@ -27,6 +29,7 @@ import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
 import org.icij.extract.ocr.OCRConfigAdapter;
 import org.icij.extract.ocr.OCRConfigRegistry;
+import org.icij.extract.ocr.Tess4JOCRParser;
 import org.icij.extract.ocr.TesseractOCRConfigAdapter;
 import org.icij.extract.parser.CacheParserDecorator;
 import org.icij.extract.parser.FallbackParser;
@@ -204,6 +207,20 @@ public class Extractor {
 
     public void setOcrConfig(final OCRConfigAdapter<?, ?> ocrConfig) {
         this.ocrConfig = ocrConfig;
+        Parser ocrParser;
+        Class<?> parserClass = ocrConfig.getParserClass();
+        try {
+            ocrParser = (Parser) parserClass.getConstructor().newInstance();
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(parserClass + " no-arg constructor is not accessible");
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException(parserClass + " has no no-arg constructor");
+        } catch (InvocationTargetException | InstantiationException e) {
+            throw new RuntimeException("failed to instanciate " + parserClass + " using has no no-arg constructor");
+        }
+        for (OCRConfigRegistry c: OCRConfigRegistry.values()) {
+            replaceParser(c.newAdapter().getParserClass(), parser -> ocrParser);
+        }
     }
 
     /**

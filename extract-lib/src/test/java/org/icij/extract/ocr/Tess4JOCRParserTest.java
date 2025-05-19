@@ -174,7 +174,7 @@ public class Tess4JOCRParserTest {
         Metadata m = new Metadata();
         ParseContext parseContext = new ParseContext();
         TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
-        ocrConfig.addOtherTesseractConfig("skipConfidence", "true");
+        ocrConfig.addOtherTesseractConfig("skipConfidence", "false");
         parseContext.set(TesseractOCRConfig.class, ocrConfig);
         // When
         getXML(path, p, m);
