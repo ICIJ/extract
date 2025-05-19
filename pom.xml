@@ -4,7 +4,7 @@
 
     <groupId>org.icij.extract</groupId>
     <artifactId>extract</artifactId>
-    <version>9.1.3</version>
+    <version>9.1.4</version>
     <packaging>pom</packaging>
 
     <name>ICIJ Extract</name>
