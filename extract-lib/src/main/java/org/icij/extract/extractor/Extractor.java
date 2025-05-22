@@ -440,7 +440,7 @@ public class Extractor {
         return extractPages(path, metadata -> true);
     }
 
-    private List<String> extractPages(Path path, DocumentSelector documentSelector) throws IOException {
+    public List<String> extractPages(Path path, DocumentSelector documentSelector) throws IOException {
         boolean notEmbedded = documentSelector.select(new Metadata());
         PagesContentHandler contentHandler = createContentHandlerForPages(notEmbedded);
         final Function<Writer, ContentHandler> handlerProvider = (writer) -> contentHandler;
