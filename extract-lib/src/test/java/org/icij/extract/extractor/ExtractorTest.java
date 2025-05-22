@@ -1,7 +1,5 @@
 package org.icij.extract.extractor;
 
-import java.util.Map;
-import java.util.Optional;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
@@ -34,6 +32,8 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import static java.lang.Math.toIntExact;
 import static org.fest.assertions.Assertions.assertThat;
@@ -409,7 +409,34 @@ public class ExtractorTest {
 				metadata -> "embedded.pdf".equals(metadata.get("resourceName")) || "INLINE".equals(metadata.get("embeddedResourceType")));
 
 		assertThat(pageIndices).isNotNull();
-		assertThat(pageIndices).isEqualTo(List.of(Pair.of(0L, 29L), Pair.of(30L,47L)));
+		assertThat(pageIndices).isEqualTo(List.of(Pair.of(0L, 16L), Pair.of(17L,33L)));
+	}
+
+	@Test
+	public void testPageExtractionForEmbeddedPdfWithRootDocument() throws Exception {
+		TikaDocument doc = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()));
+		extractor.setEmbedHandling(Extractor.EmbedHandling.SPAWN);
+
+		// we do not filter
+		List<Pair<Long, Long>> pageIndices = extractor.extractPageIndices(
+				Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()));
+
+		assertThat(pageIndices).isNotNull();
+		assertThat(pageIndices).isEqualTo(List.of(Pair.of(0L, 108L)));
+	}
+
+	@Test
+	public void testPageExtractionForEmbeddedPdfWithFilter() throws Exception {
+		TikaDocument doc = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()));
+		extractor.setEmbedHandling(Extractor.EmbedHandling.SPAWN);
+
+		// we do filter
+		List<Pair<Long, Long>> pageIndices = extractor.extractPageIndices(
+				Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()),
+				metadata -> "embedded.pdf".equals(metadata.get("resourceName")) || "INLINE".equals(metadata.get("embeddedResourceType")));
+
+		assertThat(pageIndices).isNotNull();
+		assertThat(pageIndices).isEqualTo(List.of(Pair.of(0L, 16L), Pair.of(17L,33L)));
 	}
 
 	@Test

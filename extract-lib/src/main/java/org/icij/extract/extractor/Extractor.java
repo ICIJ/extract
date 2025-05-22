@@ -1,6 +1,5 @@
 package org.icij.extract.extractor;
 
-import java.lang.reflect.InvocationTargetException;
 import org.apache.commons.io.TaggedIOException;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.EncryptedDocumentException;
@@ -8,7 +7,6 @@ import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.DocumentSelector;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.io.TikaInputStream;
-import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.CompositeParser;
 import org.apache.tika.parser.DigestingParser;
@@ -19,7 +17,6 @@ import org.apache.tika.parser.digestutils.CommonsDigester;
 import org.apache.tika.parser.digestutils.CommonsDigester.DigestAlgorithm;
 import org.apache.tika.parser.html.DefaultHtmlMapper;
 import org.apache.tika.parser.html.HtmlMapper;
-import org.apache.tika.parser.ocr.TesseractOCRParser;
 import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
@@ -29,7 +26,6 @@ import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
 import org.icij.extract.ocr.OCRConfigAdapter;
 import org.icij.extract.ocr.OCRConfigRegistry;
-import org.icij.extract.ocr.Tess4JOCRParser;
 import org.icij.extract.ocr.TesseractOCRConfigAdapter;
 import org.icij.extract.parser.CacheParserDecorator;
 import org.icij.extract.parser.FallbackParser;
@@ -48,6 +44,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -440,9 +437,20 @@ public class Extractor {
         return extractPages(path, metadata -> true);
     }
 
+    /**
+     * the model List<String>> works for one document. If we wanted to do it for a document tree it would need
+     * a composite pattern with a representation like:
+     * DocumentPages = [ [Text, [[Text], [Text ]], Text ],  [Text]]
+     *
+     * (for a doc that has two pages with an embedded  2 pages doc in the middle of its first page)
+     *
+     * @param path
+     * @param documentSelector
+     * @return
+     * @throws IOException
+     */
     public List<String> extractPages(Path path, DocumentSelector documentSelector) throws IOException {
-        boolean notEmbedded = documentSelector.select(new Metadata());
-        PagesContentHandler contentHandler = createContentHandlerForPages(notEmbedded);
+        PagesContentHandler contentHandler = createContentHandlerForPages();
         final Function<Writer, ContentHandler> handlerProvider = (writer) -> contentHandler;
         TikaDocument tikaDocument = getTikaDocument(path, handlerProvider, documentSelector);
         try (final Reader reader = tikaDocument.getReader()) {
@@ -451,9 +459,19 @@ public class Extractor {
         return contentHandler.getPages();
     }
 
+    /**
+     * Same note as the page extraction : the List<Pair<Long, Long>> works with a single doc.
+     * In the same use case as previous method we'd have:
+     *
+     * DocumentPageIndices = [ [(i1, i2), [[(i3, i4)], [(i5, i6) ]], (i7, i8) ],  [(i9, i10)]]
+     *
+     * @param path
+     * @param documentSelector
+     * @return
+     * @throws IOException
+     */
     public List<Pair<Long, Long>> extractPageIndices(final Path path, DocumentSelector documentSelector) throws IOException {
-        boolean notEmbedded = documentSelector.select(new Metadata());
-        PageIndicesContentHandler contentHandler = createContentHandlerForPageIndices(notEmbedded);
+        PageIndicesContentHandler contentHandler = createContentHandlerForPageIndices();
         final Function<Writer, ContentHandler> handlerProvider = (writer) -> contentHandler;
         TikaDocument tikaDocument = getTikaDocument(path, handlerProvider, documentSelector);
         try (final Reader reader = tikaDocument.getReader()) {
@@ -462,19 +480,19 @@ public class Extractor {
         return contentHandler.getPageIndices();
     }
 
-    private PagesContentHandler createContentHandlerForPages(boolean notEmbedded) {
+    private PagesContentHandler createContentHandlerForPages() {
         if (OutputFormat.HTML == outputFormat) {
-            return new PagesContentHandler(new ExpandedTitleContentHandler(new HTML5Serializer(Writer.nullWriter())), notEmbedded);
+            return new PagesContentHandler(new ExpandedTitleContentHandler(new HTML5Serializer(Writer.nullWriter())));
         } else {
-            return new PagesContentHandler(new BodyContentHandler(Writer.nullWriter()), notEmbedded);
+            return new PagesContentHandler(new BodyContentHandler(Writer.nullWriter()));
         }
     }
 
-    private PageIndicesContentHandler createContentHandlerForPageIndices(boolean notEmbedded) {
+    private PageIndicesContentHandler createContentHandlerForPageIndices() {
         if (OutputFormat.HTML == outputFormat) {
-            return new PageIndicesContentHandler(new ExpandedTitleContentHandler(new HTML5Serializer(Writer.nullWriter())), notEmbedded);
+            return new PageIndicesContentHandler(new ExpandedTitleContentHandler(new HTML5Serializer(Writer.nullWriter())));
         } else {
-            return new PageIndicesContentHandler(new BodyContentHandler(Writer.nullWriter()), notEmbedded);
+            return new PageIndicesContentHandler(new BodyContentHandler(Writer.nullWriter()));
         }
     }
 
