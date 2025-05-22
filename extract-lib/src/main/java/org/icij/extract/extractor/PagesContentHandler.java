@@ -16,10 +16,7 @@ public class PagesContentHandler extends PageIndicesContentHandler {
     private final List<String> pages = new LinkedList<>();
 
     public PagesContentHandler(ContentHandler handler) {
-        this(handler, true);
-    }
-    public PagesContentHandler(ContentHandler handler, boolean notEmbedded) {
-        super(handler, notEmbedded);
+        super(handler);
     }
 
     @Override

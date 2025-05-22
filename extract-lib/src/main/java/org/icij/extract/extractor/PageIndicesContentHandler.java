@@ -17,11 +17,9 @@ import java.util.List;
 public class PageIndicesContentHandler extends ContentHandlerDecorator {
     final static private String pageTag = "div";
     final static private String pageClass = "page";
-    private boolean firstPage = true;
     private long pageStartIndex = 0;
-    private boolean documentStarted;
-    private boolean startDocumentCalled = false;
     private boolean bodyStarted = false;
+    private int embeddedLevel = -1;
 
     protected boolean startPageCalled = false;
     protected long charIndex = 0;
@@ -33,11 +31,7 @@ public class PageIndicesContentHandler extends ContentHandlerDecorator {
     private final List<Pair<Long, Long>> pageIndices = new LinkedList<>();
 
     public PageIndicesContentHandler(ContentHandler handler) {
-        this(handler, true);
-    }
-    public PageIndicesContentHandler(ContentHandler handler, boolean notEmbedded) {
         super(handler);
-        this.documentStarted = notEmbedded;
     }
 
     public List<Pair<Long, Long>> getPageIndices() {
@@ -47,10 +41,13 @@ public class PageIndicesContentHandler extends ContentHandlerDecorator {
     @Override
     public void startDocument() throws SAXException {
         super.startDocument();
-        if (startDocumentCalled && !documentStarted) {
-            documentStarted = true;
-        }
-        startDocumentCalled = true;
+        embeddedLevel++;
+    }
+
+    @Override
+    public void endDocument() throws SAXException {
+        super.endDocument();
+        embeddedLevel--;
     }
 
     @Override
@@ -59,7 +56,7 @@ public class PageIndicesContentHandler extends ContentHandlerDecorator {
         if ("body".equals(qName)) {
             bodyStarted = true;
         }
-        if (pageTag.endsWith(qName) && pageClass.equals(atts.getValue("class"))) {
+        if (pageTag.endsWith(qName) && pageClass.equals(atts.getValue("class")) && embeddedLevel == 0) {
             startPage();
         }
     }
@@ -67,14 +64,18 @@ public class PageIndicesContentHandler extends ContentHandlerDecorator {
     @Override
     public void characters(char[] ch, int start, int length) throws SAXException {
         super.characters(ch, start, length);
-        firstCharReceived = documentStarted;
+        firstCharReceived = documentStarted();
         if (shouldCountChars()) {
             charIndex += length;
         }
     }
 
     protected boolean shouldCountChars() {
-        return documentStarted && bodyStarted;
+        return documentStarted() && bodyStarted;
+    }
+
+    protected boolean documentStarted() {
+        return embeddedLevel >= 0;
     }
 
     @Override
@@ -83,7 +84,7 @@ public class PageIndicesContentHandler extends ContentHandlerDecorator {
         if ("body".equals(qName)) {
             bodyStarted = false;
         }
-        if (pageTag.endsWith(qName)) {
+        if (pageTag.endsWith(qName) && embeddedLevel == 0) {
             endPage();
         }
     }
@@ -98,11 +99,7 @@ public class PageIndicesContentHandler extends ContentHandlerDecorator {
 
     protected void startPage() {
         startPageCalled = true;
-        if (firstPage) {
-            firstPage = false;
-        } else {
-            pageStartIndex = charIndex;
-        }
+        pageStartIndex = charIndex;
     }
 
     /**

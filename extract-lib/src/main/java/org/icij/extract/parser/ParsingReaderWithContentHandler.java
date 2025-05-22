@@ -17,6 +17,7 @@
 package org.icij.extract.parser;
 
 import org.apache.tika.exception.ZeroByteFileException;
+import org.apache.tika.extractor.DocumentSelector;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.AutoDetectParser;
@@ -273,7 +274,13 @@ public class ParsingReaderWithContentHandler extends Reader {
          */
         public void run() {
             try {
-                parser.parse(stream, handlerProvider.apply(writer), metadata, context);
+                DocumentSelector documentSelector = context.get(DocumentSelector.class);
+                if (documentSelector != null && documentSelector.select(metadata)) {
+                    parser.parse(stream, handlerProvider.apply(writer), metadata, context);
+                } else {
+                    // like ParsingReader
+                    parser.parse(stream, new BodyContentHandler(writer), metadata, context);
+                }
             } catch (Throwable t) {
                 throwable = t;
             }
