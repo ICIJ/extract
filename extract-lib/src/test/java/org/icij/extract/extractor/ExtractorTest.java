@@ -429,7 +429,7 @@ public class ExtractorTest {
 				Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()));
 
 		assertThat(pageIndices).isNotNull();
-		assertThat(pageIndices).isEqualTo(List.of(Pair.of(0L, 108L)));
+		assertThat(pageIndices).isEqualTo(List.of(Pair.of(0L, 109L)));
 	}
 
 	@Test
