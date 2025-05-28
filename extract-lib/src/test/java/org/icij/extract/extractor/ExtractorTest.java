@@ -1,5 +1,6 @@
 package org.icij.extract.extractor;
 
+import org.apache.tika.Tika;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
@@ -46,6 +47,12 @@ public class ExtractorTest {
 	private Extractor extractor;
 
 	@Before public void setUp() { extractor = new Extractor();}
+
+	@Test
+	public void testTikaVersion() throws Throwable {
+		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
+		Assert.assertEquals(Tika.getString(), tikaDocument.getMetadata().get(TikaDocument.TIKA_VERSION));
+	}
 
 	@Test
 	public void testOcr() throws Throwable {
