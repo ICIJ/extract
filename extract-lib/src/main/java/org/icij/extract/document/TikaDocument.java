@@ -7,9 +7,11 @@ import org.apache.tika.metadata.Property;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Path;
-import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -26,30 +28,6 @@ public class TikaDocument {
 	public static String CONTENT_TYPE = "Content-Type";
 	public static Property LAST_MODIFIED = Property.internalDate("Last-Modified");
 	public static String LOCATION = "Location";
-	public static final Map<Date, String> TIKA_VERSION_RECORDS = new ConcurrentSkipListMap<>() {{
-		put(Date.from(Instant.parse("1970-01-01T00:00:00Z")), 	"1.8.0" );
-		put(Date.from(Instant.parse("2015-07-08T03:59:48Z")), 	"1.9.0" );
-		put(Date.from(Instant.parse("2015-08-10T23:05:19Z")), 	"1.10.0" );
-		put(Date.from(Instant.parse("2015-10-28T13:36:23Z")), 	"1.11.0" );
-		put(Date.from(Instant.parse("2016-02-27T01:46:47Z")), 	"1.12.0" );
-		put(Date.from(Instant.parse("2016-05-24T15:29:32Z")), 	"1.13.0" );
-		put(Date.from(Instant.parse("2016-11-04T18:58:15Z")), 	"1.14rc1");
-		put(Date.from(Instant.parse("2016-11-14T12:23:43Z")), 	"1.14.0" );
-		put(Date.from(Instant.parse("2017-06-11T18:43:49Z")), 	"1.15.0" );
-		put(Date.from(Instant.parse("2017-08-17T16:09:55Z")), 	"1.16.0" );
-		put(Date.from(Instant.parse("2018-02-13T09:49:53Z")), 	"1.17.0" );
-		put(Date.from(Instant.parse("2018-06-11T13:04:21Z")), 	"1.18.0" );
-		put(Date.from(Instant.parse("2019-06-07T10:35:53Z")), 	"1.20.0" );
-		put(Date.from(Instant.parse("2019-08-12T15:16:26Z")), 	"1.22.0" );
-		put(Date.from(Instant.parse("2020-09-14T08:27:25Z")), 	"1.24.1" );
-		put(Date.from(Instant.parse("2020-09-16T16:20:26Z")), 	"1.22.0" );
-		put(Date.from(Instant.parse("2021-04-02T16:13:51Z")), 	"1.24.1" );
-		put(Date.from(Instant.parse("2021-04-02T16:52:36Z")), 	"1.22.0" );
-		put(Date.from(Instant.parse("2022-10-10T11:10:34Z")), 	"1.23.0" );
-		put(Date.from(Instant.parse("2022-10-20T11:57:11Z")), 	"2.4.1");
-		put(Date.from(Instant.parse("2025-03-12T09:58:47Z")), 	"2.9.3");
-		put(Date.from(Instant.parse("2025-03-12T10:52:07Z")), 	"3.1.0");
-	}};
 
 	private final Path path;
 	private Supplier<String> id;
@@ -250,21 +228,6 @@ public class TikaDocument {
 	public void clearReader() {
 		this.reader = null;
 		this.readerGenerator = null;
-	}
-
-	public static String getTikaVersion(Date date) {
-		Map.Entry<Date, String> previous = TIKA_VERSION_RECORDS.entrySet().iterator().next();
-		for (Map.Entry<Date, String> entry: TIKA_VERSION_RECORDS.entrySet()) {
-			if (entry.getKey().after(date)) {
-				return versionWithPrefix(previous.getValue());
-			}
-			previous = entry;
-		}
-		return versionWithPrefix(previous.getValue());
-	}
-
-	private static String versionWithPrefix(String rawVersion) {
-		return "Apache Tika " + rawVersion;
 	}
 
 	public void setForeignId(final String foreignId) {
