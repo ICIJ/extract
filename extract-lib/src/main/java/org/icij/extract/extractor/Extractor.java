@@ -1,5 +1,6 @@
 package org.icij.extract.extractor;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.TaggedIOException;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.EncryptedDocumentException;
@@ -45,6 +46,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -84,6 +86,8 @@ import static org.icij.extract.LambdaExceptionUtils.rethrowFunction;
 @Option(name = "ocrType", description = "Name of the OCR to use TESSERACT, TESS4J")
 public class Extractor {
 
+    public static final String PAGES_JSON = "pages.json";
+
     public enum OutputFormat {
         HTML, TEXT;
 
@@ -113,7 +117,6 @@ public class Extractor {
     protected OCRConfigAdapter ocrConfig;
     private final PDFParserConfig pdfConfig = new PDFParserConfig();
     private final DocumentFactory documentFactory;
-
     private OutputFormat outputFormat = OutputFormat.TEXT;
     private EmbedHandling embedHandling = EmbedHandling.getDefault();
     private Path embedOutput = null;
@@ -429,7 +432,19 @@ public class Extractor {
         return getTikaDocument(path, handler, metadata -> true);
     }
 
-    public List<Pair<Long, Long>> extractPageIndices(final Path path) throws IOException {
+    public PageIndices extractPageIndices(final Path path, DocumentSelector documentSelector, String docId) throws IOException {
+        Path cachedDirectory = ArtifactUtils.getEmbeddedPath(embedOutput, docId);
+        if (cachedDirectory.resolve(PAGES_JSON).toFile().exists()) {
+            return new ObjectMapper().readValue(cachedDirectory.resolve(PAGES_JSON).toFile(),  PageIndices.class);
+        } else {
+            PageIndices pageIndices = extractPageIndices(path, documentSelector);
+            Files.createDirectories(cachedDirectory);
+            new ObjectMapper().writeValue(cachedDirectory.resolve(PAGES_JSON).toFile(), pageIndices);
+            return pageIndices;
+        }
+    }
+
+    public PageIndices extractPageIndices(final Path path) throws IOException {
         return extractPageIndices(path, metadata -> true);
     }
 
@@ -470,7 +485,7 @@ public class Extractor {
      * @return
      * @throws IOException
      */
-    public List<Pair<Long, Long>> extractPageIndices(final Path path, DocumentSelector documentSelector) throws IOException {
+    public PageIndices extractPageIndices(final Path path, DocumentSelector documentSelector) throws IOException {
         PageIndicesContentHandler contentHandler = createContentHandlerForPageIndices();
         final Function<Writer, ContentHandler> handlerProvider = (writer) -> contentHandler;
         TikaDocument tikaDocument = getTikaDocument(path, handlerProvider, documentSelector);

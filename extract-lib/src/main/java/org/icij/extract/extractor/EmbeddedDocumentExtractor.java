@@ -101,7 +101,7 @@ public class EmbeddedDocumentExtractor {
     }
 
     static Path getEmbeddedPath(Path artifactPath, String digest) {
-        return artifactPath.resolve(digest.substring(0, 2)).resolve(digest.substring(2, 4)).resolve(digest).resolve("raw");
+        return ArtifactUtils.getEmbeddedPath(artifactPath, digest).resolve("raw");
     }
 
     private static abstract class DigestEmbeddedDocumentExtractor extends EmbedParser {
