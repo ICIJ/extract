@@ -70,7 +70,7 @@ jobs:
       - run:
           name: deploy extract jars to maven central
           command: mvn -s .circleci/maven-release-settings.xml deploy -Dmaven.test.skip=true
-          no_output_timeout: 30m
+          no_output_timeout: 2h
 
       - save_cache:
           paths:
