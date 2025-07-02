@@ -1,5 +1,6 @@
 package org.icij.extract.extractor;
 
+import org.apache.tika.Tika;
 import org.apache.tika.sax.ContentHandlerDecorator;
 import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
@@ -34,8 +35,8 @@ public class PageIndicesContentHandler extends ContentHandlerDecorator {
         super(handler);
     }
 
-    public List<Pair<Long, Long>> getPageIndices() {
-        return pageIndices;
+    public PageIndices getPageIndices() {
+        return new PageIndices(Tika.getString(), pageIndices);
     }
 
     @Override
