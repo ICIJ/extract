@@ -59,7 +59,9 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static java.lang.System.currentTimeMillis;
+import static java.util.Optional.ofNullable;
 import static org.icij.extract.LambdaExceptionUtils.rethrowFunction;
+import static org.icij.extract.extractor.ArtifactUtils.getEmbeddedPath;
 
 /**
  * A reusable class that sets up Tika parsers based on runtime options.
@@ -433,13 +435,15 @@ public class Extractor {
     }
 
     public PageIndices extractPageIndices(final Path path, DocumentSelector documentSelector, String docId) throws IOException {
-        Path cachedDirectory = ArtifactUtils.getEmbeddedPath(embedOutput, docId);
-        if (cachedDirectory.resolve(PAGES_JSON).toFile().exists()) {
+        Path cachedDirectory = ofNullable(embedOutput).map(p -> getEmbeddedPath(p, docId)).orElse(null);
+        if (cachedDirectory != null && cachedDirectory.resolve(PAGES_JSON).toFile().exists()) {
             return new ObjectMapper().readValue(cachedDirectory.resolve(PAGES_JSON).toFile(),  PageIndices.class);
         } else {
             PageIndices pageIndices = extractPageIndices(path, documentSelector);
-            Files.createDirectories(cachedDirectory);
-            new ObjectMapper().writeValue(cachedDirectory.resolve(PAGES_JSON).toFile(), pageIndices);
+            if (cachedDirectory != null) {
+                Files.createDirectories(cachedDirectory);
+                new ObjectMapper().writeValue(cachedDirectory.resolve(PAGES_JSON).toFile(), pageIndices);
+            }
             return pageIndices;
         }
     }

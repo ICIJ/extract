@@ -450,6 +450,15 @@ public class ExtractorTest {
 	}
 
 	@Test
+	public void testIgnoreCacheForPageExtraction() throws Exception {
+		PageIndices pageIndices = extractor.extractPageIndices(
+				Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()),
+				metadata -> "embedded.pdf".equals(metadata.get("resourceName")) || "INLINE".equals(metadata.get("embeddedResourceType")), "embedded_id");
+
+		assertThat(pageIndices).isNotNull();
+	}
+
+	@Test
 	public void testArtifactCacheWriteForPageExtraction() throws Exception {
 		extractor.setEmbedOutputPath(folder.getRoot().toPath());
 		Path cachedPagesFile = ArtifactUtils.getEmbeddedPath(folder.getRoot().toPath(), "embedded_id").resolve("pages.json");
