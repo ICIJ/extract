@@ -9,6 +9,7 @@
     </parent>
 
     <artifactId>extract-cli</artifactId>
+    <name>Extract Cli</name>
     <packaging>jar</packaging>
 
     <properties>

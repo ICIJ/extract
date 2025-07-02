@@ -9,6 +9,7 @@
     </parent>
 
     <artifactId>extract-lib</artifactId>
+    <name>Extract Lib</name>
     <packaging>jar</packaging>
     <properties>
         <tika-version>3.1.0</tika-version>
