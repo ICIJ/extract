@@ -13,9 +13,9 @@
   </profiles>
   <servers>
     <server>
-      <id>ossrh</id>
-      <username>${env.SERVER_OSSRH_USERNAME}</username>
-      <password>${env.SERVER_OSSRH_PASSWORD}</password>
+      <id>central</id>
+      <username>${env.SERVER_CENTRAL_USERNAME}</username>
+      <password>${env.SERVER_CENTRAL_PASSWORD}</password>
     </server>
   </servers>
 </settings>
