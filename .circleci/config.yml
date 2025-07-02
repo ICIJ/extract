@@ -69,7 +69,7 @@ jobs:
             - v1-dependencies-
       - run:
           name: deploy extract jars to maven central
-          command: mvn -s .circleci/maven-release-settings.xml deploy -Dmaven.test.skip=true
+          command: mvn -s .circleci/maven-release-settings.xml -pl extract-lib deploy -Dmaven.test.skip=true -am
           no_output_timeout: 2h
 
       - save_cache:
