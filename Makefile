@@ -13,7 +13,7 @@ help-db:
 
 release:
 		mvn versions:set -DnewVersion=${NEW_VERSION}
-		git commit -am "[release] ${NEW_VERSION}"
+		git commit -am "[release] ${NEW_VERSION} [skip ci]"
 		git tag ${NEW_VERSION}
 		echo "If everything is OK, you can push with tags i.e. git push origin master --tags"
 
