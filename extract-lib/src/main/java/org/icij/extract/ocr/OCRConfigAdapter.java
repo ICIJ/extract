@@ -1,10 +1,11 @@
 package org.icij.extract.ocr;
 
-import java.io.Serializable;
-import java.time.Duration;
 import org.apache.tika.parser.Parser;
+import org.apache.tika.parser.ocr.TesseractOCRConfig;
 
-public interface OCRConfigAdapter<C extends Serializable, P extends Parser> {
+import java.time.Duration;
+
+public interface OCRConfigAdapter<P extends Parser> {
     void setLanguages(final String... languages);
 
     void setParsingTimeoutS(final int timeoutS);
@@ -13,6 +14,9 @@ public interface OCRConfigAdapter<C extends Serializable, P extends Parser> {
         setParsingTimeoutS((int) duration.toSeconds());
     }
 
-    C getConfig();
+    TesseractOCRConfig getConfig();
+
     Class<P> getParserClass();
+
+    P buildParser();
 }

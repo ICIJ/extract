@@ -1,6 +1,7 @@
 package org.icij.extract.ocr;
 
-import java.lang.reflect.InvocationTargetException;
+import org.apache.tika.parser.Parser;
+
 import java.util.Locale;
 
 public enum OCRConfigRegistry {
@@ -9,37 +10,19 @@ public enum OCRConfigRegistry {
     TESSERACT,
     TESS4J;
 
-    public Class<?> getAdapterClass() {
+    public OCRConfigAdapter<? extends Parser> buildAdapter() {
         switch (this) {
             case TESSERACT -> {
-                return TesseractOCRConfigAdapter.class;
+                return new TesseractOCRConfigAdapter();
             }
             case TESS4J -> {
-                return Tess4JOCRConfigAdapter.class;
+                return new Tess4JOCRConfigAdapter();
             }
             default -> throw new IllegalArgumentException();
         }
     }
 
-    public OCRConfigAdapter<?, ?> newAdapter() {
-        Class<?> adapterClass = this.getAdapterClass();
-        try {
-            return (OCRConfigAdapter<?, ?>) adapterClass.getConstructor().newInstance();
-        } catch (IllegalAccessException e) {
-            throw new OCRConfigRegistryAdapterException(adapterClass + " no-arg constructor is not accessible", e);
-        } catch (NoSuchMethodException e) {
-            throw new OCRConfigRegistryAdapterException(adapterClass + " has no no-arg constructor", e);
-        } catch (InvocationTargetException | InstantiationException e) {
-            throw new OCRConfigRegistryAdapterException ("failed to instanciate " + adapterClass + " using has no no-arg constructor", e);
-        }
-    }
-
     public static OCRConfigRegistry parse(final String ocrType) {
         return valueOf(ocrType.toUpperCase(Locale.ROOT));
-    }
-    public static class OCRConfigRegistryAdapterException extends RuntimeException {
-        public OCRConfigRegistryAdapterException(String message, Throwable cause) {
-            super(message, cause);
-        }
     }
 }

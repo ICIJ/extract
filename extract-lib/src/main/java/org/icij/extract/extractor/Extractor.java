@@ -18,6 +18,8 @@ import org.apache.tika.parser.digestutils.CommonsDigester;
 import org.apache.tika.parser.digestutils.CommonsDigester.DigestAlgorithm;
 import org.apache.tika.parser.html.DefaultHtmlMapper;
 import org.apache.tika.parser.html.HtmlMapper;
+import org.apache.tika.parser.ocr.TesseractOCRConfig;
+import org.apache.tika.parser.ocr.TesseractOCRParser;
 import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
@@ -25,8 +27,10 @@ import org.apache.tika.utils.ServiceLoaderUtils;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
+import org.icij.extract.ocr.OCRAdapter;
 import org.icij.extract.ocr.OCRConfigAdapter;
 import org.icij.extract.ocr.OCRConfigRegistry;
+import org.icij.extract.ocr.OCRParser;
 import org.icij.extract.ocr.TesseractOCRConfigAdapter;
 import org.icij.extract.parser.CacheParserDecorator;
 import org.icij.extract.parser.FallbackParser;
@@ -45,7 +49,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -60,7 +63,6 @@ import java.util.stream.Stream;
 
 import static java.lang.System.currentTimeMillis;
 import static java.util.Optional.ofNullable;
-import static org.icij.extract.LambdaExceptionUtils.rethrowFunction;
 import static org.icij.extract.extractor.ArtifactUtils.getEmbeddedPath;
 
 /**
@@ -116,7 +118,7 @@ public class Extractor {
     private DigestingParser.Digester digester = null;
 
     private Parser defaultParser = TikaConfig.getDefaultConfig().getParser();
-    protected OCRConfigAdapter ocrConfig;
+    protected OCRConfigAdapter<? extends Parser> ocrConfig;
     private final PDFParserConfig pdfConfig = new PDFParserConfig();
     private final DocumentFactory documentFactory;
     private OutputFormat outputFormat = OutputFormat.TEXT;
@@ -156,7 +158,7 @@ public class Extractor {
         options.get("ocrType", String.valueOf(OCRConfigRegistry.TESSERACT))
             .parse()
             .asEnum(OCRConfigRegistry::parse)
-            .map(rethrowFunction(OCRConfigRegistry::newAdapter))
+            .map(OCRConfigRegistry::buildAdapter)
             .ifPresent(this::setOcrConfig);
         options.get("ocrLanguage", "eng").value().ifPresent(this::setOcrLanguage);
         options.get("ocrTimeout", "12h").parse().asDuration().ifPresent(this::setOcrTimeout);
@@ -207,22 +209,8 @@ public class Extractor {
         this.embedHandling = embedHandling;
     }
 
-    public void setOcrConfig(final OCRConfigAdapter<?, ?> ocrConfig) {
+    public void setOcrConfig(final OCRConfigAdapter<?> ocrConfig) {
         this.ocrConfig = ocrConfig;
-        Parser ocrParser;
-        Class<?> parserClass = ocrConfig.getParserClass();
-        try {
-            ocrParser = (Parser) parserClass.getConstructor().newInstance();
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(parserClass + " no-arg constructor is not accessible");
-        } catch (NoSuchMethodException e) {
-            throw new RuntimeException(parserClass + " has no no-arg constructor");
-        } catch (InvocationTargetException | InstantiationException e) {
-            throw new RuntimeException("failed to instanciate " + parserClass + " using has no no-arg constructor");
-        }
-        for (OCRConfigRegistry c: OCRConfigRegistry.values()) {
-            replaceParser(c.newAdapter().getParserClass(), parser -> ocrParser);
-        }
     }
 
     /**
@@ -533,7 +521,8 @@ public class Extractor {
         }
 
         if (!ocrDisabled) {
-            context.set(ocrConfig.getParserClass(), ocrConfig.getConfig());
+            context.set(TesseractOCRConfig.class, ocrConfig.getConfig());
+            context.set(TesseractOCRParser.class, new OCRAdapter((OCRParser) ocrConfig.buildParser()));
         }
 
         context.set(PDFParserConfig.class, pdfConfig);

@@ -1,42 +1,8 @@
 package org.icij.extract.ocr;
 
-import static com.sun.jna.Platform.isMac;
-import static com.sun.jna.Platform.isWindows;
-import static net.sourceforge.tess4j.util.LoadLibs.getTesseractLibName;
-import static org.apache.tika.metadata.TikaCoreProperties.CONTENT_TYPE_PARSER_OVERRIDE;
-import static org.icij.extract.LambdaExceptionUtils.rethrowFunction;
-
 import com.recognition.software.jdeskew.ImageUtil;
 import com.sun.jna.Library;
 import com.sun.jna.NativeLibrary;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import javax.imageio.ImageIO;
 import net.sourceforge.tess4j.ITessAPI;
 import net.sourceforge.tess4j.ITesseract;
 import net.sourceforge.tess4j.OCRResult;
@@ -74,6 +40,41 @@ import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import static com.sun.jna.Platform.isMac;
+import static com.sun.jna.Platform.isWindows;
+import static net.sourceforge.tess4j.util.LoadLibs.getTesseractLibName;
+import static org.apache.tika.metadata.TikaCoreProperties.CONTENT_TYPE_PARSER_OVERRIDE;
+import static org.icij.extract.LambdaExceptionUtils.rethrowFunction;
+
 
 public class Tess4JOCRParser extends ParserWithConfidence implements Parser, AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(Tess4JOCRParser.class);
@@ -99,9 +100,6 @@ public class Tess4JOCRParser extends ParserWithConfidence implements Parser, Aut
                 System.setProperty(JNA_LIBRARY_PATH, macJNAPath);
             }
         }
-    }
-
-    public Tess4JOCRParser() {
     }
 
     private static final Set<MediaType> SUPPORTED_TYPES = Set.of(
