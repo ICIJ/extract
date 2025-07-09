@@ -38,6 +38,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
+import java.util.function.Supplier;
 
 import static java.lang.Math.toIntExact;
 import static org.fest.assertions.Assertions.assertThat;
@@ -67,6 +69,16 @@ public class ExtractorTest {
 
 		Assert.assertEquals("image/tiff", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("HEAVY\nMETAL", text.trim());
+	}
+
+	@Test
+	public void testDefaultConfigureShouldBeSameAsConstructor() throws Throwable {
+		Extractor configuredExtractor = new Extractor().configure(Options.from(new Properties()));
+
+		String text = getTextFrom(extractor, () -> Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
+		String configuredExtractorText = getTextFrom(configuredExtractor, () -> Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
+
+		assertThat(text).isEqualTo(configuredExtractorText);
 	}
 
 	@Test
@@ -514,5 +526,14 @@ public class ExtractorTest {
 
 	private String getPage(Pair<Long, Long> startEndIndices, String fullText) {
 		return fullText.substring(toIntExact(startEndIndices.getLeft()), toIntExact(startEndIndices.getRight()));
+	}
+
+	private String getTextFrom(Extractor configuredExtractor, Supplier<Path> fileToExtract) throws IOException {
+		String configuredExtractorText;
+		TikaDocument configuredExtractorTikaDocument = configuredExtractor.extract(fileToExtract.get());
+		try (Reader reader = configuredExtractorTikaDocument.getReader()) {
+			configuredExtractorText = Spewer.toString(reader);
+		}
+		return configuredExtractorText;
 	}
 }

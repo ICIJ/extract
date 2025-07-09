@@ -3,7 +3,7 @@ package org.icij.extract.ocr;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.ocr.TesseractOCRParser;
 
-public class TesseractOCRConfigAdapter implements OCRConfigAdapter<TesseractOCRConfig, TesseractOCRParser> {
+public class TesseractOCRConfigAdapter implements OCRConfigAdapter<TesseractOCRParser> {
     private final TesseractOCRConfig inner;
 
     public TesseractOCRConfigAdapter() {
@@ -28,5 +28,10 @@ public class TesseractOCRConfigAdapter implements OCRConfigAdapter<TesseractOCRC
     @Override
     public Class<TesseractOCRParser> getParserClass() {
         return TesseractOCRParser.class;
+    }
+
+    @Override
+    public TesseractOCRParser buildParser() {
+        return null;
     }
 }
