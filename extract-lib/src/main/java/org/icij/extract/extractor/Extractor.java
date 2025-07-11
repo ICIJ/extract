@@ -49,7 +49,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -212,20 +211,6 @@ public class Extractor {
 
     public void setOcrConfig(final OCRConfigAdapter<?> ocrConfig) {
         this.ocrConfig = ocrConfig;
-        Parser ocrParser;
-        Class<?> parserClass = ocrConfig.getParserClass();
-        try {
-            ocrParser = (Parser) parserClass.getConstructor().newInstance();
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(parserClass + " no-arg constructor is not accessible");
-        } catch (NoSuchMethodException e) {
-            throw new RuntimeException(parserClass + " has no no-arg constructor");
-        } catch (InvocationTargetException | InstantiationException e) {
-            throw new RuntimeException("failed to instanciate " + parserClass + " using has no no-arg constructor");
-        }
-        for (OCRConfigRegistry c: OCRConfigRegistry.values()) {
-            replaceParser(c.buildAdapter().getParserClass(), parser -> ocrParser);
-        }
     }
 
     /**
