@@ -227,11 +227,9 @@ public class Extractor {
             throw new RuntimeException(parserClass + " no-arg constructor is not accessible");
         } catch (NoSuchMethodException e) {
             throw new RuntimeException(parserClass + " has no no-arg constructor");
-        } catch (InvocationTargetException | InstantiationException e) {
+        } catch (InvocationTargetException | InstantiationException | TikaConfigException e) {
             throw new RuntimeException("failed to instanciate " + parserClass + " using has no no-arg constructor");
-        } catch (TikaConfigException e) {
-            throw new RuntimeException(e);
-        }
+        } 
         for (OCRConfigRegistry c: OCRConfigRegistry.values()) {
             replaceParser(c.buildAdapter().getParserClass(), parser -> ocrParser);
         }
