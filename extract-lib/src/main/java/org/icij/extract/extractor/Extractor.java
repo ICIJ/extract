@@ -2,11 +2,8 @@ package org.icij.extract.extractor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.TaggedIOException;
-import org.apache.tika.config.Initializable;
-import org.apache.tika.config.InitializableProblemHandler;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.EncryptedDocumentException;
-import org.apache.tika.exception.TikaConfigException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.DocumentSelector;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
@@ -22,7 +19,6 @@ import org.apache.tika.parser.digestutils.CommonsDigester.DigestAlgorithm;
 import org.apache.tika.parser.html.DefaultHtmlMapper;
 import org.apache.tika.parser.html.HtmlMapper;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
-import org.apache.tika.parser.ocr.TesseractOCRParser;
 import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
@@ -30,10 +26,8 @@ import org.apache.tika.utils.ServiceLoaderUtils;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
-import org.icij.extract.ocr.OCRAdapter;
 import org.icij.extract.ocr.OCRConfigAdapter;
 import org.icij.extract.ocr.OCRConfigRegistry;
-import org.icij.extract.ocr.OCRParser;
 import org.icij.extract.ocr.TesseractOCRConfigAdapter;
 import org.icij.extract.parser.CacheParserDecorator;
 import org.icij.extract.parser.FallbackParser;
@@ -52,7 +46,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -215,24 +208,8 @@ public class Extractor {
 
     public void setOcrConfig(final OCRConfigAdapter<?> ocrConfig) {
         this.ocrConfig = ocrConfig;
-        Parser ocrParser;
-        Class<?> parserClass = ocrConfig.getParserClass();
-        try {
-            ocrParser = (Parser) parserClass.getConstructor().newInstance();
-            if (ocrParser instanceof Initializable) {
-                ((Initializable)ocrParser).initialize(Collections.EMPTY_MAP);
-                ((Initializable)ocrParser).checkInitialization(InitializableProblemHandler.WARN);
-            }
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(parserClass + " no-arg constructor is not accessible");
-        } catch (NoSuchMethodException e) {
-            throw new RuntimeException(parserClass + " has no no-arg constructor");
-        } catch (InvocationTargetException | InstantiationException | TikaConfigException e) {
-            throw new RuntimeException("failed to instanciate " + parserClass + " using has no no-arg constructor");
-        } 
-        for (OCRConfigRegistry c: OCRConfigRegistry.values()) {
-            replaceParser(c.buildAdapter().getParserClass(), parser -> ocrParser);
-        }
+        Parser ocrParser = ocrConfig.buildParser();
+        replaceParser(ocrConfig.getParserClass(), parser -> ocrParser);
     }
 
     /**
@@ -544,7 +521,6 @@ public class Extractor {
 
         if (!ocrDisabled) {
             context.set(TesseractOCRConfig.class, ocrConfig.getConfig());
-            context.set(TesseractOCRParser.class, new OCRAdapter((OCRParser) ocrConfig.buildParser()));
         }
 
         context.set(PDFParserConfig.class, pdfConfig);
