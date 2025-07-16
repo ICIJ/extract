@@ -209,7 +209,10 @@ public class Extractor {
     public void setOcrConfig(final OCRConfigAdapter<?> ocrConfig) {
         this.ocrConfig = ocrConfig;
         Parser ocrParser = ocrConfig.buildParser();
-        replaceParser(ocrConfig.getParserClass(), parser -> ocrParser);
+        // this is a hack: we are mapping TesseractOCRParser.class to Tess4jOCRParser instance
+        for (OCRConfigRegistry c: OCRConfigRegistry.values()) {
+            replaceParser(c.buildAdapter().getParserClass(), parser -> ocrParser);
+        }
     }
 
     /**
