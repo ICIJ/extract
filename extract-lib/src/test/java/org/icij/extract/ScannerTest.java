@@ -41,6 +41,26 @@ public class ScannerTest {
 			}
 		}
 	}
+	@Test
+	public void testQueueFullTimeoutWithStop() throws Throwable {
+		DocumentQueue<Path> smallQueue = new MemoryDocumentQueue<>("extract:small:queue", 2);
+		Scanner scannerWithSmallQueue = new Scanner(smallQueue);
+		scannerWithSmallQueue.setQueueFullTimeout(1);
+		scannerWithSmallQueue.setQueueFullStop(true);
+		final Path root = Paths.get(getClass().getResource("/documents/text/").toURI());
+
+		assertEquals(2L, (long)scannerWithSmallQueue.scan(root).get());
+	}
+
+	@Test(timeout = 4000)
+	public void testQueueFullTimeoutWithoutStop() throws Throwable {
+		DocumentQueue<Path> smallQueue = new MemoryDocumentQueue<>("extract:small:queue", 2);
+		Scanner scannerWithSmallQueue = new Scanner(smallQueue);
+		scannerWithSmallQueue.setQueueFullTimeout(1);
+		final Path root = Paths.get(getClass().getResource("/documents/text/").toURI());
+
+		assertEquals(2L, (long)scannerWithSmallQueue.scan(root).get());
+	}
 
 	@Test
 	public void testScanDirectoryWithIncludeGlob() throws Throwable {

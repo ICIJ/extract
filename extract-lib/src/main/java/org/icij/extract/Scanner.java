@@ -27,8 +27,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.icij.extract.ScannerVisitor.FOLLOW_SYMLINKS;
-import static org.icij.extract.ScannerVisitor.MAX_DEPTH;
+import static org.icij.extract.ScannerVisitor.*;
 
 /**
  * Scanner for scanning the directory tree starting at a given path.
@@ -203,6 +202,28 @@ public class Scanner extends ExecutorProxy {
         options.add(new org.icij.task.Option<>(MAX_DEPTH, StringOptionParser::new).
                         update(Integer.toString(maxDepth)));
 	}
+
+	/**
+	 * Set the queue full timeout when scanning.
+	 *
+	 * @param queueFullTimeout in seconds before retrying to insert the path to the queue when queue is full. Default is 60 seconds
+	 */
+	public void setQueueFullTimeout(final int queueFullTimeout) {
+		options.add(new org.icij.task.Option<>(QUEUE_FULL_TIMEOUT, StringOptionParser::new).
+				update(Integer.toString(queueFullTimeout)));
+	}
+
+	/**
+	 * If false, it will reinsert the path to the queue until space become available.
+	 * If true, triggers an interrupted exception to stop the SCAN when the queueCapacity is full.
+	 *
+	 * @param queueFullStop boolean
+	 */
+	public void setQueueFullStop(final boolean queueFullStop) {
+		options.add(new org.icij.task.Option<>(QUEUE_FULL_STOP, StringOptionParser::new).
+				update(Boolean.toString(queueFullStop)));
+	}
+
 
 	/**
 	 * Get the currently set maximum depth to recurse when scanning.
