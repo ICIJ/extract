@@ -14,19 +14,26 @@ import java.util.EnumSet;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 
 public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<Long> {
     public static final String FOLLOW_SYMLINKS = "followSymlinks";
     public static final String MAX_DEPTH = "maxDepth";
+    public static final String QUEUE_FULL_TIMEOUT = "queueFullTimeout";
+    public static final String QUEUE_FULL_STOP = "queueFullStop";
     private Logger logger = LoggerFactory.getLogger(getClass());
     private final ArrayDeque<PathMatcher> includeMatchers = new ArrayDeque<>();
     private final ArrayDeque<PathMatcher> excludeMatchers = new ArrayDeque<>();
 
     private final Path path;
+
     private final BlockingQueue<Path> queue;
 
     private boolean followLinks = false;
     private int maxDepth = Integer.MAX_VALUE;
+    private int queueFullTimeout = 60;
+    private boolean queueFullStop = false;
+
     private SealableLatch latch;
     private Notifiable notifiable;
     private long queued = 0;
@@ -41,6 +48,8 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
         this.queue = queue;
         options.ifPresent(FOLLOW_SYMLINKS, o -> o.parse().asBoolean()).ifPresent(this::followSymLinks);
         options.ifPresent(MAX_DEPTH, o -> o.parse().asInteger()).ifPresent(this::setMaxDepth);
+        options.ifPresent(QUEUE_FULL_TIMEOUT, o -> o.parse().asInteger()).ifPresent(this::setQueueFullTimeout);
+        options.ifPresent(QUEUE_FULL_STOP, o -> o.parse().asBoolean()).ifPresent(this::setQueueFullStop);
     }
 
     public ScannerVisitor withMonitor(Notifiable monitor) { notifiable = monitor; return this;}
@@ -85,18 +94,29 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
      * @throws InterruptedException if interrupted while waiting for a queue slot
      */
     void queue(final Path file, final BasicFileAttributes attributes) throws InterruptedException {
-        queue.put(file);
-        queued++;
+        if(queue.offer(file, queueFullTimeout, TimeUnit.SECONDS )){
+            queued++;
 
-        if (null != latch) {
-            latch.signal();
+            if (null != latch) {
+                latch.signal();
+            }
+
+            if (null != notifiable) {
+                notifiable.notifyListeners(file);
+            }
         }
-
-        if (null != notifiable) {
-            notifiable.notifyListeners(file);
+        else{
+            onQueueFull(file, attributes);
         }
     }
 
+    void onQueueFull(final Path file, final BasicFileAttributes attributes) throws InterruptedException {
+        logger.warn(String.format("Queue is full. Try with an additional taskWorker or update queueCapacity. Retrying: \"%s\".", file));
+        if(queueFullStop){
+            throw new InterruptedException("Queue is full, stopping scan.");
+        }
+        this.queue(file,attributes);
+    }
     /**
      * Add a path matcher for files to exclude.
      *
@@ -217,6 +237,11 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
 
         return FileVisitResult.CONTINUE;
     }
+
+    protected BlockingQueue<Path> getQueue() { return queue; }
     private void setMaxDepth(Integer max) { maxDepth = max;}
+    private void setQueueFullTimeout(Integer timeout) { queueFullTimeout = timeout;}
+    private void setQueueFullStop(Boolean stop) { queueFullStop = stop ;}
     private void followSymLinks(Boolean follow) { followLinks = follow;}
+
 }
