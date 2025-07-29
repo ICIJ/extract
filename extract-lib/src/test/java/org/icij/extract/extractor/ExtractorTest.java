@@ -110,6 +110,20 @@ public class ExtractorTest {
 	}
 
 	@Test
+	public void testCSVFile() throws Throwable {
+		String text;
+
+		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/csv_document.csv").getPath()));
+
+		try (Reader reader = tikaDocument.getReader()) {
+			text = Spewer.toString(reader);
+		}
+
+		Assert.assertEquals("text/csv; charset=UTF-8; delimiter=comma", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals(12, text.lines().count());
+	}
+
+	@Test
 	public void testRtfFile() throws Throwable {
 		String text;
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/text/doc.rtf").getPath()));
