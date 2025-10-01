@@ -77,10 +77,6 @@
                     <groupId>org.apache.httpcomponents</groupId>
                     <artifactId>httpclient</artifactId>
                 </exclusion>
-                <exclusion>
-                    <groupId>com.pff</groupId>
-                    <artifactId>java-libpst</artifactId>
-                </exclusion>
             </exclusions>
         </dependency>
 
@@ -100,12 +96,6 @@
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-csv</artifactId>
             <version>1.14.0</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.pff</groupId>
-            <artifactId>java-libpst</artifactId>
-            <version>0.8.1</version>
         </dependency>
 
         <!-- Optional dependency for parsing SQLite files. -->
