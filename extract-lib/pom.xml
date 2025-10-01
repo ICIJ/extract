@@ -5,7 +5,7 @@
     <parent>
         <artifactId>extract</artifactId>
         <groupId>org.icij.extract</groupId>
-        <version>9.4.9</version>
+        <version>9.4.10</version>
     </parent>
 
     <artifactId>extract-lib</artifactId>
