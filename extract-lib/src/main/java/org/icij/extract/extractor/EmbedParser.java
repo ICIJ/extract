@@ -39,17 +39,17 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 
 	final TikaDocument root;
 	protected final ParseContext context;
-	private final Parser delegetingParser;
+	private final Parser delegatingParser;
 
 	EmbedParser(final TikaDocument root, final ParseContext context) {
 		this(root, context, DELEGATING_PARSER);
 	}
 
-	EmbedParser(final TikaDocument root, final ParseContext context, Parser delegetingParser) {
+	EmbedParser(final TikaDocument root, final ParseContext context, Parser delegatingParser) {
 		super(context);
 		this.root = root;
 		this.context = context;
-		this.delegetingParser = delegetingParser;
+		this.delegatingParser = delegatingParser;
 	}
 
 	@Override
@@ -77,7 +77,7 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 			}
 
 			// Use the delegate parser to parse this entry.
-			delegetingParser.parse(tis, handler, metadata, context);
+			delegatingParser.parse(tis, handler, metadata, context);
 		} catch (final EncryptedDocumentException e) {
 			logger.error("Unable to decrypt encrypted document embedded in document: \"{}\" ({}) (in \"{}\").",
 					metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root, e);
