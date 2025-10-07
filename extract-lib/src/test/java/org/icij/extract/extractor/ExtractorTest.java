@@ -43,6 +43,7 @@ import java.util.function.Supplier;
 
 import static java.lang.Math.toIntExact;
 import static org.fest.assertions.Assertions.assertThat;
+import static org.icij.extract.ocr.OCRParser.OCR_USED;
 import static org.icij.extract.ocr.ParserWithConfidence.OCR_CONFIDENCE;
 
 public class ExtractorTest {
@@ -549,5 +550,11 @@ public class ExtractorTest {
 			configuredExtractorText = Spewer.toString(reader);
 		}
 		return configuredExtractorText;
+	}
+
+	@Test
+	public void testOcrDetectionMetadata() throws Throwable {
+        TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
+		assertThat(Boolean.parseBoolean(tikaDocument.getMetadata().get(OCR_USED))).isTrue();
 	}
 }

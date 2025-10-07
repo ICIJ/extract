@@ -30,7 +30,7 @@ public class Tess4JOCRConfigAdapter implements OCRConfigAdapter<Tess4JOCRParser>
     }
 
     @Override
-    public Tess4JOCRParser buildParser() {
-        return new Tess4JOCRParser();
+    public OCRParserAdapter<Tess4JOCRParser> buildParser() {
+        return new OCRParserAdapter<>(new Tess4JOCRParser());
     }
 }

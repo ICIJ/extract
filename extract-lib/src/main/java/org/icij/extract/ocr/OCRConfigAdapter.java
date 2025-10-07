@@ -18,5 +18,5 @@ public interface OCRConfigAdapter<P extends Parser> {
 
     Class<P> getParserClass();
 
-    P buildParser();
+    OCRParserAdapter<P> buildParser();
 }
