@@ -34,11 +34,11 @@ public class TesseractOCRConfigAdapter implements OCRConfigAdapter<TesseractOCRP
     }
 
     @Override
-    public TesseractOCRParser buildParser() {
+    public OCRParserAdapter<TesseractOCRParser> buildParser() {
         try {
             TesseractOCRParser tesseractOCRParser = new TesseractOCRParser();
             tesseractOCRParser.initialize(new HashMap<>());
-            return tesseractOCRParser;
+            return new OCRParserAdapter<>(tesseractOCRParser);
         } catch (TikaConfigException e) {
             throw new RuntimeException(e);
         }

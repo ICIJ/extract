@@ -143,6 +143,7 @@ public class Extractor {
         ocrConfig = new TesseractOCRConfigAdapter();
         ocrConfig.setLanguages("eng");
         ocrConfig.setOcrTimeout(Duration.ofDays(1));
+        setOcrConfig(ocrConfig);
     }
 
     public Extractor() {
