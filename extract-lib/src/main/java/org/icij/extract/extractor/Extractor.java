@@ -28,6 +28,7 @@ import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
 import org.icij.extract.ocr.OCRConfigAdapter;
 import org.icij.extract.ocr.OCRConfigRegistry;
+import org.icij.extract.ocr.OCRParserAdapter;
 import org.icij.extract.ocr.TesseractOCRConfigAdapter;
 import org.icij.extract.parser.CacheParserDecorator;
 import org.icij.extract.parser.FallbackParser;
@@ -143,7 +144,7 @@ public class Extractor {
         ocrConfig = new TesseractOCRConfigAdapter();
         ocrConfig.setLanguages("eng");
         ocrConfig.setOcrTimeout(Duration.ofDays(1));
-        setOcrConfig(ocrConfig);
+        replaceParser(ocrConfig.getParserClass(), parser -> new TesseractOCRConfigAdapter().buildParser());
     }
 
     public Extractor() {
@@ -283,7 +284,7 @@ public class Extractor {
      */
     public void disableOcr() {
         if (!ocrDisabled) {
-            excludeParser(ocrConfig.getParserClass());
+            excludeParser(OCRParserAdapter.class);
             ocrDisabled = true;
             pdfConfig.setExtractInlineImages(false);
         }

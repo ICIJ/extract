@@ -67,6 +67,8 @@ public class ExtractorTest {
 		try (Reader reader = tikaDocument.getReader()) {
 			text = Spewer.toString(reader);
 		}
+        assertThat(tikaDocument.getMetadata().get(OCR_USED)).isNotNull();
+        assertThat(tikaDocument.getMetadata().get(OCR_USED)).isEqualTo("true");
 
 		Assert.assertEquals("image/tiff", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("HEAVY\nMETAL", text.trim());
@@ -108,7 +110,8 @@ public class ExtractorTest {
 
 		Assert.assertEquals("image/tiff", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals(-1, read);
-	}
+        assertThat(tikaDocument.getMetadata().get(OCR_USED)).isNull();
+    }
 
 	@Test
 	public void testCSVFile() throws Throwable {
@@ -554,7 +557,10 @@ public class ExtractorTest {
 
 	@Test
 	public void testOcrDetectionMetadata() throws Throwable {
-        TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
-		assertThat(Boolean.parseBoolean(tikaDocument.getMetadata().get(OCR_USED))).isTrue();
+        Extractor configuredExtractor = new Extractor().configure(new Options<>());
+        TikaDocument tikaDocument = configuredExtractor.extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
+        assertThat(tikaDocument.getMetadata().get(OCR_USED)).isNotNull();
+        assertThat(tikaDocument.getMetadata().get(OCR_USED)).isEqualTo("true");
 	}
+
 }
