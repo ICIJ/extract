@@ -91,7 +91,7 @@ public class SpewTask extends DefaultTask<Long> {
 			queue, final String[] paths, final int parallelism) throws Exception {
 		logger.info(String.format("Processing up to %d file(s) in parallel.", parallelism));
 
-		final Extractor extractor = new Extractor().configure(options);
+		final Extractor extractor = new Extractor(options);
 		final DocumentConsumer consumer = new DocumentConsumer(spewer, extractor, parallelism);
 		final DocumentQueueDrainer<Path> drainer = new DocumentQueueDrainer<>(queue, consumer).configure(options);
 
