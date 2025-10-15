@@ -11,6 +11,7 @@ import org.apache.tika.sax.EmbeddedContentHandler;
 import org.apache.tika.utils.ExceptionUtils;
 import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
+import org.icij.extract.ocr.OCRParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
@@ -21,6 +22,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.LinkedList;
 import java.util.function.Function;
+
+import static java.lang.Boolean.parseBoolean;
 
 public class EmbedSpawner extends EmbedParser {
 
@@ -53,6 +56,12 @@ public class EmbedSpawner extends EmbedParser {
 			}
 
 			delegateParsing(input, embedHandler, metadata);
+
+            // If OCR was used for this embedded leaf item, bubble up to the parent document metadata only
+            String ocrUsed = metadata.get(OCRParser.OCR_USED);
+            if (parseBoolean(ocrUsed)) {
+                tikaDocumentStack.getLast().getMetadata().set(OCRParser.OCR_USED, ocrUsed);
+            }
 
 			if (outputHtml) {
 				writeEnd(handler);

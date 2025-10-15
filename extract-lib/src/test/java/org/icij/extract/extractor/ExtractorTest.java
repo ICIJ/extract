@@ -254,7 +254,7 @@ public class ExtractorTest {
 		try (final Reader reader = tikaDocument.getReader()) {
 			text = Spewer.toString(reader);
 		}
-
+        assertThat(tikaDocument.getMetadata().get(OCR_USED)).isEqualTo("true");
 		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertThat(text, RegexMatcher.matchesRegex("^\\s+HEAVY\\sMETAL\\s+HEAVY\\sMETAL\\s+$"));
 	}
@@ -272,6 +272,7 @@ public class ExtractorTest {
 			text = Spewer.toString(reader);
 		}
 
+        assertThat(tikaDocument.getMetadata().get(OCR_USED)).isNull();
 		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("\n\n\n\n", text);
 	}
@@ -288,6 +289,7 @@ public class ExtractorTest {
 			text = Spewer.toString(reader);
 		}
 
+        assertThat(tikaDocument.getMetadata().get(OCR_USED)).isNull();
 		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("\n\n\n\n", text);
 	}
@@ -329,6 +331,7 @@ public class ExtractorTest {
 			text = Spewer.toString(reader);
 		}
 
+        assertThat(tikaDocument.getMetadata().get(OCR_USED)).isEqualTo("true");
 		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals(getExpected("/expected/embedded-data-uri-pdf.html"), text);
 	}
@@ -448,6 +451,8 @@ public class ExtractorTest {
 				Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()),
 				metadata -> "embedded.pdf".equals(metadata.get("resourceName")) || "INLINE".equals(metadata.get("embeddedResourceType")));
 
+        assertThat(doc.getMetadata().get(OCR_USED)).isNull(); // no OCR_used on the eml root.
+        assertThat(embeddedTikaDocument.getMetadata().get(OCR_USED)).isNotNull(); // but the pdf children has been OCRed
 		assertThat(pageIndices).isNotNull();
 		assertThat(pageIndices.pages()).isEqualTo(List.of(Pair.of(0L, 16L), Pair.of(17L,33L)));
 	}
