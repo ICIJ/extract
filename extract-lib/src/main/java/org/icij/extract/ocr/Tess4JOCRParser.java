@@ -659,7 +659,7 @@ public class Tess4JOCRParser extends ParserWithConfidence implements Parser, Aut
             throw new TikaException(Tess4JOCRParser.class.getSimpleName() + " interrupted", e);
         } catch (TimeoutException e) {
             throw new TikaException(
-                Tess4JOCRParser.class.getSimpleName() + " exceeded " + timeoutMs * 1000 + "ms timeout", e
+                Tess4JOCRParser.class.getSimpleName() + " exceeded " + timeoutMs + "ms timeout", e
             );
         }
     }
