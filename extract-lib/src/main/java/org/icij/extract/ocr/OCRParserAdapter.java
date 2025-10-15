@@ -26,7 +26,9 @@ public class OCRParserAdapter<P extends Parser> implements Parser {
 
     @Override
     public void parse(InputStream stream, ContentHandler handler, Metadata metadata, ParseContext parseContext) throws IOException, SAXException, TikaException {
-        assert delegatedParser != null;
+        if(delegatedParser == null){
+            throw new NullPointerException("Parser is null");
+        }
         metadata.set(OCRParser.OCR_USED, true);
         delegatedParser.parse(stream, handler, metadata, parseContext);
     }

@@ -1,6 +1,8 @@
 package org.icij.extract.extractor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
+import java.util.Optional;
 import org.apache.commons.io.TaggedIOException;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.EncryptedDocumentException;
@@ -128,6 +130,14 @@ public class Extractor {
      * images from PDF files and OCR them and use PDFBox's non-sequential PDF parser.
      */
     public Extractor(final DocumentFactory factory) {
+        this(factory, null);
+    }
+
+    public Extractor(Options<String> options) {
+        this(new DocumentFactory().withIdentifier(new PathIdentifier()), options);
+    }
+
+    public Extractor(final DocumentFactory factory, Options<String> options) {
         this.documentFactory = factory;
         // Calculate the SHA256 digest by default.
         setDigestAlgorithm(DigestAlgorithm.SHA256.toString());
@@ -144,14 +154,14 @@ public class Extractor {
         ocrConfig = new TesseractOCRConfigAdapter();
         ocrConfig.setLanguages("eng");
         ocrConfig.setOcrTimeout(Duration.ofDays(1));
-        replaceParser(ocrConfig.getParserClass(), parser -> new TesseractOCRConfigAdapter().buildParser());
+        this.configure(Optional.ofNullable(options).orElse(Options.from(Map.of())));
     }
 
     public Extractor() {
         this(new DocumentFactory().withIdentifier(new PathIdentifier()));
     }
 
-    public Extractor configure(final Options<String> options) {
+    private void configure(final Options<String> options) {
         options.get("outputFormat", "TEXT").parse().asEnum(OutputFormat::parse).ifPresent(this::setOutputFormat);
         options.get("embedHandling", "SPAWN").parse().asEnum(EmbedHandling::parse).ifPresent(this::setEmbedHandling);
         options.get("ocrType", String.valueOf(OCRConfigRegistry.TESSERACT))
@@ -172,13 +182,10 @@ public class Extractor {
         if (options.get("ocr", String.valueOf(!this.ocrDisabled)).parse().isOff()) {
             disableOcr();
         }
-
         options.valueIfPresent("ocrCache").ifPresent(
             path -> replaceParser(ocrConfig.getParserClass(), parser -> new CacheParserDecorator(parser, Paths.get(path)))
         );
         logger.info("extractor configured with digester {} and {}", digester.getClass(), documentFactory);
-
-        return this;
     }
 
     /**
@@ -211,12 +218,11 @@ public class Extractor {
     public void setOcrConfig(final OCRConfigAdapter<?> ocrConfig) {
         this.ocrConfig = ocrConfig;
         Parser ocrParser = ocrConfig.buildParser();
+        replaceParser(ocrConfig.getParserClass(), parser -> ocrParser);
         // this is a hack: we are mapping TesseractOCRParser.class to Tess4jOCRParser instance
-        replaceParser(ocrConfig.getParserClass(), parser ->ocrParser);
         for (OCRConfigRegistry c: OCRConfigRegistry.values()) {
             replaceParser(c.buildAdapter().getParserClass(), parser -> ocrParser);
         }
-
     }
 
     /**
