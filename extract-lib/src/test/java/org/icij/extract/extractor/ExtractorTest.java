@@ -18,7 +18,6 @@ import org.icij.task.Options;
 import org.icij.test.CauseMatcher;
 import org.icij.test.RegexMatcher;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -37,12 +36,11 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.function.Supplier;
 
 import static java.lang.Math.toIntExact;
 import static org.fest.assertions.Assertions.assertThat;
-import static org.icij.extract.ocr.OCRParser.OCR_USED;
+import static org.icij.extract.ocr.OCRParser.OCR_PARSER;
 import static org.icij.extract.ocr.ParserWithConfidence.OCR_CONFIDENCE;
 
 public class ExtractorTest {
@@ -64,8 +62,8 @@ public class ExtractorTest {
 		try (Reader reader = tikaDocument.getReader()) {
 			text = Spewer.toString(reader);
 		}
-        assertThat(tikaDocument.getMetadata().get(OCR_USED)).isNotNull();
-        assertThat(tikaDocument.getMetadata().get(OCR_USED)).isEqualTo("true");
+        assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isNotNull();
+        assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isEqualTo("org.icij.extract.ocr.TesseractOCRParser");
 
 		Assert.assertEquals("image/tiff", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("HEAVY\nMETAL", text.trim());
@@ -99,7 +97,7 @@ public class ExtractorTest {
 
 		Assert.assertEquals("image/tiff", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals(-1, read);
-        assertThat(tikaDocument.getMetadata().get(OCR_USED)).isNull();
+        assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isNull();
     }
 
 	@Test
@@ -234,7 +232,7 @@ public class ExtractorTest {
 		try (final Reader reader = tikaDocument.getReader()) {
 			text = Spewer.toString(reader);
 		}
-        assertThat(tikaDocument.getMetadata().get(OCR_USED)).isEqualTo("true");
+        assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isNotNull();
 		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertThat(text, RegexMatcher.matchesRegex("^\\s+HEAVY\\sMETAL\\s+HEAVY\\sMETAL\\s+$"));
 	}
@@ -253,7 +251,7 @@ public class ExtractorTest {
 			text = Spewer.toString(reader);
 		}
 
-        assertThat(tikaDocument.getMetadata().get(OCR_USED)).isNull();
+        assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isNull();
 		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("\n\n\n\n", text);
 	}
@@ -271,7 +269,7 @@ public class ExtractorTest {
 			text = Spewer.toString(reader);
 		}
 
-        assertThat(tikaDocument.getMetadata().get(OCR_USED)).isNull();
+        assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isNull();
 		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("\n\n\n\n", text);
 	}
@@ -297,6 +295,7 @@ public class ExtractorTest {
         Extractor extractor = new Extractor(Options.from(Map.of("ocrType", "TESS4J")));
 
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/test.jpeg").getPath()));
+        assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isEqualTo("org.icij.extract.ocr.Tess4JOCRParser");
 
 		assertThat(Optional.ofNullable(tikaDocument.getMetadata().get(OCR_CONFIDENCE)).map(Float::parseFloat).orElse(0.0f))
 			.isGreaterThan(0.0f);
@@ -315,7 +314,7 @@ public class ExtractorTest {
 			text = Spewer.toString(reader);
 		}
 
-        assertThat(tikaDocument.getMetadata().get(OCR_USED)).isEqualTo("true");
+        assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isNotNull();
 		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals(getExpected("/expected/embedded-data-uri-pdf.html"), text);
 	}
@@ -440,8 +439,8 @@ public class ExtractorTest {
 				Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()),
 				metadata -> "embedded.pdf".equals(metadata.get("resourceName")) || "INLINE".equals(metadata.get("embeddedResourceType")));
 
-        assertThat(doc.getMetadata().get(OCR_USED)).isNull(); // no OCR_used on the eml root.
-        assertThat(embeddedTikaDocument.getMetadata().get(OCR_USED)).isNotNull(); // but the pdf children has been OCRed
+        assertThat(doc.getMetadata().get(OCR_PARSER)).isNull(); // no OCR_used on the eml root.
+        assertThat(embeddedTikaDocument.getMetadata().get(OCR_PARSER)).isNotNull(); // but the pdf children has been OCRed
 		assertThat(pageIndices).isNotNull();
 		assertThat(pageIndices.pages()).isEqualTo(List.of(Pair.of(0L, 16L), Pair.of(17L,33L)));
 	}
@@ -542,23 +541,6 @@ public class ExtractorTest {
 
 	private String getPage(Pair<Long, Long> startEndIndices, String fullText) {
 		return fullText.substring(toIntExact(startEndIndices.getLeft()), toIntExact(startEndIndices.getRight()));
-	}
-
-	private String getTextFrom(Extractor configuredExtractor, Supplier<Path> fileToExtract) throws IOException {
-		String configuredExtractorText;
-		TikaDocument configuredExtractorTikaDocument = configuredExtractor.extract(fileToExtract.get());
-		try (Reader reader = configuredExtractorTikaDocument.getReader()) {
-			configuredExtractorText = Spewer.toString(reader);
-		}
-		return configuredExtractorText;
-	}
-
-	@Test
-	public void testOcrDetectionMetadata() throws Throwable {
-        Extractor configuredExtractor = new Extractor(new Options<>());
-        TikaDocument tikaDocument = configuredExtractor.extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
-        assertThat(tikaDocument.getMetadata().get(OCR_USED)).isNotNull();
-        assertThat(tikaDocument.getMetadata().get(OCR_USED)).isEqualTo("true");
 	}
 
 }

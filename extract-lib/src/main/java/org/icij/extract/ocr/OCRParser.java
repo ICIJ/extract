@@ -8,6 +8,5 @@ import org.apache.tika.parser.Parser;
  * It could embed some common treatments for all daughters.
  */
 public interface OCRParser extends Parser {
-    public static final Property OCR_USED = Property.externalBoolean("ocr:used");
-    public static final Property OCR_ENGINE = Property.externalText("ocr:engine");
+    public static final Property OCR_PARSER = Property.externalText("ocr:parser");
 }
