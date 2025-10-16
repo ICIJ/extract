@@ -29,7 +29,7 @@ public class OCRParserAdapter<P extends Parser> implements Parser {
         if(delegatedParser == null){
             throw new NullPointerException("Parser is null");
         }
-        metadata.set(OCRParser.OCR_USED, true);
+        metadata.set(OCRParser.OCR_PARSER, delegatedParser.getClass().getName());
         delegatedParser.parse(stream, handler, metadata, parseContext);
     }
 }

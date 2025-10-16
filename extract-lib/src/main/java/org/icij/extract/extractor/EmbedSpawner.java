@@ -58,9 +58,9 @@ public class EmbedSpawner extends EmbedParser {
 			delegateParsing(input, embedHandler, metadata);
 
             // If OCR was used for this embedded leaf item, bubble up to the parent document metadata only
-            String ocrUsed = metadata.get(OCRParser.OCR_USED);
-            if (parseBoolean(ocrUsed)) {
-                tikaDocumentStack.getLast().getMetadata().set(OCRParser.OCR_USED, ocrUsed);
+            String ocrParser = metadata.get(OCRParser.OCR_PARSER);
+            if (ocrParser != null) {
+                tikaDocumentStack.getLast().getMetadata().set(OCRParser.OCR_PARSER, ocrParser);
             }
 
 			if (outputHtml) {
