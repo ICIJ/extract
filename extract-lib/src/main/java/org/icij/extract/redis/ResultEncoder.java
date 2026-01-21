@@ -30,6 +30,8 @@ public class ResultEncoder implements Encoder {
 					logger.error("exception when serializing exception :", e);
 				}
 			});
+		} finally {
+			exceptionPayload.release();
 		}
 		return out;
 	}
