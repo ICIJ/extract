@@ -69,6 +69,21 @@ public class ExtractorTest {
 		Assert.assertEquals("HEAVY\nMETAL", text.trim());
 	}
 
+    @Test
+    public void testOcr_jp2() throws Throwable {
+        String text;
+        Extractor extractor = new Extractor();
+        TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/test-jpx.jp2").getPath()));
+        try (Reader reader = tikaDocument.getReader()) {
+            text = Spewer.toString(reader);
+        }
+        assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isNotNull();
+        assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isEqualTo("org.apache.tika.parser.ocr.TesseractOCRParser");
+
+        Assert.assertEquals("image/jp2", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
+        assertThat(text.trim()).startsWith("The (quick) [brown] {fox} jumps");
+    }
+
 	@Test
 	public void testExtractorShouldSupportMultipleLanguage() throws Throwable {
 		// When
