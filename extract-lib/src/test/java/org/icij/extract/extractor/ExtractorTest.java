@@ -36,7 +36,6 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Supplier;
 
 import static java.lang.Math.toIntExact;
 import static org.fest.assertions.Assertions.assertThat;
@@ -49,52 +48,60 @@ public class ExtractorTest {
 
 	@Test
 	public void testTikaVersion() throws Throwable {
+        //GIVEN
         Extractor extractor = new Extractor();
+        //WHEN
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
+        //THEN
 		Assert.assertEquals(Tika.getString(), tikaDocument.getMetadata().get(TikaDocument.TIKA_VERSION));
 	}
 
 	@Test
 	public void testOcr() throws Throwable {
+        //GIVEN
 		String text;
         Extractor extractor = new Extractor();
+        //WHEN
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
 		try (Reader reader = tikaDocument.getReader()) {
 			text = Spewer.toString(reader);
 		}
+        //THEN
         assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isNotNull();
         assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isEqualTo("org.apache.tika.parser.ocr.TesseractOCRParser");
-
 		Assert.assertEquals("image/tiff", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("HEAVY\nMETAL", text.trim());
 	}
 
     @Test
-    public void testOcr_jp2() throws Throwable {
+    public void testOcr_jp2_extended() throws Throwable {
+        //GIVEN
         String text;
         Extractor extractor = new Extractor();
+        //WHEN
         TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/test-jpx.jp2").getPath()));
         try (Reader reader = tikaDocument.getReader()) {
             text = Spewer.toString(reader);
         }
+        //THEN
         assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isNotNull();
         assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isEqualTo("org.apache.tika.parser.ocr.TesseractOCRParser");
-
         Assert.assertEquals("image/jp2", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
         assertThat(text.trim()).startsWith("The (quick) [brown] {fox} jumps");
     }
 
 	@Test
 	public void testExtractorShouldSupportMultipleLanguage() throws Throwable {
-		// When
+        //GIVEN
+        String text;
         Extractor extractor = new Extractor();
-		extractor.setOcrLanguage("eng+spa");
-		String text;
+        extractor.setOcrLanguage("eng+spa");
+        //WHEN
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
 		try (Reader reader = tikaDocument.getReader()) {
 			text = Spewer.toString(reader);
 		}
-
+        //THEN
 		Assert.assertEquals("image/tiff", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("HEAVY\nMETAL", text.trim());
 		// We expect a null language, downstream component will be responsible to guess the language from the content
@@ -103,13 +110,13 @@ public class ExtractorTest {
 
 	@Test
 	public void testDisableOcr() throws Throwable {
+        //GIVEN
         Extractor extractor = new Extractor();
 		extractor.disableOcr();
-
+        //WHEN
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
-
 		final int read = tikaDocument.getReader().read();
-
+        //THEN
 		Assert.assertEquals("image/tiff", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals(-1, read);
         assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isNull();
@@ -117,54 +124,58 @@ public class ExtractorTest {
 
 	@Test
 	public void testCSVFile() throws Throwable {
+        //GIVEN
+        String text;
         Extractor extractor = new Extractor();
-		String text;
-
+        //WHEN
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/csv_document.csv").getPath()));
-
 		try (Reader reader = tikaDocument.getReader()) {
 			text = Spewer.toString(reader);
 		}
-
+        //THEN
 		Assert.assertEquals("text/csv; charset=UTF-8; delimiter=comma", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals(12, text.lines().count());
 	}
 
 	@Test
 	public void testRtfFile() throws Throwable {
+        //GIVEN
+        String text;
         Extractor extractor = new Extractor();
-		String text;
+        //WHEN
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/text/doc.rtf").getPath()));
 		try (Reader reader = tikaDocument.getReader()) {
 			text = Spewer.toString(reader);
 		}
-
+        //WHEN
 		Assert.assertEquals("application/rtf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("RTF Text Document", text.trim());
 	}
 
 	@Test
 	public void testFileNotFound() throws Throwable {
+        //GIVEN,*THEN
         Extractor extractor = new Extractor();
 		thrown.expect(NoSuchFileException.class);
 		thrown.expectMessage("nothing");
-
+        //WHEN
 		extractor.extract(Paths.get("nothing"));
 	}
 
 	@Test
 	public void testEncryptedPdf() throws Throwable {
+        //GIVEN,*THEN
+        final int read;
         Extractor extractor = new Extractor();
-		thrown.expect(IOException.class);
-		thrown.expectMessage("");
-		thrown.expectCause(new CauseMatcher(EncryptedDocumentException.class, "Unable to process: document is encrypted"));
-
-
-		final int read;
+        thrown.expect(IOException.class);
+        thrown.expectMessage("");
+        thrown.expectCause(new CauseMatcher(EncryptedDocumentException.class, "Unable to process: document is encrypted"));
+        //WHEN
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/pdf/encrypted.pdf").getPath()));
 		try (final Reader reader = tikaDocument.getReader()) {
 			read = reader.read();
 		} catch (IOException e) {
+            //THEN
 			Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 			throw e;
 		}
@@ -174,19 +185,18 @@ public class ExtractorTest {
 
 	@Test
 	public void testGarbage() throws Throwable {
+        //GIVEN,*THEN
+        final int read;
         Extractor extractor = new Extractor();
-		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/garbage.bin").getPath()));
-
-
-		thrown.expect(IOException.class);
-		thrown.expectMessage("");
-		thrown.expectCause(new CauseMatcher(TikaException.class, "Parse error"));
-
-		final int read;
-
-		try (final Reader reader = tikaDocument.getReader()) {
+        thrown.expect(IOException.class);
+        thrown.expectMessage("");
+        thrown.expectCause(new CauseMatcher(TikaException.class, "Parse error"));
+        //WHEN
+        TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/garbage.bin").getPath()));
+        try (final Reader reader = tikaDocument.getReader()) {
 			read = reader.read();
 		} catch (IOException e) {
+            //THEN
 			Assert.assertEquals("application/octet-stream", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 			throw e;
 		}
@@ -196,15 +206,16 @@ public class ExtractorTest {
 
 	@Test
 	public void testByProjectDigester() throws Exception {
+        //GIVEN
 		DocumentFactory documentFactory = new DocumentFactory().configure(Options.from(Map.of("digestAlgorithm", "SHA-384")));
-		final Extractor extractor = new Extractor(documentFactory);
+        //WHEN
 		TikaDocument tikaDocument1 = new Extractor(documentFactory, Options.from(Map.of("digestAlgorithm", "SHA-384")))
             .extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
 		TikaDocument tikaDocument2 = new Extractor(documentFactory, Options.from(Map.of("digestAlgorithm", "SHA-384", "digestProjectName", "project1")))
             .extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
 		TikaDocument tikaDocument3 = new Extractor(documentFactory, Options.from(Map.of("digestAlgorithm", "SHA-384", "digestProjectName", "project2")))
             .extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
-
+        //THEN
 		Assert.assertNotEquals(tikaDocument1.getId(), tikaDocument2.getId());
 		Assert.assertNotEquals(tikaDocument1.getId(), tikaDocument3.getId());
 		Assert.assertNotEquals(tikaDocument2.getId(), tikaDocument3.getId());
@@ -212,41 +223,49 @@ public class ExtractorTest {
 
 	@Test
 	public void testDocumentUseCorrectDigestIdentifier () throws Exception {
+        //GIVEN
 		Options<String> digestAlgorithm = Options.from(Map.of("digestAlgorithm", "SHA-384", "digestProjectName", "project1"));
 		DocumentFactory documentFactory = new DocumentFactory().configure(digestAlgorithm);
 		final Extractor extractor = new Extractor(documentFactory, digestAlgorithm);
+        //WHEN
 		TikaDocument tikaDocument1 = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
-
+        //THEN
 		Assert.assertNotNull(tikaDocument1.getId());
 	}
 
 	@Test
 	public void testDocumentUseCorrectLanguage () throws IOException {
+        //GIVEN
         Options<String> options = Options.from(Map.of("language", "zho"));
 		DocumentFactory documentFactory = new DocumentFactory().configure(options);
         final Extractor extractor = new Extractor(documentFactory, options);
+        //WHEN
 		TikaDocument tikaDocument1 = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
-
+        //THEN
 		Assert.assertEquals(tikaDocument1.getLanguage(), "zho");
 	}
 
 	@Test
 	public void testDocumentHasNoLanguage () throws IOException {
+        //GIVEN
 		DocumentFactory documentFactory = new DocumentFactory().configure();
 		final Extractor extractor = new Extractor(documentFactory);
+        //WHEN
 		TikaDocument tikaDocument1 = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/simple.tiff").getPath()));
-
+        //THEN
 		Assert.assertNull(tikaDocument1.getLanguage());
 	}
 
 	@Test
 	public void testEmbeds() throws Throwable {
-		TikaDocument tikaDocument = new Extractor().extract(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
-		String text;
-
+        //GIVEN
+        String text;
+        //WHEN
+        TikaDocument tikaDocument = new Extractor().extract(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
 		try (final Reader reader = tikaDocument.getReader()) {
 			text = Spewer.toString(reader);
 		}
+        //THEN
         assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isNotNull();
 		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertThat(text, RegexMatcher.matchesRegex("^\\s+HEAVY\\sMETAL\\s+HEAVY\\sMETAL\\s+$"));
@@ -254,18 +273,17 @@ public class ExtractorTest {
 
 	@Test
 	public void testIgnoreEmbeds() throws Throwable {
+        //GIVEN
+        String text;
         Extractor extractor = new Extractor();
-		extractor.setEmbedHandling(Extractor.EmbedHandling.IGNORE);
-		Assert.assertEquals(extractor.getEmbedHandling(), Extractor.EmbedHandling.IGNORE);
-
-		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
-
-		String text;
-
+        extractor.setEmbedHandling(Extractor.EmbedHandling.IGNORE);
+        Assert.assertEquals(extractor.getEmbedHandling(), Extractor.EmbedHandling.IGNORE);
+        //WHEN
+        TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
 		try (final Reader reader = tikaDocument.getReader()) {
 			text = Spewer.toString(reader);
 		}
-
+        //THEN
         assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isNull();
 		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("\n\n\n\n", text);
@@ -273,17 +291,16 @@ public class ExtractorTest {
 
 	@Test
 	public void testDisableOcrOnEmbed() throws Throwable {
+        //GIVEN
+        String text;
         Extractor extractor = new Extractor();
-		extractor.disableOcr();
-
-		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
-
-		String text;
-
+        extractor.disableOcr();
+        //WHEN
+        TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
 		try (final Reader reader = tikaDocument.getReader()) {
 			text = Spewer.toString(reader);
 		}
-
+        //THEN
         assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isNull();
 		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("\n\n\n\n", text);
@@ -291,44 +308,45 @@ public class ExtractorTest {
 
 	@Test
 	public void testHtmlOutput() throws Throwable {
+        //GIVEN
+        String text;
         Extractor extractor = new Extractor();
-		extractor.setOutputFormat(Extractor.OutputFormat.HTML);
-
-		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/text/utf16.txt").getPath()));
-
-		String text;
+        extractor.setOutputFormat(Extractor.OutputFormat.HTML);
+        //WHEN
+        TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/text/utf16.txt").getPath()));
 		try (final Reader reader = tikaDocument.getReader()) {
 			text = Spewer.toString(reader);
 		}
-
+        //THEN
 		Assert.assertEquals("text/plain; charset=UTF-16LE", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals(getExpected("/expected/utf16-txt.html"), text);
 	}
 
 	@Test
 	public void test_ocr_confidence() throws Exception {
+        //GIVEN
         Extractor extractor = new Extractor(Options.from(Map.of("ocrType", "TESS4J")));
-
+        //WHEN
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/test.jpeg").getPath()));
+        //THEN
         assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isEqualTo("org.icij.extract.ocr.Tess4JOCRParser");
-
 		assertThat(Optional.ofNullable(tikaDocument.getMetadata().get(OCR_CONFIDENCE)).map(Float::parseFloat).orElse(0.0f))
 			.isGreaterThan(0.0f);
 	}
 
 	@Test
 	public void testHtmlOutputWithEmbeddedEmbeds() throws Throwable {
+        //GIVEN
+        String text;
         Extractor extractor = new Extractor();
-		extractor.setOutputFormat(Extractor.OutputFormat.HTML);
-		Assert.assertEquals(extractor.getOutputFormat(), Extractor.OutputFormat.HTML);
-
-		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
-
-		String text;
+        extractor.setOutputFormat(Extractor.OutputFormat.HTML);
+        Assert.assertEquals(extractor.getOutputFormat(), Extractor.OutputFormat.HTML);
+        //WHEN
+        TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
 		try (final Reader reader = tikaDocument.getReader()) {
 			text = Spewer.toString(reader);
 		}
-
+        //THEN
         assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isNotNull();
 		Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals(getExpected("/expected/embedded-data-uri-pdf.html"), text);
@@ -336,6 +354,7 @@ public class ExtractorTest {
 
 	@Test
 	public void testRecursiveEmbedded() throws Exception {
+        //GIVEN
         Extractor extractor = new Extractor();
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/recursive_embedded.docx").getPath()));
 
@@ -348,7 +367,9 @@ public class ExtractorTest {
 
 		 so we just use a print stream spewer and check that all the tree has been parsed */
 		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        //WHEN
 		new PrintStreamSpewer(new PrintStream(outputStream), new FieldNames()).write(tikaDocument);
+        //THEN
 		String allContents = outputStream.toString();
 
 		assertThat(allContents).contains("embed_0");
@@ -363,6 +384,7 @@ public class ExtractorTest {
 
 	@Test
 	public void testEmbeddedWithDuplicates() throws Exception {
+        //GIVEN
         Extractor extractor = new Extractor();
 		extractor.disableOcr();
 		extractor.setEmbedOutputPath(folder.newFolder("embeds").toPath());
@@ -376,6 +398,7 @@ public class ExtractorTest {
 			2020-09-08 15:10 		level2/file.txt   |
 			2020-09-08 15:10 		level2/one_pixel.jpg
 		 */
+        //WHEN
 		TikaDocument tikaDocument = extractor.extract(Paths.get(getClass().getResource("/documents/embedded_with_duplicate.tgz").getPath()));
 		FileSpewer fileSpewer = new FileSpewer(new FieldNames());
 		fileSpewer.setOutputDirectory(folder.getRoot().toPath());
@@ -388,20 +411,22 @@ public class ExtractorTest {
 		 hash(level1/level2.tgz)
 		 hash(level1/level2/file.txt)
 		 hash(level1/one_pixel_level1.jpg) = hash(level1/level2/one_pixel.jpg) */
+        //THEN
 		assertThat(folder.getRoot().toPath().resolve("embeds").toFile().listFiles()).hasSize(6);
 	}
 
 	@Test
 	public void testPageIndicesExtractionForPdf() throws Exception {
+        //GIVEN
+        String text;
         Extractor extractor = new Extractor();
-		TikaDocument doc = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
-		String text;
+        //WHEN
+        TikaDocument doc = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
 		try (final Reader reader = doc.getReader()) {
 			text = Spewer.toString(reader);
 		}
-
 		PageIndices pageIndices = extractor.extractPageIndices(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
-
+        //THEN
 		assertThat(pageIndices).isNotNull();
 		assertThat(pageIndices.pages()).isEqualTo(List.of(Pair.of(0L, 16L), Pair.of(17L,33L)));
 		assertThat(text).hasSize(33 + 1);
@@ -420,9 +445,11 @@ public class ExtractorTest {
 
 	@Test
 	public void testPageExtractionForPdf() throws Exception {
+        //GIVEN
         Extractor extractor = new Extractor();
+        //WHEN
 		List<String> pages = extractor.extractPages(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
-
+        //THEN
 		assertThat(pages).hasSize(2);
 		String expectedPage = """
 		
@@ -438,9 +465,11 @@ public class ExtractorTest {
 
 	@Test
 	public void testPageExtractionForEmbeddedPdf() throws Exception {
+        //GIVEN
         Extractor extractor = new Extractor();
-		TikaDocument doc = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()));
-		extractor.setEmbedHandling(Extractor.EmbedHandling.SPAWN);
+        extractor.setEmbedHandling(Extractor.EmbedHandling.SPAWN);
+        //WHEN
+        TikaDocument doc = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()));
 
 		try (final Reader reader = doc.getReader()) {
 			Spewer.toString(reader);
@@ -453,7 +482,7 @@ public class ExtractorTest {
 		PageIndices pageIndices = extractor.extractPageIndices(
 				Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()),
 				metadata -> "embedded.pdf".equals(metadata.get("resourceName")) || "INLINE".equals(metadata.get("embeddedResourceType")));
-
+        //THEN
         assertThat(doc.getMetadata().get(OCR_PARSER)).isNull(); // no OCR_used on the eml root.
         assertThat(embeddedTikaDocument.getMetadata().get(OCR_PARSER)).isNotNull(); // but the pdf children has been OCRed
 		assertThat(pageIndices).isNotNull();
@@ -462,52 +491,56 @@ public class ExtractorTest {
 
 	@Test
 	public void testPageExtractionForEmbeddedPdfWithRootDocument() throws Exception {
+        //GIVEN
         Extractor extractor = new Extractor();
-		TikaDocument doc = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()));
-		extractor.setEmbedHandling(Extractor.EmbedHandling.SPAWN);
-
-		// we do not filter
+        extractor.setEmbedHandling(Extractor.EmbedHandling.SPAWN);
+        //WHEN
+        // we do not filter
 		PageIndices pageIndices = extractor.extractPageIndices(
 				Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()));
-
+        //THEN
 		assertThat(pageIndices).isNotNull();
 		assertThat(pageIndices.pages()).isEqualTo(List.of(Pair.of(0L, 109L)));
 	}
 
 	@Test
 	public void testPageExtractionForEmbeddedPdfWithFilter() throws Exception {
+        //GIVEN
         Extractor extractor = new Extractor();
-		TikaDocument doc = extractor.extract(Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()));
 		extractor.setEmbedHandling(Extractor.EmbedHandling.SPAWN);
-
+        //WHEN
 		// we do filter
 		PageIndices pageIndices = extractor.extractPageIndices(
 				Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()),
 				metadata -> "embedded.pdf".equals(metadata.get("resourceName")) || "INLINE".equals(metadata.get("embeddedResourceType")));
-
+        //THEN
 		assertThat(pageIndices).isNotNull();
 		assertThat(pageIndices.pages()).isEqualTo(List.of(Pair.of(0L, 16L), Pair.of(17L,33L)));
 	}
 
 	@Test
 	public void testIgnoreCacheForPageExtraction() throws Exception {
+        //GIVEN
         Extractor extractor = new Extractor();
+        //WHEN
 		PageIndices pageIndices = extractor.extractPageIndices(
 				Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()),
 				metadata -> "embedded.pdf".equals(metadata.get("resourceName")) || "INLINE".equals(metadata.get("embeddedResourceType")), "embedded_id");
-
+        //THEN
 		assertThat(pageIndices).isNotNull();
 	}
 
 	@Test
 	public void testArtifactCacheWriteForPageExtraction() throws Exception {
+        //GIVEN
         Extractor extractor = new Extractor();
 		extractor.setEmbedOutputPath(folder.getRoot().toPath());
+        //WHEN
 		Path cachedPagesFile = ArtifactUtils.getEmbeddedPath(folder.getRoot().toPath(), "embedded_id").resolve("pages.json");
 		PageIndices pageIndices = extractor.extractPageIndices(
 				Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()),
 				metadata -> "embedded.pdf".equals(metadata.get("resourceName")) || "INLINE".equals(metadata.get("embeddedResourceType")), "embedded_id");
-
+        //THEN
 		assertThat(pageIndices).isNotNull();
 		assertThat(cachedPagesFile.toFile()).exists();
 		assertThat(new ObjectMapper().readValue(cachedPagesFile.toFile(), PageIndices.class)).isEqualTo(pageIndices);
@@ -515,9 +548,11 @@ public class ExtractorTest {
 
 	@Test
 	public void testArtifactCacheReadForPageExtraction() throws Exception {
+        //GIVEN
+        String embeddedId = "embedded_id";
         Extractor extractor = new Extractor();
-		extractor.setEmbedOutputPath(folder.getRoot().toPath());
-		String embeddedId = "embedded_id";
+        extractor.setEmbedOutputPath(folder.getRoot().toPath());
+        //WHEN
 		Path cachedPagesFile = ArtifactUtils.getEmbeddedPath(folder.getRoot().toPath(), embeddedId).resolve("pages.json");
 		Files.createDirectories(cachedPagesFile.getParent());
 		Files.write(cachedPagesFile, """
@@ -533,7 +568,7 @@ public class ExtractorTest {
 		PageIndices pageIndices = extractor.extractPageIndices(
 				Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()),
 				metadata -> "embedded.pdf".equals(metadata.get("resourceName")) || "INLINE".equals(metadata.get("embeddedResourceType")), embeddedId);
-
+        //THEN
 		assertThat(pageIndices).isNotNull();
 		assertThat(pageIndices.pages()).hasSize(2);
 		assertThat(pageIndices.extractor()).isEqualTo("Tika 3.0.1");
@@ -541,9 +576,10 @@ public class ExtractorTest {
 
 	@Test
 	public void testOcrTypeFromOption() {
+        //GIVEN
 		Options<String> options = Options.from(Map.of("ocrType", "TESS4J"));
         Extractor extractor = new Extractor(options);
-
+        //THEN
 		assertThat(extractor.ocrConfig.getClass()).isEqualTo(Tess4JOCRConfigAdapter.class);
 		assertThat(extractor.ocrConfig.getParserClass()).isEqualTo(Tess4JOCRParser.class);
 	}
