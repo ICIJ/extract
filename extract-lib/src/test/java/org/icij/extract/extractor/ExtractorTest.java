@@ -74,7 +74,7 @@ public class ExtractorTest {
 	}
 
     @Test
-    public void testOcr_jp2_extended() throws Throwable {
+    public void testOcrJp2Extended() throws Throwable {
         //GIVEN
         String text;
         Extractor extractor = new Extractor();
