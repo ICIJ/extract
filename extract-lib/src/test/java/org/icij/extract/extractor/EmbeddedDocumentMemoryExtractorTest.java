@@ -18,6 +18,7 @@ import java.nio.file.Paths;
 
 import static org.fest.assertions.Assertions.assertThat;
 import static org.fest.assertions.Fail.fail;
+import static org.icij.extract.extractor.ExtractorTest.aBasicExtractor;
 
 public class EmbeddedDocumentMemoryExtractorTest {
 
@@ -129,7 +130,7 @@ public class EmbeddedDocumentMemoryExtractorTest {
 
     @Test
     public void test_embedded_file_extraction_bug() throws Exception {
-        final Extractor extractor = new Extractor();
+        final Extractor extractor = aBasicExtractor();
         extractor.setDigester(new CommonsDigester(1024 * 1024 * 20, "SHA256"));
         TikaDocument tikaDocument256 = new DocumentFactory().withIdentifier(new DigestIdentifier("SHA-256", Charset.defaultCharset())).
                 create(getClass().getResource("/documents/embedded_file_bug.eml"));
