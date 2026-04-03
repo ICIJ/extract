@@ -372,14 +372,14 @@ public class ExtractorTest {
         //THEN
 		String allContents = outputStream.toString();
 
-		assertThat(allContents).contains("embed_0");
-		assertThat(allContents).contains("embed_1a");
-		assertThat(allContents).contains("embed_1b");
-		assertThat(allContents).contains("embed_2a");
-		assertThat(allContents).contains("embed_2b");
-		assertThat(allContents).contains("embed_3");
-		assertThat(allContents).contains("dissolve the political bands");
-		assertThat(allContents).contains("embed_4");
+		assertThat(allContents).contains("embed_0")
+                               .contains("embed_1a")
+                               .contains("embed_1b")
+                               .contains("embed_2a")
+                               .contains("embed_2b")
+                               .contains("embed_3")
+                               .contains("dissolve the political bands")
+                               .contains("embed_4");
 	}
 
 	@Test
