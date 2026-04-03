@@ -594,7 +594,7 @@ public class ExtractorTest {
 		return fullText.substring(toIntExact(startEndIndices.getLeft()), toIntExact(startEndIndices.getRight()));
 	}
 
-    private static Extractor aBasicExtractor() {
+    public static Extractor aBasicExtractor() {
         return new Extractor();
     }
 

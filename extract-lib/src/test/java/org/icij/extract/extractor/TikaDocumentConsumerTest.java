@@ -16,6 +16,8 @@ import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.icij.extract.extractor.ExtractorTest.aBasicExtractor;
+
 public class TikaDocumentConsumerTest {
 
 	private Path getFile() throws URISyntaxException {
@@ -24,7 +26,7 @@ public class TikaDocumentConsumerTest {
 
 	@Test
 	public void testSpewerIsClosed() throws InterruptedException {
-		final Extractor extractor = new Extractor();
+		final Extractor extractor = aBasicExtractor();
 		AtomicBoolean closedCalled = new AtomicBoolean(false);
 		final ByteArrayOutputStream output = new ByteArrayOutputStream() {
 			@Override
@@ -43,7 +45,7 @@ public class TikaDocumentConsumerTest {
 
 	@Test
 	public void testConsume() throws Throwable {
-		final Extractor extractor = new Extractor();
+		final Extractor extractor = aBasicExtractor();
 
 		final ByteArrayOutputStream output = new ByteArrayOutputStream();
 		final PrintStream print = new PrintStream(output);
@@ -63,7 +65,7 @@ public class TikaDocumentConsumerTest {
 	@Test
 	public void testSetReporter() throws Throwable {
 		final Spewer spewer = new PrintStreamSpewer(new PrintStream(new ByteArrayOutputStream()), new FieldNames());
-		final DocumentConsumer consumer = new DocumentConsumer(spewer, new Extractor(), 1);
+		final DocumentConsumer consumer = new DocumentConsumer(spewer, aBasicExtractor(), 1);
 		final Reporter reporter = new Reporter(new HashMapReportMap());
 		final Path tikaDocument = getFile();
 

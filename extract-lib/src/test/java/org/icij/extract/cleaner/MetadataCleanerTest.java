@@ -15,10 +15,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import static org.fest.assertions.Assertions.assertThat;
+import static org.icij.extract.extractor.ExtractorTest.aBasicExtractor;
 
 public class MetadataCleanerTest {
     @Rule public TemporaryFolder fs = new TemporaryFolder();
-    private final Extractor extractor = new Extractor();
+    private final Extractor extractor = aBasicExtractor();
 
     @Test
     public void test_remove_metadata_for_pdf_file() throws Exception {
