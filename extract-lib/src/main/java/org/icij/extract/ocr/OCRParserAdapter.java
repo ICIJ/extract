@@ -45,6 +45,7 @@ public class OCRParserAdapter<P extends Parser> implements Parser {
             throw new NullPointerException("Parser is null");
         }
         metadata.set(OCRParser.OCR_PARSER, delegatedParser.getClass().getName());
+        // Workaround for JP2/JPX images
         String contentType = metadata.get(Metadata.CONTENT_TYPE);
         MediaType mediaType = contentType == null ? null : MediaType.parse(contentType);
         if (mediaType != null && JPEG2000_TYPES.contains(mediaType.getBaseType())) {
