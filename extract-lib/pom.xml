@@ -12,7 +12,7 @@
     <name>Extract Lib</name>
     <packaging>jar</packaging>
     <properties>
-        <tika-version>3.1.0</tika-version>
+        <tika-version>3.2.3</tika-version>
     </properties>
 
     <build>
