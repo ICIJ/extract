@@ -69,7 +69,7 @@ public class ExtractorTest {
         //THEN
         assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isNotNull();
         assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isEqualTo("org.apache.tika.parser.ocr.TesseractOCRParser");
-		Assert.assertEquals("image/tiff", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals("image/ocr-tiff", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("HEAVY\nMETAL", text.trim());
 	}
 
@@ -85,7 +85,7 @@ public class ExtractorTest {
 			text = Spewer.toString(reader);
 		}
         //THEN
-		Assert.assertEquals("image/tiff", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
+		Assert.assertEquals("image/ocr-tiff", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
 		Assert.assertEquals("HEAVY\nMETAL", text.trim());
 		// We expect a null language, downstream component will be responsible to guess the language from the content
 		assertThat(tikaDocument.getLanguage()).isNull();
