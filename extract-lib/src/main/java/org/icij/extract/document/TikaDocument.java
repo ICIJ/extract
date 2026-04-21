@@ -6,12 +6,9 @@ import org.apache.tika.metadata.Property;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.lang.module.ModuleDescriptor.Version;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -255,6 +252,10 @@ public class TikaDocument {
 		// if, for example, the PathIdentifier is used.
 		final String id = getId();
 		return null != id && id.equals(((TikaDocument) other).getId());
+	}
+
+	public Version getTikaVersion() {
+		return Version.parse(Tika.getString().replace("Apache Tika","").strip());
 	}
 
 	@Override
