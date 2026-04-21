@@ -1,10 +1,7 @@
 package org.icij.extract.extractor;
 
 import org.apache.tika.parser.digestutils.CommonsDigester;
-import org.icij.extract.document.DigestIdentifier;
-import org.icij.extract.document.DocumentFactory;
-import org.icij.extract.document.TikaDocument;
-import org.icij.extract.document.TikaDocumentSource;
+import org.icij.extract.document.*;
 import org.icij.extract.extractor.EmbeddedDocumentExtractor.ContentNotFoundException;
 import org.icij.spewer.Spewer;
 import org.junit.Before;
@@ -13,6 +10,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.Reader;
+import java.lang.module.ModuleDescriptor;
 import java.nio.charset.Charset;
 import java.nio.file.Paths;
 
@@ -162,6 +160,11 @@ public class EmbeddedDocumentMemoryExtractorTest {
 
     @Test
     public void test_embedded_bug_732() throws Exception {
+        // this test is important because it is a Microsoft file type
+        // 3rd-level-bug-732.msg
+        // Test2.msg
+        // test.msg
+        // POD Layout ICIJ 2020.pdf
         Extractor extractor = new Extractor(documentFactory);
         extractor.setDigester(new UpdatableDigester("prj", "SHA-256"));
         TikaDocument extracted = extractor.extract(Paths.get(getClass().getResource("/documents/3rd-level-bug-732.msg").getPath()));
@@ -174,11 +177,24 @@ public class EmbeddedDocumentMemoryExtractorTest {
 
         assertThat(extracted.getEmbeds()).hasSize(1);
         assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(0).getId())).isNotNull();
-        assertThat(extracted.getEmbeds().get(0).getEmbeds()).hasSize(1);
         assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(0).getEmbeds().get(0).getId())).isNotNull();
         assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(0).getEmbeds().get(0).getEmbeds().get(0).getId())).isNotNull();
         assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(0).getEmbeds().get(0).getEmbeds().get(0).getId()).
                 metadata().get("resourceName")).contains("POD Layout ICIJ 2020.pdf");
+    }
+
+    @Test
+    public void test_embedded_bug_732_tika330_retro_compatibility() throws Exception {
+        TikaDocument tikaDocument256 = new DocumentFactory().withIdentifier(new DigestIdentifier("SHA-256", Charset.defaultCharset())).
+                create(getClass().getResource("/documents/3rd-level-bug-732.msg"));
+
+        EmbeddedDocumentExtractor contentExtractor = new EmbeddedDocumentExtractor(
+                new UpdatableDigester("prj", "SHA-256"), "SHA-256", tmp.getRoot().toPath(), false,
+                d -> ModuleDescriptor.Version.parse("3.2.3"));
+
+        // 72d03fc3c34e06df808ab357629d039121568f623c0c7814bc207841f1b54a44 is the former id of Test2.msg before 3.3.0 i.e.
+        // f48a492cbca157a8d00be48a4ca02ea1dce2733d22df6b25d1f44261e2fb9d58 without "translation"
+        assertThat(contentExtractor.extract(tikaDocument256, "72d03fc3c34e06df808ab357629d039121568f623c0c7814bc207841f1b54a44")).isNotNull();
     }
 
     @Test
