@@ -129,7 +129,7 @@ public class EmbeddedDocumentExtractor {
             this.tikaVersionSupplier = tikaVersionSupplier;
         }
 
-        protected abstract void documentCallback(Metadata metadata, String digest, TikaInputStream tis) throws IOException;
+        protected abstract boolean documentCallback(Metadata metadata, String digest, TikaInputStream tis) throws IOException;
 
         @Override
         void delegateParsing(InputStream stream, ContentHandler handler, Metadata metadata) throws IOException, SAXException {
@@ -172,7 +172,7 @@ public class EmbeddedDocumentExtractor {
                 } catch (NoSuchAlgorithmException e) {
                     throw new RuntimeException(e);
                 }
-                documentCallback(metadata, digest, tis);
+                if (documentCallback(metadata, digest, tis)) return;
                 this.documentStack.add(embed);
                 super.delegateParsing(tis, handler, metadata);
             } finally {
@@ -202,8 +202,9 @@ public class EmbeddedDocumentExtractor {
         }
 
         @Override
-        protected void documentCallback(Metadata metadata, String digest, TikaInputStream tis) throws IOException {
+        protected boolean documentCallback(Metadata metadata, String digest, TikaInputStream tis) throws IOException {
             writeFile(metadata, digest, tis);
+            return false;
         }
     }
 
@@ -217,11 +218,13 @@ public class EmbeddedDocumentExtractor {
         }
 
         @Override
-        protected void documentCallback(Metadata metadata, String digest, TikaInputStream tis) throws IOException {
+        protected boolean documentCallback(Metadata metadata, String digest, TikaInputStream tis) throws IOException {
             if (digestToFind.equals(digest)) {
                 Supplier<InputStream> inputStreamSupplier = getInputStreamSupplier(metadata, digest, tis);
                 this.document = new TikaDocumentSource(metadata, inputStreamSupplier);
+                return true;
             }
+            return false;
         }
 
         protected Supplier<InputStream> getInputStreamSupplier(Metadata metadata, String digest, TikaInputStream tis) throws IOException {
