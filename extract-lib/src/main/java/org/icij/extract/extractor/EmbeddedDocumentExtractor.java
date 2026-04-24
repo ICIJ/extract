@@ -30,7 +30,6 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.security.NoSuchAlgorithmException;
 import java.util.LinkedList;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static java.util.Optional.ofNullable;
@@ -40,8 +39,6 @@ public class EmbeddedDocumentExtractor {
     private final DigestingParser.Digester digester;
     private final String algorithm;
     private final Path artifactPath;
-    // for tests
-    private final Function<TikaDocument, ModuleDescriptor.Version> tikaVersionSupplier;
 
     public EmbeddedDocumentExtractor(UpdatableDigester digester) {
         this(digester, false);
@@ -56,15 +53,10 @@ public class EmbeddedDocumentExtractor {
     }
 
     public EmbeddedDocumentExtractor(final DigestingParser.Digester digester, String algorithm, Path artifactPath, boolean ocr) {
-        this(digester, algorithm, artifactPath, ocr, TikaDocument::getTikaVersion);
-    }
-
-    EmbeddedDocumentExtractor(final DigestingParser.Digester digester, String algorithm, Path artifactPath, boolean ocr, Function<TikaDocument, ModuleDescriptor.Version> tikaVersionSupplier) {
         this.parser = new DigestingParser(ocr ? new AutoDetectParser() : createParserWithoutOCR(), digester, false);
         this.digester = digester;
         this.artifactPath = artifactPath;
         this.algorithm = algorithm;
-        this.tikaVersionSupplier = tikaVersionSupplier;
     }
 
     public void extractAll(final TikaDocument document) throws SAXException, TikaException, IOException {
@@ -73,7 +65,7 @@ public class EmbeddedDocumentExtractor {
         ContentHandler handler = new BodyContentHandler(-1);
         context.set(Parser.class, parser);
 
-        DigestEmbeddedDocumentExtractor extractor = new DigestAllEmbeddedDocumentExtractor(document, context, digester, algorithm, artifactPath, tikaVersionSupplier);
+        DigestEmbeddedDocumentExtractor extractor = new DigestAllEmbeddedDocumentExtractor(document, context, digester, algorithm, artifactPath);
         context.set(org.apache.tika.extractor.EmbeddedDocumentExtractor.class, extractor);
 
         parser.parse(new FileInputStream(document.getPath().toFile()), handler, document.getMetadata(), context);
@@ -100,9 +92,9 @@ public class EmbeddedDocumentExtractor {
 
     private DigestEmbeddedDocumentFileExtractor getExtractor(TikaDocument rootDocument, String embeddedDocumentDigest, ParseContext context, Path artifactPath) {
         if (artifactPath != null) {
-            return new DigestEmbeddedDocumentFileExtractor(rootDocument, embeddedDocumentDigest, context, digester, algorithm, artifactPath, tikaVersionSupplier);
+            return new DigestEmbeddedDocumentFileExtractor(rootDocument, embeddedDocumentDigest, context, digester, algorithm, artifactPath);
         } else {
-            return new DigestEmbeddedDocumentMemoryExtractor(rootDocument, embeddedDocumentDigest, context, digester, algorithm, tikaVersionSupplier);
+            return new DigestEmbeddedDocumentMemoryExtractor(rootDocument, embeddedDocumentDigest, context, digester, algorithm);
         }
     }
 
@@ -116,17 +108,15 @@ public class EmbeddedDocumentExtractor {
         protected final Path artifactPath;
         protected final LinkedList<TikaDocument> documentStack = new LinkedList<>();
         private final EmbeddedStreamTranslator embeddedStreamTranslator = new DefaultEmbeddedStreamTranslator();
-        private final Function<TikaDocument, ModuleDescriptor.Version> tikaVersionSupplier;
 
 
         DigestEmbeddedDocumentExtractor(TikaDocument document, ParseContext context, DigestingParser.Digester digester,
-                                        String algorithm, Path artifactPath, Function<TikaDocument, ModuleDescriptor.Version> tikaVersionSupplier) {
+                                        String algorithm, Path artifactPath) {
             super(document, context);
             this.digester = digester;
             this.algorithm = algorithm;
             this.artifactPath = artifactPath;
             this.documentStack.add(document);
-            this.tikaVersionSupplier = tikaVersionSupplier;
         }
 
         protected abstract boolean documentCallback(Metadata metadata, String digest, TikaInputStream tis) throws IOException;
@@ -147,7 +137,7 @@ public class EmbeddedDocumentExtractor {
                 // see https://issues.apache.org/jira/browse/TIKA-4533
                 // only if version is > to 3.2.3
                 if (embeddedStreamTranslator.shouldTranslate(tis, metadata) &&
-                        tikaVersionSupplier.apply(documentStack.get(0)).compareTo(ModuleDescriptor.Version.parse("3.2.3")) > 0) {
+                        documentStack.get(0).getTikaVersion().compareTo(ModuleDescriptor.Version.parse("3.2.3")) > 0) {
                     Path translatedBytes;
                     try (TemporaryResources tmp = new TemporaryResources()) {
                         translatedBytes = tmp.createTempFile();
@@ -197,8 +187,8 @@ public class EmbeddedDocumentExtractor {
     }
 
     static class DigestAllEmbeddedDocumentExtractor extends DigestEmbeddedDocumentExtractor {
-        DigestAllEmbeddedDocumentExtractor(TikaDocument document, ParseContext context, DigestingParser.Digester digester, String algorithm, Path artifactPath, Function<TikaDocument, ModuleDescriptor.Version> tikaVersionSupplier) {
-            super(document, context, digester, algorithm, artifactPath, tikaVersionSupplier);
+        DigestAllEmbeddedDocumentExtractor(TikaDocument document, ParseContext context, DigestingParser.Digester digester, String algorithm, Path artifactPath) {
+            super(document, context, digester, algorithm, artifactPath);
         }
 
         @Override
@@ -212,8 +202,8 @@ public class EmbeddedDocumentExtractor {
         private final String digestToFind;
         private TikaDocumentSource document;
 
-        private DigestEmbeddedDocumentFileExtractor(final TikaDocument rootDocument, final String digestToFind, ParseContext context, DigestingParser.Digester digester, String algorithm, Path artifactDir, Function<TikaDocument, ModuleDescriptor.Version> tikaVersionSupplier) {
-            super(rootDocument, context, digester, algorithm, artifactDir, tikaVersionSupplier);
+        private DigestEmbeddedDocumentFileExtractor(final TikaDocument rootDocument, final String digestToFind, ParseContext context, DigestingParser.Digester digester, String algorithm, Path artifactDir) {
+            super(rootDocument, context, digester, algorithm, artifactDir);
             this.digestToFind = digestToFind;
         }
 
@@ -250,8 +240,8 @@ public class EmbeddedDocumentExtractor {
     }
 
     static class DigestEmbeddedDocumentMemoryExtractor extends DigestEmbeddedDocumentFileExtractor {
-        DigestEmbeddedDocumentMemoryExtractor(TikaDocument rootDocument, String digestToFind, ParseContext context, DigestingParser.Digester digester, String algorithm, Function<TikaDocument, ModuleDescriptor.Version> tikaVersionSupplier) {
-            super(rootDocument, digestToFind, context, digester, algorithm, null, tikaVersionSupplier);
+        DigestEmbeddedDocumentMemoryExtractor(TikaDocument rootDocument, String digestToFind, ParseContext context, DigestingParser.Digester digester, String algorithm) {
+            super(rootDocument, digestToFind, context, digester, algorithm, null);
         }
 
         @Override
