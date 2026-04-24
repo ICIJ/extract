@@ -39,11 +39,16 @@ public class EmbeddedDocumentMemoryExtractorTest {
 
     @Test
     public void test_embedded_file_not_found() throws Exception {
+        //GIVEN
+        EmbeddedDocumentExtractor extractor = new EmbeddedDocumentExtractor(
+                new UpdatableDigester("prj", "SHA-256"), tmp.getRoot().toPath());
+
         try {
-            new EmbeddedDocumentExtractor(new UpdatableDigester("prj", "SHA-256"), tmp.getRoot().toPath()).
-                    extract(tikaDocument, "unknownDigest").getContent();
+            //WHEN
+            extractor.extract(tikaDocument, "unknownDigest").getContent();
             fail("NullPointerException should have been thrown");
         } catch (ContentNotFoundException npe) {
+            //THEN
             assertThat(npe.getMessage()).contains("<unknownDigest> embedded document not found in root document");
             assertThat(npe.getMessage()).contains("documents/recursive_embedded.docx");
         }
@@ -51,9 +56,15 @@ public class EmbeddedDocumentMemoryExtractorTest {
 
     @Test
     public void test_embedded_file_extraction_level_1() throws Exception {
-        TikaDocumentSource emfImage = new EmbeddedDocumentExtractor(new UpdatableDigester("prj", "SHA-256"), tmp.getRoot().toPath()).
-                extract(tikaDocument, "1eeb334ca60c61baca50b9df851b60c52b856c727932d0d1cae4e56a34190e7e");
+        //GIVEN
+        EmbeddedDocumentExtractor extractor = new EmbeddedDocumentExtractor(
+                new UpdatableDigester("prj", "SHA-256"), tmp.getRoot().toPath());
 
+        //WHEN
+        TikaDocumentSource emfImage = extractor.extract(tikaDocument,
+                "1eeb334ca60c61baca50b9df851b60c52b856c727932d0d1cae4e56a34190e7e");
+
+        //THEN
         assertThat(emfImage).isNotNull();
         assertThat(emfImage.getContent()).hasSize(4992);
         assertThat(EmbeddedDocumentExtractor.getEmbeddedPath(tmp.getRoot().toPath(),
@@ -62,19 +73,30 @@ public class EmbeddedDocumentMemoryExtractorTest {
 
     @Test
     public void test_embedded_memory_extraction_level_1() throws Exception {
-        TikaDocumentSource emfImage = new EmbeddedDocumentExtractor(new UpdatableDigester("prj", "SHA-256")).
-                extract(tikaDocument, "1eeb334ca60c61baca50b9df851b60c52b856c727932d0d1cae4e56a34190e7e");
+        //GIVEN
+        EmbeddedDocumentExtractor extractor = new EmbeddedDocumentExtractor(
+                new UpdatableDigester("prj", "SHA-256"));
 
+        //WHEN
+        TikaDocumentSource emfImage = extractor.extract(tikaDocument,
+                "1eeb334ca60c61baca50b9df851b60c52b856c727932d0d1cae4e56a34190e7e");
+
+        //THEN
         assertThat(emfImage).isNotNull();
         assertThat(emfImage.getContent()).hasSize(4992);
     }
 
     @Test
     public void test_embedded_file_extraction_level_1_should_use_cache_if_it_exists() throws Exception {
-        EmbeddedDocumentExtractor extractor = new EmbeddedDocumentExtractor(new UpdatableDigester("prj", "SHA-256"), tmp.getRoot().toPath());
+        //GIVEN
+        EmbeddedDocumentExtractor extractor = new EmbeddedDocumentExtractor(
+                new UpdatableDigester("prj", "SHA-256"), tmp.getRoot().toPath());
         extractor.extract(tikaDocument, "1eeb334ca60c61baca50b9df851b60c52b856c727932d0d1cae4e56a34190e7e");
 
+        //WHEN
         TikaDocumentSource emfImage = extractor.extract(null, "1eeb334ca60c61baca50b9df851b60c52b856c727932d0d1cae4e56a34190e7e");
+
+        //THEN
         assertThat(emfImage).isNotNull();
         assertThat(emfImage.metadata()).isNotNull();
         assertThat(emfImage.getContent()).hasSize(4992);
@@ -82,81 +104,107 @@ public class EmbeddedDocumentMemoryExtractorTest {
 
     @Test
     public void test_extract_all_embedded_artifacts_from_root_document() throws Exception {
-        EmbeddedDocumentExtractor extractor = new EmbeddedDocumentExtractor(new UpdatableDigester("prj", "SHA-256"), tmp.getRoot().toPath().resolve("prj"));
+        //GIVEN
+        EmbeddedDocumentExtractor extractor = new EmbeddedDocumentExtractor(
+                new UpdatableDigester("prj", "SHA-256"), tmp.getRoot().toPath().resolve("prj"));
+
+        //WHEN
         extractor.extractAll(tikaDocument);
 
+        //THEN
         assertThat(tmp.getRoot().toPath().resolve("prj").toFile()).isDirectory();
-        // recursive_embedded.docx - embed1.zip
-        // recursive_embedded.docx - embed1/embed1a.txt
-        // recursive_embedded.docx - embed1/embed1b.txt
-        // recursive_embedded.docx - embed1/embed2.zip
-        // recursive_embedded.docx - embed2/embed2a.txt
-        // recursive_embedded.docx - embed2/embed2b.txt
-        // recursive_embedded.docx - embed2/embed3.zip
-        // recursive_embedded.docx - embed3/embed3.txt
-        // recursive_embedded.docx - embed3/embed4.zip
-        // recursive_embedded.docx - embed4.txt
         assertThat(tmp.getRoot().toPath().resolve("prj").toFile().listFiles()).hasSize(11);
     }
 
     @Test(expected = IllegalStateException.class)
     public void test_extract_all_embedded_artifacts_from_root_document_without_path() throws Exception {
-        new EmbeddedDocumentExtractor(new UpdatableDigester("prj", "SHA-256")).extractAll(null);
+        //GIVEN
+        EmbeddedDocumentExtractor extractor = new EmbeddedDocumentExtractor(
+                new UpdatableDigester("prj", "SHA-256"));
+        
+        //WHEN/THEN
+        extractor.extractAll(null);
     }
 
     @Test
     public void test_embedded_file_extraction_level_2() throws Exception {
-        TikaDocumentSource textContent = new EmbeddedDocumentExtractor(new UpdatableDigester("prj", "SHA-256"), tmp.getRoot().toPath()).
-                extract(tikaDocument, "13d7b88767d478c03a3f9b01649297f254b3f0845ca1728658d7f7b922d28a32");
+        //GIVEN
+        EmbeddedDocumentExtractor extractor = new EmbeddedDocumentExtractor(
+                new UpdatableDigester("prj", "SHA-256"), tmp.getRoot().toPath());
 
+        //WHEN
+        TikaDocumentSource textContent = extractor.extract(tikaDocument,
+                "13d7b88767d478c03a3f9b01649297f254b3f0845ca1728658d7f7b922d28a32");
+
+        //THEN
         assertThat(textContent).isNotNull();
         assertThat(new String(textContent.getContent())).isEqualTo("embed_1a");
     }
 
     @Test
     public void test_embedded_file_extraction_level_4() throws Exception {
-        TikaDocumentSource textContent = new EmbeddedDocumentExtractor(new UpdatableDigester("prj", "SHA-256"), tmp.getRoot().toPath()).
-                extract(tikaDocument, "c6eb226439d6a1a38ad23d69a98b2f321024eeb9ba32cd0238cc39a3d44b5130");
+        //GIVEN
+        EmbeddedDocumentExtractor extractor = new EmbeddedDocumentExtractor(
+                new UpdatableDigester("prj", "SHA-256"), tmp.getRoot().toPath());
 
+        //WHEN
+        TikaDocumentSource textContent = extractor.extract(tikaDocument,
+                "c6eb226439d6a1a38ad23d69a98b2f321024eeb9ba32cd0238cc39a3d44b5130");
+
+        //THEN
         assertThat(textContent).isNotNull();
         assertThat(new String(textContent.getContent())).isEqualTo("embed_4");
     }
 
     @Test
     public void test_embedded_file_extraction_level_2_sha384() throws Exception {
-        TikaDocument tikaDocument384 = new DocumentFactory().withIdentifier(new DigestIdentifier("SHA-384", Charset.defaultCharset())).
-                create(getClass().getResource("/documents/recursive_embedded.docx"));
-        TikaDocumentSource textContent = new EmbeddedDocumentExtractor(new UpdatableDigester("prj", "SHA-384"), tmp.getRoot().toPath()).
-                extract(tikaDocument384, "ad1892526e4c1c1c967390da3a8354b6926b03680156d7d76274e6971248be965bc15998a0260f19b801012227f03fae");
+        //GIVEN
+        TikaDocument tikaDocument384 = new DocumentFactory()
+                .withIdentifier(new DigestIdentifier("SHA-384", Charset.defaultCharset()))
+                .create(getClass().getResource("/documents/recursive_embedded.docx"));
+        EmbeddedDocumentExtractor extractor = new EmbeddedDocumentExtractor(
+                new UpdatableDigester("prj", "SHA-384"), tmp.getRoot().toPath());
 
+        //WHEN
+        TikaDocumentSource textContent = extractor.extract(tikaDocument384,
+                "ad1892526e4c1c1c967390da3a8354b6926b03680156d7d76274e6971248be965bc15998a0260f19b801012227f03fae");
+
+        //THEN
         assertThat(textContent).isNotNull();
         assertThat(new String(textContent.getContent())).isEqualTo("embed_2b");
     }
 
     @Test
     public void test_embedded_file_extraction_bug() throws Exception {
-        TikaDocument tikaDocument256 = new DocumentFactory().withIdentifier(new DigestIdentifier("SHA-256", Charset.defaultCharset())).
-                create(getClass().getResource("/documents/embedded_file_bug.eml"));
+        //GIVEN
+        TikaDocument tikaDocument256 = new DocumentFactory()
+                .withIdentifier(new DigestIdentifier("SHA-256", Charset.defaultCharset()))
+                .create(getClass().getResource("/documents/embedded_file_bug.eml"));
+        EmbeddedDocumentExtractor extractor = new EmbeddedDocumentExtractor(
+                new CommonsDigester(1024 * 1024 * 20, "SHA256"), "SHA-256", tmp.getRoot().toPath(), false);
 
-        TikaDocumentSource pngFile = new EmbeddedDocumentExtractor(new CommonsDigester(1024 * 1024 * 20, "SHA256"), "SHA-256", tmp.getRoot().toPath(), false).
-                extract(tikaDocument256, "dae37ba1313e9724b29eab8f3c8b4ec267482023866c5528b95c1d306786c32a");
+        //WHEN
+        TikaDocumentSource pngFile = extractor.extract(tikaDocument256,
+                "dae37ba1313e9724b29eab8f3c8b4ec267482023866c5528b95c1d306786c32a");
 
+        //THEN
         assertThat(pngFile).isNotNull();
         assertThat(new String(pngFile.getContent())).hasSize(634);
     }
 
     @Test
     public void test_embedded_file_content_extraction_should_have_same_hashes_than_extracted_docs() throws Exception {
+        //GIVEN
         Extractor extractor = new Extractor(documentFactory);
         extractor.setDigester(new UpdatableDigester("prj", "SHA-256"));
         TikaDocument extracted = extractor.extract(Paths.get(getClass().getResource("/documents/recursive_embedded.docx").getPath()));
         try (Reader reader = extracted.getReader()) {
             Spewer.toString(reader);
         }
-
         EmbeddedDocumentExtractor contentExtractor = new EmbeddedDocumentExtractor(
                 new UpdatableDigester("prj", "SHA-256"), tmp.getRoot().toPath());
 
+        //WHEN/THEN
         assertThat(extracted.getEmbeds()).hasSize(1);
         assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(0).getId())).isNotNull();
         assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(0).getId())).isNotNull();
@@ -165,21 +213,17 @@ public class EmbeddedDocumentMemoryExtractorTest {
 
     @Test
     public void test_embedded_bug_732() throws Exception {
-        // this test is important because it is a Microsoft file type
-        // 3rd-level-bug-732.msg
-        // Test2.msg
-        // test.msg
-        // POD Layout ICIJ 2020.pdf
+        //GIVEN
         Extractor extractor = new Extractor(documentFactory);
         extractor.setDigester(new UpdatableDigester("prj", "SHA-256"));
         TikaDocument extracted = extractor.extract(Paths.get(getClass().getResource("/documents/3rd-level-bug-732.msg").getPath()));
         try (Reader reader = extracted.getReader()) {
             Spewer.toString(reader);
         }
-
         EmbeddedDocumentExtractor contentExtractor = new EmbeddedDocumentExtractor(
                 new UpdatableDigester("prj", "SHA-256"), tmp.getRoot().toPath());
 
+        //WHEN/THEN
         assertThat(extracted.getEmbeds()).hasSize(1);
         assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(0).getId())).isNotNull();
         assertThat(contentExtractor.extract(extracted, extracted.getEmbeds().get(0).getEmbeds().get(0).getId())).isNotNull();
@@ -190,53 +234,64 @@ public class EmbeddedDocumentMemoryExtractorTest {
 
     @Test
     public void test_embedded_bug_732_tika330_retro_compatibility() throws Exception {
+        //GIVEN
         TikaVersionTestHelper.setVersion("3.2.3");
-
-        TikaDocument tikaDocument256 = new DocumentFactory().withIdentifier(new DigestIdentifier("SHA-256", Charset.defaultCharset())).
-                create(getClass().getResource("/documents/3rd-level-bug-732.msg"));
-
+        TikaDocument tikaDocument256 = new DocumentFactory()
+                .withIdentifier(new DigestIdentifier("SHA-256", Charset.defaultCharset()))
+                .create(getClass().getResource("/documents/3rd-level-bug-732.msg"));
         EmbeddedDocumentExtractor contentExtractor = new EmbeddedDocumentExtractor(
                 new UpdatableDigester("prj", "SHA-256"), "SHA-256", tmp.getRoot().toPath(), false);
 
-        // 72d03fc3c34e06df808ab357629d039121568f623c0c7814bc207841f1b54a44 is the former id of Test2.msg before 3.3.0 i.e.
-        // f48a492cbca157a8d00be48a4ca02ea1dce2733d22df6b25d1f44261e2fb9d58 without "translation"
-        assertThat(contentExtractor.extract(tikaDocument256, "72d03fc3c34e06df808ab357629d039121568f623c0c7814bc207841f1b54a44")).isNotNull();
+        //WHEN
+        TikaDocumentSource result = contentExtractor.extract(tikaDocument256,
+                "72d03fc3c34e06df808ab357629d039121568f623c0c7814bc207841f1b54a44");
+
+        //THEN
+        assertThat(result).isNotNull();
     }
 
     @Test
     public void test_extract_embedded_without_ocr() throws Exception {
+        //GIVEN
         EmbeddedDocumentExtractor contentExtractor = new EmbeddedDocumentExtractor(
-                new CommonsDigester(20 * 1024 * 1024, CommonsDigester.DigestAlgorithm.SHA256.toString()), "SHA-256", tmp.getRoot().toPath(), false);
+                new CommonsDigester(20 * 1024 * 1024, CommonsDigester.DigestAlgorithm.SHA256.toString()),
+                "SHA-256", tmp.getRoot().toPath(), false);
 
-        TikaDocumentSource actual = contentExtractor.extract(documentFactory.create(Paths.get(getClass().getResource("/documents/embedded_with_duplicate.tgz").getPath())),
+        //WHEN
+        TikaDocumentSource actual = contentExtractor.extract(
+                documentFactory.create(Paths.get(getClass().getResource("/documents/embedded_with_duplicate.tgz").getPath())),
                 "2519f5fc76b8e243c8b0ae42cbee55afd3b0c0ffe67d31a5a8f2a9b13f2998e8");
 
+        //THEN
         assertThat(new String(actual.getContent()).replace("\n", "")).isEqualTo("level2");
     }
 
     @Test
     public void test_hash_with_ocr_and_without_ocr_is_the_same() throws Exception {
+        //GIVEN
         EmbeddedDocumentExtractor ocrExtractor = new EmbeddedDocumentExtractor(
-                new CommonsDigester(20 * 1024 * 1024, CommonsDigester.DigestAlgorithm.SHA256.toString()), "SHA-256", tmp.getRoot().toPath(), true);
+                new CommonsDigester(20 * 1024 * 1024, CommonsDigester.DigestAlgorithm.SHA256.toString()),
+                "SHA-256", tmp.getRoot().toPath(), true);
         EmbeddedDocumentExtractor noOcrExtractor = new EmbeddedDocumentExtractor(
-                new CommonsDigester(20 * 1024 * 1024, CommonsDigester.DigestAlgorithm.SHA256.toString()), "SHA-256", tmp.getRoot().toPath(), false);
+                new CommonsDigester(20 * 1024 * 1024, CommonsDigester.DigestAlgorithm.SHA256.toString()),
+                "SHA-256", tmp.getRoot().toPath(), false);
+        
+        //WHEN
+        TikaDocument doc = documentFactory.create(Paths.get(getClass().getResource("/documents/embedded_with_duplicate.tgz").getPath()));
+        String digest = "d4f96c1c29d838a99e95b72bfd949f2cf802afddefa1e1d92e358e15bac5abcd";
 
-        assertThat(ocrExtractor.extract(documentFactory.create(Paths.get(getClass().getResource("/documents/embedded_with_duplicate.tgz").getPath())),
-                "d4f96c1c29d838a99e95b72bfd949f2cf802afddefa1e1d92e358e15bac5abcd")).isNotNull();
-        assertThat(noOcrExtractor.extract(documentFactory.create(Paths.get(getClass().getResource("/documents/embedded_with_duplicate.tgz").getPath())),
-                "d4f96c1c29d838a99e95b72bfd949f2cf802afddefa1e1d92e358e15bac5abcd")).isNotNull();
-
-        /* should work like this ?
-        InputStreamDigester inputStreamDigester = new InputStreamDigester(20 * 1024 * 1024, "SHA-256", Hex::encodeHexString);
-        Metadata metadata = new Metadata();
-        inputStreamDigester.digest(new ByteArrayInputStream(hexToBin(onePixelJpg)), metadata, new ParseContext());
-        assertThat("f35a3e02f71564f653db8d0115fa5caaff27341f5767096242fd90ad6392b81d").isEqualTo(metadata.get("X-TIKA:digest:SHA-256"));
-        */
+        //THEN
+        assertThat(ocrExtractor.extract(doc, digest)).isNotNull();
+        assertThat(noOcrExtractor.extract(doc, digest)).isNotNull();
     }
 
     @Test
     public void test_embedded_path() {
-        assertThat(EmbeddedDocumentExtractor.getEmbeddedPath(Paths.get("/tmp"), "1234digest").toString()).isEqualTo("/tmp/12/34/1234digest/raw");
+        //GIVEN/WHEN
+        String path = EmbeddedDocumentExtractor.getEmbeddedPath(Paths.get("/tmp"), "1234digest").toString();
+
+        //THEN
+        assertThat(path).isEqualTo("/tmp/12/34/1234digest/raw");
     }
 
     final String onePixelJpg =
