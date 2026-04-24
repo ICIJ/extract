@@ -7,13 +7,13 @@ import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.TikaDocumentSource;
 import org.icij.extract.extractor.EmbeddedDocumentExtractor.ContentNotFoundException;
 import org.icij.spewer.Spewer;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.Reader;
-import java.lang.module.ModuleDescriptor;
 import java.nio.charset.Charset;
 import java.nio.file.Paths;
 
@@ -30,6 +30,11 @@ public class EmbeddedDocumentMemoryExtractorTest {
     @Before
     public void setUp() throws Exception {
         tikaDocument = documentFactory.create(getClass().getResource("/documents/recursive_embedded.docx"));
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        TikaVersionTestHelper.restoreVersion();
     }
 
     @Test
@@ -185,12 +190,13 @@ public class EmbeddedDocumentMemoryExtractorTest {
 
     @Test
     public void test_embedded_bug_732_tika330_retro_compatibility() throws Exception {
+        TikaVersionTestHelper.setVersion("3.2.3");
+
         TikaDocument tikaDocument256 = new DocumentFactory().withIdentifier(new DigestIdentifier("SHA-256", Charset.defaultCharset())).
                 create(getClass().getResource("/documents/3rd-level-bug-732.msg"));
 
         EmbeddedDocumentExtractor contentExtractor = new EmbeddedDocumentExtractor(
-                new UpdatableDigester("prj", "SHA-256"), "SHA-256", tmp.getRoot().toPath(), false,
-                d -> ModuleDescriptor.Version.parse("3.2.3"));
+                new UpdatableDigester("prj", "SHA-256"), "SHA-256", tmp.getRoot().toPath(), false);
 
         // 72d03fc3c34e06df808ab357629d039121568f623c0c7814bc207841f1b54a44 is the former id of Test2.msg before 3.3.0 i.e.
         // f48a492cbca157a8d00be48a4ca02ea1dce2733d22df6b25d1f44261e2fb9d58 without "translation"
