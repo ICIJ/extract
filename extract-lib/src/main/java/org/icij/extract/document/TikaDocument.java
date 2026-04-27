@@ -255,7 +255,7 @@ public class TikaDocument {
 	}
 
 	public Version getTikaVersion() {
-		return Version.parse(Tika.getString().replace("Apache Tika","").strip());
+		return Version.parse(metadata.get(TIKA_VERSION).replace("Apache Tika","").strip());
 	}
 
 	@Override
