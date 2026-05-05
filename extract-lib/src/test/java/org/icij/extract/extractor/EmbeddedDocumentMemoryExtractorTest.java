@@ -16,6 +16,7 @@ import org.junit.rules.TemporaryFolder;
 import java.io.Reader;
 import java.nio.charset.Charset;
 import java.nio.file.Paths;
+import java.util.Objects;
 
 import static org.fest.assertions.Assertions.assertThat;
 import static org.fest.assertions.Fail.fail;
@@ -235,19 +236,25 @@ public class EmbeddedDocumentMemoryExtractorTest {
     @Test
     public void test_embedded_bug_732_tika330_retro_compatibility() throws Exception {
         //GIVEN
-        TikaVersionTestHelper.setVersion("3.2.3");
         TikaDocument tikaDocument256 = new DocumentFactory()
-                .withIdentifier(new DigestIdentifier("SHA-256", Charset.defaultCharset()))
-                .create(getClass().getResource("/documents/3rd-level-bug-732.msg"));
+                .withIdentifier(new DigestIdentifier("SHA-384", Charset.defaultCharset()))
+                .create(Paths.get(Objects.requireNonNull(getClass().getResource("/documents/3rd-level-bug-732.msg")).toURI()),
+                        "Apache Tika 3.2.3");
+
         EmbeddedDocumentExtractor contentExtractor = new EmbeddedDocumentExtractor(
-                new UpdatableDigester("prj", "SHA-256"), "SHA-256", tmp.getRoot().toPath(), false);
+                new UpdatableDigester("local-datashare", "SHA-384"), "SHA-384", tmp.getRoot().toPath(), false);
 
-        //WHEN
-        TikaDocumentSource result = contentExtractor.extract(tikaDocument256,
-                "72d03fc3c34e06df808ab357629d039121568f623c0c7814bc207841f1b54a44");
-
-        //THEN
-        assertThat(result).isNotNull();
+        //WHEN/THEN
+        TikaDocumentSource test2 = contentExtractor.extract(tikaDocument256,
+                "48ff8c7811277eaa17d0455cb83f9ffa53db86cc3f90f35a4d48031ecb103c039b2864857d3ed5886ecd45581eebde73");
+        assertThat(test2).isNotNull();
+        TikaDocumentSource test = contentExtractor.extract(tikaDocument256,
+                "e571ca1d275d9fc6f9ad2856786ff7efbfc7475b6d20d3cc5c0793b3e163978edcde26d09722996f45130561eecc0350");
+        assertThat(test).isNotNull();
+        assertThat(test2.metadata().get("resourceName")).contains("Test2.msg");
+        TikaDocumentSource pdf = contentExtractor.extract(tikaDocument256,
+                "f27a5ea51ffc8a9a023e5bf46930b6e9f112ff508008fa13ac3fc81cac3a7dfa2176cd25a94d0f6a9de82d44c2ccbc3a");
+        assertThat(pdf.metadata().get("resourceName")).contains("POD Layout ICIJ 2020.pdf");
     }
 
     @Test

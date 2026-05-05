@@ -15,6 +15,8 @@ import java.util.HashMap;
 import java.util.Objects;
 import java.util.Optional;
 
+import static org.icij.extract.document.TikaDocument.TIKA_VERSION;
+
 /**
  * A factory class for creating {@link TikaDocument} objects with default parameters.
  *
@@ -112,6 +114,12 @@ public class DocumentFactory {
 
 	public TikaDocument create(final Path path, final BasicFileAttributes attributes) {
 		return create(path, attributes.size());
+	}
+
+	public TikaDocument create(final Path path, final String tikaVersion) {
+		final Metadata metadata = new Metadata();
+		metadata.set(TIKA_VERSION, tikaVersion);
+		return create(path, metadata);
 	}
 
 	public TikaDocument create(final Path path, final long size) {

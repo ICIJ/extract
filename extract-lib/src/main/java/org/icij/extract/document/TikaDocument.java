@@ -118,7 +118,9 @@ public class TikaDocument {
 			this.id = ()-> id;
 			return id;
 		};
-		this.metadata.set(TIKA_VERSION, Tika.getString());
+		if (metadata.get(TIKA_VERSION) == null) {
+			metadata.set(TIKA_VERSION, Tika.getString());
+		}
 	}
 
 	/**
@@ -146,6 +148,11 @@ public class TikaDocument {
 	 */
 	public TikaDocument(final Identifier identifier, final Path path, final String language) {
 		this(identifier, path, language, new Metadata());
+	}
+
+	public TikaDocument(Identifier identifier, Path path, String language, String tikaVersion) {
+		this(identifier, path, language, new Metadata());
+		this.metadata.set(TIKA_VERSION, tikaVersion);
 	}
 
 	String generateId() throws Exception {
