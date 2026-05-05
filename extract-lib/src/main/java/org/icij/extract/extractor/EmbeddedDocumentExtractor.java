@@ -13,7 +13,6 @@ import org.apache.tika.parser.DigestingParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.BodyContentHandler;
-import org.icij.extract.document.DigestIdentifier;
 import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.TikaDocumentSource;
@@ -28,7 +27,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.security.NoSuchAlgorithmException;
 import java.util.LinkedList;
 import java.util.function.Supplier;
 
@@ -107,6 +105,7 @@ public class EmbeddedDocumentExtractor {
         private final String algorithm;
         protected final Path artifactPath;
         protected final LinkedList<TikaDocument> documentStack = new LinkedList<>();
+        protected final ModuleDescriptor.Version documentTikaVersion;
         private final EmbeddedStreamTranslator embeddedStreamTranslator = new DefaultEmbeddedStreamTranslator();
 
 
@@ -117,6 +116,7 @@ public class EmbeddedDocumentExtractor {
             this.algorithm = algorithm;
             this.artifactPath = artifactPath;
             this.documentStack.add(document);
+            this.documentTikaVersion = document.getTikaVersion();
         }
 
         protected abstract boolean documentCallback(Metadata metadata, String digest, TikaInputStream tis) throws IOException;
@@ -135,9 +135,10 @@ public class EmbeddedDocumentExtractor {
                 tis.mark(0); // Marking the position before resetting
                 // this if/else is coming from DigestingParser since 3.3.0 to fix issues with Microsoft OLE docs
                 // see https://issues.apache.org/jira/browse/TIKA-4533
-                // only if version is > to 3.2.3
-                if (embeddedStreamTranslator.shouldTranslate(tis, metadata) &&
-                        documentStack.get(0).getTikaVersion().compareTo(ModuleDescriptor.Version.parse("3.2.3")) > 0) {
+                boolean shouldTranslate = embeddedStreamTranslator.shouldTranslate(tis, metadata);
+                boolean retroCompat = documentTikaVersion.compareTo(ModuleDescriptor.Version.parse("3.2.3")) <= 0;
+                if (shouldTranslate && !retroCompat) {
+                    // Tika >= 3.3.0: hash the translated bytes so the digest matches the actual content
                     Path translatedBytes;
                     try (TemporaryResources tmp = new TemporaryResources()) {
                         translatedBytes = tmp.createTempFile();
@@ -153,15 +154,15 @@ public class EmbeddedDocumentExtractor {
                         }
                     }
                 } else {
+                    // retro-compat (<= 3.2.3) or no translation needed: hash raw bytes
                     digester.digest(tis, metadata, context);
                 }
                 tis.reset();
-                String digest;
-                try {
-                    digest = new DigestIdentifier(algorithm, Charset.defaultCharset()).generateForEmbed(embed);
-                } catch (NoSuchAlgorithmException e) {
-                    throw new RuntimeException(e);
-                }
+                // Force the embed ID to be cached now while metadata still holds the correct hash.
+                // super.delegateParsing below triggers DigestingParser which overwrites the hash in metadata;
+                // without pre-caching, lazy getId() on this embed would compute with the wrong hash
+                // and break ID lookups for any child embeds that reference this embed as parent.
+                String digest = embed.getId();
                 if (documentCallback(metadata, digest, tis)) return;
                 this.documentStack.add(embed);
                 super.delegateParsing(tis, handler, metadata);
