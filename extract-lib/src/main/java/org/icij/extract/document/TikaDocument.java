@@ -56,8 +56,10 @@ public class TikaDocument {
 		this.identifier = identifier;
 		this.language = language;
 		this.id = ()-> id;
-		this.metadata.set(TIKA_VERSION, Tika.getString());
-	}
+        if (metadata.get(TIKA_VERSION) == null) {
+            metadata.set(TIKA_VERSION, Tika.getString());
+        }
+    }
 
 	/**
 	 * Instantiate a document with a pre-generated ID. In this case, the ID generator is only used when adding
@@ -151,8 +153,7 @@ public class TikaDocument {
 	}
 
 	public TikaDocument(Identifier identifier, Path path, String language, String tikaVersion) {
-		this(identifier, path, language, new Metadata());
-		this.metadata.set(TIKA_VERSION, tikaVersion);
+		this(identifier, path, language, metadataWithVersion(tikaVersion));
 	}
 
 	String generateId() throws Exception {
@@ -287,6 +288,12 @@ public class TikaDocument {
 	public void setDuplicate(boolean duplicate) {
 		isDuplicate = duplicate;
 	}
+
+    private static Metadata metadataWithVersion(String tikaVersion) {
+        Metadata metadata = new Metadata();
+        metadata.set(TIKA_VERSION, tikaVersion);
+        return metadata;
+    }
 
 	@FunctionalInterface
 	public interface ReaderGenerator { Reader generate() throws IOException;}
