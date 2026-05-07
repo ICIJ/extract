@@ -37,6 +37,7 @@ public class EmbeddedDocumentExtractor {
     private final DigestingParser.Digester digester;
     private final String algorithm;
     private final Path artifactPath;
+    private static final ModuleDescriptor.Version TIKA_3_2_3 = ModuleDescriptor.Version.parse("3.2.3");
 
     public EmbeddedDocumentExtractor(UpdatableDigester digester) {
         this(digester, false);
@@ -136,7 +137,7 @@ public class EmbeddedDocumentExtractor {
                 // this if/else is coming from DigestingParser since 3.3.0 to fix issues with Microsoft OLE docs
                 // see https://issues.apache.org/jira/browse/TIKA-4533
                 boolean shouldTranslate = embeddedStreamTranslator.shouldTranslate(tis, metadata);
-                boolean retroCompat = documentTikaVersion.compareTo(ModuleDescriptor.Version.parse("3.2.3")) <= 0;
+                boolean retroCompat = documentTikaVersion.compareTo(TIKA_3_2_3) <= 0;
                 if (shouldTranslate && !retroCompat) {
                     // Tika >= 3.3.0: hash the translated bytes so the digest matches the actual content
                     Path translatedBytes;
