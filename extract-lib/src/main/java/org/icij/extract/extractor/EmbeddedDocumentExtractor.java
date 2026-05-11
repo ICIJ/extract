@@ -164,7 +164,7 @@ public class EmbeddedDocumentExtractor {
                 // without pre-caching, lazy getId() on this embed would compute with the wrong hash
                 // and break ID lookups for any child embeds that reference this embed as parent.
                 String digest = embed.getId();
-                if (documentCallback(metadata, digest, tis)) return;
+                documentCallback(metadata, digest, tis);
                 this.documentStack.add(embed);
                 super.delegateParsing(tis, handler, metadata);
             } finally {
