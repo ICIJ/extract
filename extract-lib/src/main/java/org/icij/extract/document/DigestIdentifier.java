@@ -2,6 +2,7 @@ package org.icij.extract.document;
 
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
+import org.slf4j.LoggerFactory;
 
 import javax.xml.bind.DatatypeConverter;
 
@@ -52,6 +53,10 @@ public class DigestIdentifier extends AbstractIdentifier {
 			digest.update(name.getBytes(charset));
 		}
 
-		return DatatypeConverter.printHexBinary(digest.digest()).toLowerCase(ENGLISH);
+		String parentId = embed.getParent().getId();
+		String lowerCase = DatatypeConverter.printHexBinary(digest.digest()).toLowerCase(ENGLISH);
+		LoggerFactory.getLogger(getClass()).debug(
+				"hash={} name={} relId={} parentId={} => {}", hash, name, embeddedRelationshipId, parentId, lowerCase);
+		return lowerCase;
 	}
 }
