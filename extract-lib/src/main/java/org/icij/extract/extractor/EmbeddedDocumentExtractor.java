@@ -62,12 +62,12 @@ public class EmbeddedDocumentExtractor {
     }
 
     /**
-     * Builds the parse context. When OCR is enabled we keep the OCR parser in the parser set
-     * (so image types are still detected/routed and the embedded entries are produced with the
-     * same identifiers as at index time) but skip the actual text recognition: extracting an
-     * embedded *source* only needs the entry bytes and their digest, never the OCR text. The
-     * digest is computed before the recognition step would run, so skipping it reproduces the
-     * exact same embedded document without paying the Tesseract cost.
+     * Builds the parse context. When OCR is enabled we keep the OCR parser registered (rather
+     * than excluding it as createParserWithoutOCR does), so OCR-routed image embeds are still
+     * produced with the same identifiers as at index time, but we set skipOcr so Tesseract does
+     * not actually run. Extracting an embedded *source* only needs the entry bytes and their
+     * digest (which is computed before the recognition step would run), never the OCR text, so
+     * skipping recognition reproduces the identical embedded document without the Tesseract cost.
      */
     private ParseContext newParseContext() {
         ParseContext context = new ParseContext();
@@ -166,7 +166,8 @@ public class EmbeddedDocumentExtractor {
                     // This avoids the in-memory mark()/reset() on the embedded stream, which
                     // fails with "Resetting to invalid mark" (surfaced as TIKA-198 from
                     // PackageParser) once an entry exceeds the digester's mark limit, and keeps
-                    // memory use bounded regardless of entry size.
+                    // the per-entry parse memory bounded regardless of entry size. (The memory
+                    // extractor still buffers the single matched entry into a byte[] by design.)
                     final Path spooled = tis.getPath();
                     try (TikaInputStream digestStream = TikaInputStream.get(spooled)) {
                         digester.digest(digestStream, metadata, context);
@@ -281,8 +282,8 @@ public class EmbeddedDocumentExtractor {
         public boolean shouldParseEmbedded(Metadata metadata) {
             // Stop descending once the target embed has been found. Tika checks this before
             // parsing each embedded entry, so returning false skips the remaining (potentially
-            // OCR-heavy) entries instead of walking the whole archive. (Throwing to abort does
-            // not work here: PackageParser catches Throwable per entry and continues.)
+            // OCR-heavy) entries instead of walking the whole archive. This hook is the clean
+            // way to short-circuit: it needs no exception and works the same for every container.
             return document == null && super.shouldParseEmbedded(metadata);
         }
 
