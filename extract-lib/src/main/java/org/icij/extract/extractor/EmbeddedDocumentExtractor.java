@@ -154,10 +154,15 @@ public class EmbeddedDocumentExtractor {
                     // Cache the embed id now while metadata still holds the correct hash:
                     // super.delegateParsing below triggers DigestingParser which overwrites it.
                     String digest = embed.getId();
-                    documentCallback(metadata, digest, spooled);
+                    boolean found = documentCallback(metadata, digest, spooled);
                     this.documentStack.add(embed);
-                    try (TikaInputStream parseStream = TikaInputStream.get(spooled)) {
-                        super.delegateParsing(parseStream, handler, metadata);
+                    // Once the target embed is captured, skip recursing into it: its content is
+                    // already saved and recursion would parse/OCR it needlessly. Combined with
+                    // shouldParseEmbedded() returning false afterwards, this stops the walk early.
+                    if (!found) {
+                        try (TikaInputStream parseStream = TikaInputStream.get(spooled)) {
+                            super.delegateParsing(parseStream, handler, metadata);
+                        }
                     }
                     return;
                 }
@@ -189,9 +194,11 @@ public class EmbeddedDocumentExtractor {
                 // without pre-caching, lazy getId() on this embed would compute with the wrong hash
                 // and break ID lookups for any child embeds that reference this embed as parent.
                 String digest = embed.getId();
-                documentCallback(metadata, digest, tis);
+                boolean found = documentCallback(metadata, digest, tis);
                 this.documentStack.add(embed);
-                super.delegateParsing(tis, handler, metadata);
+                if (!found) {
+                    super.delegateParsing(tis, handler, metadata);
+                }
             } finally {
                 this.documentStack.removeLast();
             }
@@ -248,6 +255,15 @@ public class EmbeddedDocumentExtractor {
         private DigestEmbeddedDocumentFileExtractor(final TikaDocument rootDocument, final String digestToFind, ParseContext context, DigestingParser.Digester digester, String algorithm, Path artifactDir) {
             super(rootDocument, context, digester, algorithm, artifactDir);
             this.digestToFind = digestToFind;
+        }
+
+        @Override
+        public boolean shouldParseEmbedded(Metadata metadata) {
+            // Stop descending once the target embed has been found. Tika checks this before
+            // parsing each embedded entry, so returning false skips the remaining (potentially
+            // OCR-heavy) entries instead of walking the whole archive. (Throwing to abort does
+            // not work here: PackageParser catches Throwable per entry and continues.)
+            return document == null && super.shouldParseEmbedded(metadata);
         }
 
         @Override
