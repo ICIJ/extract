@@ -12,6 +12,7 @@ import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.DigestingParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
+import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.sax.BodyContentHandler;
 import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
@@ -37,6 +38,7 @@ public class EmbeddedDocumentExtractor {
     private final DigestingParser.Digester digester;
     private final String algorithm;
     private final Path artifactPath;
+    private final boolean ocr;
     private static final ModuleDescriptor.Version TIKA_3_2_3 = ModuleDescriptor.Version.parse("3.2.3");
 
     public EmbeddedDocumentExtractor(UpdatableDigester digester) {
@@ -56,13 +58,32 @@ public class EmbeddedDocumentExtractor {
         this.digester = digester;
         this.artifactPath = artifactPath;
         this.algorithm = algorithm;
+        this.ocr = ocr;
+    }
+
+    /**
+     * Builds the parse context. When OCR is enabled we keep the OCR parser in the parser set
+     * (so image types are still detected/routed and the embedded entries are produced with the
+     * same identifiers as at index time) but skip the actual text recognition: extracting an
+     * embedded *source* only needs the entry bytes and their digest, never the OCR text. The
+     * digest is computed before the recognition step would run, so skipping it reproduces the
+     * exact same embedded document without paying the Tesseract cost.
+     */
+    private ParseContext newParseContext() {
+        ParseContext context = new ParseContext();
+        context.set(Parser.class, parser);
+        if (ocr) {
+            TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
+            ocrConfig.setSkipOcr(true);
+            context.set(TesseractOCRConfig.class, ocrConfig);
+        }
+        return context;
     }
 
     public void extractAll(final TikaDocument document) throws SAXException, TikaException, IOException {
         ofNullable(artifactPath).orElseThrow(() -> new IllegalStateException("cannot extract all embedded files in memory"));
-        ParseContext context = new ParseContext();
+        ParseContext context = newParseContext();
         ContentHandler handler = new BodyContentHandler(-1);
-        context.set(Parser.class, parser);
 
         DigestEmbeddedDocumentExtractor extractor = new DigestAllEmbeddedDocumentExtractor(document, context, digester, algorithm, artifactPath);
         context.set(org.apache.tika.extractor.EmbeddedDocumentExtractor.class, extractor);
@@ -77,9 +98,8 @@ public class EmbeddedDocumentExtractor {
                 return new TikaDocumentSource(MetadataTransformer.loadMetadata(new File(cachedFile + ".json")), DigestEmbeddedDocumentFileExtractor.getFileInputStream(cachedFile));
             }
         }
-        ParseContext context = new ParseContext();
+        ParseContext context = newParseContext();
         ContentHandler handler = new BodyContentHandler(-1);
-        context.set(Parser.class, parser);
 
         DigestEmbeddedDocumentFileExtractor extractor = getExtractor(rootDocument, embeddedDocumentDigest, context, artifactPath);
         context.set(org.apache.tika.extractor.EmbeddedDocumentExtractor.class, extractor);
