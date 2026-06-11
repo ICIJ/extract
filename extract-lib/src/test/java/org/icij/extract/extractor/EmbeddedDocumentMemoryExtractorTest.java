@@ -15,8 +15,12 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.Reader;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static org.fest.assertions.Assertions.assertThat;
 import static org.fest.assertions.Fail.fail;
@@ -191,6 +195,46 @@ public class EmbeddedDocumentMemoryExtractorTest {
         //THEN
         assertThat(pngFile).isNotNull();
         assertThat(new String(pngFile.getContent())).hasSize(634);
+    }
+
+    @Test
+    public void test_large_embedded_entry_in_archive_is_extractable() throws Exception {
+        //GIVEN a zip containing one entry larger than the UpdatableDigester mark limit
+        // UpdatableDigester uses a 20MB mark limit; an embedded entry larger than it
+        // cannot be rewound via mark()/reset(), which is what triggered the bug.
+        int markLimit = 20 * 1024 * 1024;
+        int entrySize = markLimit + 1024 * 1024;
+        Path zip = tmp.newFile("big.zip").toPath();
+        byte[] content = new byte[entrySize];
+        for (int i = 0; i < content.length; i++) {
+            content[i] = (byte) (i % 251);
+        }
+        try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zip))) {
+            zos.putNextEntry(new ZipEntry("big.bin"));
+            zos.write(content);
+            zos.closeEntry();
+        }
+
+        // discover the embedded entry id via the normal extractor (EmbedSpawner path,
+        // which is unaffected by the mark/reset bug)
+        Extractor extractor = new Extractor(documentFactory);
+        extractor.setDigester(new UpdatableDigester("prj", "SHA-256"));
+        TikaDocument extracted = extractor.extract(zip);
+        try (Reader reader = extracted.getReader()) {
+            Spewer.toString(reader);
+        }
+        assertThat(extracted.getEmbeds()).hasSize(1);
+        String bigEntryId = extracted.getEmbeds().get(0).getId();
+
+        EmbeddedDocumentExtractor contentExtractor = new EmbeddedDocumentExtractor(
+                new UpdatableDigester("prj", "SHA-256"), tmp.getRoot().toPath());
+
+        //WHEN extracting the large embedded entry on demand
+        TikaDocumentSource source = contentExtractor.extract(extracted, bigEntryId);
+
+        //THEN it returns the full entry instead of failing to reset the stream
+        assertThat(source).isNotNull();
+        assertThat(source.getContent()).hasSize(entrySize);
     }
 
     @Test
