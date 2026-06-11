@@ -121,6 +121,7 @@ public class EmbeddedDocumentExtractor {
         }
 
         protected abstract boolean documentCallback(Metadata metadata, String digest, TikaInputStream tis) throws IOException;
+        protected abstract boolean documentCallback(Metadata metadata, String digest, Path spooled) throws IOException;
 
         @Override
         void delegateParsing(InputStream stream, ContentHandler handler, Metadata metadata) throws IOException, SAXException {
@@ -133,11 +134,35 @@ public class EmbeddedDocumentExtractor {
                         tis.setOpenContainer(container);
                     }
                 }
-                tis.mark(0); // Marking the position before resetting
                 // this if/else is coming from DigestingParser since 3.3.0 to fix issues with Microsoft OLE docs
                 // see https://issues.apache.org/jira/browse/TIKA-4533
                 boolean shouldTranslate = embeddedStreamTranslator.shouldTranslate(tis, metadata);
                 boolean retroCompat = documentTikaVersion.compareTo(TIKA_3_2_3) <= 0;
+
+                if (!(shouldTranslate && !retroCompat) && tis.getOpenContainer() == null) {
+                    // Raw (non-translated) entry from a container such as a zip/tar archive.
+                    // Spool the entry to a temp file once, then read independent file-backed
+                    // streams for the digest, the document callback and the recursive parse.
+                    // This avoids the in-memory mark()/reset() on the embedded stream, which
+                    // fails with "Resetting to invalid mark" (surfaced as TIKA-198 from
+                    // PackageParser) once an entry exceeds the digester's mark limit, and keeps
+                    // memory use bounded regardless of entry size.
+                    final Path spooled = tis.getPath();
+                    try (TikaInputStream digestStream = TikaInputStream.get(spooled)) {
+                        digester.digest(digestStream, metadata, context);
+                    }
+                    // Cache the embed id now while metadata still holds the correct hash:
+                    // super.delegateParsing below triggers DigestingParser which overwrites it.
+                    String digest = embed.getId();
+                    documentCallback(metadata, digest, spooled);
+                    this.documentStack.add(embed);
+                    try (TikaInputStream parseStream = TikaInputStream.get(spooled)) {
+                        super.delegateParsing(parseStream, handler, metadata);
+                    }
+                    return;
+                }
+
+                tis.mark(0); // Marking the position before resetting
                 if (shouldTranslate && !retroCompat) {
                     // Tika >= 3.3.0: hash the translated bytes so the digest matches the actual content
                     Path translatedBytes;
@@ -186,6 +211,16 @@ public class EmbeddedDocumentExtractor {
             tis.reset();
             return embedded;
         }
+
+        protected File writeFile(Metadata metadata, String digest, Path source) throws IOException {
+            File embedded = getEmbeddedPath(this.artifactPath, digest).toFile();
+            Files.createDirectories(Paths.get(embedded.getParent()));
+            Files.copy(source, embedded.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            try (FileOutputStream metadataOutputStream = new FileOutputStream(embedded + ".json")) {
+                metadataOutputStream.write(new MetadataTransformer(metadata).transform().getBytes(Charset.defaultCharset()));
+            }
+            return embedded;
+        }
     }
 
     static class DigestAllEmbeddedDocumentExtractor extends DigestEmbeddedDocumentExtractor {
@@ -196,6 +231,12 @@ public class EmbeddedDocumentExtractor {
         @Override
         protected boolean documentCallback(Metadata metadata, String digest, TikaInputStream tis) throws IOException {
             writeFile(metadata, digest, tis);
+            return false;
+        }
+
+        @Override
+        protected boolean documentCallback(Metadata metadata, String digest, Path spooled) throws IOException {
+            writeFile(metadata, digest, spooled);
             return false;
         }
     }
@@ -221,6 +262,21 @@ public class EmbeddedDocumentExtractor {
 
         protected Supplier<InputStream> getInputStreamSupplier(Metadata metadata, String digest, TikaInputStream tis) throws IOException {
             File embedded = writeFile(metadata, digest, tis);
+            return getFileInputStream(embedded);
+        }
+
+        @Override
+        protected boolean documentCallback(Metadata metadata, String digest, Path spooled) throws IOException {
+            if (digestToFind.equals(digest)) {
+                Supplier<InputStream> inputStreamSupplier = getInputStreamSupplier(metadata, digest, spooled);
+                this.document = new TikaDocumentSource(metadata, inputStreamSupplier);
+                return true;
+            }
+            return false;
+        }
+
+        protected Supplier<InputStream> getInputStreamSupplier(Metadata metadata, String digest, Path spooled) throws IOException {
+            File embedded = writeFile(metadata, digest, spooled);
             return getFileInputStream(embedded);
         }
 
@@ -254,6 +310,12 @@ public class EmbeddedDocumentExtractor {
                 buffer.write(tmp, 0, nbTmpBytesRead); // uses the memory
             }
             return () -> new ByteArrayInputStream(buffer.toByteArray());
+        }
+
+        @Override
+        protected Supplier<InputStream> getInputStreamSupplier(Metadata metadata, String digest, Path spooled) throws IOException {
+            byte[] bytes = Files.readAllBytes(spooled);
+            return () -> new ByteArrayInputStream(bytes);
         }
     }
 
