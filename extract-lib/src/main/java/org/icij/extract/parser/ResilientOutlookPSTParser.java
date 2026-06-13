@@ -91,15 +91,26 @@ public class ResilientOutlookPSTParser implements Parser {
             if (messageDescriptorIds != null) {
                 recoverOrphans(messageDescriptorIds, xhtml, extractor, emittedIds, emitted, pstFile);
             }
-            final int expected = messageDescriptorIds != null ? messageDescriptorIds.size() : emitted[0];
-
-            final int failed = Math.max(0, expected - emitted[0]);
-            metadata.set(PST_EXPECTED, Integer.toString(expected));
-            metadata.set(PST_EMITTED, Integer.toString(emitted[0]));
-            metadata.set(PST_FAILED, Integer.toString(failed));
-            if (failed > 0) {
-                logger.warn("PST email loss in \"{}\": expected {} messages, emitted {} ({} failed).",
-                        pstPath, expected, emitted[0], failed);
+            if (messageDescriptorIds != null) {
+                final int expected = messageDescriptorIds.size();
+                final int failed = Math.max(0, expected - emitted[0]);
+                metadata.set(PST_EXPECTED, Integer.toString(expected));
+                metadata.set(PST_EMITTED, Integer.toString(emitted[0]));
+                metadata.set(PST_FAILED, Integer.toString(failed));
+                if (failed > 0) {
+                    logger.warn("PST email loss in \"{}\": expected {} messages, emitted {} ({} failed).",
+                            pstPath, expected, emitted[0], failed);
+                }
+            } else {
+                // Descriptor enumeration failed, so we have no ground-truth count to
+                // reconcile against. Mark expected/failed as unmeasurable rather than
+                // claiming zero loss, which would mask exactly the case we most want
+                // to detect.
+                metadata.set(PST_EXPECTED, "unknown");
+                metadata.set(PST_EMITTED, Integer.toString(emitted[0]));
+                metadata.set(PST_FAILED, "unknown");
+                logger.warn("PST message count could not be measured for \"{}\"; emitted {} messages "
+                        + "but loss is undetectable (descriptor enumeration failed).", pstPath, emitted[0]);
             }
         } catch (final TikaException e) {
             throw e;
