@@ -44,6 +44,54 @@ public class ResilientOutlookPSTParserTest {
         }
     }
 
+    // Fails the first message the parser attempts to emit (identified by its
+    // resource name), on every attempt, and counts the rest. Proves one failing
+    // message does not abort the remaining messages (no cascade) and that the
+    // reconciliation count reflects exactly the injected failure.
+    private static class FailFirstExtractor implements EmbeddedDocumentExtractor {
+        private String poisoned = null;
+        int emittedOk = 0;
+        final java.util.List<String> attempts = new java.util.ArrayList<>();
+
+        public boolean shouldParseEmbedded(org.apache.tika.metadata.Metadata metadata) {
+            return true;
+        }
+
+        public void parseEmbedded(java.io.InputStream stream, org.xml.sax.ContentHandler handler,
+                                  org.apache.tika.metadata.Metadata metadata, boolean outputHtml) throws java.io.IOException {
+            String name = metadata.get(org.apache.tika.metadata.TikaCoreProperties.RESOURCE_NAME_KEY);
+            attempts.add(name);
+            if (poisoned == null) {
+                poisoned = name;
+            }
+            if (name != null && name.equals(poisoned)) {
+                throw new java.io.IOException("injected failure for " + name);
+            }
+            emittedOk++;
+        }
+    }
+
+    @Test
+    public void test_one_failing_message_does_not_abort_the_rest() throws Exception {
+        ResilientOutlookPSTParser parser = new ResilientOutlookPSTParser();
+        FailFirstExtractor failing = new FailFirstExtractor();
+        ParseContext context = new ParseContext();
+        context.set(Parser.class, parser);
+        context.set(EmbeddedDocumentExtractor.class, failing);
+        Metadata metadata = new Metadata();
+
+        try (InputStream is = TikaInputStream.get(testPst(), metadata)) {
+            parser.parse(is, new BodyContentHandler(-1), metadata, context);
+        }
+
+        // The parse completed (no cascade abort) and the six non-poisoned messages
+        // were still emitted despite the first one failing on every attempt.
+        assertThat(failing.emittedOk).isEqualTo(6);
+        assertThat(metadata.get(ResilientOutlookPSTParser.PST_EXPECTED)).isEqualTo("7");
+        assertThat(metadata.get(ResilientOutlookPSTParser.PST_EMITTED)).isEqualTo("6");
+        assertThat(metadata.get(ResilientOutlookPSTParser.PST_FAILED)).isEqualTo("1");
+    }
+
     @Test
     public void test_emits_every_message_and_sets_reconciliation_metadata() throws Exception {
         ResilientOutlookPSTParser parser = new ResilientOutlookPSTParser();
