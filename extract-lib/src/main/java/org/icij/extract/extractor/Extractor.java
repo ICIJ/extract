@@ -20,6 +20,7 @@ import org.apache.tika.parser.digestutils.CommonsDigester;
 import org.apache.tika.parser.digestutils.CommonsDigester.DigestAlgorithm;
 import org.apache.tika.parser.html.DefaultHtmlMapper;
 import org.apache.tika.parser.html.HtmlMapper;
+import org.apache.tika.parser.microsoft.pst.OutlookPSTParser;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.sax.BodyContentHandler;
@@ -36,6 +37,7 @@ import org.icij.extract.parser.CacheParserDecorator;
 import org.icij.extract.parser.FallbackParser;
 import org.icij.extract.parser.HTML5Serializer;
 import org.icij.extract.parser.ParsingReaderWithContentHandler;
+import org.icij.extract.parser.ResilientOutlookPSTParser;
 import org.icij.extract.report.Reporter;
 import org.icij.spewer.MetadataTransformer;
 import org.icij.spewer.Spewer;
@@ -155,6 +157,9 @@ public class Extractor {
         ocrConfig.setLanguages("eng");
         ocrConfig.setOcrTimeout(Duration.ofDays(1));
         this.configure(Optional.ofNullable(options).orElse(Options.from(Map.of())));
+        // Replace Tika's stock OutlookPSTParser, which silently aborts the rest
+        // of a PST when one message fails, with the resilient parser.
+        replaceParser(OutlookPSTParser.class, parser -> new ResilientOutlookPSTParser());
     }
 
     public Extractor() {
