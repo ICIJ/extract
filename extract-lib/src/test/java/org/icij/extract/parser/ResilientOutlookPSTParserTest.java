@@ -92,6 +92,50 @@ public class ResilientOutlookPSTParserTest {
         assertThat(metadata.get(ResilientOutlookPSTParser.PST_FAILED)).isEqualTo("1");
     }
 
+    // Throws a LinkageError (an Error, not an Exception) on the first message,
+    // every attempt. Reproduces the gzip IllegalAccessError class of failure that
+    // previously cascaded and aborted the whole PST.
+    private static class FailFirstWithErrorExtractor implements EmbeddedDocumentExtractor {
+        private String poisoned = null;
+        int emittedOk = 0;
+
+        public boolean shouldParseEmbedded(org.apache.tika.metadata.Metadata metadata) {
+            return true;
+        }
+
+        public void parseEmbedded(java.io.InputStream stream, org.xml.sax.ContentHandler handler,
+                                  org.apache.tika.metadata.Metadata metadata, boolean outputHtml) {
+            String name = metadata.get(org.apache.tika.metadata.TikaCoreProperties.RESOURCE_NAME_KEY);
+            if (poisoned == null) {
+                poisoned = name;
+            }
+            if (name != null && name.equals(poisoned)) {
+                throw new NoClassDefFoundError("injected linkage error for " + name);
+            }
+            emittedOk++;
+        }
+    }
+
+    @Test
+    public void test_linkage_error_on_one_message_does_not_abort_the_rest() throws Exception {
+        ResilientOutlookPSTParser parser = new ResilientOutlookPSTParser();
+        FailFirstWithErrorExtractor failing = new FailFirstWithErrorExtractor();
+        ParseContext context = new ParseContext();
+        context.set(Parser.class, parser);
+        context.set(EmbeddedDocumentExtractor.class, failing);
+        Metadata metadata = new Metadata();
+
+        try (InputStream is = TikaInputStream.get(testPst(), metadata)) {
+            parser.parse(is, new BodyContentHandler(-1), metadata, context);
+        }
+
+        // A LinkageError on one message is isolated; the other six still emit.
+        assertThat(failing.emittedOk).isEqualTo(6);
+        assertThat(metadata.get(ResilientOutlookPSTParser.PST_EXPECTED)).isEqualTo("7");
+        assertThat(metadata.get(ResilientOutlookPSTParser.PST_EMITTED)).isEqualTo("6");
+        assertThat(metadata.get(ResilientOutlookPSTParser.PST_FAILED)).isEqualTo("1");
+    }
+
     @Test
     public void test_emits_every_message_and_sets_reconciliation_metadata() throws Exception {
         ResilientOutlookPSTParser parser = new ResilientOutlookPSTParser();
