@@ -142,7 +142,7 @@ public class ResilientOutlookPSTParser implements Parser {
                     child = nextChild(folder, folderPath);
                 }
             }
-        } catch (final Exception e) {
+        } catch (final Exception | LinkageError e) {
             logger.warn("PST folder \"{}\" content enumeration failed; skipping its messages.", folderPath, e);
         }
 
@@ -159,7 +159,7 @@ public class ResilientOutlookPSTParser implements Parser {
                     walkFolder(sub, subPath, xhtml, extractor, emittedIds, emitted);
                 }
             }
-        } catch (final Exception e) {
+        } catch (final Exception | LinkageError e) {
             logger.warn("PST subfolder enumeration under \"{}\" failed; skipping its subfolders.", folderPath, e);
         }
     }
@@ -167,7 +167,7 @@ public class ResilientOutlookPSTParser implements Parser {
     private PSTObject nextChild(final PSTFolder folder, final String folderPath) {
         try {
             return folder.getNextChild();
-        } catch (final Exception e) {
+        } catch (final Exception | LinkageError e) {
             logger.warn("PST folder \"{}\" getNextChild failed; stopping this folder early.", folderPath, e);
             return null;
         }
@@ -189,7 +189,7 @@ public class ResilientOutlookPSTParser implements Parser {
                 if (object instanceof PSTMessage) {
                     emitMessage((PSTMessage) object, "/[recovered]", xhtml, extractor, emittedIds, emitted);
                 }
-            } catch (final Exception e) {
+            } catch (final Exception | LinkageError e) {
                 logger.debug("PST orphan descriptor {} is not a loadable message; skipping.", id, e);
             }
         }
@@ -217,7 +217,8 @@ public class ResilientOutlookPSTParser implements Parser {
         try (TikaInputStream tis = TikaInputStream.getFromContainer(message, length, metadata)) {
             extractor.parseEmbedded(tis, xhtml, metadata, true);
             emitted[0]++;
-        } catch (final Exception e) {
+        } catch (final Exception | LinkageError e) {
+            // Exception | LinkageError: a classpath/linkage failure (e.g. a dependency clash during attachment detection) on one message must not abort the rest of the PST.
             emittedIds.remove(descriptorId);
             logger.warn("Failed to emit PST message \"{}\" (descriptor {}) in folder \"{}\".",
                     subject, descriptorId, folderPath, e);
