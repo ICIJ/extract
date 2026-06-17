@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.LinkedList;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 
 import static java.lang.Boolean.parseBoolean;
@@ -36,16 +37,19 @@ public class EmbedSpawner extends EmbedParser {
 	private int untitled = 0;
 	private final long embedMemoryBudgetBytes;
 	private final TemporaryResources tmp;
+	private final BooleanSupplier memoryPressureHigh;
 	private final AtomicLong reserved = new AtomicLong();
 
 	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
 				 final Function<Writer, ContentHandler> handlerFunction,
-				 final long embedMemoryBudgetBytes, final TemporaryResources tmp) {
+				 final long embedMemoryBudgetBytes, final TemporaryResources tmp,
+				 final BooleanSupplier memoryPressureHigh) {
 		super(root, context);
 		this.outputPath = outputPath;
 		this.handlerFunction = handlerFunction;
 		this.embedMemoryBudgetBytes = embedMemoryBudgetBytes;
 		this.tmp = tmp;
+		this.memoryPressureHigh = memoryPressureHigh;
 		tikaDocumentStack.add(root);
 	}
 
@@ -84,7 +88,7 @@ public class EmbedSpawner extends EmbedParser {
 		// Buffer the embed's extracted text in memory while the global budget allows,
 		// overflowing to a temp file once exceeded, so multi-GB containers (PSTs, zips,
 		// mailboxes) don't retain the whole tree's text in heap at once.
-		final BudgetedEmbedBuffer buffer = new BudgetedEmbedBuffer(reserved, embedMemoryBudgetBytes, tmp);
+		final BudgetedEmbedBuffer buffer = new BudgetedEmbedBuffer(reserved, embedMemoryBudgetBytes, tmp, memoryPressureHigh);
 		final Writer writer = new OutputStreamWriter(buffer, StandardCharsets.UTF_8);
 
 		final ContentHandler embedHandler = handlerFunction.apply(writer);

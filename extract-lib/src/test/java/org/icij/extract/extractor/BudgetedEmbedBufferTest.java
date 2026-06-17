@@ -72,6 +72,32 @@ public class BudgetedEmbedBufferTest {
     }
 
     @Test
+    public void testSpillsUnderMemoryPressureEvenWhenUnderByteBudget() throws Exception {
+        AtomicLong reserved = new AtomicLong();
+        // Huge byte budget so only memory pressure can trigger the spill.
+        BudgetedEmbedBuffer buffer = new BudgetedEmbedBuffer(reserved, Long.MAX_VALUE, tmp, () -> true);
+
+        buffer.write("hello".getBytes(StandardCharsets.UTF_8));
+        buffer.close();
+
+        assertThat(buffer.isSpilled()).isTrue();
+        assertThat(reserved.get()).isEqualTo(0L);
+        assertThat(read(buffer.readerGenerator())).isEqualTo("hello");
+    }
+
+    @Test
+    public void testStaysInMemoryWhenNoPressureAndUnderBudget() throws Exception {
+        AtomicLong reserved = new AtomicLong();
+        BudgetedEmbedBuffer buffer = new BudgetedEmbedBuffer(reserved, Long.MAX_VALUE, tmp, () -> false);
+
+        buffer.write("hello".getBytes(StandardCharsets.UTF_8));
+        buffer.close();
+
+        assertThat(buffer.isSpilled()).isFalse();
+        assertThat(read(buffer.readerGenerator())).isEqualTo("hello");
+    }
+
+    @Test
     public void testDiscardReleasesReservedBytes() throws Exception {
         AtomicLong reserved = new AtomicLong();
         BudgetedEmbedBuffer buffer = new BudgetedEmbedBuffer(reserved, 1024, tmp);
