@@ -26,6 +26,7 @@ import org.junit.rules.TemporaryFolder;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
@@ -33,9 +34,13 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.lang.Math.toIntExact;
 import static org.fest.assertions.Assertions.assertThat;
@@ -366,6 +371,35 @@ public class ExtractorTest {
 	}
 
 	@Test
+	public void testEmbedTextSpillFilesAreCleanedUpAfterSpew() throws Exception {
+		// GIVEN an extractor forced to spill every embedded document's text to disk
+		Extractor extractor = aBasicExtractor();
+		extractor.disableOcr();
+		extractor.setEmbedOutputPath(folder.newFolder("embeds").toPath());
+		extractor.setEmbedMemoryBudgetBytes(0L); // 0 budget => first embed write spills to a temp file
+
+		Set<Path> before = tikaTempFiles();
+
+		// WHEN extracting through the spewer path (as DocumentConsumer / Datashare do)
+		extractor.extract(
+				Paths.get(getClass().getResource("/documents/recursive_embedded.docx").getPath()),
+				new PrintStreamSpewer(new PrintStream(OutputStream.nullOutputStream()), new FieldNames()));
+
+		// THEN the spilled temp files do not leak once the extraction is finished
+		Set<Path> leaked = tikaTempFiles();
+		leaked.removeAll(before);
+		assertThat(new ArrayList<>(leaked)).isEmpty();
+	}
+
+	private static Set<Path> tikaTempFiles() throws IOException {
+		Path tmp = Paths.get(System.getProperty("java.io.tmpdir"));
+		try (Stream<Path> files = Files.list(tmp)) {
+			return files.filter(p -> p.getFileName().toString().startsWith("apache-tika-"))
+					.collect(Collectors.toSet());
+		}
+	}
+
+	@Test
 	public void testEmbeddedWithDuplicates() throws Exception {
         //GIVEN
         Extractor extractor = aBasicExtractor();
@@ -568,9 +602,21 @@ public class ExtractorTest {
 	}
 
 	@Test
-	public void testEmbedMemoryBudgetDefaultsTo512Mb() {
+	public void testEmbedMemoryBudgetDefaultsTo64Mb() {
 		Extractor extractor = new Extractor();
-		assertThat(extractor.getEmbedMemoryBudgetBytes()).isEqualTo(512L * 1024 * 1024);
+		assertThat(extractor.getEmbedMemoryBudgetBytes()).isEqualTo(64L * 1024 * 1024);
+	}
+
+	@Test
+	public void testEmbedMemoryPressureThresholdDefaultsTo07() {
+		Extractor extractor = new Extractor();
+		assertThat(extractor.getEmbedMemoryPressureThreshold()).isEqualTo(0.7);
+	}
+
+	@Test
+	public void testEmbedMemoryPressureThresholdOptionParsed() {
+		Extractor extractor = new Extractor(Options.from(Map.of("embedMemoryPressureThreshold", "0.5")));
+		assertThat(extractor.getEmbedMemoryPressureThreshold()).isEqualTo(0.5);
 	}
 
 	@Test
@@ -582,7 +628,7 @@ public class ExtractorTest {
 
 	@Test
 	public void testEmbedTextIsIdenticalWhetherSpilledOrInMemory() throws Exception {
-		String inMemory = spewTreeText(512L * 1024 * 1024); // default budget: nothing spills
+		String inMemory = spewTreeText(512L * 1024 * 1024); // large budget: nothing spills
 		String spilled = spewTreeText(1L);                  // 1-byte budget: everything spills
 
 		assertThat(spilled).isEqualTo(inMemory);
@@ -593,7 +639,7 @@ public class ExtractorTest {
 	public void testNormalArchiveDoesNotSpillUnderDefaultBudget() throws Exception {
 		Extractor extractor = aBasicExtractor();
 		extractor.disableOcr();
-		// default 512MB budget: a tiny archive must read back fine with no error
+		// default budget: a tiny archive must read back fine with no error
 		TikaDocument doc = extractDocument(extractor, "/documents/embedded_with_duplicate.tgz");
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		new PrintStreamSpewer(new PrintStream(out, true, StandardCharsets.UTF_8.name()), new FieldNames()).write(doc);

@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BooleanSupplier;
 
 /**
  * Buffers one embedded document's extracted text in memory while a shared, per-extraction
@@ -29,6 +30,7 @@ class BudgetedEmbedBuffer extends OutputStream {
     private final AtomicLong reserved;
     private final long budgetBytes;
     private final TemporaryResources tmp;
+    private final BooleanSupplier memoryPressureHigh;
 
     private ByteArrayOutputStream memory = new ByteArrayOutputStream(8192);
     private long memoryReserved = 0;
@@ -37,9 +39,15 @@ class BudgetedEmbedBuffer extends OutputStream {
     private boolean closed = false;
 
     BudgetedEmbedBuffer(final AtomicLong reserved, final long budgetBytes, final TemporaryResources tmp) {
+        this(reserved, budgetBytes, tmp, () -> false);
+    }
+
+    BudgetedEmbedBuffer(final AtomicLong reserved, final long budgetBytes, final TemporaryResources tmp,
+                        final BooleanSupplier memoryPressureHigh) {
         this.reserved = reserved;
         this.budgetBytes = budgetBytes;
         this.tmp = tmp;
+        this.memoryPressureHigh = memoryPressureHigh;
     }
 
     @Override
@@ -56,7 +64,10 @@ class BudgetedEmbedBuffer extends OutputStream {
             fileOut.write(b, off, len);
             return;
         }
-        if (reserved.get() + len > budgetBytes) {
+        // Spill when the shared in-memory budget would be exceeded, or when the heap is already under
+        // pressure — the latter keeps total memory bounded even when the document tree, not the embed
+        // text, is what is filling the heap (e.g. mailboxes with tens of thousands of items).
+        if (reserved.get() + len > budgetBytes || memoryPressureHigh.getAsBoolean()) {
             spill();
             fileOut.write(b, off, len);
             return;

@@ -93,8 +93,12 @@ import static org.icij.extract.extractor.ArtifactUtils.getEmbeddedPath;
 @Option(name = "ocr", description = "Enable or disable automatic OCR. On by default.")
 @Option(name = "ocrType", description = "Name of the OCR to use TESSERACT, TESS4J")
 @Option(name = "embedMemoryBudgetMb", description = "Maximum megabytes of embedded-document " +
-        "extracted text to hold in memory before overflowing to temp files. Defaults to 512.",
+        "extracted text to hold in memory before overflowing to temp files. Defaults to 64.",
         parameter = "megabytes")
+@Option(name = "embedMemoryPressureThreshold", description = "Heap occupancy ratio (0-1) above which " +
+        "embedded-document text spills to temp files early, regardless of the byte budget, to keep " +
+        "extraction within the available heap on very large containers. Defaults to 0.7; set to 0 or 1 to disable.",
+        parameter = "ratio")
 public class Extractor {
 
     public static final String PAGES_JSON = "pages.json";
@@ -131,7 +135,8 @@ public class Extractor {
     private OutputFormat outputFormat = OutputFormat.TEXT;
     private EmbedHandling embedHandling = EmbedHandling.getDefault();
     private Path embedOutput = null;
-    private long embedMemoryBudgetBytes = 512L * 1024 * 1024;
+    private long embedMemoryBudgetBytes = 64L * 1024 * 1024;
+    private double embedMemoryPressureThreshold = 0.7;
 
     /**
      * Create a new extractor, which will OCR images by default if Tesseract is available locally, extract inline
@@ -183,8 +188,10 @@ public class Extractor {
         options.get("ocrLanguage", "eng").value().ifPresent(this::setOcrLanguage);
         options.get("ocrTimeout", "12h").parse().asDuration().ifPresent(this::setOcrTimeout);
         options.valueIfPresent("embedOutput").ifPresent(embedOutput -> setEmbedOutputPath(Paths.get(embedOutput)));
-        options.get("embedMemoryBudgetMb", "512").parse().asInteger()
+        options.get("embedMemoryBudgetMb", "64").parse().asInteger()
                 .ifPresent(mb -> setEmbedMemoryBudgetBytes(mb * 1024L * 1024L));
+        options.valueIfPresent("embedMemoryPressureThreshold")
+                .ifPresent(ratio -> setEmbedMemoryPressureThreshold(Double.parseDouble(ratio)));
 
         String algorithm = options.valueIfPresent("digestAlgorithm").orElse("SHA-256");
         setDigestAlgorithm(algorithm);
@@ -273,6 +280,14 @@ public class Extractor {
         this.embedMemoryBudgetBytes = embedMemoryBudgetBytes;
     }
 
+    public double getEmbedMemoryPressureThreshold() {
+        return embedMemoryPressureThreshold;
+    }
+
+    public void setEmbedMemoryPressureThreshold(final double embedMemoryPressureThreshold) {
+        this.embedMemoryPressureThreshold = embedMemoryPressureThreshold;
+    }
+
     /**
      * Set the languages used by Tesseract.
      *
@@ -331,7 +346,17 @@ public class Extractor {
         long before = currentTimeMillis();
         TikaDocument document = extract(path);
         logger.info("{} extracted in {}ms", path, currentTimeMillis() - before);
-        spewer.write(document);
+        try {
+            spewer.write(document);
+        } finally {
+            // The spew walk has read the whole tree by now, so closing the root reader is safe.
+            // This is the end-of-extraction signal that releases any embed-text temp files spilled
+            // past the in-memory budget (see ResourceClosingReader); without it they would leak.
+            final Reader reader = document.getReader();
+            if (null != reader) {
+                reader.close();
+            }
+        }
     }
 
     /**
@@ -569,7 +594,8 @@ public class Extractor {
             context.set(Parser.class, parser);
             embedTextResources = new TemporaryResources();
             context.set(EmbeddedDocumentExtractor.class,
-                    new EmbedSpawner(rootDocument, context, embedOutput, handlerProvider, embedMemoryBudgetBytes, embedTextResources));
+                    new EmbedSpawner(rootDocument, context, embedOutput, handlerProvider, embedMemoryBudgetBytes,
+                            embedTextResources, new MemoryPressureGauge(embedMemoryPressureThreshold)));
         } else if (EmbedHandling.CONCATENATE == embedHandling) {
             context.set(Parser.class, parser);
             context.set(EmbeddedDocumentExtractor.class, new EmbedParser(rootDocument, context));
