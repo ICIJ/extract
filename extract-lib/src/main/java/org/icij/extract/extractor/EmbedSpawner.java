@@ -21,6 +21,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.LinkedList;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
 import static java.lang.Boolean.parseBoolean;
@@ -33,12 +34,18 @@ public class EmbedSpawner extends EmbedParser {
 	private final Function<Writer, ContentHandler> handlerFunction;
 	private final LinkedList<TikaDocument> tikaDocumentStack = new LinkedList<>();
 	private int untitled = 0;
+	private final long embedMemoryBudgetBytes;
+	private final TemporaryResources tmp;
+	private final AtomicLong reserved = new AtomicLong();
 
 	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
-				 final Function<Writer, ContentHandler> handlerFunction) {
+				 final Function<Writer, ContentHandler> handlerFunction,
+				 final long embedMemoryBudgetBytes, final TemporaryResources tmp) {
 		super(root, context);
 		this.outputPath = outputPath;
 		this.handlerFunction = handlerFunction;
+		this.embedMemoryBudgetBytes = embedMemoryBudgetBytes;
+		this.tmp = tmp;
 		tikaDocumentStack.add(root);
 	}
 
@@ -74,18 +81,18 @@ public class EmbedSpawner extends EmbedParser {
 	}
 
 	private void spawnEmbedded(final TikaInputStream tis, final Metadata metadata) throws IOException {
-		// Create a Writer that will receive the parser output for the embed file, for later retrieval.
-		final ByteArrayOutputStream output = new ByteArrayOutputStream(8192);
-		final Writer writer = new OutputStreamWriter(output, StandardCharsets.UTF_8);
+		// Buffer the embed's extracted text in memory while the global budget allows,
+		// overflowing to a temp file once exceeded, so multi-GB containers (PSTs, zips,
+		// mailboxes) don't retain the whole tree's text in heap at once.
+		final BudgetedEmbedBuffer buffer = new BudgetedEmbedBuffer(reserved, embedMemoryBudgetBytes, tmp);
+		final Writer writer = new OutputStreamWriter(buffer, StandardCharsets.UTF_8);
 
 		final ContentHandler embedHandler = handlerFunction.apply(writer);
 		final EmbeddedTikaDocument embed = tikaDocumentStack.getLast().addEmbed(metadata);
 
-		// Use temporary resources to copy formatted output from the content handler to a temporary file.
-		// Call setReader on the embed object with a plain reader for this temp file.
-		// When all parsing finishes, close temporary resources.
-		// Note that getPath should still return the path to the original file.
-		embed.setReader(() -> new InputStreamReader(new ByteArrayInputStream(output.toByteArray()), StandardCharsets.UTF_8));
+		// The reader is generated lazily during the spew walk, reading from memory or the
+		// temp file depending on whether this embed spilled.
+		embed.setReader(buffer.readerGenerator());
 
 		String name = metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY);
 		if (null == name || name.isEmpty()) {
@@ -94,8 +101,6 @@ public class EmbedSpawner extends EmbedParser {
 
 		try {
 			// Trigger spooling of the file to disk so that it can be copied.
-			// This needs to be done before parsing starts and the same TIS object must be passed to writeEmbed,
-			// otherwise it will be spooled twice.
 			if (null != this.outputPath) {
 				tis.getPath();
 			}
@@ -105,6 +110,7 @@ public class EmbedSpawner extends EmbedParser {
 			// If a document can't be spooled then there's a severe problem with the input stream. Abort.
 			tikaDocumentStack.getLast().removeEmbed(embed);
 			embed.clearReader();
+			buffer.discard();
 			writer.close();
 			return;
 		}
@@ -113,8 +119,6 @@ public class EmbedSpawner extends EmbedParser {
 		tikaDocumentStack.add(embed);
 
 		try {
-			// Pass the same TIS, otherwise the EmbedParser will attempt to spool the input again and fail, because it's
-			// already been consumed.
 			delegateParsing(tis, embedHandler, metadata);
 		} catch (final Exception e) {
 
