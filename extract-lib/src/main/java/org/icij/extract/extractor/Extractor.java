@@ -9,6 +9,7 @@ import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.DocumentSelector;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
+import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.CompositeParser;
@@ -37,7 +38,6 @@ import org.icij.extract.parser.CacheParserDecorator;
 import org.icij.extract.parser.FallbackParser;
 import org.icij.extract.parser.HTML5Serializer;
 import org.icij.extract.parser.ParsingReaderWithContentHandler;
-import org.apache.tika.io.TemporaryResources;
 import org.icij.extract.parser.ResourceClosingReader;
 import org.icij.extract.parser.ResilientOutlookPSTParser;
 import org.icij.extract.report.Reporter;
@@ -578,14 +578,24 @@ public class Extractor {
             context.set(EmbeddedDocumentExtractor.class, new EmbedBlocker());
         }
 
-        Reader reader = new ParsingReaderWithContentHandler(parser, tikaInputStream, rootDocument.getMetadata(), context, handlerProvider);
-        if (null != embedTextResources) {
-            // Delete spilled embed-text temp files when the root reader is closed.
-            reader = new ResourceClosingReader(reader, embedTextResources);
+        try {
+            Reader reader = new ParsingReaderWithContentHandler(parser, tikaInputStream, rootDocument.getMetadata(), context, handlerProvider);
+            if (null != embedTextResources) {
+                // Delete spilled embed-text temp files when the root reader is closed.
+                reader = new ResourceClosingReader(reader, embedTextResources);
+            }
+            rootDocument.setReader(reader);
+            return rootDocument;
+        } catch (final Exception e) {
+            if (null != embedTextResources) {
+                try {
+                    embedTextResources.close();
+                } catch (final IOException suppressed) {
+                    e.addSuppressed(suppressed);
+                }
+            }
+            throw e;
         }
-        rootDocument.setReader(reader);
-
-        return rootDocument;
     }
 
     private void excludeParser(final Class<? extends Parser> exclude) {
