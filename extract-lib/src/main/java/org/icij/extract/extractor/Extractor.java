@@ -37,6 +37,8 @@ import org.icij.extract.parser.CacheParserDecorator;
 import org.icij.extract.parser.FallbackParser;
 import org.icij.extract.parser.HTML5Serializer;
 import org.icij.extract.parser.ParsingReaderWithContentHandler;
+import org.apache.tika.io.TemporaryResources;
+import org.icij.extract.parser.ResourceClosingReader;
 import org.icij.extract.parser.ResilientOutlookPSTParser;
 import org.icij.extract.report.Reporter;
 import org.icij.spewer.MetadataTransformer;
@@ -562,9 +564,12 @@ public class Extractor {
         // This excludes script tags and objects.
         context.set(HtmlMapper.class, DefaultHtmlMapper.INSTANCE);
 
+        TemporaryResources embedTextResources = null;
         if (EmbedHandling.SPAWN == embedHandling) {
             context.set(Parser.class, parser);
-            context.set(EmbeddedDocumentExtractor.class, new EmbedSpawner(rootDocument, context, embedOutput, handlerProvider));
+            embedTextResources = new TemporaryResources();
+            context.set(EmbeddedDocumentExtractor.class,
+                    new EmbedSpawner(rootDocument, context, embedOutput, handlerProvider, embedMemoryBudgetBytes, embedTextResources));
         } else if (EmbedHandling.CONCATENATE == embedHandling) {
             context.set(Parser.class, parser);
             context.set(EmbeddedDocumentExtractor.class, new EmbedParser(rootDocument, context));
@@ -573,7 +578,11 @@ public class Extractor {
             context.set(EmbeddedDocumentExtractor.class, new EmbedBlocker());
         }
 
-        final Reader reader = new ParsingReaderWithContentHandler(parser, tikaInputStream, rootDocument.getMetadata(), context, handlerProvider);
+        Reader reader = new ParsingReaderWithContentHandler(parser, tikaInputStream, rootDocument.getMetadata(), context, handlerProvider);
+        if (null != embedTextResources) {
+            // Delete spilled embed-text temp files when the root reader is closed.
+            reader = new ResourceClosingReader(reader, embedTextResources);
+        }
         rootDocument.setReader(reader);
 
         return rootDocument;

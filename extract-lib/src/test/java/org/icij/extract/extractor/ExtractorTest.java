@@ -580,6 +580,29 @@ public class ExtractorTest {
 		assertThat(extractor.getEmbedMemoryBudgetBytes()).isEqualTo(2L * 1024 * 1024);
 	}
 
+	@Test
+	public void testEmbedTextIsIdenticalWhetherSpilledOrInMemory() throws Exception {
+		String inMemory = spewTreeText(512L * 1024 * 1024); // default budget: nothing spills
+		String spilled = spewTreeText(1L);                  // 1-byte budget: everything spills
+
+		assertThat(spilled).isEqualTo(inMemory);
+		assertThat(spilled).contains("level1");             // sanity: real embed content present
+	}
+
+	private String spewTreeText(final long budgetBytes) throws Exception {
+		Extractor extractor = aBasicExtractor();
+		extractor.disableOcr();
+		extractor.setEmbedMemoryBudgetBytes(budgetBytes);
+
+		TikaDocument doc = extractDocument(extractor, "/documents/embedded_with_duplicate.tgz");
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		PrintStreamSpewer spewer = new PrintStreamSpewer(new PrintStream(out, true, StandardCharsets.UTF_8.name()), new FieldNames());
+		spewer.outputMetadata(false); // exclude non-deterministic metadata (temp file names, timestamps)
+		spewer.write(doc);
+		doc.getReader().close(); // triggers ResourceClosingReader cleanup of any temp files
+		return out.toString(StandardCharsets.UTF_8);
+	}
+
 	private String getExpected(final String file) throws IOException {
 		try (final Reader input = new InputStreamReader(getClass().getResourceAsStream(file), StandardCharsets.UTF_8)) {
 			return Spewer.toString(input);
