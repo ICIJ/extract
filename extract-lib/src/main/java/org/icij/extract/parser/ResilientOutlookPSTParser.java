@@ -202,12 +202,8 @@ public class ResilientOutlookPSTParser implements Parser {
         if (!emittedIds.add(descriptorId)) {
             return;
         }
-        String subject = null;
-        try {
-            subject = message.getSubject();
-        } catch (final Exception e) {
-            // ignore: subject is best-effort for the resource name only
-        }
+        // subject is best-effort: it only feeds the resource name and the failure log.
+        final String subject = safe(message::getSubject);
         final Metadata metadata = new Metadata();
         metadata.set(TikaCoreProperties.CONTENT_TYPE_PARSER_OVERRIDE, PSTMailItemParser.PST_MAIL_ITEM_STRING);
         metadata.set(PST.PST_FOLDER_PATH, folderPath);
@@ -225,42 +221,41 @@ public class ResilientOutlookPSTParser implements Parser {
         }
     }
 
-    // Mirrors OutlookPSTParser.estimateSize: a rough body-size estimate so the
-    // embedded stream does not trip Tika's zip-bomb guard.
+    // Mirrors OutlookPSTParser.estimateSize (Tika 3.3.0): a rough body-size estimate that
+    // Tika's SecureContentHandler uses as the byte baseline for its zip-bomb guard (it
+    // rejects a message once output characters exceed estimate * ratio), so a larger
+    // estimate is protective against false rejections. We sum the same accessors Tika
+    // does -- including getRTFBody(), which can dominate for RTF-bodied messages -- but
+    // route each through safe(...): a corrupt message can throw here, and that must not
+    // abort enumeration. If Tika changes which accessors it sums, follow it so the guard
+    // stays calibrated the same way.
     private static long estimateSize(final PSTMessage message) {
-        long size = 0;
-        size += stringLength(safeBody(message));
-        size += stringLength(safeBodyHTML(message));
-        size += stringLength(safeSubject(message));
-        size += 100_000;
-        return size;
+        return 100_000
+                + safeLength(message::getBody)
+                + safeLength(message::getRTFBody)
+                + safeLength(message::getBodyHTML)
+                + safeLength(message::getSubject);
     }
 
-    private static String safeBody(final PSTMessage message) {
-        try {
-            return message.getBody();
-        } catch (final Exception e) {
-            return null;
-        }
+    @FunctionalInterface
+    private interface StringSource {
+        String get() throws Exception;
     }
 
-    private static String safeBodyHTML(final PSTMessage message) {
-        try {
-            return message.getBodyHTML();
-        } catch (final Exception e) {
-            return null;
-        }
-    }
-
-    private static String safeSubject(final PSTMessage message) {
-        try {
-            return message.getSubject();
-        } catch (final Exception e) {
-            return null;
-        }
-    }
-
-    private static long stringLength(final String value) {
+    private static long safeLength(final StringSource source) {
+        final String value = safe(source);
         return value == null ? 0 : value.length();
+    }
+
+    // Reads a value that a corrupt PST message may fail to produce, swallowing the failure
+    // and returning null. Catches LinkageError as well as Exception to match the isolation
+    // pattern used everywhere else in this class: a classpath/linkage failure on one
+    // accessor must not abort enumeration of the rest of the PST.
+    private static String safe(final StringSource source) {
+        try {
+            return source.get();
+        } catch (final Exception | LinkageError e) {
+            return null;
+        }
     }
 }
