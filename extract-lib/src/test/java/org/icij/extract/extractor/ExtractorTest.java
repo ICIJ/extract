@@ -567,6 +567,19 @@ public class ExtractorTest {
 		assertThat(extractor.ocrConfig.getParserClass()).isEqualTo(Tess4JOCRParser.class);
 	}
 
+	@Test
+	public void testEmbedMemoryBudgetDefaultsTo512Mb() {
+		Extractor extractor = new Extractor();
+		assertThat(extractor.getEmbedMemoryBudgetBytes()).isEqualTo(512L * 1024 * 1024);
+	}
+
+	@Test
+	public void testEmbedMemoryBudgetOptionParsedFromMegabytes() {
+		Options<String> options = Options.from(Map.of("embedMemoryBudgetMb", "2"));
+		Extractor extractor = new Extractor(options);
+		assertThat(extractor.getEmbedMemoryBudgetBytes()).isEqualTo(2L * 1024 * 1024);
+	}
+
 	private String getExpected(final String file) throws IOException {
 		try (final Reader input = new InputStreamReader(getClass().getResourceAsStream(file), StandardCharsets.UTF_8)) {
 			return Spewer.toString(input);
