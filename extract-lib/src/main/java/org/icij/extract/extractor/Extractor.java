@@ -90,6 +90,9 @@ import static org.icij.extract.extractor.ArtifactUtils.getEmbeddedPath;
         ". Defaults to 12 hours.", parameter = "duration")
 @Option(name = "ocr", description = "Enable or disable automatic OCR. On by default.")
 @Option(name = "ocrType", description = "Name of the OCR to use TESSERACT, TESS4J")
+@Option(name = "embedMemoryBudgetMb", description = "Maximum megabytes of embedded-document " +
+        "extracted text to hold in memory before overflowing to temp files. Defaults to 512.",
+        parameter = "megabytes")
 public class Extractor {
 
     public static final String PAGES_JSON = "pages.json";
@@ -126,6 +129,7 @@ public class Extractor {
     private OutputFormat outputFormat = OutputFormat.TEXT;
     private EmbedHandling embedHandling = EmbedHandling.getDefault();
     private Path embedOutput = null;
+    private long embedMemoryBudgetBytes = 512L * 1024 * 1024;
 
     /**
      * Create a new extractor, which will OCR images by default if Tesseract is available locally, extract inline
@@ -177,6 +181,8 @@ public class Extractor {
         options.get("ocrLanguage", "eng").value().ifPresent(this::setOcrLanguage);
         options.get("ocrTimeout", "12h").parse().asDuration().ifPresent(this::setOcrTimeout);
         options.valueIfPresent("embedOutput").ifPresent(embedOutput -> setEmbedOutputPath(Paths.get(embedOutput)));
+        options.get("embedMemoryBudgetMb", "512").parse().asInteger()
+                .ifPresent(mb -> setEmbedMemoryBudgetBytes(mb * 1024L * 1024L));
 
         String algorithm = options.valueIfPresent("digestAlgorithm").orElse("SHA-256");
         setDigestAlgorithm(algorithm);
@@ -255,6 +261,14 @@ public class Extractor {
      */
     public Path getEmbedOutputPath() {
         return embedOutput;
+    }
+
+    public long getEmbedMemoryBudgetBytes() {
+        return embedMemoryBudgetBytes;
+    }
+
+    public void setEmbedMemoryBudgetBytes(final long embedMemoryBudgetBytes) {
+        this.embedMemoryBudgetBytes = embedMemoryBudgetBytes;
     }
 
     /**
