@@ -88,6 +88,7 @@ class BudgetedEmbedBuffer extends OutputStream {
 
     /** Release this buffer's resident memory bytes from the shared counter (error path). */
     synchronized void discard() {
+        // Only called on the spool-failure path, before any write, so fileOut is always null here; close() owns fileOut.
         if (memoryReserved > 0) {
             reserved.addAndGet(-memoryReserved);
             memoryReserved = 0;
