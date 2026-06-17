@@ -589,6 +589,18 @@ public class ExtractorTest {
 		assertThat(spilled).contains("level1");             // sanity: real embed content present
 	}
 
+	@Test
+	public void testNormalArchiveDoesNotSpillUnderDefaultBudget() throws Exception {
+		Extractor extractor = aBasicExtractor();
+		extractor.disableOcr();
+		// default 512MB budget: a tiny archive must read back fine with no error
+		TikaDocument doc = extractDocument(extractor, "/documents/embedded_with_duplicate.tgz");
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		new PrintStreamSpewer(new PrintStream(out, true, StandardCharsets.UTF_8.name()), new FieldNames()).write(doc);
+		doc.getReader().close();
+		assertThat(out.toString(StandardCharsets.UTF_8)).contains("level1");
+	}
+
 	private String spewTreeText(final long budgetBytes) throws Exception {
 		Extractor extractor = aBasicExtractor();
 		extractor.disableOcr();
