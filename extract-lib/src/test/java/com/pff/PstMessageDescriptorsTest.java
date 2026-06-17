@@ -15,9 +15,8 @@ public class PstMessageDescriptorsTest {
         PSTFile pst = new PSTFile(path);
         try {
             List<Integer> ids = PstMessageDescriptors.normalMessageDescriptorIds(pst);
-            // testPST.pst contains exactly 7 normal mail messages (0 orphans);
-            // orphan/deleted-message recovery is validated separately by the
-            // property-gated PstParityExternalTest against a real external PST.
+            // testPST.pst contains exactly 7 normal mail messages (0 orphans), so this
+            // fixture does not exercise orphan/deleted-message recovery.
             assertThat(ids).hasSize(7);
         } finally {
             pst.getFileHandle().close();
