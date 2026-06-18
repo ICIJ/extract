@@ -13,6 +13,7 @@ import java.io.Reader;
 public class ResourceClosingReader extends FilterReader {
 
     private final Closeable resource;
+    private boolean closed = false;
 
     public ResourceClosingReader(final Reader in, final Closeable resource) {
         super(in);
@@ -21,6 +22,12 @@ public class ResourceClosingReader extends FilterReader {
 
     @Override
     public void close() throws IOException {
+        // Idempotent: the spew walk and a caller's own try-with-resources may both close this,
+        // and the underlying parsing reader does not tolerate a second close.
+        if (closed) {
+            return;
+        }
+        closed = true;
         try {
             super.close();
         } finally {

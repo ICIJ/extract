@@ -346,17 +346,9 @@ public class Extractor {
         long before = currentTimeMillis();
         TikaDocument document = extract(path);
         logger.info("{} extracted in {}ms", path, currentTimeMillis() - before);
-        try {
-            spewer.write(document);
-        } finally {
-            // The spew walk has read the whole tree by now, so closing the root reader is safe.
-            // This is the end-of-extraction signal that releases any embed-text temp files spilled
-            // past the in-memory budget (see ResourceClosingReader); without it they would leak.
-            final Reader reader = document.getReader();
-            if (null != reader) {
-                reader.close();
-            }
-        }
+        // Spewer.write() walks the whole tree and closes every document reader (including the
+        // root, which releases any spilled embed-text temp files), so no cleanup is needed here.
+        spewer.write(document);
     }
 
     /**

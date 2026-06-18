@@ -44,6 +44,7 @@ import java.util.stream.Stream;
 
 import static java.lang.Math.toIntExact;
 import static org.fest.assertions.Assertions.assertThat;
+import static org.junit.Assume.assumeTrue;
 import static org.icij.extract.ocr.OCRParser.OCR_PARSER;
 import static org.icij.extract.ocr.ParserWithConfidence.OCR_CONFIDENCE;
 
@@ -396,6 +397,38 @@ public class ExtractorTest {
 		try (Stream<Path> files = Files.list(tmp)) {
 			return files.filter(p -> p.getFileName().toString().startsWith("apache-tika-"))
 					.collect(Collectors.toSet());
+		}
+	}
+
+	@Test
+	public void testSpilledEmbedReadersDoNotLeakFileDescriptors() throws Exception {
+		// Each spilled embed's reader is an open file handle; if the spew walk doesn't close them
+		// they stay open (cached on each TikaDocument) until GC, exhausting the fd limit on large
+		// containers. Count fds pointing at apache-tika temp files before vs after a forced-spill spew.
+		assumeTrue("requires /proc/self/fd (Linux)", Files.isDirectory(Paths.get("/proc/self/fd")));
+		Extractor extractor = aBasicExtractor();
+		extractor.disableOcr();
+		extractor.setEmbedOutputPath(folder.newFolder("embeds").toPath());
+		extractor.setEmbedMemoryBudgetBytes(0L); // force every embed to spill
+
+		long before = openTikaTempFds();
+		extractor.extract(
+				Paths.get(getClass().getResource("/documents/recursive_embedded.docx").getPath()),
+				new PrintStreamSpewer(new PrintStream(OutputStream.nullOutputStream()), new FieldNames()));
+		long after = openTikaTempFds();
+
+		assertThat(after).isEqualTo(before);
+	}
+
+	private static long openTikaTempFds() throws IOException {
+		try (Stream<Path> fds = Files.list(Paths.get("/proc/self/fd"))) {
+			return fds.filter(fd -> {
+				try {
+					return Files.readSymbolicLink(fd).toString().contains("apache-tika");
+				} catch (IOException e) {
+					return false;
+				}
+			}).count();
 		}
 	}
 

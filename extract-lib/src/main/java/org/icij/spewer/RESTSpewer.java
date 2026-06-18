@@ -34,19 +34,24 @@ public class RESTSpewer extends Spewer implements Serializable {
 
 	@Override
 	public void write(final TikaDocument tikaDocument) throws IOException {
-		final HttpPut put = new HttpPut(uri.resolve(tikaDocument.getId()));
-		final List<NameValuePair> params = new ArrayList<>();
+		try {
+			final HttpPut put = new HttpPut(uri.resolve(tikaDocument.getId()));
+			final List<NameValuePair> params = new ArrayList<>();
 
-		params.add(new BasicNameValuePair(fields.forId(), tikaDocument.getId()));
-		params.add(new BasicNameValuePair(fields.forPath(), tikaDocument.getPath().toString()));
-		params.add(new BasicNameValuePair(fields.forText(), toString(tikaDocument.getReader())));
+			params.add(new BasicNameValuePair(fields.forId(), tikaDocument.getId()));
+			params.add(new BasicNameValuePair(fields.forPath(), tikaDocument.getPath().toString()));
+			params.add(new BasicNameValuePair(fields.forText(), toString(tikaDocument.getReader())));
 
-		if (outputMetadata) {
-			parametrizeMetadata(tikaDocument.getMetadata(), params);
+			if (outputMetadata) {
+				parametrizeMetadata(tikaDocument.getMetadata(), params);
+			}
+
+			put.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
+			put(put);
+		} finally {
+			// Release the root reader (and any spilled embed-text temp files it owns).
+			closeReaderQuietly(tikaDocument);
 		}
-
-		put.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-		put(put);
 	}
 
 	public void writeMetadata(final TikaDocument tikaDocument) throws IOException {
