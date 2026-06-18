@@ -41,12 +41,13 @@ class MemoryPressureGauge implements BooleanSupplier {
 
     @Override
     public boolean getAsBoolean() {
-        // A threshold outside (0, 1) disables adaptive spilling.
-        if (!(threshold > 0.0 && threshold < 1.0)) {
+        // A threshold outside (0, 1) disables adaptive spilling: fall back to pure byte-budget behaviour.
+        if (!adaptiveSpillingEnabled()) {
             return false;
         }
+        // The result is cached between samples because this check sits on the per-write hot path.
         final long now = System.nanoTime();
-        if (!sampled || now - lastSampleNanos >= sampleIntervalNanos) {
+        if (shouldResample(now)) {
             cachedHigh = usageRatio.getAsDouble() >= threshold;
             lastSampleNanos = now;
             sampled = true;
@@ -54,23 +55,33 @@ class MemoryPressureGauge implements BooleanSupplier {
         return cachedHigh;
     }
 
+    private boolean adaptiveSpillingEnabled() {
+        return threshold > 0.0 && threshold < 1.0;
+    }
+
+    private boolean shouldResample(final long now) {
+        return !sampled || now - lastSampleNanos >= sampleIntervalNanos;
+    }
+
     private static DoubleSupplier defaultRatioSupplier() {
-        final MemoryPoolMXBean pool = findHeapPool();
-        return () -> {
-            if (null == pool) {
-                return 0.0;
-            }
-            // Prefer collection usage (state right after the last GC of this pool): it reflects the
-            // live set rather than not-yet-collected garbage, so we don't spill on collectable bytes.
-            MemoryUsage usage = pool.getCollectionUsage();
-            if (null == usage || usage.getMax() <= 0) {
-                usage = pool.getUsage();
-            }
-            if (null == usage || usage.getMax() <= 0) {
-                return 0.0;
-            }
-            return (double) usage.getUsed() / (double) usage.getMax();
-        };
+        final MemoryPoolMXBean oldGenerationPool = findHeapPool();
+        return () -> heapUsageRatio(oldGenerationPool);
+    }
+
+    private static double heapUsageRatio(final MemoryPoolMXBean pool) {
+        if (null == pool) {
+            return 0.0;
+        }
+        // Prefer collection usage (the state right after this pool's last GC): it reflects the live set
+        // rather than not-yet-collected garbage, so we don't spill on merely collectable bytes.
+        MemoryUsage usage = pool.getCollectionUsage();
+        if (null == usage || usage.getMax() <= 0) {
+            usage = pool.getUsage();
+        }
+        if (null == usage || usage.getMax() <= 0) {
+            return 0.0;
+        }
+        return (double) usage.getUsed() / (double) usage.getMax();
     }
 
     /**

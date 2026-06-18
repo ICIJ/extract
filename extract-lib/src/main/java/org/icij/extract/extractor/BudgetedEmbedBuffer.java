@@ -60,18 +60,27 @@ class BudgetedEmbedBuffer extends OutputStream {
         if (closed) {
             throw new IOException("Stream closed");
         }
-        if (file != null) {
+        // Once this buffer has spilled it stays on disk for the rest of its life.
+        if (isSpilled()) {
             fileOut.write(b, off, len);
             return;
         }
-        // Spill when the shared in-memory budget would be exceeded, or when the heap is already under
-        // pressure — the latter keeps total memory bounded even when the document tree, not the embed
-        // text, is what is filling the heap (e.g. mailboxes with tens of thousands of items).
-        if (reserved.get() + len > budgetBytes || memoryPressureHigh.getAsBoolean()) {
+        if (shouldSpill(len)) {
             spill();
             fileOut.write(b, off, len);
             return;
         }
+        appendToMemory(b, off, len);
+    }
+
+    // Spill when the shared in-memory budget would be exceeded, or when the heap is already under
+    // pressure — the latter keeps total memory bounded even when the document tree, not the embed
+    // text, is what is filling the heap (e.g. mailboxes with tens of thousands of items).
+    private boolean shouldSpill(final int len) {
+        return reserved.get() + len > budgetBytes || memoryPressureHigh.getAsBoolean();
+    }
+
+    private void appendToMemory(final byte[] b, final int off, final int len) throws IOException {
         memory.write(b, off, len);
         memoryReserved += len;
         reserved.addAndGet(len);
