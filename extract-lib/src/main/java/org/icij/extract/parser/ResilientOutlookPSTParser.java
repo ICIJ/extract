@@ -288,6 +288,12 @@ public class ResilientOutlookPSTParser implements Parser {
         if (failed > 0) {
             logger.warn("PST email loss in \"{}\": expected {} messages, emitted {} ({} failed).",
                     pstPath, expected, emittedCount, failed);
+        } else if (emittedCount > expected) {
+            // Not loss, but the ground-truth baseline was exceeded (orphan recovery surfaced messages
+            // outside the enumerated folder tree, or the descriptor count under-enumerated). Surface it
+            // rather than letting the clamped failed=0 read as a clean, fully-reconciled extraction.
+            logger.warn("PST count mismatch in \"{}\": emitted {} messages, more than the {} enumerated "
+                    + "descriptors; loss accounting may be incomplete.", pstPath, emittedCount, expected);
         }
     }
 

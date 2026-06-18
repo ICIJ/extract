@@ -98,6 +98,20 @@ public class BudgetedEmbedBufferTest {
     }
 
     @Test
+    public void testDiscardAfterSpillReleasesStreamWithoutError() throws Exception {
+        AtomicLong reserved = new AtomicLong();
+        BudgetedEmbedBuffer buffer = new BudgetedEmbedBuffer(reserved, 0, tmp); // 0 budget => spills immediately
+
+        buffer.write("spilled".getBytes(StandardCharsets.UTF_8));
+        assertThat(buffer.isSpilled()).isTrue();
+
+        buffer.discard();       // must release the open spill stream, not leak it
+        buffer.close();         // must remain safe after discard
+
+        assertThat(reserved.get()).isEqualTo(0L);
+    }
+
+    @Test
     public void testDiscardReleasesReservedBytes() throws Exception {
         AtomicLong reserved = new AtomicLong();
         BudgetedEmbedBuffer buffer = new BudgetedEmbedBuffer(reserved, 1024, tmp);
