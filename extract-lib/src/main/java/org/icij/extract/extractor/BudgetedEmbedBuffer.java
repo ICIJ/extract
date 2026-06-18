@@ -99,12 +99,23 @@ class BudgetedEmbedBuffer extends OutputStream {
 
     /** Release this buffer's resident memory bytes from the shared counter (error path). */
     synchronized void discard() {
-        // Only called on the spool-failure path, before any write, so fileOut is always null here; close() owns fileOut.
         if (memoryReserved > 0) {
             reserved.addAndGet(-memoryReserved);
             memoryReserved = 0;
         }
         memory = null;
+        // Today discard() is only reached on the spool-failure path before any byte is written, so
+        // fileOut is null. Stay robust to a future caller reaching it after a spill: release the open
+        // stream so its descriptor isn't leaked. The temp file itself is owned by the shared
+        // TemporaryResources and reclaimed when those close.
+        if (fileOut != null) {
+            try {
+                fileOut.close();
+            } catch (final IOException ignored) {
+                // best-effort: nothing actionable on the error path
+            }
+            fileOut = null;
+        }
     }
 
     /** A lazy reader over the buffered text, from memory or the temp file. */
