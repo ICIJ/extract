@@ -57,18 +57,45 @@ public abstract class Spewer implements AutoCloseable, Serializable {
     protected abstract void writeDocument(TikaDocument doc, TikaDocument parent, TikaDocument root, int level) throws IOException;
 
     public void write(final TikaDocument document) throws IOException {
-        writeDocument(document, null, null, 0);
-        for (EmbeddedTikaDocument childDocument : document.getEmbeds()) {
-            writeTree(childDocument, document, document, 1);
+        try {
+            writeDocument(document, null, null, 0);
+            for (EmbeddedTikaDocument childDocument : document.getEmbeds()) {
+                writeTree(childDocument, document, document, 1);
+            }
+        } finally {
+            // Closing the root reader releases any embedded-text temp files spilled past the
+            // in-memory budget (see ResourceClosingReader). Owning cleanup here means every
+            // spewer benefits, not just one Extractor entry point.
+            closeReaderQuietly(document);
         }
     }
 
     private void writeTree(final TikaDocument doc, final TikaDocument parent, TikaDocument root, final int level)
             throws IOException {
-        writeDocument(doc, parent, root, level);
+        try {
+            writeDocument(doc, parent, root, level);
 
-        for (EmbeddedTikaDocument child : doc.getEmbeds()) {
-            writeTree(child, doc, root, level + 1);
+            for (EmbeddedTikaDocument child : doc.getEmbeds()) {
+                writeTree(child, doc, root, level + 1);
+            }
+        } finally {
+            // Release this embedded document's reader as soon as its subtree is written. When its
+            // text spilled to disk the reader is an open file handle; without this a large container
+            // (PST/mailbox with tens of thousands of items) holds them all open at once and exhausts
+            // the process file-descriptor limit.
+            closeReaderQuietly(doc);
+        }
+    }
+
+    protected static void closeReaderQuietly(final TikaDocument document) {
+        try {
+            final Reader reader = document.getReader();
+            if (null != reader) {
+                reader.close();
+            }
+        } catch (final IOException e) {
+            // Best-effort: the content has already been written, so a failed close must not
+            // mask the write outcome.
         }
     }
 
