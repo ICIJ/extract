@@ -81,7 +81,7 @@ public class ResilientOutlookPSTParser implements Parser {
 
         PSTFile pstFile = null;
         try {
-            pstFile = openPstFile(pstPath);
+            pstFile = new PSTFile(pstPath);
             extractAllMessages(pstFile, pstPath, emission, metadata);
         } catch (final TikaException e) {
             throw e;
@@ -92,19 +92,6 @@ public class ResilientOutlookPSTParser implements Parser {
         }
 
         xhtml.endDocument();
-    }
-
-    // Opens the PST and rejects the one format java-libpst cannot read, so the rest
-    // of the parse can assume a usable file.
-    private PSTFile openPstFile(final String pstPath) throws Exception {
-        final PSTFile pstFile = new PSTFile(pstPath);
-        if (pstFile.getPSTFileType() == PSTFile.PST_TYPE_2013_UNICODE) {
-            // new PSTFile already opened the underlying file handle; release it before bailing
-            // out, otherwise every unsupported (OST 2013) file leaks a descriptor.
-            closeQuietly(pstFile);
-            throw new TikaException("OST 2013 is not supported by java-libpst");
-        }
-        return pstFile;
     }
 
     // Emits every reachable message -- first through the visible folder hierarchy,
