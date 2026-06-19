@@ -112,6 +112,13 @@ public class ResilientOutlookPSTParserTest {
         assertThat(emittedCount).isGreaterThan(0);
         assertThat(emittedCount).isGreaterThanOrEqualTo(Integer.parseInt(expected));
         assertThat(counting.mailFolders.size()).isEqualTo(emittedCount);
+
+        // Type-36 files always carry the attachment-integrity signal (a non-negative count of
+        // by-value attachments libpst could not fully read). The magnitude is file-specific and
+        // verified separately; here we assert the field is populated for any OST 2013 file.
+        String unreadable = metadata.get(ResilientOutlookPSTParser.PST_ATTACHMENTS_UNREADABLE);
+        assertThat(unreadable).isNotNull();
+        assertThat(Integer.parseInt(unreadable)).isGreaterThanOrEqualTo(0);
     }
 
     // Runs only when a real type-36 .ost path is provided; otherwise skipped.
@@ -231,6 +238,15 @@ public class ResilientOutlookPSTParserTest {
         assertThat(metadata.get(ResilientOutlookPSTParser.PST_EXPECTED)).isEqualTo("7");
         assertThat(metadata.get(ResilientOutlookPSTParser.PST_EMITTED)).isEqualTo("6");
         assertThat(metadata.get(ResilientOutlookPSTParser.PST_FAILED)).isEqualTo("1");
+    }
+
+    // The attachment-integrity check is gated to OST 2013 (type-36) files, the only format with
+    // the libpst multi-block defect. A healthy Unicode PST must therefore neither scan attachments
+    // nor set the field, so normal extraction is unchanged and no misleading "0" is reported.
+    @Test
+    public void test_healthy_pst_has_no_attachment_integrity_metadata() throws Exception {
+        ParseResult result = parseWithCounting(testPst());
+        assertThat(result.metadata.get(ResilientOutlookPSTParser.PST_ATTACHMENTS_UNREADABLE)).isNull();
     }
 
     @Test
