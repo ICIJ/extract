@@ -1,8 +1,10 @@
 package org.icij.extract.parser;
 
+import com.pff.PSTAttachment;
 import com.pff.PSTFile;
 import com.pff.PSTFolder;
 import com.pff.PSTMessage;
+import com.pff.PSTNodeInputStream;
 import com.pff.PSTObject;
 import com.pff.PstMessageDescriptors;
 import org.apache.tika.exception.TikaException;
@@ -50,6 +52,10 @@ public class ResilientOutlookPSTParser implements Parser {
     public static final String PST_EXPECTED = "tika:pst_expected";
     public static final String PST_EMITTED = "tika:pst_emitted";
     public static final String PST_FAILED = "tika:pst_failed";
+    // Count of by-value attachments whose data java-libpst could not fully read. Set only
+    // for OST 2013 (type-36) files, the one format where the defect occurs (see
+    // countUnreadableAttachments); absent on every other PST.
+    public static final String PST_ATTACHMENTS_UNREADABLE = "tika:pst_attachments_unreadable";
 
     private static final long serialVersionUID = 1L;
     private static final Set<MediaType> SUPPORTED_TYPES = singleton(MS_OUTLOOK_PST_MIMETYPE);
@@ -99,12 +105,20 @@ public class ResilientOutlookPSTParser implements Parser {
     // how the emitted count reconciles against the descriptor ground truth.
     private void extractAllMessages(final PSTFile pstFile, final String pstPath,
                                     final EmissionContext emission, final Metadata metadata) throws Exception {
+        // java-libpst reads single-block data from OST 2013 (type-36) files correctly, but
+        // truncates or fails on attachment data spanning multiple blocks. We can't repair the
+        // bytes, so flag the affected attachments to make the loss visible. Confined to type-36
+        // because that is the only format with the defect; normal PSTs pay nothing.
+        if (pstFile.getPSTFileType() == PSTFile.PST_TYPE_2013_UNICODE) {
+            emission.enableAttachmentIntegrityCheck();
+        }
         final List<Integer> messageDescriptorIds = enumerateMessageDescriptorIds(pstFile, pstPath);
         walkFolder(pstFile.getRootFolder(), "/", emission);
         if (messageDescriptorIds != null) {
             recoverOrphans(messageDescriptorIds, pstFile, emission);
         }
         recordReconciliation(metadata, pstPath, messageDescriptorIds, emission.emittedCount());
+        recordAttachmentIntegrity(metadata, pstPath, emission);
     }
 
     // Enumerates the descriptor ids of normal mail messages -- our ground-truth count
@@ -235,6 +249,86 @@ public class ResilientOutlookPSTParser implements Parser {
             logger.warn("Failed to emit PST message \"{}\" (descriptor {}) in folder \"{}\".",
                     subject, descriptorId, folderPath, e);
         }
+        if (emission.shouldCheckAttachmentIntegrity()) {
+            countUnreadableAttachments(message, folderPath, emission);
+        }
+    }
+
+    // Best-effort: count by-value attachments whose data can't be fully read, so the OST 2013
+    // multi-block truncation surfaces as an honest data-completeness signal instead of only as
+    // misleading "corrupt PDF" / "premature end of JPEG" errors deeper in the pipeline. Never
+    // throws: a failure to inspect one attachment must not abort the surrounding walk.
+    private void countUnreadableAttachments(final PSTMessage message, final String folderPath,
+                                            final EmissionContext emission) {
+        final int attachmentCount;
+        try {
+            attachmentCount = message.getNumberOfAttachments();
+        } catch (final Exception | LinkageError e) {
+            return;
+        }
+        for (int index = 0; index < attachmentCount; index++) {
+            if (isUnreadableByValueAttachment(message, index, folderPath)) {
+                emission.incrementUnreadableAttachments();
+            }
+        }
+    }
+
+    // A by-value attachment is unreadable when its stream won't open, or reports fewer bytes than
+    // its declared size (the type-36 multi-block truncation). Non-by-value attachments (embedded
+    // messages, OLE, by-reference) carry no inline binary stream to check and are skipped. Returns
+    // false on any inspection error so a libpst quirk never inflates the count.
+    private boolean isUnreadableByValueAttachment(final PSTMessage message, final int index,
+                                                  final String folderPath) {
+        final PSTAttachment attachment;
+        try {
+            attachment = message.getAttachment(index);
+        } catch (final Exception | LinkageError e) {
+            return false;
+        }
+        if (safeAttachMethod(attachment) != PSTAttachment.ATTACHMENT_METHOD_BY_VALUE) {
+            return false;
+        }
+        final long declaredSize = safeFilesize(attachment);
+        try (InputStream stream = attachment.getFileInputStream()) {
+            if (declaredSize > 0 && stream instanceof PSTNodeInputStream) {
+                final long readableSize = ((PSTNodeInputStream) stream).length();
+                if (readableSize < declaredSize) {
+                    logger.warn("PST attachment \"{}\" in folder \"{}\" is truncated: {} of {} declared bytes readable.",
+                            safeAttachmentName(attachment), folderPath, readableSize, declaredSize);
+                    return true;
+                }
+            }
+            return false;
+        } catch (final Exception | LinkageError e) {
+            logger.warn("PST attachment \"{}\" in folder \"{}\" could not be read ({}).",
+                    safeAttachmentName(attachment), folderPath, e.toString());
+            return true;
+        }
+    }
+
+    private static int safeAttachMethod(final PSTAttachment attachment) {
+        try {
+            return attachment.getAttachMethod();
+        } catch (final Exception | LinkageError e) {
+            return PSTAttachment.ATTACHMENT_METHOD_NONE;
+        }
+    }
+
+    private static long safeFilesize(final PSTAttachment attachment) {
+        try {
+            return attachment.getFilesize();
+        } catch (final Exception | LinkageError e) {
+            return -1;
+        }
+    }
+
+    private static String safeAttachmentName(final PSTAttachment attachment) {
+        final String longName = safe(attachment::getLongFilename);
+        if (longName != null && !longName.isEmpty()) {
+            return longName;
+        }
+        final String name = safe(attachment::getFilename);
+        return name == null ? "(unnamed)" : name;
     }
 
     // Builds the per-message metadata that routes the body to PSTMailItemParser and
@@ -294,6 +388,22 @@ public class ResilientOutlookPSTParser implements Parser {
         metadata.set(PST_FAILED, UNKNOWN_COUNT);
         logger.warn("PST message count could not be measured for \"{}\"; emitted {} messages "
                 + "but loss is undetectable (descriptor enumeration failed).", pstPath, emittedCount);
+    }
+
+    // Records, for OST 2013 files only, how many by-value attachments could not be fully read.
+    // The field is left absent on every other PST so it reads as "not applicable" rather than a
+    // possibly-misleading "0" for a format we never scanned.
+    private void recordAttachmentIntegrity(final Metadata metadata, final String pstPath,
+                                           final EmissionContext emission) {
+        if (!emission.shouldCheckAttachmentIntegrity()) {
+            return;
+        }
+        final int unreadable = emission.unreadableAttachments();
+        metadata.set(PST_ATTACHMENTS_UNREADABLE, Integer.toString(unreadable));
+        if (unreadable > 0) {
+            logger.warn("PST \"{}\": {} by-value attachment(s) could not be fully read (java-libpst OST 2013 "
+                    + "multi-block limitation); their content is missing from the index.", pstPath, unreadable);
+        }
     }
 
     // Closes the underlying file handle, ignoring close-time failures: by the time we
@@ -358,10 +468,29 @@ public class ResilientOutlookPSTParser implements Parser {
         private final EmbeddedDocumentExtractor extractor;
         private final Set<Long> emittedDescriptorIds = new HashSet<>();
         private int emittedCount = 0;
+        private boolean checkAttachmentIntegrity = false;
+        private int unreadableAttachments = 0;
 
         private EmissionContext(final XHTMLContentHandler xhtml, final EmbeddedDocumentExtractor extractor) {
             this.xhtml = xhtml;
             this.extractor = extractor;
+        }
+
+        // Turned on only for OST 2013 files, the one format whose attachment data libpst mis-reads.
+        private void enableAttachmentIntegrityCheck() {
+            this.checkAttachmentIntegrity = true;
+        }
+
+        private boolean shouldCheckAttachmentIntegrity() {
+            return checkAttachmentIntegrity;
+        }
+
+        private void incrementUnreadableAttachments() {
+            unreadableAttachments++;
+        }
+
+        private int unreadableAttachments() {
+            return unreadableAttachments;
         }
 
         // Returns true the first time a descriptor is seen, false on a duplicate.
