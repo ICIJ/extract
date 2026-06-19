@@ -182,7 +182,7 @@ public class ResilientOutlookPSTParser implements Parser {
     }
 
     private String safeDisplayName(final PSTFolder folder) {
-        final String displayName = safe(folder::getDisplayName);
+        final String displayName = safe(folder::getDisplayName, null);
         return displayName == null ? "?" : displayName;
     }
 
@@ -235,22 +235,26 @@ public class ResilientOutlookPSTParser implements Parser {
             return;
         }
         // subject is best-effort: it only feeds the resource name and the failure log.
-        final String subject = safe(message::getSubject);
+        final String subject = safe(message::getSubject, null);
         final Metadata metadata = buildMessageMetadata(folderPath, subject);
 
         final long estimatedSize = estimateSize(message);
         try (TikaInputStream messageStream = TikaInputStream.getFromContainer(message, estimatedSize, metadata)) {
             emission.parseEmbedded(messageStream, metadata);
             emission.incrementEmitted();
+            // Scan attachments only for a successfully emitted message, and only here -- inside the
+            // dedup guard. A failed emission un-marks the descriptor (counting it as a loss), which
+            // lets orphan recovery re-reach it; scanning before that point would double-count the
+            // attachments of any message reached through both the folder walk and orphan recovery.
+            if (emission.shouldCheckAttachmentIntegrity()) {
+                countUnreadableAttachments(message, folderPath, emission);
+            }
         } catch (final Exception | LinkageError e) {
             // A classpath/linkage failure (e.g. a dependency clash during attachment
             // detection) on one message must not abort the rest of the PST.
             emission.unmarkEmitted(descriptorId);
             logger.warn("Failed to emit PST message \"{}\" (descriptor {}) in folder \"{}\".",
                     subject, descriptorId, folderPath, e);
-        }
-        if (emission.shouldCheckAttachmentIntegrity()) {
-            countUnreadableAttachments(message, folderPath, emission);
         }
     }
 
@@ -285,13 +289,17 @@ public class ResilientOutlookPSTParser implements Parser {
         } catch (final Exception | LinkageError e) {
             return false;
         }
-        if (safeAttachMethod(attachment) != PSTAttachment.ATTACHMENT_METHOD_BY_VALUE) {
+        if (safe(attachment::getAttachMethod, PSTAttachment.ATTACHMENT_METHOD_NONE) != PSTAttachment.ATTACHMENT_METHOD_BY_VALUE) {
             return false;
         }
-        final long declaredSize = safeFilesize(attachment);
+        final long declaredSize = safe(attachment::getFilesize, -1);
+        // Opening the stream re-reads the attachment's first block, and PSTMailItemParser reads it
+        // again during the actual emit, so this duplicates a little I/O per by-value attachment.
+        // That cost is accepted: opening is the only way to catch the "block won't decompress" and
+        // mid-read failures, and the whole check is gated to OST 2013 files where the defect lives.
         try (InputStream stream = attachment.getFileInputStream()) {
-            if (declaredSize > 0 && stream instanceof PSTNodeInputStream) {
-                final long readableSize = ((PSTNodeInputStream) stream).length();
+            if (declaredSize > 0 && stream instanceof PSTNodeInputStream node) {
+                final long readableSize = node.length();
                 if (readableSize < declaredSize) {
                     logger.warn("PST attachment \"{}\" in folder \"{}\" is truncated: {} of {} declared bytes readable.",
                             safeAttachmentName(attachment), folderPath, readableSize, declaredSize);
@@ -306,28 +314,12 @@ public class ResilientOutlookPSTParser implements Parser {
         }
     }
 
-    private static int safeAttachMethod(final PSTAttachment attachment) {
-        try {
-            return attachment.getAttachMethod();
-        } catch (final Exception | LinkageError e) {
-            return PSTAttachment.ATTACHMENT_METHOD_NONE;
-        }
-    }
-
-    private static long safeFilesize(final PSTAttachment attachment) {
-        try {
-            return attachment.getFilesize();
-        } catch (final Exception | LinkageError e) {
-            return -1;
-        }
-    }
-
     private static String safeAttachmentName(final PSTAttachment attachment) {
-        final String longName = safe(attachment::getLongFilename);
+        final String longName = safe(attachment::getLongFilename, null);
         if (longName != null && !longName.isEmpty()) {
             return longName;
         }
-        final String name = safe(attachment::getFilename);
+        final String name = safe(attachment::getFilename, null);
         return name == null ? "(unnamed)" : name;
     }
 
@@ -435,28 +427,28 @@ public class ResilientOutlookPSTParser implements Parser {
                 + safeLength(message::getSubject);
     }
 
-    private static long safeLength(final StringSource source) {
-        final String value = safe(source);
+    private static long safeLength(final ThrowingSupplier<String> source) {
+        final String value = safe(source, null);
         return value == null ? 0 : value.length();
     }
 
-    // Reads a value that a corrupt PST message may fail to produce, swallowing the failure
-    // and returning null. Catches LinkageError as well as Exception to match the isolation
-    // pattern used everywhere else in this class: a classpath/linkage failure on one
-    // accessor must not abort enumeration of the rest of the PST.
-    private static String safe(final StringSource source) {
+    // Reads a value that a corrupt PST may fail to produce, swallowing the failure and returning
+    // the fallback. Catches LinkageError as well as Exception to match the isolation pattern used
+    // everywhere else in this class: a classpath/linkage failure on one accessor must not abort
+    // enumeration of the rest of the PST.
+    private static <T> T safe(final ThrowingSupplier<T> source, final T fallback) {
         try {
             return source.get();
         } catch (final Exception | LinkageError e) {
-            return null;
+            return fallback;
         }
     }
 
-    // A message accessor that may throw on a corrupt message; lets safe(...) wrap any
-    // libpst getter uniformly.
+    // A libpst accessor that may throw on a corrupt message or attachment; lets safe(...) wrap any
+    // getter uniformly, whatever its return type.
     @FunctionalInterface
-    private interface StringSource {
-        String get() throws Exception;
+    private interface ThrowingSupplier<T> {
+        T get() throws Exception;
     }
 
     // Mutable per-parse state shared by the folder walk, the orphan-recovery pass, and
