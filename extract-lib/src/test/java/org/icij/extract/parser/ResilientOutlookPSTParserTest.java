@@ -40,18 +40,34 @@ public class ResilientOutlookPSTParserTest {
         return p;
     }
 
-    // Drives the parser over a real type-36 (.ost) file with a counting extractor
-    // and asserts zero-loss traversal: the emitted count equals the descriptor
-    // ground truth (PST_EXPECTED) and nothing failed. Body bytes are deliberately
-    // not asserted; that path depends on downstream deps documented in the spec.
-    private void assertFullyTraversedAsOst2013(Path ost) throws Exception {
-        PSTFile probe = new PSTFile(ost.toString());
+    // Opens the file, reads the PSTFileType, then closes the file handle
+    // (guarding against a null handle so the close is safe in all cases).
+    private static int pstFileType(Path file) throws Exception {
+        PSTFile probe = new PSTFile(file.toString());
         try {
-            assertThat(probe.getPSTFileType()).isEqualTo(PSTFile.PST_TYPE_2013_UNICODE);
+            return probe.getPSTFileType();
         } finally {
-            probe.getFileHandle().close();
+            if (probe.getFileHandle() != null) {
+                probe.getFileHandle().close();
+            }
         }
+    }
 
+    // Holder for the result of a full parse with a CountingExtractor.
+    private static class ParseResult {
+        final Metadata metadata;
+        final CountingExtractor counting;
+
+        ParseResult(Metadata metadata, CountingExtractor counting) {
+            this.metadata = metadata;
+            this.counting = counting;
+        }
+    }
+
+    // Runs the parser over the given file with a CountingExtractor and returns
+    // both the populated Metadata and the CountingExtractor so callers can make
+    // assertions against either.
+    private static ParseResult parseWithCounting(Path file) throws Exception {
         ResilientOutlookPSTParser parser = new ResilientOutlookPSTParser();
         CountingExtractor counting = new CountingExtractor();
         ParseContext context = new ParseContext();
@@ -59,16 +75,43 @@ public class ResilientOutlookPSTParserTest {
         context.set(EmbeddedDocumentExtractor.class, counting);
         Metadata metadata = new Metadata();
 
-        try (InputStream is = TikaInputStream.get(ost, metadata)) {
+        try (InputStream is = TikaInputStream.get(file, metadata)) {
             parser.parse(is, new BodyContentHandler(-1), metadata, context);
         }
+        return new ParseResult(metadata, counting);
+    }
+
+    // Drives the parser over a real type-36 (.ost) file with a counting
+    // extractor and asserts zero-loss traversal: PST_FAILED must be "0"
+    // (the real zero-loss guarantee), and the emitted count must be numeric
+    // and >= the descriptor ground-truth (PST_EXPECTED). Emitted may exceed
+    // expected when orphan recovery surfaces messages beyond enumerated
+    // descriptors — that is a valid NO-LOSS outcome. Body bytes are
+    // deliberately not asserted; that path depends on downstream deps
+    // documented in the spec.
+    private void assertFullyTraversedAsOst2013(Path ost) throws Exception {
+        assertThat(pstFileType(ost)).isEqualTo(PSTFile.PST_TYPE_2013_UNICODE);
+
+        ParseResult result = parseWithCounting(ost);
+        Metadata metadata = result.metadata;
+        CountingExtractor counting = result.counting;
 
         String expected = metadata.get(ResilientOutlookPSTParser.PST_EXPECTED);
         String emitted = metadata.get(ResilientOutlookPSTParser.PST_EMITTED);
-        assertThat(Integer.parseInt(emitted)).isGreaterThan(0);
-        assertThat(emitted).isEqualTo(expected);
-        assertThat(metadata.get(ResilientOutlookPSTParser.PST_FAILED)).isEqualTo("0");
-        assertThat(counting.mailFolders.size()).isEqualTo(Integer.parseInt(emitted));
+
+        // Assert zero-loss first with a descriptive message so that the
+        // unmeasurable path ("unknown") produces a clear failure rather than a
+        // bare NumberFormatException from parseInt below.
+        assertThat(metadata.get(ResilientOutlookPSTParser.PST_FAILED))
+                .as("descriptor enumeration must succeed for this fixture; else loss is undetectable")
+                .isEqualTo("0");
+
+        // Only parse integers after confirming the measured path (PST_FAILED=="0"
+        // implies PST_EXPECTED is numeric, not "unknown").
+        int emittedCount = Integer.parseInt(emitted);
+        assertThat(emittedCount).isGreaterThan(0);
+        assertThat(emittedCount).isGreaterThanOrEqualTo(Integer.parseInt(expected));
+        assertThat(counting.mailFolders.size()).isEqualTo(emittedCount);
     }
 
     // Runs only when a real type-36 .ost path is provided; otherwise skipped.
@@ -192,21 +235,12 @@ public class ResilientOutlookPSTParserTest {
 
     @Test
     public void test_emits_every_message_and_sets_reconciliation_metadata() throws Exception {
-        ResilientOutlookPSTParser parser = new ResilientOutlookPSTParser();
-        CountingExtractor counting = new CountingExtractor();
-        ParseContext context = new ParseContext();
-        context.set(Parser.class, parser);
-        context.set(EmbeddedDocumentExtractor.class, counting);
-        Metadata metadata = new Metadata();
+        ParseResult result = parseWithCounting(testPst());
 
-        try (InputStream is = TikaInputStream.get(testPst(), metadata)) {
-            parser.parse(is, new BodyContentHandler(-1), metadata, context);
-        }
-
-        assertThat(counting.mailFolders).hasSize(7);
-        assertThat(metadata.get(ResilientOutlookPSTParser.PST_EXPECTED)).isEqualTo("7");
-        assertThat(metadata.get(ResilientOutlookPSTParser.PST_EMITTED)).isEqualTo("7");
-        assertThat(metadata.get(ResilientOutlookPSTParser.PST_FAILED)).isEqualTo("0");
+        assertThat(result.counting.mailFolders).hasSize(7);
+        assertThat(result.metadata.get(ResilientOutlookPSTParser.PST_EXPECTED)).isEqualTo("7");
+        assertThat(result.metadata.get(ResilientOutlookPSTParser.PST_EMITTED)).isEqualTo("7");
+        assertThat(result.metadata.get(ResilientOutlookPSTParser.PST_FAILED)).isEqualTo("0");
     }
 
     private int countMailItems(TikaDocument doc) {
