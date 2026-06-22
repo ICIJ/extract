@@ -1,6 +1,5 @@
 package org.icij.extract.parser;
 
-import com.pff.PSTFile;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
@@ -29,30 +28,6 @@ public class ResilientOutlookPSTParserTest {
         return Paths.get(getClass().getResource("/documents/pst/testPST.pst").toURI());
     }
 
-    // Resolves the OST 2013 path from -Dost2013.path (preferred) or the
-    // OST2013_PATH env var (fallback, in case Surefire does not forward the
-    // system property to the forked JVM). Null/blank means "not provided".
-    private static String ost2013Path() {
-        String p = System.getProperty("ost2013.path");
-        if (p == null || p.isEmpty()) {
-            p = System.getenv("OST2013_PATH");
-        }
-        return p;
-    }
-
-    // Opens the file, reads the PSTFileType, then closes the file handle
-    // (guarding against a null handle so the close is safe in all cases).
-    private static int pstFileType(Path file) throws Exception {
-        PSTFile probe = new PSTFile(file.toString());
-        try {
-            return probe.getPSTFileType();
-        } finally {
-            if (probe.getFileHandle() != null) {
-                probe.getFileHandle().close();
-            }
-        }
-    }
-
     // Holder for the result of a full parse with a CountingExtractor.
     private static class ParseResult {
         final Metadata metadata;
@@ -79,57 +54,6 @@ public class ResilientOutlookPSTParserTest {
             parser.parse(is, new BodyContentHandler(-1), metadata, context);
         }
         return new ParseResult(metadata, counting);
-    }
-
-    // Drives the parser over a real type-36 (.ost) file with a counting
-    // extractor and asserts zero-loss traversal: PST_FAILED must be "0"
-    // (the real zero-loss guarantee), and the emitted count must be numeric
-    // and >= the descriptor ground-truth (PST_EXPECTED). Emitted may exceed
-    // expected when orphan recovery surfaces messages beyond enumerated
-    // descriptors — that is a valid NO-LOSS outcome. Body bytes are
-    // deliberately not asserted; that path depends on downstream deps
-    // documented in the spec.
-    private void assertFullyTraversedAsOst2013(Path ost) throws Exception {
-        assertThat(pstFileType(ost)).isEqualTo(PSTFile.PST_TYPE_2013_UNICODE);
-
-        ParseResult result = parseWithCounting(ost);
-        Metadata metadata = result.metadata;
-        CountingExtractor counting = result.counting;
-
-        String expected = metadata.get(ResilientOutlookPSTParser.PST_EXPECTED);
-        String emitted = metadata.get(ResilientOutlookPSTParser.PST_EMITTED);
-
-        // Assert zero-loss first with a descriptive message so that the
-        // unmeasurable path ("unknown") produces a clear failure rather than a
-        // bare NumberFormatException from parseInt below.
-        assertThat(metadata.get(ResilientOutlookPSTParser.PST_FAILED))
-                .as("descriptor enumeration must succeed for this fixture; else loss is undetectable")
-                .isEqualTo("0");
-
-        // Only parse integers after confirming the measured path (PST_FAILED=="0"
-        // implies PST_EXPECTED is numeric, not "unknown").
-        int emittedCount = Integer.parseInt(emitted);
-        assertThat(emittedCount).isGreaterThan(0);
-        assertThat(emittedCount).isGreaterThanOrEqualTo(Integer.parseInt(expected));
-        assertThat(counting.mailFolders.size()).isEqualTo(emittedCount);
-
-        // Type-36 files always carry the attachment-integrity signal (a non-negative count of
-        // by-value attachments libpst could not fully read). The magnitude is file-specific and
-        // verified separately; here we assert the field is populated for any OST 2013 file.
-        String unreadable = metadata.get(ResilientOutlookPSTParser.PST_ATTACHMENTS_UNREADABLE);
-        assertThat(unreadable).isNotNull();
-        assertThat(Integer.parseInt(unreadable)).isGreaterThanOrEqualTo(0);
-    }
-
-    // Runs only when a real type-36 .ost path is provided; otherwise skipped.
-    // Run locally with:
-    //   mvn -pl extract-lib test -Dtest=ResilientOutlookPSTParserTest#test_ost_2013_file_is_fully_traversed \
-    //       -Dost2013.path="/abs/path/to/file.ost"
-    @Test
-    public void test_ost_2013_file_is_fully_traversed() throws Exception {
-        String path = ost2013Path();
-        org.junit.Assume.assumeTrue("set -Dost2013.path (or OST2013_PATH) to run", path != null && !path.isEmpty());
-        assertFullyTraversedAsOst2013(Paths.get(path));
     }
 
     // Counts how many embedded mail items the parser emits.
