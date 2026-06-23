@@ -55,6 +55,9 @@ public class ImageIOTranscodingOCRParser implements Parser {
         this.supportedTypes = computeSupportedTypes(ocrParser);
     }
 
+    // Claims every type an ImageIO reader can decode, minus those already OCR'd by the normal
+    // pipeline (ALREADY_OCRABLE + the delegate's own types). This is a general fallback, not
+    // JBIG2-only: today it resolves to JBIG2, WBMP, PCX and the non-PPM PNM variants.
     private static Set<MediaType> computeSupportedTypes(final Parser ocrParser) {
         final Set<String> excluded = new HashSet<>(ALREADY_OCRABLE);
         ocrParser.getSupportedTypes(new ParseContext()).forEach(t -> excluded.add(t.getBaseType().toString()));
