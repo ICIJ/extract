@@ -674,6 +674,40 @@ public class ExtractorTest {
 	}
 
 	@Test
+	public void testOcrShouldExtractTextFromJbig2ScannedPdf() throws Throwable {
+	    //GIVEN
+	    String text;
+	    Extractor extractor = aBasicExtractor();
+	    //WHEN
+	    TikaDocument tikaDocument = extractDocument(extractor, "/documents/ocr/jbig2_scan.pdf");
+	    try (Reader reader = tikaDocument.getReader()) {
+	        text = Spewer.toString(reader);
+	    }
+	    //THEN
+	    assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isNotNull();
+	    Assert.assertEquals("application/pdf", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
+	    assertThat(text).contains("Lorem ipsum");
+	    assertThat(text).contains("1234567890");
+	}
+
+	@Test
+	public void testDisableOcrLeavesJbig2ScannedPdfEmpty() throws Throwable {
+	    //GIVEN
+	    String text;
+	    Extractor extractor = aBasicExtractor();
+	    extractor.disableOcr();
+	    //WHEN
+	    TikaDocument tikaDocument = extractDocument(extractor, "/documents/ocr/jbig2_scan.pdf");
+	    try (Reader reader = tikaDocument.getReader()) {
+	        text = Spewer.toString(reader);
+	    }
+	    //THEN
+	    // PDF page structure always emits newlines even for image-only pages, so check blank not -1
+	    assertThat(text.trim()).isEmpty();
+	    assertThat(tikaDocument.getMetadata().get(OCR_PARSER)).isNull();
+	}
+
+	@Test
 	public void testAddParserWinsForItsMediaTypes() throws Exception {
 	    //GIVEN
 	    CompositeParser base = (CompositeParser) TikaConfig.getDefaultConfig().getParser();
