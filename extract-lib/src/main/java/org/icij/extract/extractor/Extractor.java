@@ -203,9 +203,12 @@ public class Extractor {
         if (options.get("ocr", String.valueOf(!this.ocrDisabled)).parse().isOff()) {
             disableOcr();
         }
-        options.valueIfPresent("ocrCache").ifPresent(
-            path -> replaceParser(ocrConfig.getParserClass(), parser -> new CacheParserDecorator(parser, Paths.get(path)))
-        );
+        options.valueIfPresent("ocrCache").ifPresent(path -> {
+            replaceParser(ocrConfig.getParserClass(), parser -> new CacheParserDecorator(parser, Paths.get(path)));
+            // Cache the transcoding fallback too; otherwise JBIG2 (and other transcoded) images
+            // re-run OCR on every extraction because the fallback holds its own OCR-parser reference.
+            replaceParser(ImageIOTranscodingOCRParser.class, parser -> new CacheParserDecorator(parser, Paths.get(path)));
+        });
         logger.info("extractor configured with digester {} and {}", digester.getClass(), documentFactory);
     }
 

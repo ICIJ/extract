@@ -1,6 +1,7 @@
 package org.icij.extract.ocr;
 
 import org.apache.tika.exception.TikaException;
+import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TIFF;
 import org.apache.tika.mime.MediaType;
@@ -16,15 +17,19 @@ import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+
+import static org.apache.tika.metadata.TikaCoreProperties.CONTENT_TYPE_PARSER_OVERRIDE;
 
 /**
  * OCRs image types that an ImageIO reader can decode but the Tesseract OCR pipeline does not
@@ -47,6 +52,13 @@ public class ImageIOTranscodingOCRParser implements Parser {
             "image/gif",
             "image/jp2", "image/jpx", "image/jpeg2000");
 
+    // The ImageIO reader registry is JVM-stable, so scan it once rather than on every construction
+    // (getReaderMIMETypes acquires a global lock on the IIORegistry).
+    private static final List<String> READER_MIME_TYPES = Arrays.stream(ImageIO.getReaderMIMETypes())
+            .filter(mime -> mime != null && !mime.isBlank())
+            .distinct()
+            .toList();
+
     private final Parser ocrParser;
     private final Set<MediaType> supportedTypes;
 
@@ -62,11 +74,10 @@ public class ImageIOTranscodingOCRParser implements Parser {
         final Set<String> excluded = new HashSet<>(ALREADY_OCRABLE);
         ocrParser.getSupportedTypes(new ParseContext()).forEach(t -> excluded.add(t.getBaseType().toString()));
         final Set<MediaType> result = new HashSet<>();
-        for (final String mime : ImageIO.getReaderMIMETypes()) {
-            if (mime == null || mime.isBlank() || excluded.contains(mime)) {
-                continue;
+        for (final String mime : READER_MIME_TYPES) {
+            if (!excluded.contains(mime)) {
+                result.add(MediaType.parse(mime));
             }
-            result.add(MediaType.parse(mime));
         }
         return Collections.unmodifiableSet(result);
     }
@@ -87,27 +98,51 @@ public class ImageIOTranscodingOCRParser implements Parser {
         }
         metadata.set(TIFF.IMAGE_WIDTH, image.getWidth());
         metadata.set(TIFF.IMAGE_LENGTH, image.getHeight());
-        final ByteArrayOutputStream png = new ByteArrayOutputStream();
-        if (!ImageIO.write(image, "png", png)) {
-            LOGGER.warn("could not re-encode image as PNG for OCR; emitting no content");
-            return;
+
+        // Spool the re-encoded PNG to a temp file instead of holding it in memory: avoids a second
+        // full-size byte[] copy and hands the OCR engine a file-backed stream (Tesseract needs a
+        // file on disk anyway). The OCR delegate derives its image format from
+        // CONTENT_TYPE_PARSER_OVERRIDE, so it must be set alongside CONTENT_TYPE — otherwise the
+        // Tess4J path cannot resolve an extension and silently fails.
+        final Path pngFile = Files.createTempFile("extract-ocr-transcode-", ".png");
+        try {
+            try (OutputStream out = Files.newOutputStream(pngFile)) {
+                if (!ImageIO.write(image, "png", out)) {
+                    LOGGER.warn("could not re-encode image as PNG for OCR; emitting no content");
+                    return;
+                }
+            }
+            metadata.set(Metadata.CONTENT_TYPE, "image/png");
+            metadata.set(CONTENT_TYPE_PARSER_OVERRIDE, "image/ocr-png");
+            try (InputStream png = TikaInputStream.get(pngFile)) {
+                ocrParser.parse(png, handler, metadata, context);
+            }
+        } finally {
+            Files.deleteIfExists(pngFile);
         }
-        metadata.set(Metadata.CONTENT_TYPE, "image/png");
-        ocrParser.parse(new ByteArrayInputStream(png.toByteArray()), handler, metadata, context);
     }
 
     private static BufferedImage decode(final InputStream stream, final String contentType) throws IOException {
         final byte[] bytes = stream.readAllBytes();
         // Drive readers explicitly: ImageIO.read() relies on SPI format-sniffing that fails on the
-        // headerless (PDF-ready) JBIG2 streams Tika emits for embedded images.
-        final List<ImageReader> readers = new ArrayList<>();
+        // headerless (PDF-ready) JBIG2 streams Tika emits for embedded images, so select by MIME first.
+        BufferedImage image = null;
         if (contentType != null) {
-            final Iterator<ImageReader> it = ImageIO.getImageReadersByMIMEType(contentType);
-            while (it.hasNext()) {
-                readers.add(it.next());
+            image = tryReaders(bytes, ImageIO.getImageReadersByMIMEType(contentType));
+        }
+        // Fall back to format-sniffing when the content type is missing, maps to no reader, or its
+        // readers fail to decode — so a claimed type with an unexpected/absent MIME still has a chance.
+        if (image == null) {
+            try (ImageInputStream iis = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
+                image = tryReaders(bytes, ImageIO.getImageReaders(iis));
             }
         }
-        for (final ImageReader reader : readers) {
+        return image;
+    }
+
+    private static BufferedImage tryReaders(final byte[] bytes, final Iterator<ImageReader> readers) {
+        while (readers.hasNext()) {
+            final ImageReader reader = readers.next();
             try (ImageInputStream iis = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
                 reader.setInput(iis);
                 return reader.read(0);
