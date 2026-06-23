@@ -57,7 +57,7 @@ public class ImageIOTranscodingOCRParser implements Parser {
 
     private static Set<MediaType> computeSupportedTypes(final Parser ocrParser) {
         final Set<String> excluded = new HashSet<>(ALREADY_OCRABLE);
-        ocrParser.getSupportedTypes(new ParseContext()).forEach(t -> excluded.add(t.toString()));
+        ocrParser.getSupportedTypes(new ParseContext()).forEach(t -> excluded.add(t.getBaseType().toString()));
         final Set<MediaType> result = new HashSet<>();
         for (final String mime : ImageIO.getReaderMIMETypes()) {
             if (mime == null || mime.isBlank() || excluded.contains(mime)) {
@@ -85,7 +85,10 @@ public class ImageIOTranscodingOCRParser implements Parser {
         metadata.set(TIFF.IMAGE_WIDTH, image.getWidth());
         metadata.set(TIFF.IMAGE_LENGTH, image.getHeight());
         final ByteArrayOutputStream png = new ByteArrayOutputStream();
-        ImageIO.write(image, "png", png);
+        if (!ImageIO.write(image, "png", png)) {
+            LOGGER.warn("could not re-encode image as PNG for OCR; emitting no content");
+            return;
+        }
         metadata.set(Metadata.CONTENT_TYPE, "image/png");
         ocrParser.parse(new ByteArrayInputStream(png.toByteArray()), handler, metadata, context);
     }
