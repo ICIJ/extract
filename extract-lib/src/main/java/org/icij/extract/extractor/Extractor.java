@@ -30,6 +30,7 @@ import org.apache.tika.utils.ServiceLoaderUtils;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
+import org.icij.extract.ocr.ImageIOTranscodingOCRParser;
 import org.icij.extract.ocr.OCRConfigAdapter;
 import org.icij.extract.ocr.OCRConfigRegistry;
 import org.icij.extract.ocr.OCRParserAdapter;
@@ -243,6 +244,10 @@ public class Extractor {
         for (OCRConfigRegistry c: OCRConfigRegistry.values()) {
             replaceParser(c.buildAdapter().getParserClass(), parser -> ocrParser);
         }
+        // Route images ImageIO can decode but Tesseract cannot OCR directly (e.g. JBIG2 scans)
+        // through OCR by transcoding them to PNG. excludeParser keeps this idempotent across re-config.
+        excludeParser(ImageIOTranscodingOCRParser.class);
+        addParser(new ImageIOTranscodingOCRParser(ocrParser));
     }
 
     /**
@@ -329,6 +334,7 @@ public class Extractor {
     public void disableOcr() {
         if (!ocrDisabled) {
             excludeParser(OCRParserAdapter.class);
+            excludeParser(ImageIOTranscodingOCRParser.class);
             ocrDisabled = true;
             pdfConfig.setExtractInlineImages(false);
         }
