@@ -2,9 +2,14 @@ package org.icij.extract.extractor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.tika.Tika;
+import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.mime.MediaType;
+import org.apache.tika.parser.CompositeParser;
+import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.Parser;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
@@ -666,6 +671,24 @@ public class ExtractorTest {
 
 		assertThat(spilled).isEqualTo(inMemory);
 		assertThat(spilled).contains("level1");             // sanity: real embed content present
+	}
+
+	@Test
+	public void testAddParserWinsForItsMediaTypes() throws Exception {
+	    //GIVEN
+	    CompositeParser base = (CompositeParser) TikaConfig.getDefaultConfig().getParser();
+	    Parser custom = new Parser() {
+	        @Override public Set<MediaType> getSupportedTypes(ParseContext c) {
+	            return Set.of(MediaType.parse("image/x-jbig2"));
+	        }
+	        @Override public void parse(java.io.InputStream s, org.xml.sax.ContentHandler h,
+	                                    org.apache.tika.metadata.Metadata m, ParseContext c) {}
+	    };
+	    //WHEN
+	    CompositeParser result = Extractor.addParser(base, custom);
+	    //THEN
+	    assertThat(result.getParsers(new ParseContext()).get(MediaType.parse("image/x-jbig2")))
+	            .isSameAs(custom);
 	}
 
 	@Test
