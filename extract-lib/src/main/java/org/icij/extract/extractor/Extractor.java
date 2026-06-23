@@ -653,6 +653,21 @@ public class Extractor {
         );
     }
 
+    public static CompositeParser addParser(final Parser parser, final Parser toAdd) {
+        if (parser instanceof CompositeParser composite) {
+            final List<Parser> parsers = new ArrayList<>();
+            getAllSubParsers(composite).forEach(parsers::add);
+            // Append last so it overrides existing mappings for its media types in getParsers().
+            parsers.add(toAdd);
+            return new CompositeParser(composite.getMediaTypeRegistry(), parsers);
+        }
+        return null;
+    }
+
+    private void addParser(final Parser toAdd) {
+        defaultParser = addParser(defaultParser, toAdd);
+    }
+
     private void replaceParser(final Class<? extends Parser> exclude, final Function<Parser, Parser> parserFn) {
         defaultParser = replaceParser(defaultParser, exclude, parserFn);
     }
