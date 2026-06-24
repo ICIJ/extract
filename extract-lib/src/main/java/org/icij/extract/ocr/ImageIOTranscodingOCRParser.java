@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.apache.tika.metadata.TikaCoreProperties.CONTENT_TYPE_PARSER_OVERRIDE;
+import static org.apache.tika.metadata.TikaCoreProperties.RESOURCE_NAME_KEY;
 
 /**
  * OCRs image types that an ImageIO reader can decode but the Tesseract OCR pipeline does not
@@ -90,10 +91,12 @@ public class ImageIOTranscodingOCRParser implements Parser {
     @Override
     public void parse(final InputStream stream, final ContentHandler handler, final Metadata metadata,
                       final ParseContext context) throws IOException, SAXException, TikaException {
+        LOGGER.debug("transcoding {} (resource: {}) to PNG for OCR",
+                metadata.get(Metadata.CONTENT_TYPE), metadata.get(RESOURCE_NAME_KEY));
         final BufferedImage image = decode(stream, metadata.get(Metadata.CONTENT_TYPE));
         if (image == null) {
-            LOGGER.warn("could not decode image of type {} for OCR; emitting no content",
-                    metadata.get(Metadata.CONTENT_TYPE));
+            LOGGER.warn("could not decode image of type {} (resource: {}) for OCR; emitting no content",
+                    metadata.get(Metadata.CONTENT_TYPE), metadata.get(RESOURCE_NAME_KEY));
             return;
         }
         metadata.set(TIFF.IMAGE_WIDTH, image.getWidth());
