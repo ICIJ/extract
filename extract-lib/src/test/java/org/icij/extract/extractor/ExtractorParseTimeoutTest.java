@@ -171,4 +171,28 @@ public class ExtractorParseTimeoutTest {
         assertThat(report).isNotNull();
         assertThat(report.getStatus()).isEqualTo(ExtractionStatus.FAILURE_FATAL);
     }
+
+    @Test(timeout = 10_000)
+    public void testInterruptIsNotRecordedAsUnreadable() {
+        final HashMapReportMap reportMap = new HashMapReportMap();
+        final Reporter reporter = new Reporter(reportMap);
+        final Path path = Paths.get("interrupted");
+
+        final Extractor extractor = new HangingExtractor();
+        extractor.setParseTimeout(Duration.ofMinutes(5));   // watchdog ON
+
+        // Pre-set the interrupt flag so future.get() throws InterruptedException immediately.
+        Thread.currentThread().interrupt();
+        try {
+            extractor.extract(path, nullSpewer(), reporter);
+        } finally {
+            // Clear the (restored) interrupt flag so it does not leak into other tests.
+            Thread.interrupted();
+        }
+
+        final Report report = reportMap.get(path);
+        assertThat(report).isNotNull();
+        // A transient interrupt (e.g. shutdown) must not be recorded as a hard unreadable-file error.
+        assertThat(report.getStatus()).isEqualTo(ExtractionStatus.FAILURE_UNKNOWN);
+    }
 }

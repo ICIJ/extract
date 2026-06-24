@@ -52,6 +52,7 @@ import org.xml.sax.ContentHandler;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
@@ -532,6 +533,12 @@ public class Extractor {
     private ExtractionStatus status(final Exception e, final Spewer spewer) {
         if (e instanceof ParseTimeoutException) {
             return ExtractionStatus.FAILURE_TIMEOUT;
+        }
+
+        // A transient interrupt (e.g. the worker thread being shut down) is not the file's fault;
+        // do not record it as a hard "unreadable file" error.
+        if (e instanceof InterruptedIOException || e.getCause() instanceof InterruptedException) {
+            return ExtractionStatus.FAILURE_UNKNOWN;
         }
 
         if (TaggedIOException.isTaggedWith(e, spewer)) {
