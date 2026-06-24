@@ -10,6 +10,7 @@ import org.icij.event.listeners.ConsoleProgressListener;
 import org.icij.extract.cli.tasks.HelpTask;
 import org.icij.extract.cli.tasks.VersionTask;
 import org.icij.extract.tasks.*;
+import org.icij.extract.extractor.ExtractionErrors;
 import org.icij.task.*;
 
 import java.io.IOException;
@@ -24,6 +25,29 @@ public class Main {
 
 	public static final DefaultTaskFactory taskFactory = new DefaultTaskFactory();
 
+	public static final int EXIT_FATAL_ERROR = 70;
+
+	/**
+	 * Build an uncaught-exception handler that runs {@code exitAction} when a thread dies from a fatal error
+	 * (e.g. {@link OutOfMemoryError}), so the process can be restarted clean by an orchestrator. Recoverable
+	 * throwables are logged but do not trigger the action.
+	 *
+	 * @param exitAction the action to run on a fatal error (production: {@code () -> System.exit(EXIT_FATAL_ERROR)})
+	 * @return the handler
+	 */
+	static Thread.UncaughtExceptionHandler fatalErrorHandler(final Runnable exitAction) {
+		return (thread, throwable) -> {
+			if (ExtractionErrors.isFatal(throwable)) {
+				System.err.println(String.format(
+						"Fatal error on thread \"%s\"; exiting for a clean restart.", thread.getName()));
+				throwable.printStackTrace();
+				exitAction.run();
+			} else {
+				throwable.printStackTrace();
+			}
+		};
+	}
+
 	/**
 	 * Attempts to parse the given commandline arguments and executes the appropriate runner, exiting with an
 	 * appropriate status.
@@ -31,6 +55,8 @@ public class Main {
 	 * @param args the commandline arguments
 	 */
 	public static void main(final String[] args) {
+		Thread.setDefaultUncaughtExceptionHandler(fatalErrorHandler(() -> System.exit(EXIT_FATAL_ERROR)));
+
 		// System.setProperty("java.util.logging.config.file", "logging.properties");
 
 		taskFactory.addTask("clean-report", CleanReportTask.class);
