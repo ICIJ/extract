@@ -20,4 +20,11 @@ public class ExtractionStatusTest {
 	public void testParseFailureFatalByName() {
 		assertThat(ExtractionStatus.parse("FAILURE_FATAL")).isEqualTo(ExtractionStatus.FAILURE_FATAL);
 	}
+
+	@Test
+	public void testFailureTimeoutCodeRoundTrips() {
+		assertThat(ExtractionStatus.FAILURE_TIMEOUT.getCode()).isEqualTo(11);
+		assertThat(ExtractionStatus.parse(11)).isEqualTo(ExtractionStatus.FAILURE_TIMEOUT);
+		assertThat(ExtractionStatus.parse("FAILURE_TIMEOUT")).isEqualTo(ExtractionStatus.FAILURE_TIMEOUT);
+	}
 }
