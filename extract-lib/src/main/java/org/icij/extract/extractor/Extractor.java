@@ -63,6 +63,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -91,6 +99,8 @@ import static org.icij.extract.extractor.ArtifactUtils.getEmbeddedPath;
         "language")
 @Option(name = "ocrTimeout", description = "Set the timeout for the Tesseract process to finish e.g. \"5s\" or \"1m\"" +
         ". Defaults to 12 hours.", parameter = "duration")
+@Option(name = "parseTimeout", description = "Wall-clock timeout for a single document's parse " +
+        "and output, e.g. \"30m\" or \"24h\". Set to 0 to disable. Defaults to 24h.", parameter = "duration")
 @Option(name = "ocr", description = "Enable or disable automatic OCR. On by default.")
 @Option(name = "ocrType", description = "Name of the OCR to use TESSERACT, TESS4J")
 @Option(name = "embedMemoryBudgetMb", description = "Maximum megabytes of embedded-document " +
@@ -138,6 +148,16 @@ public class Extractor {
     private Path embedOutput = null;
     private long embedMemoryBudgetBytes = 64L * 1024 * 1024;
     private double embedMemoryPressureThreshold = 0.7;
+    private Duration parseTimeout = Duration.ofDays(1);
+    private final ExecutorService parseExecutor = Executors.newCachedThreadPool(new ThreadFactory() {
+        private final AtomicInteger counter = new AtomicInteger();
+        @Override
+        public Thread newThread(final Runnable r) {
+            final Thread thread = new Thread(r, "extract-watchdog-" + counter.incrementAndGet());
+            thread.setDaemon(true);
+            return thread;
+        }
+    });
 
     /**
      * Create a new extractor, which will OCR images by default if Tesseract is available locally, extract inline
@@ -188,6 +208,7 @@ public class Extractor {
             .ifPresent(this::setOcrConfig);
         options.get("ocrLanguage", "eng").value().ifPresent(this::setOcrLanguage);
         options.get("ocrTimeout", "12h").parse().asDuration().ifPresent(this::setOcrTimeout);
+        options.get("parseTimeout", "24h").parse().asDuration().ifPresent(this::setParseTimeout);
         options.valueIfPresent("embedOutput").ifPresent(embedOutput -> setEmbedOutputPath(Paths.get(embedOutput)));
         options.get("embedMemoryBudgetMb", "64").parse().asInteger()
                 .ifPresent(mb -> setEmbedMemoryBudgetBytes(mb * 1024L * 1024L));
@@ -297,6 +318,16 @@ public class Extractor {
     }
 
     /**
+     * Set the wall-clock timeout for a single document's parse and output.
+     * A zero or negative duration disables the watchdog.
+     *
+     * @param parseTimeout the timeout duration
+     */
+    public void setParseTimeout(final Duration parseTimeout) {
+        this.parseTimeout = parseTimeout;
+    }
+
+    /**
      * Set the languages used by Tesseract.
      *
      * @param ocrLanguage the languages to use, for example "eng" or "ita+spa"
@@ -352,6 +383,36 @@ public class Extractor {
      * @throws IOException if there was an error reading or writing the document
      */
     public void extract(final Path path, final Spewer spewer) throws IOException {
+        if (parseTimeout == null || parseTimeout.isZero() || parseTimeout.isNegative()) {
+            doExtract(path, spewer);
+            return;
+        }
+
+        final Future<?> future = parseExecutor.submit(() -> {
+            doExtract(path, spewer);
+            return null;
+        });
+
+        try {
+            future.get(parseTimeout.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (final TimeoutException e) {
+            // Interrupt the worker: it unblocks any pipe read, Spewer.write's finally closes the
+            // reader, and the background parse thread stops on its next write. A parser in a tight
+            // CPU loop that never touches the pipe cannot be killed and leaks until the next restart.
+            future.cancel(true);
+            throw new ParseTimeoutException(path, parseTimeout);
+        } catch (final ExecutionException e) {
+            // Propagate the worker's original throwable verbatim so the existing recoverable-vs-fatal
+            // classification (and the fatal -> process-exit path) is unchanged.
+            sneakyThrow(e.getCause());
+        } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+            future.cancel(true);
+            throw new IOException("Extraction interrupted: " + path, e);
+        }
+    }
+
+    private void doExtract(final Path path, final Spewer spewer) throws IOException {
         long before = currentTimeMillis();
         TikaDocument document = extract(path);
         logger.info("{} extracted in {}ms", path, currentTimeMillis() - before);
@@ -449,6 +510,9 @@ public class Extractor {
             case FAILURE_FATAL:
                 logger.error(String.format("A parser threw a fatal error: \"%s\".", file), e);
                 break;
+            case FAILURE_TIMEOUT:
+                logger.error(String.format("Parse exceeded timeout: \"%s\".", file), e);
+                break;
             default:
                 logger.error(String.format("Unknown exception during extraction or output: \"%s\".", file), e);
                 break;
@@ -464,6 +528,10 @@ public class Extractor {
      * @return the resulting status
      */
     private ExtractionStatus status(final Exception e, final Spewer spewer) {
+        if (e instanceof ParseTimeoutException) {
+            return ExtractionStatus.FAILURE_TIMEOUT;
+        }
+
         if (TaggedIOException.isTaggedWith(e, spewer)) {
             return ExtractionStatus.FAILURE_NOT_SAVED;
         }
