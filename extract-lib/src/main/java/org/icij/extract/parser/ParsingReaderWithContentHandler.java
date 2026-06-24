@@ -201,9 +201,22 @@ public class ParsingReaderWithContentHandler extends Reader {
         executor.execute(new ParsingTask(handlerProvider));
 
         // TIKA-203: Buffer first character to force metadata extraction
-        reader.mark(1);
-        reader.read();
-        reader.reset();
+        try {
+            reader.mark(1);
+            reader.read();
+            reader.reset();
+        } catch (IOException e) {
+            // The first-character read failed (e.g. the consuming thread was interrupted by a parse
+            // watchdog). Close the read end so the half-constructed reader is not orphaned: this
+            // releases the pipe and unblocks the background parse thread on its next write rather
+            // than leaving it stranded.
+            try {
+                close();
+            } catch (IOException suppressed) {
+                e.addSuppressed(suppressed);
+            }
+            throw e;
+        }
     }
 
     /**

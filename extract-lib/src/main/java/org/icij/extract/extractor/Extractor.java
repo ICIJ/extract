@@ -416,8 +416,10 @@ public class Extractor {
         long before = currentTimeMillis();
         TikaDocument document = extract(path);
         logger.info("{} extracted in {}ms", path, currentTimeMillis() - before);
-        // Spewer.write() walks the whole tree and closes every document reader (including the
-        // root, which releases any spilled embed-text temp files), so no cleanup is needed here.
+        // Reader cleanup is owned by the two phases that can hold one open: Spewer.write() walks the
+        // whole tree and closes every document reader in a finally (including the root, which releases
+        // any spilled embed-text temp files), and ParsingReaderWithContentHandler closes its own read
+        // end if the pre-spew first-character read fails. So there is no orphaned reader to close here.
         spewer.write(document);
     }
 
