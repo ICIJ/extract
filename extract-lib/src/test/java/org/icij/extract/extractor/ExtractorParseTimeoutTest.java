@@ -133,4 +133,42 @@ public class ExtractorParseTimeoutTest {
         // Plain IOException with no TikaException cause -> FAILURE_UNREADABLE, same as before the watchdog.
         assertThat(report.getStatus()).isEqualTo(ExtractionStatus.FAILURE_UNREADABLE);
     }
+
+    /** Extractor whose lazy extract(Path) throws an OutOfMemoryError from the parse path. */
+    private static class OOMExtractor extends Extractor {
+        private final OutOfMemoryError oom;
+
+        OOMExtractor(final OutOfMemoryError oom) {
+            this.oom = oom;
+        }
+
+        @Override
+        public TikaDocument extract(final Path path) throws IOException {
+            throw oom;
+        }
+    }
+
+    @Test(timeout = 10_000)
+    public void testFatalErrorPropagatesVerbatimThroughWatchdog() {
+        final HashMapReportMap reportMap = new HashMapReportMap();
+        final Reporter reporter = new Reporter(reportMap);
+        final Path path = Paths.get("fatal");
+        final OutOfMemoryError oom = new OutOfMemoryError("synthetic");
+
+        final Extractor extractor = new OOMExtractor(oom);
+        extractor.setParseTimeout(Duration.ofMinutes(5));   // watchdog ON, will not fire
+
+        Throwable caught = null;
+        try {
+            extractor.extract(path, nullSpewer(), reporter);
+        } catch (final Throwable t) {
+            caught = t;
+        }
+
+        // The SAME OOM instance must escape extract(Path, Spewer, Reporter) verbatim.
+        assertThat(caught).isSameAs(oom);
+        final Report report = reportMap.get(path);
+        assertThat(report).isNotNull();
+        assertThat(report.getStatus()).isEqualTo(ExtractionStatus.FAILURE_FATAL);
+    }
 }
