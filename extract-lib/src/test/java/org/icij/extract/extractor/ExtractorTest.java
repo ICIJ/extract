@@ -814,6 +814,39 @@ public class ExtractorTest {
 	}
 
 	@Test
+	public void testDisableOcrResetsRenderingStrategyToNoOcr() {
+		Extractor extractor = new Extractor();
+		extractor.setOcrStrategy("AUTO");
+		extractor.disableOcr();
+		// With the OCR parsers excluded a rendering strategy would only strip page text, so
+		// disableOcr() must reset the strategy to NO_OCR to keep pdfConfig coherent.
+		assertThat(extractor.getOcrStrategy()).isEqualTo(PDFParserConfig.OCR_STRATEGY.NO_OCR);
+		assertThat(extractor.isExtractInlineImages()).isFalse();
+	}
+
+	@Test
+	public void testConfigureOcrAndRenderingStrategyTogetherDisablesOcr() {
+		// ocr=off must win over a rendering ocrStrategy: no rendering strategy may survive, or
+		// born-digital PDFs would render with their text silently dropped.
+		Extractor extractor = new Extractor(
+				new DocumentFactory().withIdentifier(new PathIdentifier()),
+				Options.from(Map.of("ocrStrategy", "OCR_ONLY", "ocr", "false")));
+		assertThat(extractor.getOcrStrategy()).isEqualTo(PDFParserConfig.OCR_STRATEGY.NO_OCR);
+		assertThat(extractor.isExtractInlineImages()).isFalse();
+	}
+
+	@Test
+	public void testSetOcrStrategyAfterDisableOcrStaysNoOcr() {
+		Extractor extractor = new Extractor();
+		extractor.disableOcr();
+		extractor.setOcrStrategy("AUTO");
+		// Setting a rendering strategy on an OCR-disabled extractor must not re-enable inline
+		// images nor activate page rendering.
+		assertThat(extractor.getOcrStrategy()).isEqualTo(PDFParserConfig.OCR_STRATEGY.NO_OCR);
+		assertThat(extractor.isExtractInlineImages()).isFalse();
+	}
+
+	@Test
 	public void testConfigureOcrStrategyFromOptions() {
 		Extractor extractor = new Extractor(
 				new DocumentFactory().withIdentifier(new PathIdentifier()),

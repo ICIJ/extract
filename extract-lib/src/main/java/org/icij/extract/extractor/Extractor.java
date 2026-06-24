@@ -369,18 +369,28 @@ public class Extractor {
      * therefore disables inline-image extraction, so a scanned page is OCR'd once as a composite
      * rather than once per embedded layer. An unknown value falls back to {@code NO_OCR}.
      *
+     * <p>Has no effect once OCR has been disabled via {@link #disableOcr()}: with no OCR parser
+     * left to run, a rendering strategy would only make Tika render pages and drop their text, so
+     * the strategy is forced to {@code NO_OCR} to keep {@code pdfConfig} coherent with the
+     * excluded parsers.
+     *
      * @param strategy the strategy name, case-insensitive
      */
     public void setOcrStrategy(final String strategy) {
         PDFParserConfig.OCR_STRATEGY parsed;
         try {
-            parsed = PDFParserConfig.OCR_STRATEGY.valueOf(strategy.trim().toUpperCase());
+            parsed = PDFParserConfig.OCR_STRATEGY.valueOf(strategy.trim().toUpperCase(Locale.ROOT));
         } catch (final IllegalArgumentException | NullPointerException e) {
             logger.warn("unknown ocrStrategy \"{}\"; falling back to NO_OCR", strategy);
             parsed = PDFParserConfig.OCR_STRATEGY.NO_OCR;
         }
+        // A rendering strategy needs an OCR parser to do anything useful; if OCR is disabled it
+        // would only strip text, so force NO_OCR and leave inline-image extraction off.
+        if (ocrDisabled) {
+            parsed = PDFParserConfig.OCR_STRATEGY.NO_OCR;
+        }
         pdfConfig.setOcrStrategy(parsed);
-        pdfConfig.setExtractInlineImages(parsed == PDFParserConfig.OCR_STRATEGY.NO_OCR);
+        pdfConfig.setExtractInlineImages(!ocrDisabled && parsed == PDFParserConfig.OCR_STRATEGY.NO_OCR);
     }
 
     /**
@@ -414,6 +424,9 @@ public class Extractor {
             excludeParser(ImageIOTranscodingOCRParser.class);
             ocrDisabled = true;
             pdfConfig.setExtractInlineImages(false);
+            // Drop any rendering strategy: with the OCR parsers excluded it would only make Tika
+            // render pages and discard their text, silently losing content on born-digital PDFs.
+            pdfConfig.setOcrStrategy(PDFParserConfig.OCR_STRATEGY.NO_OCR);
         }
     }
 
