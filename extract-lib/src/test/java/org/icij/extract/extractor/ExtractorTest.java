@@ -52,6 +52,7 @@ import static org.fest.assertions.Assertions.assertThat;
 import static org.junit.Assume.assumeTrue;
 import static org.icij.extract.ocr.OCRParser.OCR_PARSER;
 import static org.icij.extract.ocr.ParserWithConfidence.OCR_CONFIDENCE;
+import org.apache.tika.parser.pdf.PDFParserConfig;
 
 public class ExtractorTest {
 	@Rule public final ExpectedException thrown = ExpectedException.none();
@@ -759,6 +760,39 @@ public class ExtractorTest {
 
 	private String getPage(Pair<Long, Long> startEndIndices, String fullText) {
 		return fullText.substring(toIntExact(startEndIndices.getLeft()), toIntExact(startEndIndices.getRight()));
+	}
+
+	@Test
+	public void testSetOcrStrategyDefaultsToNoOcrAndKeepsInlineImages() {
+		Extractor extractor = new Extractor();
+		assertThat(extractor.getOcrStrategy()).isEqualTo(PDFParserConfig.OCR_STRATEGY.NO_OCR);
+		assertThat(extractor.isExtractInlineImages()).isTrue();
+	}
+
+	@Test
+	public void testSetOcrStrategyAutoDisablesInlineImages() {
+		Extractor extractor = new Extractor();
+		extractor.setOcrStrategy("AUTO");
+		assertThat(extractor.getOcrStrategy()).isEqualTo(PDFParserConfig.OCR_STRATEGY.AUTO);
+		assertThat(extractor.isExtractInlineImages()).isFalse();
+	}
+
+	@Test
+	public void testSetOcrStrategyIsCaseInsensitive() {
+		Extractor extractor = new Extractor();
+		extractor.setOcrStrategy("ocr_and_text_extraction");
+		assertThat(extractor.getOcrStrategy())
+				.isEqualTo(PDFParserConfig.OCR_STRATEGY.OCR_AND_TEXT_EXTRACTION);
+		assertThat(extractor.isExtractInlineImages()).isFalse();
+	}
+
+	@Test
+	public void testSetOcrStrategyInvalidFallsBackToNoOcr() {
+		Extractor extractor = new Extractor();
+		extractor.setOcrStrategy("AUTO");
+		extractor.setOcrStrategy("not-a-strategy");
+		assertThat(extractor.getOcrStrategy()).isEqualTo(PDFParserConfig.OCR_STRATEGY.NO_OCR);
+		assertThat(extractor.isExtractInlineImages()).isTrue();
 	}
 
     public static Extractor aBasicExtractor() {

@@ -355,6 +355,43 @@ public class Extractor {
         setOcrTimeout(Math.toIntExact(duration.getSeconds()));
     }
 
+    /**
+     * Set the OCR strategy used for PDFs, mapping to Tika's {@link PDFParserConfig.OCR_STRATEGY}.
+     *
+     * <p>{@code NO_OCR} (the default) keeps the per-inline-image OCR path
+     * ({@code extractInlineImages = true}). Any rendering strategy
+     * ({@code AUTO}, {@code OCR_AND_TEXT_EXTRACTION}, {@code OCR_ONLY}) renders whole pages and
+     * therefore disables inline-image extraction, so a scanned page is OCR'd once as a composite
+     * rather than once per embedded layer. An unknown value falls back to {@code NO_OCR}.
+     *
+     * @param strategy the strategy name, case-insensitive
+     */
+    public void setOcrStrategy(final String strategy) {
+        PDFParserConfig.OCR_STRATEGY parsed;
+        try {
+            parsed = PDFParserConfig.OCR_STRATEGY.valueOf(strategy.trim().toUpperCase());
+        } catch (final IllegalArgumentException e) {
+            logger.warn("unknown ocrStrategy \"{}\"; falling back to NO_OCR", strategy);
+            parsed = PDFParserConfig.OCR_STRATEGY.NO_OCR;
+        }
+        pdfConfig.setOcrStrategy(parsed);
+        pdfConfig.setExtractInlineImages(parsed == PDFParserConfig.OCR_STRATEGY.NO_OCR);
+    }
+
+    /**
+     * @return the OCR strategy currently configured for PDFs
+     */
+    public PDFParserConfig.OCR_STRATEGY getOcrStrategy() {
+        return pdfConfig.getOcrStrategy();
+    }
+
+    /**
+     * @return whether inline images are extracted from PDFs for the current strategy
+     */
+    public boolean isExtractInlineImages() {
+        return pdfConfig.isExtractInlineImages();
+    }
+
     public void setDigestAlgorithm(final String digestAlgorithm) {
         setDigester(new CommonsDigester(20 * 1024 * 1024, digestAlgorithm.replace("-", "")));
     }
