@@ -126,8 +126,11 @@ public class DocumentConsumer extends ExecutorProxy implements Consumer<Path> {
 				} else {
 					extractor.extract(path, spewer);
 				}
-			} catch (Exception e) {
-				logger.error(String.format("Exception while consuming file: \"%s\".", path), e);
+			} catch (Throwable t) {
+				logger.error(String.format("Error while consuming file: \"%s\".", path), t);
+				if (ExtractionErrors.isFatal(t)) {
+					throw (Error) t;
+				}
 			}
 		});
 	}
