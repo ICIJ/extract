@@ -98,6 +98,10 @@ import static org.icij.extract.extractor.ArtifactUtils.getEmbeddedPath;
 @Option(name = "ocrLanguage", description = "Set the languages used by Tesseract. Multiple  languages may be " +
         "specified, separated by plus characters. Tesseract uses 3-character ISO 639-2 language codes.", parameter =
         "language")
+@Option(name = "ocrStrategy", description = "Set the PDF OCR strategy. One of \"NO_OCR\" " +
+        "(default), \"AUTO\", \"OCR_AND_TEXT_EXTRACTION\" or \"OCR_ONLY\". Any rendering " +
+        "strategy OCRs whole pages and disables inline-image extraction, which is required to " +
+        "correctly extract scanned/MRC PDFs. Defaults to NO_OCR.", parameter = "strategy")
 @Option(name = "ocrTimeout", description = "Set the timeout for the Tesseract process to finish e.g. \"5s\" or \"1m\"" +
         ". Defaults to 12 hours.", parameter = "duration")
 @Option(name = "parseTimeout", description = "Wall-clock timeout for a single document's parse " +
@@ -208,6 +212,7 @@ public class Extractor {
             .map(OCRConfigRegistry::buildAdapter)
             .ifPresent(this::setOcrConfig);
         options.get("ocrLanguage", "eng").value().ifPresent(this::setOcrLanguage);
+        options.get("ocrStrategy", "NO_OCR").value().ifPresent(this::setOcrStrategy);
         options.get("ocrTimeout", "12h").parse().asDuration().ifPresent(this::setOcrTimeout);
         options.get("parseTimeout", "24h").parse().asDuration().ifPresent(this::setParseTimeout);
         options.valueIfPresent("embedOutput").ifPresent(embedOutput -> setEmbedOutputPath(Paths.get(embedOutput)));

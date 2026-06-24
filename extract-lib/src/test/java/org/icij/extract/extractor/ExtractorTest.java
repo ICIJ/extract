@@ -12,6 +12,7 @@ import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.EmbeddedTikaDocument;
+import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
 import org.icij.extract.ocr.Tess4JOCRConfigAdapter;
 import org.icij.extract.ocr.Tess4JOCRParser;
@@ -791,6 +792,24 @@ public class ExtractorTest {
 		Extractor extractor = new Extractor();
 		extractor.setOcrStrategy("AUTO");
 		extractor.setOcrStrategy("not-a-strategy");
+		assertThat(extractor.getOcrStrategy()).isEqualTo(PDFParserConfig.OCR_STRATEGY.NO_OCR);
+		assertThat(extractor.isExtractInlineImages()).isTrue();
+	}
+
+	@Test
+	public void testConfigureOcrStrategyFromOptions() {
+		Extractor extractor = new Extractor(
+				new DocumentFactory().withIdentifier(new PathIdentifier()),
+				Options.from(Map.of("ocrStrategy", "AUTO")));
+		assertThat(extractor.getOcrStrategy()).isEqualTo(PDFParserConfig.OCR_STRATEGY.AUTO);
+		assertThat(extractor.isExtractInlineImages()).isFalse();
+	}
+
+	@Test
+	public void testConfigureOcrStrategyDefaultIsNoOcr() {
+		Extractor extractor = new Extractor(
+				new DocumentFactory().withIdentifier(new PathIdentifier()),
+				Options.from(Map.of()));
 		assertThat(extractor.getOcrStrategy()).isEqualTo(PDFParserConfig.OCR_STRATEGY.NO_OCR);
 		assertThat(extractor.isExtractInlineImages()).isTrue();
 	}
