@@ -27,6 +27,8 @@ public class Main {
 
 	public static final int EXIT_FATAL_ERROR = 70;
 
+	static final java.util.concurrent.atomic.AtomicBoolean FATAL_ERROR_FLAGGED = new java.util.concurrent.atomic.AtomicBoolean(false);
+
 	/**
 	 * Build an uncaught-exception handler that runs {@code exitAction} when a thread dies from a fatal error
 	 * (e.g. {@link OutOfMemoryError}), so the process can be restarted clean by an orchestrator. Recoverable
@@ -41,6 +43,7 @@ public class Main {
 				System.err.println(String.format(
 						"Fatal error on thread \"%s\"; exiting for a clean restart.", thread.getName()));
 				throwable.printStackTrace();
+				FATAL_ERROR_FLAGGED.set(true);
 				exitAction.run();
 			} else {
 				throwable.printStackTrace();
@@ -88,7 +91,7 @@ public class Main {
 			return;
 		}
 
-		System.exit(0);
+		System.exit(FATAL_ERROR_FLAGGED.get() ? EXIT_FATAL_ERROR : 0);
 	}
 
 	private static void parse(final String[] args) throws Exception {

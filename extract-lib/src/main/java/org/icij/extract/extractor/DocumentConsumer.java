@@ -129,6 +129,7 @@ public class DocumentConsumer extends ExecutorProxy implements Consumer<Path> {
 			} catch (Throwable t) {
 				logger.error(String.format("Error while consuming file: \"%s\".", path), t);
 				if (ExtractionErrors.isFatal(t)) {
+					// isFatal is only true for Error subtypes (OutOfMemoryError / VirtualMachineError), so this cast cannot fail.
 					throw (Error) t;
 				}
 			}

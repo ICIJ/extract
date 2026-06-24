@@ -110,7 +110,6 @@ public class ExtractorErrorBoundaryTest {
 
 		final Report report = reportMap.get(path);
 		assertThat(report).isNotNull();
-		assertThat(report.getStatus()).isNotEqualTo(ExtractionStatus.SUCCESS);
-		assertThat(report.getStatus()).isNotEqualTo(ExtractionStatus.FAILURE_FATAL);
+		assertThat(report.getStatus()).isEqualTo(ExtractionStatus.FAILURE_UNREADABLE);
 	}
 }
