@@ -10,13 +10,16 @@ import org.icij.spewer.FieldNames;
 import org.icij.spewer.PrintStreamSpewer;
 import org.icij.spewer.Spewer;
 import org.junit.After;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -28,6 +31,9 @@ public class ExtractorParseTimeoutTest {
 
     /** Never releases on its own — a deterministic hang that only an interrupt can end. */
     private final CountDownLatch latch = new CountDownLatch(1);
+
+    @Rule
+    public final TemporaryFolder folder = new TemporaryFolder();
 
     @After
     public void releaseLatch() {
@@ -83,5 +89,48 @@ public class ExtractorParseTimeoutTest {
         final Report report = reportMap.get(path);
         assertThat(report).isNotNull();
         assertThat(report.getStatus()).isEqualTo(ExtractionStatus.FAILURE_TIMEOUT);
+    }
+
+    @Test(timeout = 10_000)
+    public void testDisabledTimeoutExtractsNormally() throws IOException {
+        final Path file = folder.newFile("hello.txt").toPath();
+        Files.write(file, "hello world".getBytes(StandardCharsets.UTF_8));
+
+        final HashMapReportMap reportMap = new HashMapReportMap();
+        final Reporter reporter = new Reporter(reportMap);
+
+        final Extractor extractor = new Extractor();
+        extractor.setParseTimeout(Duration.ZERO);   // disabled -> runs doExtract directly
+
+        extractor.extract(file, nullSpewer(), reporter);
+
+        final Report report = reportMap.get(file);
+        assertThat(report).isNotNull();
+        assertThat(report.getStatus()).isEqualTo(ExtractionStatus.SUCCESS);
+    }
+
+    /** Extractor whose lazy extract(Path) throws a plain IOException from the parse path. */
+    private static class IOExceptionExtractor extends Extractor {
+        @Override
+        public TikaDocument extract(final Path path) throws IOException {
+            throw new IOException("boom");
+        }
+    }
+
+    @Test(timeout = 10_000)
+    public void testNormalIOExceptionStillClassifiedAsUnreadable() {
+        final HashMapReportMap reportMap = new HashMapReportMap();
+        final Reporter reporter = new Reporter(reportMap);
+        final Path path = Paths.get("broken");
+
+        final Extractor extractor = new IOExceptionExtractor();
+        extractor.setParseTimeout(Duration.ofMinutes(5));   // watchdog ON, but no timeout fires
+
+        extractor.extract(path, nullSpewer(), reporter);
+
+        final Report report = reportMap.get(path);
+        assertThat(report).isNotNull();
+        // Plain IOException with no TikaException cause -> FAILURE_UNREADABLE, same as before the watchdog.
+        assertThat(report.getStatus()).isEqualTo(ExtractionStatus.FAILURE_UNREADABLE);
     }
 }
