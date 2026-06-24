@@ -710,6 +710,23 @@ public class ExtractorTest {
 	}
 
 	@Test
+	public void testOcrStrategyAutoRendersPagesAndExtractsText() throws Throwable {
+	    //GIVEN
+	    String text;
+	    Extractor extractor = aBasicExtractor();
+	    extractor.setOcrStrategy("AUTO");
+	    //WHEN
+	    TikaDocument tikaDocument = extractDocument(extractor, "/documents/ocr/jbig2_scan.pdf");
+	    try (Reader reader = tikaDocument.getReader()) {
+	        text = Spewer.toString(reader);
+	    }
+	    //THEN: with a rendering strategy, inline-image extraction is off and Tika renders whole
+	    // pages for OCR, recovering the scanned text across both pages.
+	    assertThat(text).contains("Lorem ipsum");
+	    assertThat(text).contains("1234567890");
+	}
+
+	@Test
 	public void testAddParserWinsForItsMediaTypes() throws Exception {
 	    //GIVEN
 	    CompositeParser base = (CompositeParser) TikaConfig.getDefaultConfig().getParser();
