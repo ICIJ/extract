@@ -47,13 +47,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.tika.parser.pdf.PDFParserConfig;
 
 import static java.lang.Math.toIntExact;
 import static org.fest.assertions.Assertions.assertThat;
 import static org.junit.Assume.assumeTrue;
 import static org.icij.extract.ocr.OCRParser.OCR_PARSER;
 import static org.icij.extract.ocr.ParserWithConfidence.OCR_CONFIDENCE;
-import org.apache.tika.parser.pdf.PDFParserConfig;
 
 public class ExtractorTest {
 	@Rule public final ExpectedException thrown = ExpectedException.none();
@@ -827,6 +827,22 @@ public class ExtractorTest {
 		Extractor extractor = new Extractor(
 				new DocumentFactory().withIdentifier(new PathIdentifier()),
 				Options.from(Map.of()));
+		assertThat(extractor.getOcrStrategy()).isEqualTo(PDFParserConfig.OCR_STRATEGY.NO_OCR);
+		assertThat(extractor.isExtractInlineImages()).isTrue();
+	}
+
+	@Test
+	public void testSetOcrStrategyOcrOnlyDisablesInlineImages() {
+		Extractor extractor = new Extractor();
+		extractor.setOcrStrategy("OCR_ONLY");
+		assertThat(extractor.getOcrStrategy()).isEqualTo(PDFParserConfig.OCR_STRATEGY.OCR_ONLY);
+		assertThat(extractor.isExtractInlineImages()).isFalse();
+	}
+
+	@Test
+	public void testSetOcrStrategyNullFallsBackToNoOcr() {
+		Extractor extractor = new Extractor();
+		extractor.setOcrStrategy(null);
 		assertThat(extractor.getOcrStrategy()).isEqualTo(PDFParserConfig.OCR_STRATEGY.NO_OCR);
 		assertThat(extractor.isExtractInlineImages()).isTrue();
 	}

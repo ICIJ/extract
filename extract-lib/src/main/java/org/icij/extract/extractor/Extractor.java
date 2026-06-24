@@ -375,7 +375,7 @@ public class Extractor {
         PDFParserConfig.OCR_STRATEGY parsed;
         try {
             parsed = PDFParserConfig.OCR_STRATEGY.valueOf(strategy.trim().toUpperCase());
-        } catch (final IllegalArgumentException e) {
+        } catch (final IllegalArgumentException | NullPointerException e) {
             logger.warn("unknown ocrStrategy \"{}\"; falling back to NO_OCR", strategy);
             parsed = PDFParserConfig.OCR_STRATEGY.NO_OCR;
         }
