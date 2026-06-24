@@ -5,3 +5,16 @@ target
 /tesseract_opencl_profile_devices.dat
 /kernel-*.bin
 .DS_Store
+
+# Coding agent files
+docs/superpowers/
+
+# Local kc-swarm orchestration (scripts + worktrees)
+scripts/kc-swarm/
+.worktrees/
+
+# Local swarm runtime state
+.claude/
+.claude-flow/
+.swarm/
+ruvector.db
