@@ -382,13 +382,24 @@ public class Extractor {
 
         ExtractionStatus status = ExtractionStatus.SUCCESS;
         Exception exception = null;
+        Throwable fatal = null;
 
         try {
             extract(path, spewer);
-        } catch (final Exception e) {
-            status = status(e, spewer);
-            log(e, status, path);
-            exception = e;
+        } catch (final Throwable t) {
+            if (t instanceof Exception) {
+                exception = (Exception) t;
+                status = status(exception, spewer);
+                log(exception, status, path);
+            } else {
+                // An Error escaped a parser (e.g. StackOverflowError, OutOfMemoryError).
+                status = ExtractionStatus.FAILURE_FATAL;
+                exception = ExtractionErrors.asException(t);
+                log(exception, status, path);
+                if (ExtractionErrors.isFatal(t)) {
+                    fatal = t;
+                }
+            }
         }
 
         // For tagged IO exceptions, discard the tag, which is either unwanted or not serializable.
@@ -396,7 +407,25 @@ public class Extractor {
             exception = ((TaggedIOException) exception).getCause();
         }
 
-        reporter.save(path, status, exception);
+        // Record best-effort. A fatal error may leave the JVM unable to record; never let that mask the original.
+        try {
+            reporter.save(path, status, exception);
+        } catch (final Throwable recordingFailure) {
+            if (fatal == null) {
+                throw recordingFailure;
+            }
+            logger.error(String.format("Failed to record status for \"%s\".", path), recordingFailure);
+        }
+
+        if (fatal != null) {
+            // Propagate so the worker thread's uncaught-exception handler can exit the process for a clean restart.
+            sneakyThrow(fatal);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends Throwable> void sneakyThrow(final Throwable t) throws T {
+        throw (T) t;
     }
 
     private void log(final Exception e, final ExtractionStatus status, final Path file) {
@@ -416,6 +445,9 @@ public class Extractor {
                 break;
             case FAILURE_UNREADABLE:
                 logger.error(String.format("The file stream could not be read: \"%s\".", file), e);
+                break;
+            case FAILURE_FATAL:
+                logger.error(String.format("A parser threw a fatal error: \"%s\".", file), e);
                 break;
             default:
                 logger.error(String.format("Unknown exception during extraction or output: \"%s\".", file), e);
