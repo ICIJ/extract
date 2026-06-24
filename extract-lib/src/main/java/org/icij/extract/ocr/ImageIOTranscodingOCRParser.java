@@ -95,7 +95,7 @@ public class ImageIOTranscodingOCRParser implements Parser {
                 metadata.get(Metadata.CONTENT_TYPE), metadata.get(RESOURCE_NAME_KEY));
         final BufferedImage image = decode(stream, metadata.get(Metadata.CONTENT_TYPE));
         if (image == null) {
-            LOGGER.warn("could not decode image of type {} (resource: {}) for OCR; emitting no content",
+            LOGGER.debug("could not decode image of type {} (resource: {}) for OCR; emitting no content",
                     metadata.get(Metadata.CONTENT_TYPE), metadata.get(RESOURCE_NAME_KEY));
             return;
         }
