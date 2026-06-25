@@ -155,4 +155,11 @@ public class OstCompressedBlockReaderTest {
         assertThat(result.isPresent()).isTrue();
         assertThat(Arrays.equals(result.get(), plain)).isTrue();
     }
+
+    @Test
+    public void blockValueTypeHoldsOffsetAndSize() {
+        final OstCompressedBlockReader.Block block = new OstCompressedBlockReader.Block(4096, 8176);
+        assertThat(block.fileOffset).isEqualTo(4096L);
+        assertThat(block.size).isEqualTo(8176);
+    }
 }
