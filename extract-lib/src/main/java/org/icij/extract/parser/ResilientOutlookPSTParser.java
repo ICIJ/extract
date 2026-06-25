@@ -1,5 +1,6 @@
 package org.icij.extract.parser;
 
+import com.pff.OstCompressedBlockReader;
 import com.pff.PSTAttachment;
 import com.pff.PSTFile;
 import com.pff.PSTFolder;
@@ -7,6 +8,7 @@ import com.pff.PSTMessage;
 import com.pff.PSTNodeInputStream;
 import com.pff.PSTObject;
 import com.pff.PstMessageDescriptors;
+import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.extractor.EmbeddedDocumentUtil;
@@ -26,8 +28,6 @@ import org.xml.sax.SAXException;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -59,10 +59,16 @@ public class ResilientOutlookPSTParser implements Parser {
     // for OST 2013 (type-36) files, the one format where the defect occurs (see
     // countUnreadableAttachments); absent on every other PST.
     public static final String PST_ATTACHMENTS_UNREADABLE = "tika:pst_attachments_unreadable";
-    // Count of unreadable by-value attachments whose bytes were recovered via the libpff fallback
-    // and re-emitted to the index. Set only for OST 2013 (type-36) files, alongside
-    // PST_ATTACHMENTS_UNREADABLE; (unreadable - recovered) is the residual loss.
+    // Count of unreadable by-value attachments whose bytes were recovered by the in-JVM zlib block
+    // reader and re-emitted to the index. Set only for OST 2013 (type-36) files, alongside
+    // PST_ATTACHMENTS_UNREADABLE.
     public static final String PST_ATTACHMENTS_RECOVERED = "tika:pst_attachments_recovered";
+    // Count of unreadable by-value attachments the reader could not recover (failed the size gate or
+    // could not be resolved). The honest residual loss: PST_ATTACHMENTS_UNREADABLE minus recovered.
+    public static final String PST_ATTACHMENTS_UNRECOVERED = "tika:pst_attachments_unrecovered";
+    // Count of recovered attachments whose bytes are password-protected, so the bytes are indexed but
+    // body text cannot be extracted. A subset of PST_ATTACHMENTS_RECOVERED.
+    public static final String PST_ATTACHMENTS_ENCRYPTED = "tika:pst_attachments_encrypted";
 
     private static final long serialVersionUID = 1L;
     private static final Set<MediaType> SUPPORTED_TYPES = singleton(MS_OUTLOOK_PST_MIMETYPE);
@@ -91,7 +97,6 @@ public class ResilientOutlookPSTParser implements Parser {
 
         xhtml.startDocument();
         final String pstPath = TikaInputStream.get(stream).getFile().getPath();
-        emission.setPstPath(pstPath);
 
         PSTFile pstFile = null;
         try {
@@ -286,51 +291,46 @@ public class ResilientOutlookPSTParser implements Parser {
         }
     }
 
-    // Fallback: java-libpst could not read this by-value attachment, but libpff can. Recover its
-    // bytes via the libpff bridge and emit them as an embedded document so the attachment's content
-    // still reaches the index instead of being silently dropped. Fully isolated and best-effort:
-    // when libpff is unavailable or recovery fails, this is a no-op and the attachment remains
-    // counted as a loss (today's behaviour). Gated by the same OST-2013 check as the detection above.
+    // Fallback: java-libpst could not read this by-value attachment, but the in-JVM zlib block reader
+    // can. Recover its bytes and emit them as an embedded document so the content still reaches the
+    // index. Fully isolated and best-effort: when recovery fails the attachment stays counted as an
+    // unrecovered loss. Gated by the same OST-2013 check as the detection above.
     private void recoverAndEmitAttachment(final PSTMessage message, final int index, final String folderPath,
                                           final EmissionContext emission) {
         final PSTAttachment attachment;
         try {
             attachment = message.getAttachment(index);
         } catch (final Exception | LinkageError e) {
-            return;
-        }
-        final long messageId;
-        try {
-            messageId = message.getDescriptorNodeId();
-        } catch (final Exception | LinkageError e) {
+            emission.incrementUnrecoveredAttachments();
             return;
         }
         final String name = safeAttachmentName(attachment);
-        final long declaredSize = safe(attachment::getFilesize, -1);
-        final Optional<Path> recovered =
-                LibpffAttachmentRecovery.recoverToTempFile(emission.pstPath(), messageId, index, declaredSize);
+        final Optional<byte[]> recovered = OstCompressedBlockReader.recover(attachment);
         if (recovered.isEmpty()) {
+            emission.incrementUnrecoveredAttachments();
+            logger.debug("OST attachment \"{}\" in folder \"{}\" could not be recovered by the zlib block reader.",
+                    name, folderPath);
             return;
         }
-        final Path tempFile = recovered.get();
-        try {
-            final Metadata attachmentMetadata = new Metadata();
-            attachmentMetadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, name);
-            attachmentMetadata.set(PST.PST_FOLDER_PATH, folderPath);
-            try (final TikaInputStream stream = TikaInputStream.get(tempFile)) {
-                emission.parseEmbedded(stream, attachmentMetadata);
-            }
+        final byte[] bytes = recovered.get();
+        final Metadata attachmentMetadata = new Metadata();
+        attachmentMetadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, name);
+        attachmentMetadata.set(PST.PST_FOLDER_PATH, folderPath);
+        try (final TikaInputStream stream = TikaInputStream.get(bytes, attachmentMetadata)) {
+            emission.parseEmbedded(stream, attachmentMetadata);
             emission.incrementRecoveredAttachments();
-            logger.info("Recovered attachment \"{}\" ({} bytes) in folder \"{}\" via libpff after java-libpst failed.",
-                    name, declaredSize, folderPath);
+            logger.info("Recovered attachment \"{}\" ({} bytes) in folder \"{}\" via the in-JVM zlib block reader.",
+                    name, bytes.length, folderPath);
+        } catch (final EncryptedDocumentException e) {
+            // Bytes are byte-perfect but password-protected: indexed as an attachment, body not
+            // extractable. Count as recovered and flag the encrypted residual.
+            emission.incrementRecoveredAttachments();
+            emission.incrementEncryptedAttachments();
+            logger.info("Recovered attachment \"{}\" in folder \"{}\" is encrypted; bytes indexed, body not extractable.",
+                    name, folderPath);
         } catch (final Exception | LinkageError e) {
-            logger.warn("libpff-recovered attachment \"{}\" in folder \"{}\" could not be emitted.", name, folderPath, e);
-        } finally {
-            try {
-                Files.deleteIfExists(tempFile);
-            } catch (final IOException ignored) {
-                // best-effort temp cleanup
-            }
+            emission.incrementUnrecoveredAttachments();
+            logger.warn("Recovered attachment \"{}\" in folder \"{}\" could not be emitted.", name, folderPath, e);
         }
     }
 
@@ -449,13 +449,16 @@ public class ResilientOutlookPSTParser implements Parser {
         }
         final int unreadable = emission.unreadableAttachments();
         final int recovered = emission.recoveredAttachments();
-        final int stillMissing = Math.max(0, unreadable - recovered);
+        final int unrecovered = emission.unrecoveredAttachments();
+        final int encrypted = emission.encryptedAttachments();
         metadata.set(PST_ATTACHMENTS_UNREADABLE, Integer.toString(unreadable));
         metadata.set(PST_ATTACHMENTS_RECOVERED, Integer.toString(recovered));
+        metadata.set(PST_ATTACHMENTS_UNRECOVERED, Integer.toString(unrecovered));
+        metadata.set(PST_ATTACHMENTS_ENCRYPTED, Integer.toString(encrypted));
         if (unreadable > 0) {
             logger.warn("PST \"{}\": {} by-value attachment(s) unreadable by java-libpst (OST 2013 multi-block "
-                    + "limitation); {} recovered via libpff, {} still missing from the index.",
-                    pstPath, unreadable, recovered, stillMissing);
+                    + "limitation); {} recovered via the in-JVM zlib block reader, {} unrecovered, {} encrypted.",
+                    pstPath, unreadable, recovered, unrecovered, encrypted);
         }
     }
 
@@ -524,7 +527,8 @@ public class ResilientOutlookPSTParser implements Parser {
         private boolean checkAttachmentIntegrity = false;
         private int unreadableAttachments = 0;
         private int recoveredAttachments = 0;
-        private String pstPath;
+        private int unrecoveredAttachments = 0;
+        private int encryptedAttachments = 0;
 
         private EmissionContext(final XHTMLContentHandler xhtml, final EmbeddedDocumentExtractor extractor) {
             this.xhtml = xhtml;
@@ -556,13 +560,20 @@ public class ResilientOutlookPSTParser implements Parser {
             return recoveredAttachments;
         }
 
-        // The OST/PST path on disk, needed by the libpff fallback to re-open the file out-of-process.
-        private void setPstPath(final String pstPath) {
-            this.pstPath = pstPath;
+        private void incrementUnrecoveredAttachments() {
+            unrecoveredAttachments++;
         }
 
-        private String pstPath() {
-            return pstPath;
+        private int unrecoveredAttachments() {
+            return unrecoveredAttachments;
+        }
+
+        private void incrementEncryptedAttachments() {
+            encryptedAttachments++;
+        }
+
+        private int encryptedAttachments() {
+            return encryptedAttachments;
         }
 
         // Returns true the first time a descriptor is seen, false on a duplicate.
@@ -580,7 +591,7 @@ public class ResilientOutlookPSTParser implements Parser {
         }
 
         private void parseEmbedded(final TikaInputStream messageStream, final Metadata metadata)
-                throws SAXException, IOException {
+                throws SAXException, IOException, TikaException {
             extractor.parseEmbedded(messageStream, xhtml, metadata, true);
         }
 

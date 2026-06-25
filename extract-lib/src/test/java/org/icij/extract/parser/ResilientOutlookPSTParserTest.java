@@ -183,6 +183,16 @@ public class ResilientOutlookPSTParserTest {
         assertThat(result.metadata.get(ResilientOutlookPSTParser.PST_FAILED)).isEqualTo("0");
     }
 
+    @Test
+    public void newAttachmentMetadataIsAbsentOnNonOstPst() throws Exception {
+        final ParseResult result = parseWithCounting(testPst());
+        // testPST.pst is a classic (non-type-36) PST: the OST-2013 attachment fields never apply.
+        assertThat(result.metadata.get(ResilientOutlookPSTParser.PST_ATTACHMENTS_UNREADABLE)).isNull();
+        assertThat(result.metadata.get(ResilientOutlookPSTParser.PST_ATTACHMENTS_RECOVERED)).isNull();
+        assertThat(result.metadata.get(ResilientOutlookPSTParser.PST_ATTACHMENTS_UNRECOVERED)).isNull();
+        assertThat(result.metadata.get(ResilientOutlookPSTParser.PST_ATTACHMENTS_ENCRYPTED)).isNull();
+    }
+
     private int countMailItems(TikaDocument doc) {
         int count = 0;
         for (TikaDocument embed : doc.getEmbeds()) {
