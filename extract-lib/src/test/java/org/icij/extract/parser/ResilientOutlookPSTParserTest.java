@@ -13,6 +13,8 @@ import org.icij.extract.extractor.Extractor;
 import org.junit.Test;
 import org.xml.sax.ContentHandler;
 
+import static org.junit.Assume.assumeTrue;
+
 import java.io.InputStream;
 import java.io.Reader;
 import java.nio.file.Path;
@@ -211,6 +213,28 @@ public class ResilientOutlookPSTParserTest {
             count += 1 + countAllEmbeds(embed);
         }
         return count;
+    }
+
+    @Test
+    public void recoversUnreadableAttachmentsOnARealOst() throws Exception {
+        // Opt-in: runs only against a real OST-2013 supplied via -Dost.test.file=<path>, else skips.
+        final String ostPath = System.getProperty("ost.test.file");
+        assumeTrue(ostPath != null);
+
+        final ParseResult result = parseWithCounting(Paths.get(ostPath));
+
+        final String unreadable = result.metadata.get(ResilientOutlookPSTParser.PST_ATTACHMENTS_UNREADABLE);
+        final String recovered = result.metadata.get(ResilientOutlookPSTParser.PST_ATTACHMENTS_RECOVERED);
+        final String unrecovered = result.metadata.get(ResilientOutlookPSTParser.PST_ATTACHMENTS_UNRECOVERED);
+        // type-36 OST: the integrity fields must be present.
+        assertThat(unreadable).isNotNull();
+        assertThat(recovered).isNotNull();
+        assertThat(unrecovered).isNotNull();
+        // Invariant: every unreadable attachment is either recovered or counted unrecovered.
+        assertThat(Integer.parseInt(unreadable))
+                .isEqualTo(Integer.parseInt(recovered) + Integer.parseInt(unrecovered));
+        // The corpus has known recoverable attachments, so the reader must recover at least one.
+        assertThat(Integer.parseInt(recovered)).isGreaterThan(0);
     }
 
     @Test
