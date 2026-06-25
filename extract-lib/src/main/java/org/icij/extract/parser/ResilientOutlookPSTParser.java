@@ -9,8 +9,6 @@ import com.pff.PSTNodeInputStream;
 import com.pff.PSTObject;
 import com.pff.PstFolderPathResolver;
 import com.pff.PstMessageDescriptors;
-import java.util.Map;
-import java.util.Collections;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
@@ -31,8 +29,10 @@ import org.xml.sax.SAXException;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -144,7 +144,8 @@ public class ResilientOutlookPSTParser implements Parser {
         final List<Integer> messageDescriptorIds = enumerateMessageDescriptorIds(pstFile, pstPath);
         walkFolder(pstFile.getRootFolder(), "/", emission);
         if (messageDescriptorIds != null) {
-            recoverOrphans(messageDescriptorIds, pstFile, resolveFolderPaths(pstFile, pstPath), emission);
+            final Map<Integer, String> folderPaths = resolveFolderPaths(pstFile, pstPath);
+            recoverOrphans(messageDescriptorIds, pstFile, folderPaths, emission);
         }
         // The java-libpst-heavy work is done; stop suppressing so the per-PST reconciliation
         // and attachment-integrity summary (the load-bearing signal) reaches the console too,
