@@ -7,7 +7,10 @@ import com.pff.PSTFolder;
 import com.pff.PSTMessage;
 import com.pff.PSTNodeInputStream;
 import com.pff.PSTObject;
+import com.pff.PstFolderPathResolver;
 import com.pff.PstMessageDescriptors;
+import java.util.Map;
+import java.util.Collections;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
@@ -129,7 +132,7 @@ public class ResilientOutlookPSTParser implements Parser {
         final List<Integer> messageDescriptorIds = enumerateMessageDescriptorIds(pstFile, pstPath);
         walkFolder(pstFile.getRootFolder(), "/", emission);
         if (messageDescriptorIds != null) {
-            recoverOrphans(messageDescriptorIds, pstFile, emission);
+            recoverOrphans(messageDescriptorIds, pstFile, resolveFolderPaths(pstFile, pstPath), emission);
         }
         recordReconciliation(metadata, pstPath, messageDescriptorIds, emission.emittedCount());
         recordAttachmentIntegrity(metadata, pstPath, emission);
@@ -144,6 +147,19 @@ public class ResilientOutlookPSTParser implements Parser {
         } catch (final Exception e) {
             logger.warn("Could not enumerate PST message descriptors for \"{}\"", pstPath, e);
             return null;
+        }
+    }
+
+    // Builds the descriptor-tree folder-path map used to attribute orphan-recovered messages.
+    // Returns an empty map on failure so recovery degrades to the /[recovered] sentinel rather
+    // than aborting -- attribution is best-effort, never load-bearing for emission.
+    private Map<Integer, String> resolveFolderPaths(final PSTFile pstFile, final String pstPath) {
+        try {
+            return PstFolderPathResolver.folderPaths(pstFile);
+        } catch (final Exception | LinkageError e) {
+            logger.warn("Could not resolve PST folder paths for \"{}\"; recovered messages will use {}.",
+                    pstPath, RECOVERED_FOLDER_PATH, e);
+            return Collections.emptyMap();
         }
     }
 
@@ -214,13 +230,14 @@ public class ResilientOutlookPSTParser implements Parser {
     // Recovers messages that exist as descriptors but are linked into no visible
     // folder, so deleted-but-recoverable mail is not silently lost.
     private void recoverOrphans(final List<Integer> messageDescriptorIds, final PSTFile pstFile,
-                                final EmissionContext emission) {
+                                final Map<Integer, String> folderPaths, final EmissionContext emission) {
         for (final int descriptorNodeId : messageDescriptorIds) {
-            recoverOrphan(descriptorNodeId, pstFile, emission);
+            recoverOrphan(descriptorNodeId, pstFile, folderPaths, emission);
         }
     }
 
-    private void recoverOrphan(final int descriptorNodeId, final PSTFile pstFile, final EmissionContext emission) {
+    private void recoverOrphan(final int descriptorNodeId, final PSTFile pstFile,
+                               final Map<Integer, String> folderPaths, final EmissionContext emission) {
         // Match getDescriptorNodeId()'s widening (sign-extend) so this dedup check
         // agrees with the ids stored during the folder walk; a zero-extend mask here
         // would miss messages whose NID has bit 31 set and double-count them.
@@ -231,11 +248,18 @@ public class ResilientOutlookPSTParser implements Parser {
         try {
             final PSTObject object = PSTObject.detectAndLoadPSTObject(pstFile, descriptorId);
             if (object instanceof PSTMessage) {
-                emitMessage((PSTMessage) object, RECOVERED_FOLDER_PATH, emission);
+                final int parentId = object.getDescriptorNode().parentDescriptorIndexIdentifier;
+                emitMessage((PSTMessage) object, folderPathOrRecovered(folderPaths, parentId), emission);
             }
         } catch (final Exception | LinkageError e) {
             logger.debug("PST orphan descriptor {} is not a loadable message; skipping.", descriptorNodeId, e);
         }
+    }
+
+    // Maps a recovered message's parent folder descriptor id to its real folder path, falling
+    // back to the recovered sentinel when the parent is not a resolvable folder.
+    static String folderPathOrRecovered(final Map<Integer, String> folderPaths, final int parentId) {
+        return folderPaths.getOrDefault(parentId, RECOVERED_FOLDER_PATH);
     }
 
     // Hands one message to Tika's PSTMailItemParser in isolation: a failure here is
