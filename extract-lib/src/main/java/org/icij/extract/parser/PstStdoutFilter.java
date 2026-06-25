@@ -7,13 +7,21 @@ import java.io.PrintStream;
 import java.util.function.BooleanSupplier;
 
 /**
- * Suppresses java-libpst's direct {@code System.out}/{@code System.err} output (raw
- * {@code println} that bypasses slf4j, so logback cannot demote it) on threads that are
- * actively parsing a PST. Installed once over the JVM streams; transparent pass-through
- * for every other thread, so the rest of the process is unaffected.
+ * Suppresses all {@code System.out}/{@code System.err} writes on threads that are actively
+ * parsing a PST. The primary target is java-libpst's raw {@code println} noise (~1,100+ lines
+ * per big-OST parse) that bypasses slf4j entirely; however, because logback's
+ * {@code ConsoleAppender} resolves {@code System.out} lazily on every write, the suppression
+ * window also gates any slf4j output routed through a console appender — including the parser's
+ * own per-item recovery INFO lines and any embedded PDFBox/OCR slf4j output — on the console
+ * during the suppressed region. Everything is still preserved in the FILE appender and in the
+ * ES-indexed {@code pst_*} metadata produced by the F3 hand-off.
  *
- * <p>Our own diagnostics go through slf4j to a different appender, so the recovery and
- * reconciliation signal survives while the library noise is dropped.
+ * <p>To keep the load-bearing per-PST reconciliation summary visible on the console,
+ * {@code ResilientOutlookPSTParser} calls {@link #end()} immediately before
+ * {@code recordReconciliation} and {@code recordAttachmentIntegrity}, lifting suppression
+ * before those WARN lines are emitted. Per-item recovery INFO lines (high-volume: ~11k on
+ * a large OST) remain suppressed on the console — they are noise at scale. Installed exactly
+ * once over the JVM streams; transparent pass-through for every other thread.
  */
 final class PstStdoutFilter {
 

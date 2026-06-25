@@ -146,6 +146,10 @@ public class ResilientOutlookPSTParser implements Parser {
         if (messageDescriptorIds != null) {
             recoverOrphans(messageDescriptorIds, pstFile, resolveFolderPaths(pstFile, pstPath), emission);
         }
+        // The java-libpst-heavy work is done; stop suppressing so the per-PST reconciliation
+        // and attachment-integrity summary (the load-bearing signal) reaches the console too,
+        // not only the FILE appender. parse()'s finally still calls end() as an idempotent safety net.
+        PstStdoutFilter.end();
         recordReconciliation(metadata, pstPath, messageDescriptorIds, emission.emittedCount());
         recordAttachmentIntegrity(metadata, pstPath, emission);
     }
