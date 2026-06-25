@@ -363,8 +363,7 @@ public class ResilientOutlookPSTParser implements Parser {
         final Optional<byte[]> recovered = OstCompressedBlockReader.recover(attachment);
         if (recovered.isEmpty()) {
             emission.incrementUnrecoveredAttachments();
-            logger.debug("OST attachment \"{}\" in folder \"{}\" could not be recovered by the zlib block reader.",
-                    name, folderPath);
+            emitRecoveryStub(name, folderPath, relationshipId, "UNRECOVERED", emission);
             return;
         }
         final byte[] bytes = recovered.get();
@@ -379,15 +378,16 @@ public class ResilientOutlookPSTParser implements Parser {
             logger.info("Recovered attachment \"{}\" ({} bytes) in folder \"{}\" via the in-JVM zlib block reader.",
                     name, bytes.length, folderPath);
         } catch (final EncryptedDocumentException e) {
-            // Bytes are byte-perfect but password-protected: indexed as an attachment, body not
-            // extractable. Count as recovered and flag the encrypted residual.
             emission.incrementRecoveredAttachments();
             emission.incrementEncryptedAttachments();
-            logger.info("Recovered attachment \"{}\" in folder \"{}\" is encrypted; bytes indexed, body not extractable.",
+            emitRecoveryStub(name, folderPath, relationshipId, "ENCRYPTED", emission);
+            logger.info("Recovered attachment \"{}\" in folder \"{}\" is encrypted; emitted as ENCRYPTED stub.",
                     name, folderPath);
         } catch (final Exception | LinkageError e) {
             emission.incrementUnrecoveredAttachments();
-            logger.warn("Recovered attachment \"{}\" in folder \"{}\" could not be emitted.", name, folderPath, e);
+            emitRecoveryStub(name, folderPath, relationshipId, "UNRECOVERED", emission);
+            logger.warn("Recovered attachment \"{}\" in folder \"{}\" could not be emitted; recorded as UNRECOVERED.",
+                    name, folderPath, e);
         }
     }
 
@@ -407,6 +407,24 @@ public class ResilientOutlookPSTParser implements Parser {
     // Pure formatter, package-private for unit testing (no PSTMessage needed).
     static String formatRelationshipId(final long descriptorId, final int index) {
         return descriptorId + "-" + index;
+    }
+
+    // Emits a content-less embedded document recording an attachment whose bytes could not be
+    // indexed (UNRECOVERED) or could not be parsed without credentials (ENCRYPTED), so the loss is
+    // visible and queryable per document instead of only as an aggregate parent counter.
+    private void emitRecoveryStub(final String name, final String folderPath, final String relationshipId,
+                                  final String status, final EmissionContext emission) {
+        final Metadata stub = new Metadata();
+        stub.set(TikaCoreProperties.RESOURCE_NAME_KEY, name);
+        stub.set(TikaCoreProperties.EMBEDDED_RELATIONSHIP_ID, relationshipId);
+        stub.set(PST.PST_FOLDER_PATH, folderPath);
+        stub.set(PST_ATTACHMENT_RECOVERY, status);
+        try (final TikaInputStream stream = TikaInputStream.get(new byte[0], stub)) {
+            emission.parseEmbedded(stream, stub);
+        } catch (final Exception | LinkageError e) {
+            logger.warn("Could not emit {} recovery stub for attachment \"{}\" in folder \"{}\".",
+                    status, name, folderPath, e);
+        }
     }
 
     // A by-value attachment is unreadable when its stream won't open, or reports fewer bytes than

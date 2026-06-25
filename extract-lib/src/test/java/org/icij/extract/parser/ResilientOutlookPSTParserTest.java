@@ -315,4 +315,16 @@ public class ResilientOutlookPSTParserTest {
                 .anyMatch(m -> "RECOVERED".equals(m.get(ResilientOutlookPSTParser.PST_ATTACHMENT_RECOVERY))))
                 .isTrue();
     }
+
+    @Test
+    public void unrecovered_attachments_emit_stubs_on_real_ost() throws Exception {
+        final String ostPath = System.getProperty("ost.test.file");
+        assumeTrue(ostPath != null);
+        final RecordingExtractor rec = parseWithRecording(Paths.get(ostPath));
+        rec.byName.values().stream()
+            .filter(m -> "UNRECOVERED".equals(m.get(ResilientOutlookPSTParser.PST_ATTACHMENT_RECOVERY))
+                      || "ENCRYPTED".equals(m.get(ResilientOutlookPSTParser.PST_ATTACHMENT_RECOVERY)))
+            .forEach(m -> assertThat(m.get(org.apache.tika.metadata.TikaCoreProperties.EMBEDDED_RELATIONSHIP_ID))
+                    .matches("-?\\d+-\\d+"));
+    }
 }
