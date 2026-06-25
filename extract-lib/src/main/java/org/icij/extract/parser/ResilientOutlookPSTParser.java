@@ -51,6 +51,15 @@ import static java.util.Collections.singleton;
  * <p>It does not parse message bodies itself: each {@link PSTMessage} is handed
  * to Tika's existing {@code PSTMailItemParser} exactly as the stock parser does,
  * so body and attachment extraction and all metadata mapping are unchanged.
+ *
+ * <p><b>Encrypted-attachment residual.</b> An attachment whose bytes are recovered
+ * byte-perfectly but are password-protected is indexed as an attachment, yet its body
+ * text cannot be extracted without credentials -- a distinct residual class from a
+ * reader defect, counted by {@link #PST_ATTACHMENTS_ENCRYPTED}. Note that under Tika's
+ * default {@code ParsingEmbeddedDocumentExtractor} this counter reads 0 because that
+ * extractor swallows {@code EncryptedDocumentException} internally; the recovered bytes
+ * are emitted and indexed regardless. A password/credential extraction path is future
+ * work, not handled here.
  */
 public class ResilientOutlookPSTParser implements Parser {
 
