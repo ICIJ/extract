@@ -74,7 +74,7 @@ public final class PstFolderPathResolver {
         try {
             final PSTObject object = PSTObject.detectAndLoadPSTObject(pst, (long) descriptorId);
             final String name = (object instanceof PSTFolder) ? ((PSTFolder) object).getDisplayName() : null;
-            return (name == null || name.isEmpty()) ? UNREADABLE_NAME : name;
+            return name == null ? UNREADABLE_NAME : name;
         } catch (final Exception | LinkageError e) {
             return UNREADABLE_NAME;
         }

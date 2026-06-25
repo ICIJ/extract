@@ -91,9 +91,7 @@ public final class OstCompressedBlockReader {
         final ByteArrayOutputStream out = new ByteArrayOutputStream(
                 declaredSize > 0 && declaredSize < Integer.MAX_VALUE ? (int) declaredSize : 8192);
         for (final Block block : blocks) {
-            final byte[] raw = new byte[block.size];
-            fileHandle.seek(block.fileOffset);
-            fileHandle.readFully(raw);
+            final byte[] raw = readExtent(fileHandle, block.fileOffset, block.size);
             if (encrypted) {
                 PSTObject.decode(raw); // in-place compressible-encryption (permute) reversal
             }
@@ -172,8 +170,17 @@ public final class OstCompressedBlockReader {
 
     private static void walkXBlock(final PSTFile pstFile, final byte[] data, final List<Block> leaves)
             throws IOException, PSTException {
+        // A corrupt or short XBlock must fail cleanly (recover() catches IOException and counts the
+        // attachment unrecovered) rather than throwing AIOOBE from the entry-decode loop.
+        if (data.length < 8) {
+            throw new IOException("OST XBlock too short: " + data.length + " bytes");
+        }
         final int numberOfEntries = (int) PSTObject.convertLittleEndianBytesToLong(data, 2, 4);
         final int arraySize = pstFile.getPSTFileType() == PSTFile.PST_TYPE_ANSI ? 4 : 8;
+        if (numberOfEntries < 0 || 8L + (long) numberOfEntries * arraySize > data.length) {
+            throw new IOException("OST XBlock entry table out of bounds: entries=" + numberOfEntries
+                    + " arraySize=" + arraySize + " dataLength=" + data.length);
+        }
         int offset = 8;
         if (data[1] == 0x02) { // XXBlock: entries point to XBlocks
             for (int x = 0; x < numberOfEntries; x++) {
@@ -196,8 +203,20 @@ public final class OstCompressedBlockReader {
     }
 
     private static byte[] readRaw(final PSTFile pstFile, final long fileOffset, final int size) throws IOException {
+        return readExtent(pstFile.getFileHandle(), fileOffset, size);
+    }
+
+    // Reads exactly `size` bytes at `fileOffset`, but validates the extent against the real file
+    // length first: a corrupt offset-index node can carry an absurd size, and allocating new byte[size]
+    // for it would OOM and -- because OutOfMemoryError is an Error, not caught by recover()'s
+    // Exception|LinkageError boundary -- abort the whole PST parse instead of skipping one attachment.
+    private static byte[] readExtent(final RandomAccessFile fileHandle, final long fileOffset, final int size)
+            throws IOException {
+        if (size < 0 || fileOffset < 0 || fileOffset + size > fileHandle.length()) {
+            throw new IOException("OST block extent out of bounds: offset=" + fileOffset
+                    + " size=" + size + " fileLength=" + fileHandle.length());
+        }
         final byte[] buf = new byte[size];
-        final RandomAccessFile fileHandle = pstFile.getFileHandle();
         fileHandle.seek(fileOffset);
         fileHandle.readFully(buf);
         return buf;

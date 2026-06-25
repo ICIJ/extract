@@ -326,10 +326,21 @@ public class ResilientOutlookPSTParser implements Parser {
             return;
         }
         for (int index = 0; index < attachmentCount; index++) {
-            if (isUnreadableByValueAttachment(message, index, folderPath)) {
+            final PSTAttachment attachment = loadAttachment(message, index);
+            if (attachment != null && isUnreadableByValueAttachment(attachment, folderPath)) {
                 emission.incrementUnreadableAttachments();
-                recoverAndEmitAttachment(message, index, folderPath, emission);
+                recoverAndEmitAttachment(attachment, folderPath, emission);
             }
+        }
+    }
+
+    // Loads one attachment, isolating a libpst failure so a single bad attachment never aborts the
+    // scan. Returns null when the attachment can't be loaded.
+    private PSTAttachment loadAttachment(final PSTMessage message, final int index) {
+        try {
+            return message.getAttachment(index);
+        } catch (final Exception | LinkageError e) {
+            return null;
         }
     }
 
@@ -337,15 +348,9 @@ public class ResilientOutlookPSTParser implements Parser {
     // can. Recover its bytes and emit them as an embedded document so the content still reaches the
     // index. Fully isolated and best-effort: when recovery fails the attachment stays counted as an
     // unrecovered loss. Gated by the same OST-2013 check as the detection above.
-    private void recoverAndEmitAttachment(final PSTMessage message, final int index, final String folderPath,
+    // The attachment is pre-loaded by the caller (countUnreadableAttachments) to avoid a redundant load.
+    private void recoverAndEmitAttachment(final PSTAttachment attachment, final String folderPath,
                                           final EmissionContext emission) {
-        final PSTAttachment attachment;
-        try {
-            attachment = message.getAttachment(index);
-        } catch (final Exception | LinkageError e) {
-            emission.incrementUnrecoveredAttachments();
-            return;
-        }
         final String name = safeAttachmentName(attachment);
         final Optional<byte[]> recovered = OstCompressedBlockReader.recover(attachment);
         if (recovered.isEmpty()) {
@@ -380,14 +385,9 @@ public class ResilientOutlookPSTParser implements Parser {
     // its declared size (the type-36 multi-block truncation). Non-by-value attachments (embedded
     // messages, OLE, by-reference) carry no inline binary stream to check and are skipped. Returns
     // false on any inspection error so a libpst quirk never inflates the count.
-    private boolean isUnreadableByValueAttachment(final PSTMessage message, final int index,
+    // The attachment is pre-loaded by the caller (countUnreadableAttachments) to avoid a redundant load.
+    private boolean isUnreadableByValueAttachment(final PSTAttachment attachment,
                                                   final String folderPath) {
-        final PSTAttachment attachment;
-        try {
-            attachment = message.getAttachment(index);
-        } catch (final Exception | LinkageError e) {
-            return false;
-        }
         if (safe(attachment::getAttachMethod, PSTAttachment.ATTACHMENT_METHOD_NONE) != PSTAttachment.ATTACHMENT_METHOD_BY_VALUE) {
             return false;
         }
