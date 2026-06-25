@@ -68,6 +68,7 @@ public class ResilientOutlookPSTParser implements Parser {
     public static final String PST_ATTACHMENTS_UNRECOVERED = "tika:pst_attachments_unrecovered";
     // Count of recovered attachments whose bytes are password-protected, so the bytes are indexed but
     // body text cannot be extracted. A subset of PST_ATTACHMENTS_RECOVERED.
+    // Note: with Tika's default ParsingEmbeddedDocumentExtractor this reads "0" because that extractor swallows EncryptedDocumentException internally; the recovered bytes are still emitted and indexed regardless.
     public static final String PST_ATTACHMENTS_ENCRYPTED = "tika:pst_attachments_encrypted";
 
     private static final long serialVersionUID = 1L;
