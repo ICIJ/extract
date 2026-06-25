@@ -147,12 +147,15 @@ public class ResilientOutlookPSTParser implements Parser {
             final Map<Integer, String> folderPaths = resolveFolderPaths(pstFile, pstPath);
             recoverOrphans(messageDescriptorIds, pstFile, folderPaths, emission);
         }
-        // The java-libpst-heavy work is done; stop suppressing so the per-PST reconciliation
-        // and attachment-integrity summary (the load-bearing signal) reaches the console too,
-        // not only the FILE appender. parse()'s finally still calls end() as an idempotent safety net.
-        PstStdoutFilter.end();
-        recordReconciliation(metadata, pstPath, messageDescriptorIds, emission.emittedCount());
-        recordAttachmentIntegrity(metadata, pstPath, emission);
+        // The java-libpst-heavy work is done; lift suppression only for the duration of the
+        // per-PST reconciliation and attachment-integrity summary (the load-bearing signal) so it
+        // reaches the console too, not only the FILE appender. Lifting (rather than ending the parse
+        // early) keeps the depth counter balanced, so a nested PST-in-PST parse stays suppressed
+        // until the outermost parse's finally calls end().
+        PstStdoutFilter.runWithSuppressionLifted(() -> {
+            recordReconciliation(metadata, pstPath, messageDescriptorIds, emission.emittedCount());
+            recordAttachmentIntegrity(metadata, pstPath, emission);
+        });
     }
 
     // Enumerates the descriptor ids of normal mail messages -- our ground-truth count
