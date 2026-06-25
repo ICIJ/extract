@@ -22,7 +22,7 @@ import java.util.zip.Inflater;
  *
  * <p>Lives in {@code com.pff} on purpose: it needs package-private access to java-libpst internals
  * ({@code OffsetIndexItem.fileOffset/size}, {@code PSTFile.getOffsetIndexNode}, {@code PSTObject.decode})
- * and the frozen library is consumed from the classpath, so a split package is safe here.
+ * and the frozen library is consumed from the classpath, so a split package is safe here. This is classpath-only: a split package is illegal under the JPMS module path, so this seam would need revisiting if extract-lib were ever deployed as a named module.
  */
 public final class OstCompressedBlockReader {
 
