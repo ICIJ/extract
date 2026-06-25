@@ -95,14 +95,11 @@ public final class OstCompressedBlockReader {
         final ByteArrayOutputStream out = new ByteArrayOutputStream(Math.max(64, data.length * 3));
         final byte[] buf = new byte[8192];
         try {
-            while (!inflater.finished()) {
+            while (!inflater.finished() && !inflater.needsInput() && !inflater.needsDictionary()) {
                 final int n = inflater.inflate(buf);
-                if (n == 0) {
-                    if (inflater.finished() || inflater.needsDictionary() || inflater.needsInput()) {
-                        break;
-                    }
+                if (n > 0) {
+                    out.write(buf, 0, n);
                 }
-                out.write(buf, 0, n);
             }
             return inflater.finished() ? out.toByteArray() : null;
         } catch (final DataFormatException e) {

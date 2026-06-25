@@ -130,6 +130,17 @@ public class OstCompressedBlockReaderTest {
     }
 
     @Test
+    public void rejectsWhenDeclaredSizeIsNonPositive() throws Exception {
+        final byte[] payload = bytes("SOME BYTES");
+        final RandomAccessFile fh = fileOf(payload);
+        final List<OstCompressedBlockReader.Block> blocks =
+                List.of(new OstCompressedBlockReader.Block(0, payload.length));
+
+        assertThat(OstCompressedBlockReader.recoverFromBlocks(fh, blocks, false, 0).isPresent()).isFalse();
+        assertThat(OstCompressedBlockReader.recoverFromBlocks(fileOf(payload), blocks, false, -5).isPresent()).isFalse();
+    }
+
+    @Test
     public void decryptsACompressibleEncryptedBlock() throws Exception {
         // On disk the bytes are permuted; PSTObject.encode produces what decode() reverses.
         final byte[] plain = bytes("SECRET PAYLOAD");
