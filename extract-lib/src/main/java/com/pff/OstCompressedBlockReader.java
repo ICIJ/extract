@@ -3,6 +3,7 @@ package com.pff;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.zip.DataFormatException;
@@ -107,5 +108,61 @@ public final class OstCompressedBlockReader {
         } finally {
             inflater.end();
         }
+    }
+
+    /**
+     * Resolves the ordered leaf data blocks for an attachment's data node, walking any XBlock/XXBlock
+     * tree the way java-libpst does. Structural blocks are read raw; only the returned leaf blocks
+     * carry attachment data.
+     */
+    static List<Block> resolveLeafBlocks(final PSTFile pstFile, final OffsetIndexItem root)
+            throws IOException, PSTException {
+        final List<Block> leaves = new ArrayList<>();
+        collectLeaves(pstFile, root, leaves);
+        return leaves;
+    }
+
+    private static void collectLeaves(final PSTFile pstFile, final OffsetIndexItem item, final List<Block> leaves)
+            throws IOException, PSTException {
+        final boolean internal = (item.indexIdentifier & 0x02L) != 0L;
+        final byte[] data = readRaw(pstFile, item.fileOffset, item.size);
+        if (internal && item.size >= 8 && data[0] == 0x01) {
+            walkXBlock(pstFile, data, leaves);
+        } else {
+            leaves.add(new Block(item.fileOffset, item.size));
+        }
+    }
+
+    private static void walkXBlock(final PSTFile pstFile, final byte[] data, final List<Block> leaves)
+            throws IOException, PSTException {
+        final int numberOfEntries = (int) PSTObject.convertLittleEndianBytesToLong(data, 2, 4);
+        final int arraySize = pstFile.getPSTFileType() == PSTFile.PST_TYPE_ANSI ? 4 : 8;
+        int offset = 8;
+        if (data[1] == 0x02) { // XXBlock: entries point to XBlocks
+            for (int x = 0; x < numberOfEntries; x++) {
+                final long bid =
+                        PSTObject.convertLittleEndianBytesToLong(data, offset, offset + arraySize) & 0xFFFFFFFFFFFFFFFEL;
+                final OffsetIndexItem child = pstFile.getOffsetIndexNode(bid);
+                final byte[] childData = readRaw(pstFile, child.fileOffset, child.size);
+                walkXBlock(pstFile, childData, leaves);
+                offset += arraySize;
+            }
+        } else if (data[1] == 0x01) { // XBlock: entries point to leaf data blocks
+            for (int x = 0; x < numberOfEntries; x++) {
+                final long bid =
+                        PSTObject.convertLittleEndianBytesToLong(data, offset, offset + arraySize) & 0xFFFFFFFFFFFFFFFEL;
+                final OffsetIndexItem leaf = pstFile.getOffsetIndexNode(bid);
+                leaves.add(new Block(leaf.fileOffset, leaf.size));
+                offset += arraySize;
+            }
+        }
+    }
+
+    private static byte[] readRaw(final PSTFile pstFile, final long fileOffset, final int size) throws IOException {
+        final byte[] buf = new byte[size];
+        final RandomAccessFile fileHandle = pstFile.getFileHandle();
+        fileHandle.seek(fileOffset);
+        fileHandle.readFully(buf);
+        return buf;
     }
 }
