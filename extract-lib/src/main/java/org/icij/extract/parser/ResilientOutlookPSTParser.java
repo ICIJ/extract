@@ -102,6 +102,8 @@ public class ResilientOutlookPSTParser implements Parser {
         xhtml.startDocument();
         final String pstPath = TikaInputStream.get(stream).getFile().getPath();
 
+        PstStdoutFilter.install();
+        PstStdoutFilter.begin();
         PSTFile pstFile = null;
         try {
             pstFile = new PSTFile(pstPath);
@@ -112,6 +114,7 @@ public class ResilientOutlookPSTParser implements Parser {
             throw new TikaException(e.getMessage(), e);
         } finally {
             closeQuietly(pstFile);
+            PstStdoutFilter.end();
         }
 
         xhtml.endDocument();
