@@ -275,4 +275,11 @@ public class ResilientOutlookPSTParserTest {
         // tree must hold strictly more nodes than the 7 mail items.
         assertThat(countAllEmbeds(doc)).isGreaterThan(7);
     }
+
+    @Test
+    public void formatRelationshipId_combines_descriptor_and_index() {
+        assertThat(ResilientOutlookPSTParser.formatRelationshipId(2097188L, 3)).isEqualTo("2097188-3");
+        assertThat(ResilientOutlookPSTParser.formatRelationshipId(2097188L, 3))
+                .isEqualTo(ResilientOutlookPSTParser.formatRelationshipId(2097188L, 3));
+    }
 }

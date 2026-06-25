@@ -82,6 +82,9 @@ public class ResilientOutlookPSTParser implements Parser {
     // body text cannot be extracted. A subset of PST_ATTACHMENTS_RECOVERED.
     // Note: with Tika's default ParsingEmbeddedDocumentExtractor this reads "0" because that extractor swallows EncryptedDocumentException internally; the recovered bytes are still emitted and indexed regardless.
     public static final String PST_ATTACHMENTS_ENCRYPTED = "tika:pst_attachments_encrypted";
+    // Per-attachment recovery marker promoted by datashare into the typed Document.recoveryStatus
+    // field. Value is one of RECOVERED | ENCRYPTED | UNRECOVERED.
+    public static final String PST_ATTACHMENT_RECOVERY = "tika:pst_attachment_recovery";
 
     private static final long serialVersionUID = 1L;
     private static final Set<MediaType> SUPPORTED_TYPES = singleton(MS_OUTLOOK_PST_MIMETYPE);
@@ -382,6 +385,11 @@ public class ResilientOutlookPSTParser implements Parser {
             emission.incrementUnrecoveredAttachments();
             logger.warn("Recovered attachment \"{}\" in folder \"{}\" could not be emitted.", name, folderPath, e);
         }
+    }
+
+    // Pure formatter, package-private for unit testing (no PSTMessage needed).
+    static String formatRelationshipId(final long descriptorId, final int index) {
+        return descriptorId + "-" + index;
     }
 
     // A by-value attachment is unreadable when its stream won't open, or reports fewer bytes than
