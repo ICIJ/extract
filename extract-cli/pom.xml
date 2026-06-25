@@ -128,10 +128,11 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Compile scope: PdfBoxNoiseFilter (referenced from logback.xml) extends logback's
+             Filter, so the classes must be on the main classpath, not only at test time. -->
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 

@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="org.icij.extract.cli.PdfBoxNoiseFilter"/>
         <encoder>
             <pattern>%d [%thread] %-5level %logger{0} - %msg%n</pattern>
         </encoder>
     </appender>
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <filter class="org.icij.extract.cli.PdfBoxNoiseFilter"/>
         <file>./logs/datashare.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <!-- daily rollover -->
@@ -18,13 +20,6 @@
             <pattern>%d [%thread] %-5level %logger{0} - %msg%n</pattern>
         </encoder>
     </appender>
-
-    <!-- PDFBox/FontBox font-fallback warnings are ~95% of OCR WARN volume and bury real
-         failures (extract-indexing-robustness memo §8, F5). They originate inside PDFBox,
-         so the only lever is logger level. Real PDFBox issues outside these names still log. -->
-    <logger name="org.apache.pdfbox.contentstream.PDFStreamEngine" level="error"/>
-    <logger name="org.apache.pdfbox.pdmodel.font" level="error"/>
-    <logger name="org.apache.fontbox" level="error"/>
 
     <root level="info" additivity="false">
         <appender-ref ref="STDOUT"/>
