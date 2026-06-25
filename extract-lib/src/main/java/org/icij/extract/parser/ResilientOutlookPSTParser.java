@@ -335,7 +335,7 @@ public class ResilientOutlookPSTParser implements Parser {
             final PSTAttachment attachment = loadAttachment(message, index);
             if (attachment != null && isUnreadableByValueAttachment(attachment, folderPath)) {
                 emission.incrementUnreadableAttachments();
-                recoverAndEmitAttachment(attachment, folderPath, emission);
+                recoverAndEmitAttachment(attachment, message, index, folderPath, emission);
             }
         }
     }
@@ -355,9 +355,11 @@ public class ResilientOutlookPSTParser implements Parser {
     // index. Fully isolated and best-effort: when recovery fails the attachment stays counted as an
     // unrecovered loss. Gated by the same OST-2013 check as the detection above.
     // The attachment is pre-loaded by the caller (countUnreadableAttachments) to avoid a redundant load.
-    private void recoverAndEmitAttachment(final PSTAttachment attachment, final String folderPath,
+    private void recoverAndEmitAttachment(final PSTAttachment attachment, final PSTMessage message,
+                                          final int index, final String folderPath,
                                           final EmissionContext emission) {
         final String name = safeAttachmentName(attachment);
+        final String relationshipId = relationshipId(message, index);
         final Optional<byte[]> recovered = OstCompressedBlockReader.recover(attachment);
         if (recovered.isEmpty()) {
             emission.incrementUnrecoveredAttachments();
@@ -368,7 +370,9 @@ public class ResilientOutlookPSTParser implements Parser {
         final byte[] bytes = recovered.get();
         final Metadata attachmentMetadata = new Metadata();
         attachmentMetadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, name);
+        attachmentMetadata.set(TikaCoreProperties.EMBEDDED_RELATIONSHIP_ID, relationshipId);
         attachmentMetadata.set(PST.PST_FOLDER_PATH, folderPath);
+        attachmentMetadata.set(PST_ATTACHMENT_RECOVERY, "RECOVERED");
         try (final TikaInputStream stream = TikaInputStream.get(bytes, attachmentMetadata)) {
             emission.parseEmbedded(stream, attachmentMetadata);
             emission.incrementRecoveredAttachments();
@@ -385,6 +389,19 @@ public class ResilientOutlookPSTParser implements Parser {
             emission.incrementUnrecoveredAttachments();
             logger.warn("Recovered attachment \"{}\" in folder \"{}\" could not be emitted.", name, folderPath, e);
         }
+    }
+
+    // Stable, unique relationship id for an attachment: its message descriptor id plus the
+    // attachment index. Drives DigestIdentifier.generateForEmbed so stubs get deterministic,
+    // collision-free ids even with empty content.
+    private static String relationshipId(final PSTMessage message, final int index) {
+        long descriptorId;
+        try {
+            descriptorId = message.getDescriptorNodeId();
+        } catch (final Exception | LinkageError e) {
+            descriptorId = -1L;
+        }
+        return formatRelationshipId(descriptorId, index);
     }
 
     // Pure formatter, package-private for unit testing (no PSTMessage needed).

@@ -276,10 +276,43 @@ public class ResilientOutlookPSTParserTest {
         assertThat(countAllEmbeds(doc)).isGreaterThan(7);
     }
 
+    // Captures every emitted child's Metadata, keyed by resource name, for per-attachment assertions.
+    private static class RecordingExtractor implements EmbeddedDocumentExtractor {
+        final Map<String, Metadata> byName = new HashMap<>();
+        public boolean shouldParseEmbedded(Metadata metadata) { return true; }
+        public void parseEmbedded(InputStream stream, ContentHandler handler, Metadata metadata, boolean outputHtml) {
+            String name = metadata.get(org.apache.tika.metadata.TikaCoreProperties.RESOURCE_NAME_KEY);
+            if (name != null) byName.put(name, metadata);
+        }
+    }
+
+    private static RecordingExtractor parseWithRecording(Path file) throws Exception {
+        ResilientOutlookPSTParser parser = new ResilientOutlookPSTParser();
+        RecordingExtractor rec = new RecordingExtractor();
+        ParseContext context = new ParseContext();
+        context.set(Parser.class, parser);
+        context.set(EmbeddedDocumentExtractor.class, rec);
+        Metadata metadata = new Metadata();
+        try (InputStream is = TikaInputStream.get(file, metadata)) {
+            parser.parse(is, new BodyContentHandler(-1), metadata, context);
+        }
+        return rec;
+    }
+
     @Test
     public void formatRelationshipId_combines_descriptor_and_index() {
         assertThat(ResilientOutlookPSTParser.formatRelationshipId(2097188L, 3)).isEqualTo("2097188-3");
         assertThat(ResilientOutlookPSTParser.formatRelationshipId(2097188L, 3))
                 .isEqualTo(ResilientOutlookPSTParser.formatRelationshipId(2097188L, 3));
+    }
+
+    @Test
+    public void recovered_attachments_carry_recovery_marker_on_real_ost() throws Exception {
+        final String ostPath = System.getProperty("ost.test.file");
+        assumeTrue(ostPath != null);
+        final RecordingExtractor rec = parseWithRecording(Paths.get(ostPath));
+        assertThat(rec.byName.values().stream()
+                .anyMatch(m -> "RECOVERED".equals(m.get(ResilientOutlookPSTParser.PST_ATTACHMENT_RECOVERY))))
+                .isTrue();
     }
 }
