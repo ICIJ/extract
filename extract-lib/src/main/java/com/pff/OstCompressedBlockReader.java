@@ -40,6 +40,43 @@ public final class OstCompressedBlockReader {
         }
     }
 
+    // PidTagAttachDataBinary — the property id holding a by-value attachment's bytes.
+    private static final int PID_TAG_ATTACH_DATA_BINARY = 0x3701;
+    // PSTFile encryption type for compressible (permute) encryption; java-libpst decodes only this one.
+    private static final int ENCRYPTION_TYPE_COMPRESSIBLE = 1;
+
+    /**
+     * Recovers a by-value attachment's bytes that java-libpst could not read. Best-effort: returns
+     * empty on any failure (inline data, missing descriptor, I/O error, size-gate mismatch) and never
+     * throws, so a single bad attachment never aborts the surrounding PST walk.
+     */
+    public static Optional<byte[]> recover(final PSTAttachment attachment) {
+        if (attachment == null) {
+            return Optional.empty();
+        }
+        try {
+            final PSTTableBCItem dataItem = attachment.items.get(PID_TAG_ATTACH_DATA_BINARY);
+            if (dataItem == null || !dataItem.isExternalValueReference) {
+                // Inline (small) attachment: not the multi-block failure class; nothing extra to recover.
+                return Optional.empty();
+            }
+            final PSTFile pstFile = attachment.pstFile;
+            final PSTDescriptorItem descriptor = attachment.localDescriptorItems == null
+                    ? null
+                    : attachment.localDescriptorItems.get(dataItem.entryValueReference);
+            if (descriptor == null) {
+                return Optional.empty();
+            }
+            final long declaredSize = descriptor.getDataSize();
+            final OffsetIndexItem root = pstFile.getOffsetIndexNode(descriptor.offsetIndexIdentifier);
+            final List<Block> blocks = resolveLeafBlocks(pstFile, root);
+            final boolean encrypted = pstFile.getEncryptionType() == ENCRYPTION_TYPE_COMPRESSIBLE;
+            return recoverFromBlocks(pstFile.getFileHandle(), blocks, encrypted, declaredSize);
+        } catch (final Exception | LinkageError e) {
+            return Optional.empty();
+        }
+    }
+
     /**
      * Reads and reassembles the given blocks into the attachment's original bytes.
      *

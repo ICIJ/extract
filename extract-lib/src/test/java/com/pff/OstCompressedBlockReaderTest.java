@@ -162,4 +162,10 @@ public class OstCompressedBlockReaderTest {
         assertThat(block.fileOffset).isEqualTo(4096L);
         assertThat(block.size).isEqualTo(8176);
     }
+
+    @Test
+    public void recoverWithNullAttachmentReturnsEmptyAndDoesNotThrow() {
+        final Optional<byte[]> result = OstCompressedBlockReader.recover(null);
+        assertThat(result.isPresent()).isFalse();
+    }
 }
