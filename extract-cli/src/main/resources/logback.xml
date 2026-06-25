@@ -19,6 +19,13 @@
         </encoder>
     </appender>
 
+    <!-- PDFBox/FontBox font-fallback warnings are ~95% of OCR WARN volume and bury real
+         failures (extract-indexing-robustness memo §8, F5). They originate inside PDFBox,
+         so the only lever is logger level. Real PDFBox issues outside these names still log. -->
+    <logger name="org.apache.pdfbox.contentstream.PDFStreamEngine" level="error"/>
+    <logger name="org.apache.pdfbox.pdmodel.font" level="error"/>
+    <logger name="org.apache.fontbox" level="error"/>
+
     <root level="info" additivity="false">
         <appender-ref ref="STDOUT"/>
         <appender-ref ref="FILE"/>
