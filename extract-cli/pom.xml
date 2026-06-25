@@ -195,9 +195,9 @@
                             <mainClass>org.icij.extract.cli.Main</mainClass>
                         </manifest>
                     </archive>
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
+                    <descriptors>
+                        <descriptor>src/main/assembly/jar-with-dependencies.xml</descriptor>
+                    </descriptors>
                 </configuration>
                 <executions>
                     <execution>
