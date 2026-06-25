@@ -16,16 +16,26 @@ import java.util.function.BooleanSupplier;
  * during the suppressed region. Everything is still preserved in the FILE appender and in the
  * ES-indexed {@code pst_*} metadata produced by the F3 hand-off.
  *
+ * <p>Suppression is reference-counted per thread: a {@code .pst}/{@code .ost} attached inside
+ * another PST re-enters {@code parse()} on the same thread, so a plain boolean flag would be
+ * cleared by the inner parse's {@code end()} and unsuppress the outer parse's remaining ~1,100+
+ * noise lines. The depth counter instead keeps the outer parse suppressed until the OUTERMOST
+ * parse exits.
+ *
  * <p>To keep the load-bearing per-PST reconciliation summary visible on the console,
- * {@code ResilientOutlookPSTParser} calls {@link #end()} immediately before
- * {@code recordReconciliation} and {@code recordAttachmentIntegrity}, lifting suppression
- * before those WARN lines are emitted. Per-item recovery INFO lines (high-volume: ~11k on
- * a large OST) remain suppressed on the console — they are noise at scale. Installed exactly
- * once over the JVM streams; transparent pass-through for every other thread.
+ * {@code ResilientOutlookPSTParser} emits it via {@link #runWithSuppressionLifted(Runnable)},
+ * which temporarily lifts suppression on this thread without disturbing the nesting count, rather
+ * than ending suppression early. Per-item recovery INFO lines (high-volume: ~11k on a large OST)
+ * remain suppressed on the console — they are noise at scale. Installed exactly once over the JVM
+ * streams; transparent pass-through for every other thread.
  */
 final class PstStdoutFilter {
 
-    private static final ThreadLocal<Boolean> IN_PARSE = ThreadLocal.withInitial(() -> Boolean.FALSE);
+    private static final ThreadLocal<Integer> PARSE_DEPTH = ThreadLocal.withInitial(() -> 0);
+    // While true on the current thread, suppression is temporarily lifted even mid-parse, so the
+    // per-PST reconciliation summary reaches the console. Separate from depth so it never disturbs
+    // the nesting count.
+    private static final ThreadLocal<Boolean> SUPPRESSION_LIFTED = ThreadLocal.withInitial(() -> Boolean.FALSE);
     private static boolean installed = false;
 
     private PstStdoutFilter() {
@@ -43,15 +53,37 @@ final class PstStdoutFilter {
     }
 
     static void begin() {
-        IN_PARSE.set(Boolean.TRUE);
+        PARSE_DEPTH.set(PARSE_DEPTH.get() + 1);
     }
 
     static void end() {
-        IN_PARSE.remove();
+        final int depth = PARSE_DEPTH.get() - 1;
+        if (depth <= 0) {
+            PARSE_DEPTH.remove();
+        } else {
+            PARSE_DEPTH.set(depth);
+        }
     }
 
     static boolean isSuppressingCurrentThread() {
-        return IN_PARSE.get();
+        return PARSE_DEPTH.get() > 0 && !SUPPRESSION_LIFTED.get();
+    }
+
+    // Runs the given action with console suppression temporarily lifted on this thread, restoring the
+    // prior state afterward. Used to emit the per-PST reconciliation summary on the console even though
+    // the parse thread is still inside the suppressed region. Nesting-safe (saves/restores prior state).
+    static void runWithSuppressionLifted(final Runnable action) {
+        final boolean previouslyLifted = SUPPRESSION_LIFTED.get();
+        SUPPRESSION_LIFTED.set(Boolean.TRUE);
+        try {
+            action.run();
+        } finally {
+            if (previouslyLifted) {
+                SUPPRESSION_LIFTED.set(Boolean.TRUE);
+            } else {
+                SUPPRESSION_LIFTED.remove();
+            }
+        }
     }
 
     // A PrintStream whose every byte funnels through a conditional FilterOutputStream: when the

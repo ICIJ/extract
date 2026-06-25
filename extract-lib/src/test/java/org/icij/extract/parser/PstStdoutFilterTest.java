@@ -48,4 +48,34 @@ public class PstStdoutFilterTest {
         assertThat(out).contains("after end");
         assertThat(out).excludes("during parse");
     }
+
+    @Test
+    public void begin_isReferenceCounted_soNestedParseKeepsOuterSuppressed() {
+        assertThat(PstStdoutFilter.isSuppressingCurrentThread()).isFalse();
+        PstStdoutFilter.begin();
+        PstStdoutFilter.begin();
+        try {
+            assertThat(PstStdoutFilter.isSuppressingCurrentThread()).isTrue();
+            PstStdoutFilter.end();
+            // The inner parse's end() must NOT unsuppress the still-running outer parse.
+            assertThat(PstStdoutFilter.isSuppressingCurrentThread()).isTrue();
+        } finally {
+            PstStdoutFilter.end();
+        }
+        assertThat(PstStdoutFilter.isSuppressingCurrentThread()).isFalse();
+    }
+
+    @Test
+    public void runWithSuppressionLifted_liftsThenRestoresMidParse() {
+        PstStdoutFilter.begin();
+        try {
+            assertThat(PstStdoutFilter.isSuppressingCurrentThread()).isTrue();
+            PstStdoutFilter.runWithSuppressionLifted(
+                    () -> assertThat(PstStdoutFilter.isSuppressingCurrentThread()).isFalse());
+            assertThat(PstStdoutFilter.isSuppressingCurrentThread()).isTrue();
+        } finally {
+            PstStdoutFilter.end();
+        }
+        assertThat(PstStdoutFilter.isSuppressingCurrentThread()).isFalse();
+    }
 }
