@@ -20,7 +20,9 @@ import java.io.Reader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.fest.assertions.Assertions.assertThat;
 
@@ -235,6 +237,19 @@ public class ResilientOutlookPSTParserTest {
                 .isEqualTo(Integer.parseInt(recovered) + Integer.parseInt(unrecovered));
         // The corpus has known recoverable attachments, so the reader must recover at least one.
         assertThat(Integer.parseInt(recovered)).isGreaterThan(0);
+    }
+
+    @Test
+    public void folderPathOrRecovered_returnsMappedPath_orRecoveredFallback() {
+        Map<Integer, String> folderPaths = new HashMap<>();
+        folderPaths.put(42, "/Top of Personal Folders/Inbox");
+
+        // Resolvable parent -> its real folder path.
+        assertThat(ResilientOutlookPSTParser.folderPathOrRecovered(folderPaths, 42))
+                .isEqualTo("/Top of Personal Folders/Inbox");
+        // Unresolvable parent -> the recovered sentinel.
+        assertThat(ResilientOutlookPSTParser.folderPathOrRecovered(folderPaths, 99))
+                .isEqualTo("/[recovered]");
     }
 
     @Test
