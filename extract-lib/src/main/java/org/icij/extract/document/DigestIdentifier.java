@@ -37,12 +37,19 @@ public class DigestIdentifier extends AbstractIdentifier {
 		final String name = metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY);
 		final String hash = hash(embed);
 
-		if (null == hash) {
-			throw new IllegalStateException(String.format("No hash is available for the document with name \"%s\" at " +
-							"path \"%s\".", name, embed.getPath()));
+		// A content-less embed has no file digest. This happens for a PST/OST by-value attachment the
+		// reader could not read (Tika emits a name-only embed) and for attachment-recovery stubs.
+		// Rather than fail the whole extraction, derive the id from the parent id, embedded
+		// relationship id and name, which still disambiguate siblings; only the file-digest component
+		// is dropped. When a hash is present the id is unchanged (same components, same order).
+		if (null != hash) {
+			digest.update(hash.getBytes(charset));
+		} else {
+			LoggerFactory.getLogger(getClass()).warn(
+					"No content hash for embed \"{}\" (relId {}) under parent {}; deriving id without the file digest.",
+					name, embeddedRelationshipId, embed.getParent().getId());
 		}
 
-		digest.update(hash.getBytes(charset));
 		digest.update(embed.getParent().getId().getBytes(charset));
 
 		if (null != embeddedRelationshipId) {
