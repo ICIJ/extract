@@ -26,8 +26,11 @@ import org.xml.sax.SAXException;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import static java.util.Collections.singleton;
@@ -56,6 +59,10 @@ public class ResilientOutlookPSTParser implements Parser {
     // for OST 2013 (type-36) files, the one format where the defect occurs (see
     // countUnreadableAttachments); absent on every other PST.
     public static final String PST_ATTACHMENTS_UNREADABLE = "tika:pst_attachments_unreadable";
+    // Count of unreadable by-value attachments whose bytes were recovered via the libpff fallback
+    // and re-emitted to the index. Set only for OST 2013 (type-36) files, alongside
+    // PST_ATTACHMENTS_UNREADABLE; (unreadable - recovered) is the residual loss.
+    public static final String PST_ATTACHMENTS_RECOVERED = "tika:pst_attachments_recovered";
 
     private static final long serialVersionUID = 1L;
     private static final Set<MediaType> SUPPORTED_TYPES = singleton(MS_OUTLOOK_PST_MIMETYPE);
@@ -84,6 +91,7 @@ public class ResilientOutlookPSTParser implements Parser {
 
         xhtml.startDocument();
         final String pstPath = TikaInputStream.get(stream).getFile().getPath();
+        emission.setPstPath(pstPath);
 
         PSTFile pstFile = null;
         try {
@@ -273,6 +281,55 @@ public class ResilientOutlookPSTParser implements Parser {
         for (int index = 0; index < attachmentCount; index++) {
             if (isUnreadableByValueAttachment(message, index, folderPath)) {
                 emission.incrementUnreadableAttachments();
+                recoverAndEmitAttachment(message, index, folderPath, emission);
+            }
+        }
+    }
+
+    // Fallback: java-libpst could not read this by-value attachment, but libpff can. Recover its
+    // bytes via the libpff bridge and emit them as an embedded document so the attachment's content
+    // still reaches the index instead of being silently dropped. Fully isolated and best-effort:
+    // when libpff is unavailable or recovery fails, this is a no-op and the attachment remains
+    // counted as a loss (today's behaviour). Gated by the same OST-2013 check as the detection above.
+    private void recoverAndEmitAttachment(final PSTMessage message, final int index, final String folderPath,
+                                          final EmissionContext emission) {
+        final PSTAttachment attachment;
+        try {
+            attachment = message.getAttachment(index);
+        } catch (final Exception | LinkageError e) {
+            return;
+        }
+        final long messageId;
+        try {
+            messageId = message.getDescriptorNodeId();
+        } catch (final Exception | LinkageError e) {
+            return;
+        }
+        final String name = safeAttachmentName(attachment);
+        final long declaredSize = safe(attachment::getFilesize, -1);
+        final Optional<Path> recovered =
+                LibpffAttachmentRecovery.recoverToTempFile(emission.pstPath(), messageId, index, declaredSize);
+        if (recovered.isEmpty()) {
+            return;
+        }
+        final Path tempFile = recovered.get();
+        try {
+            final Metadata attachmentMetadata = new Metadata();
+            attachmentMetadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, name);
+            attachmentMetadata.set(PST.PST_FOLDER_PATH, folderPath);
+            try (final TikaInputStream stream = TikaInputStream.get(tempFile)) {
+                emission.parseEmbedded(stream, attachmentMetadata);
+            }
+            emission.incrementRecoveredAttachments();
+            logger.info("Recovered attachment \"{}\" ({} bytes) in folder \"{}\" via libpff after java-libpst failed.",
+                    name, declaredSize, folderPath);
+        } catch (final Exception | LinkageError e) {
+            logger.warn("libpff-recovered attachment \"{}\" in folder \"{}\" could not be emitted.", name, folderPath, e);
+        } finally {
+            try {
+                Files.deleteIfExists(tempFile);
+            } catch (final IOException ignored) {
+                // best-effort temp cleanup
             }
         }
     }
@@ -391,10 +448,14 @@ public class ResilientOutlookPSTParser implements Parser {
             return;
         }
         final int unreadable = emission.unreadableAttachments();
+        final int recovered = emission.recoveredAttachments();
+        final int stillMissing = Math.max(0, unreadable - recovered);
         metadata.set(PST_ATTACHMENTS_UNREADABLE, Integer.toString(unreadable));
+        metadata.set(PST_ATTACHMENTS_RECOVERED, Integer.toString(recovered));
         if (unreadable > 0) {
-            logger.warn("PST \"{}\": {} by-value attachment(s) could not be fully read (java-libpst OST 2013 "
-                    + "multi-block limitation); their content is missing from the index.", pstPath, unreadable);
+            logger.warn("PST \"{}\": {} by-value attachment(s) unreadable by java-libpst (OST 2013 multi-block "
+                    + "limitation); {} recovered via libpff, {} still missing from the index.",
+                    pstPath, unreadable, recovered, stillMissing);
         }
     }
 
@@ -462,6 +523,8 @@ public class ResilientOutlookPSTParser implements Parser {
         private int emittedCount = 0;
         private boolean checkAttachmentIntegrity = false;
         private int unreadableAttachments = 0;
+        private int recoveredAttachments = 0;
+        private String pstPath;
 
         private EmissionContext(final XHTMLContentHandler xhtml, final EmbeddedDocumentExtractor extractor) {
             this.xhtml = xhtml;
@@ -483,6 +546,23 @@ public class ResilientOutlookPSTParser implements Parser {
 
         private int unreadableAttachments() {
             return unreadableAttachments;
+        }
+
+        private void incrementRecoveredAttachments() {
+            recoveredAttachments++;
+        }
+
+        private int recoveredAttachments() {
+            return recoveredAttachments;
+        }
+
+        // The OST/PST path on disk, needed by the libpff fallback to re-open the file out-of-process.
+        private void setPstPath(final String pstPath) {
+            this.pstPath = pstPath;
+        }
+
+        private String pstPath() {
+            return pstPath;
         }
 
         // Returns true the first time a descriptor is seen, false on a duplicate.
