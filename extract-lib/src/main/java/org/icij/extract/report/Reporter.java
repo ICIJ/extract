@@ -109,13 +109,29 @@ public class Reporter implements AutoCloseable {
 	}
 
 	/**
-	 * Check whether a path should be skipped.
+	 * Statuses that are terminal for resume: re-extracting a path recorded with one of these is futile.
+	 * {@link ExtractionStatus#SUCCESS} is already done; {@link ExtractionStatus#FAILURE_TIMEOUT} would just
+	 * re-spend the parse timeout on a deterministically slow/wedged file; {@link ExtractionStatus#FAILURE_FATAL}
+	 * would re-trigger the OutOfMemoryError that exited the process, i.e. an infinite crash loop. Every other
+	 * failure (e.g. a transient {@code FAILURE_NOT_SAVED} when Elasticsearch was briefly unavailable, or a
+	 * {@code FAILURE_UNKNOWN} from a worker interrupt) is left retryable on the next run. Retrying a terminal
+	 * failure with safer config (bigger heap, OCR off) is an explicit follow-up, not an automatic re-run.
+	 */
+	private static final Set<ExtractionStatus> TERMINAL_STATUSES = EnumSet.of(
+			ExtractionStatus.SUCCESS,
+			ExtractionStatus.FAILURE_TIMEOUT,
+			ExtractionStatus.FAILURE_FATAL);
+
+	/**
+	 * Check whether a path should be skipped on resume.
 	 *
 	 * @param path the tikaDocument to check
-	 * @return {@code true} if the tikaDocument should be skipped.
+	 * @return {@code true} if the tikaDocument has a terminal recorded status and should be skipped.
 	 */
 	public boolean skip(final Path path) {
-		return check(path, ExtractionStatus.SUCCESS);
+		final Report report = report(path);
+
+		return null != report && TERMINAL_STATUSES.contains(report.getStatus());
 	}
 
 	@Override

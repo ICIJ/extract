@@ -48,6 +48,37 @@ public class ReporterTest {
 	}
 
 	@Test
+	public void testSkipsSuccessAndDeterministicTerminalFailures() {
+		final ReportMap reportMap = new HashMapReportMap();
+		final Reporter reporter = new Reporter(reportMap);
+
+		// Terminal: re-extracting these wastes work (timeout) or re-crashes (fatal), so resume skips them.
+		reporter.save(Paths.get("/path/to/success"), ExtractionStatus.SUCCESS);
+		reporter.save(Paths.get("/path/to/timeout"), ExtractionStatus.FAILURE_TIMEOUT);
+		reporter.save(Paths.get("/path/to/fatal"), ExtractionStatus.FAILURE_FATAL);
+
+		Assert.assertTrue(reporter.skip(Paths.get("/path/to/success")));
+		Assert.assertTrue(reporter.skip(Paths.get("/path/to/timeout")));
+		Assert.assertTrue(reporter.skip(Paths.get("/path/to/fatal")));
+	}
+
+	@Test
+	public void testDoesNotSkipRetryableFailuresOrUnrecordedPaths() {
+		final ReportMap reportMap = new HashMapReportMap();
+		final Reporter reporter = new Reporter(reportMap);
+
+		// Transient or environment failures should be retried on the next run, not held terminal.
+		reporter.save(Paths.get("/path/to/not-saved"), ExtractionStatus.FAILURE_NOT_SAVED);
+		reporter.save(Paths.get("/path/to/unknown"), ExtractionStatus.FAILURE_UNKNOWN);
+		reporter.save(Paths.get("/path/to/unreadable"), ExtractionStatus.FAILURE_UNREADABLE);
+
+		Assert.assertFalse(reporter.skip(Paths.get("/path/to/not-saved")));
+		Assert.assertFalse(reporter.skip(Paths.get("/path/to/unknown")));
+		Assert.assertFalse(reporter.skip(Paths.get("/path/to/unreadable")));
+		Assert.assertFalse(reporter.skip(Paths.get("/path/to/never-seen")));
+	}
+
+	@Test
 	public void testCloseClosesReport() throws Throwable {
 		final ReportMap reportMap = new HashMapReportMap();
 		final ReporterStub reporter = new ReporterStub(reportMap);

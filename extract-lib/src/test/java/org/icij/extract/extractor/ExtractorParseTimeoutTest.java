@@ -18,6 +18,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.Reader;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -170,6 +171,58 @@ public class ExtractorParseTimeoutTest {
         final Report report = reportMap.get(path);
         assertThat(report).isNotNull();
         assertThat(report.getStatus()).isEqualTo(ExtractionStatus.FAILURE_FATAL);
+    }
+
+    /** Counts how many times the lazy extract(Path) runs, so a test can prove resume gated re-extraction. */
+    private static class CountingExtractor extends Extractor {
+        int extractCount = 0;
+
+        @Override
+        public TikaDocument extract(final Path path) {
+            extractCount++;
+            final TikaDocument document =
+                    new DocumentFactory().withIdentifier(new PathIdentifier()).create(path);
+            document.setReader(new StringReader(""));
+            return document;
+        }
+    }
+
+    @Test(timeout = 10_000)
+    public void testTerminalTimeoutIsSkippedOnResume() {
+        final HashMapReportMap reportMap = new HashMapReportMap();
+        final Reporter reporter = new Reporter(reportMap);
+        final Path path = Paths.get("already-timed-out");
+
+        // A previous run recorded a terminal timeout for this path.
+        reporter.save(path, ExtractionStatus.FAILURE_TIMEOUT);
+
+        final CountingExtractor extractor = new CountingExtractor();
+        extractor.setParseTimeout(Duration.ofMinutes(5));
+
+        extractor.extract(path, nullSpewer(), reporter);
+
+        // Resume must not re-parse a terminal-timeout path: extract(Path) is never reached.
+        assertThat(extractor.extractCount).isEqualTo(0);
+        assertThat(reportMap.get(path).getStatus()).isEqualTo(ExtractionStatus.FAILURE_TIMEOUT);
+    }
+
+    @Test(timeout = 10_000)
+    public void testRetryableFailureIsReExtractedOnResume() {
+        final HashMapReportMap reportMap = new HashMapReportMap();
+        final Reporter reporter = new Reporter(reportMap);
+        final Path path = Paths.get("transient-failure");
+
+        // A previous run recorded a transient failure (e.g. Elasticsearch was briefly unavailable).
+        reporter.save(path, ExtractionStatus.FAILURE_NOT_SAVED);
+
+        final CountingExtractor extractor = new CountingExtractor();
+        extractor.setParseTimeout(Duration.ofMinutes(5));
+
+        extractor.extract(path, nullSpewer(), reporter);
+
+        // Resume must retry it: extract(Path) runs once and the record is updated to SUCCESS.
+        assertThat(extractor.extractCount).isEqualTo(1);
+        assertThat(reportMap.get(path).getStatus()).isEqualTo(ExtractionStatus.SUCCESS);
     }
 
     @Test(timeout = 10_000)
