@@ -54,6 +54,51 @@ public class EmbedSpawnerDeferredOcrTest {
         }
     }
 
+    // Fix wave 4: an image embed the EmbeddedStreamTranslator WOULD translate (here: an image/png
+    // whose TikaInputStream carries a POIFS DirectoryEntry open container, as for an image stored as
+    // an OLE object inside a legacy .doc/.xls/.ppt) MUST NOT be deferred. Serial mode digests its
+    // TRANSLATED bytes via Tika's DigestingParser, so it must take the serial inline path here too,
+    // keeping the embed ID / digest / artifact filename byte-identical. Assert no OCR was submitted
+    // (deferred path NOT taken) and that an embed was still added (serial path ran).
+    @Test public void testTranslatableImageWithOpenContainerIsNotDeferred() throws Exception {
+        TikaDocument root = new DocumentFactory().withIdentifier(new PathIdentifier())
+            .create(java.nio.file.Paths.get("/root.doc"));
+        ExecutorService ocr = Executors.newSingleThreadExecutor();
+        ExtractionProgress progress = new ExtractionProgress(root.getPath(), 0L);
+        DigestingParser.Digester digester = new CommonsDigester(20 * 1024 * 1024, "SHA256");
+
+        try (TemporaryResources tmp = new TemporaryResources();
+             org.apache.poi.poifs.filesystem.POIFSFileSystem poifs =
+                 new org.apache.poi.poifs.filesystem.POIFSFileSystem()) {
+            EmbedSpawner spawner = new EmbedSpawner(
+                root, new org.apache.tika.parser.ParseContext(), null,
+                writer -> new org.apache.tika.sax.BodyContentHandler(writer),
+                64L * 1024 * 1024, tmp, () -> false,
+                ocr, progress, digester, /*ocrFanout*/ true, /*ocrMinImageBytes*/ 0L);
+
+            Metadata m = new Metadata();
+            m.set(Metadata.CONTENT_TYPE, "image/png");
+            m.set(org.apache.tika.metadata.TikaCoreProperties.RESOURCE_NAME_KEY, "ole-image.png");
+
+            // A TikaInputStream with a POIFS DirectoryEntry open container -> MSEmbeddedStreamTranslator
+            // (registered by tika-parser-microsoft-module) returns shouldTranslate()==true. Pass it as a
+            // TikaInputStream so the spawner reuses it (TikaInputStream.get is idempotent) and the open
+            // container survives into the shouldTranslate() check.
+            org.apache.tika.io.TikaInputStream tis = org.apache.tika.io.TikaInputStream.get(
+                new ByteArrayInputStream("PNG\r\n".getBytes(StandardCharsets.UTF_8)));
+            tis.setOpenContainer(poifs.getRoot()); // DirectoryEntry
+
+            spawner.parseEmbedded(tis, new org.apache.tika.sax.BodyContentHandler(), m, false);
+
+            // Deferred path NOT taken: nothing submitted to the OCR pool.
+            assertThat(progress.ocrSubmitted()).isEqualTo(0L);
+            // Serial path ran: the embed was still added to the tree.
+            assertThat(root.getEmbeds().size()).isEqualTo(1);
+        } finally {
+            ocr.shutdownNow();
+        }
+    }
+
     // Fix 2: if the OCR executor is shut down before parsing, submit() is rejected. The reader
     // backstop must NOT hang forever — it must return and the embed metadata must record the
     // exception. A short timeout turns a regression into a test failure rather than a suite hang.

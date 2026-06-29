@@ -53,6 +53,12 @@ public class EmbedSpawner extends EmbedParser {
 	private final boolean ocrFanout;
 	private final long ocrMinImageBytes;
 
+	// Same translator EmbeddedDocumentExtractor uses: delegates to all service-registered
+	// EmbeddedStreamTranslator implementations (e.g. MSEmbeddedStreamTranslator from
+	// tika-parser-microsoft-module), so this stays future-proof rather than hardcoded to MS.
+	private final org.apache.tika.extractor.EmbeddedStreamTranslator streamTranslator =
+			new org.apache.tika.extractor.DefaultEmbeddedStreamTranslator();
+
 	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
 				 final Function<Writer, ContentHandler> handlerFunction,
 				 final long embedMemoryBudgetBytes, final TemporaryResources tmp,
@@ -113,11 +119,20 @@ public class EmbedSpawner extends EmbedParser {
 				progress.incrementEmbeds();
 			}
 			// we must not close the input with (try(TikaInputStream.get(input){...}) because
-			// it closes the stream and stops tika to get next entries in the PackageParser
-			if (ocrFanout && ocrExecutor != null && isOcrEligible(metadata, ocrMinImageBytes)) {
-				spawnEmbeddedDeferred(TikaInputStream.get(input), metadata);
+			// it closes the stream and stops tika to get next entries in the PackageParser.
+			// Wrap once and reuse for whichever path runs: shouldTranslate() inspects the stream's
+			// type (instanceof TikaInputStream) and its open container, so it MUST see this tis.
+			final TikaInputStream tis = TikaInputStream.get(input);
+			// Defer (parallel OCR off the walk thread) ONLY when the embed is OCR-eligible AND the
+			// translator would NOT rewrite its bytes. A translatable embed (e.g. an image stored as
+			// an OLE object inside a legacy .doc/.xls/.ppt) is digested over its TRANSLATED bytes by
+			// Tika's DigestingParser in serial mode, so it must take the serial inline path here too,
+			// or its embed ID / X-TIKA:digest:* / artifact filename would diverge between modes.
+			if (ocrFanout && ocrExecutor != null && isOcrEligible(metadata, ocrMinImageBytes)
+					&& !streamTranslator.shouldTranslate(tis, metadata)) {
+				spawnEmbeddedDeferred(tis, metadata);
 			} else {
-				spawnEmbedded(TikaInputStream.get(input), metadata);
+				spawnEmbedded(tis, metadata);
 			}
 		}
 	}
@@ -239,10 +254,10 @@ public class EmbedSpawner extends EmbedParser {
 
 		// Digest synchronously so the embed ID and artifact filename are identical to serial mode.
 		// NOTE: this digests the RAW bytes (now read from the parse-owned copy, which is byte-identical
-		// to the spool). That is byte-identical to serial mode ONLY because no
-		// org.apache.tika.extractor.EmbeddedStreamTranslator is on the classpath (verified). If one
-		// is ever added, serial mode would digest the TRANSLATED bytes, so this eager raw-bytes digest
-		// (and thus the artifact filename) could diverge — revisit then.
+		// to the spool). The deferred path only ever sees embeds for which streamTranslator.shouldTranslate()
+		// is FALSE: translatable embeds (whose bytes serial mode would digest AFTER translation) are
+		// routed to the serial spawnEmbedded path in parseEmbedded. For every embed that reaches here,
+		// translation is a no-op, so digesting the raw spooled bytes is byte-identical to serial mode.
 		try (InputStream digestStream = Files.newInputStream(ocrInput)) {
 			digester.digest(digestStream, metadata, context);
 		} catch (final Exception e) {
