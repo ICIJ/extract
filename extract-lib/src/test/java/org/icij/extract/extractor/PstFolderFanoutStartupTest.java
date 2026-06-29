@@ -39,6 +39,9 @@ public class PstFolderFanoutStartupTest {
                 "progressHeartbeatInterval", "0")))) {
             extractor.extract(Paths.get(getClass().getResource(PST).toURI()), spewer);
         }
-        assertThat(spewer.docs.get()).isGreaterThan(2);
+        // The timeout is the primary deadlock guard; this count is a secondary liveness floor set
+        // comfortably above spewQueueCapacity (2) to prove the worker drained many items DURING the
+        // parse. testPST.pst has 7 messages plus attachments, well above this floor.
+        assertThat(spewer.docs.get()).isGreaterThan(5);
     }
 }
