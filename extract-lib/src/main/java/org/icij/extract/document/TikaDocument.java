@@ -36,7 +36,7 @@ public class TikaDocument {
 	private final Map<String, EmbeddedTikaDocument> lookup = new HashMap<>();
 	private Reader reader = null;
 	private ReaderGenerator readerGenerator = null;
-	private boolean isDuplicate;
+	private volatile boolean isDuplicate;
 
 	/**
 	 * Instantiate a document with a pre-generated ID. In this case, the ID generator is only used when adding
