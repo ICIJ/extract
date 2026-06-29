@@ -9,6 +9,7 @@ import org.icij.extract.report.Reporter;
 import org.icij.spewer.FieldNames;
 import org.icij.spewer.PrintStreamSpewer;
 import org.icij.spewer.Spewer;
+import org.icij.spewer.SpewSink;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -62,7 +63,7 @@ public class ExtractorParseTimeoutTest {
     /** Extractor whose lazy extract(Path) returns a document backed by a hanging reader. */
     private class HangingExtractor extends Extractor {
         @Override
-        public TikaDocument extract(final Path path) {
+        public TikaDocument extract(final Path path, final SpewSink sink) throws IOException {
             final TikaDocument document =
                     new DocumentFactory().withIdentifier(new PathIdentifier()).create(path);
             document.setReader(new BlockingReader());
@@ -113,7 +114,7 @@ public class ExtractorParseTimeoutTest {
     /** Extractor whose lazy extract(Path) throws a plain IOException from the parse path. */
     private static class IOExceptionExtractor extends Extractor {
         @Override
-        public TikaDocument extract(final Path path) throws IOException {
+        public TikaDocument extract(final Path path, final SpewSink sink) throws IOException {
             throw new IOException("boom");
         }
     }
@@ -144,7 +145,7 @@ public class ExtractorParseTimeoutTest {
         }
 
         @Override
-        public TikaDocument extract(final Path path) throws IOException {
+        public TikaDocument extract(final Path path, final SpewSink sink) throws IOException {
             throw oom;
         }
     }
@@ -178,7 +179,7 @@ public class ExtractorParseTimeoutTest {
         int extractCount = 0;
 
         @Override
-        public TikaDocument extract(final Path path) {
+        public TikaDocument extract(final Path path, final SpewSink sink) throws IOException {
             extractCount++;
             final TikaDocument document =
                     new DocumentFactory().withIdentifier(new PathIdentifier()).create(path);
