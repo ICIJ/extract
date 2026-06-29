@@ -378,10 +378,10 @@ public class Extractor implements AutoCloseable {
     public boolean isPstFolderFanout() { return pstFolderFanout; }
     public int getPstParseParallelism() { return pstParseParallelism; }
 
-    ExecutorService parseExecutorOrNull() { return pstParseExecutor; }
+    ExecutorService pstParseExecutorOrNull() { return pstParseExecutor; }
 
     // Lazily create the shared PST folder-walk pool on first fan-out use, mirroring ocrExecutor().
-    synchronized ExecutorService parseExecutor() {
+    synchronized ExecutorService pstParseExecutor() {
         if (pstParseExecutor == null) {
             pstParseExecutor = Executors.newFixedThreadPool(pstParseParallelism, new ThreadFactory() {
                 private final java.util.concurrent.atomic.AtomicInteger n =

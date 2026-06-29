@@ -16,7 +16,7 @@ public class PstFanoutOptionsTest {
             assertThat(extractor.getPstParseParallelism())
                     .isEqualTo(Runtime.getRuntime().availableProcessors());
             // No parse pool is created until first use.
-            assertThat(extractor.parseExecutorOrNull()).isNull();
+            assertThat(extractor.pstParseExecutorOrNull()).isNull();
         }
     }
 
@@ -28,8 +28,8 @@ public class PstFanoutOptionsTest {
             assertThat(extractor.isPstFolderFanout()).isFalse();
             assertThat(extractor.getPstParseParallelism()).isEqualTo(4);
             // Force lazy creation, then confirm close() tears it down without throwing.
-            assertThat(extractor.parseExecutor()).isNotNull();
-            assertThat(extractor.parseExecutorOrNull()).isNotNull();
+            assertThat(extractor.pstParseExecutor()).isNotNull();
+            assertThat(extractor.pstParseExecutorOrNull()).isNotNull();
         }
         // try-with-resources close() must not throw.
     }
