@@ -34,4 +34,16 @@ public class EmbedSpawnerEligibilityTest {
         m.set(Metadata.CONTENT_LENGTH, "100");
         assertThat(EmbedSpawner.isOcrEligible(m, 4096L)).isFalse();
     }
+
+    @Test public void testImageAtMinBytesIsEligible() {
+        Metadata m = image();
+        m.set(Metadata.CONTENT_LENGTH, "4096");
+        assertThat(EmbedSpawner.isOcrEligible(m, 4096L)).isTrue();
+    }
+
+    @Test public void testImageWithNonNumericLengthIsEligible() {
+        Metadata m = image();
+        m.set(Metadata.CONTENT_LENGTH, "unknown");
+        assertThat(EmbedSpawner.isOcrEligible(m, 4096L)).isTrue();
+    }
 }
