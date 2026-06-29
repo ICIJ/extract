@@ -1,5 +1,7 @@
 package org.icij.extract.extractor;
 
+import com.pff.PSTFile;
+import com.pff.PstFolderPathResolver;
 import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
 import org.icij.spewer.Spewer;
@@ -51,6 +53,17 @@ public class PstFolderFanoutDeterminismTest {
 
     @Test(timeout = 120_000)
     public void testFanoutProducesIdenticalIdentitySetAsSerial() throws Exception {
+        // Guard: prove the fixture actually triggers the fan-out branch (canFanOut needs
+        // folderPaths.size() > 1), so the serial==fanout equality below is a real
+        // comparison and not a trivial serial-vs-serial pass.
+        PSTFile pst = new PSTFile(
+                Paths.get(getClass().getResource(PST).toURI()).toString());
+        try {
+            assertThat(PstFolderPathResolver.folderPaths(pst).size()).isGreaterThan(1);
+        } finally {
+            pst.getFileHandle().close();
+        }
+
         TreeSet<String> serial = identitySet(false);
         TreeSet<String> fanout = identitySet(true);
         assertThat(serial).isNotEmpty();
