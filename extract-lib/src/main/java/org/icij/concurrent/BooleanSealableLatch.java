@@ -39,11 +39,15 @@ public class BooleanSealableLatch implements SealableLatch {
 
 	@Override
 	public void await() throws InterruptedException {
-		if (!sealed) {
-			sync.acquireSharedInterruptibly(1);
-		} else {
-			throw new IllegalStateException("The latch is sealed.");
+		// A sealed latch will never be signalled again, so there is nothing to wait for: return
+		// immediately. Throwing here (as this used to) raced with callers that poll with
+		// `while (!latch.isSealed()) latch.await();` -- the latch could be sealed in the gap between
+		// the isSealed() check and this call, throwing IllegalStateException spuriously. Returning lets
+		// such a loop re-check isSealed() and exit cleanly.
+		if (sealed) {
+			return;
 		}
+		sync.acquireSharedInterruptibly(1);
 	}
 
 	@Override
