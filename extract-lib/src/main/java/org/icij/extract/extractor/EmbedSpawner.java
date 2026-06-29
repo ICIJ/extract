@@ -5,7 +5,13 @@ import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
+import org.apache.tika.extractor.DocumentSelector;
+import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.Parser;
+import org.apache.tika.parser.html.HtmlMapper;
+import org.apache.tika.parser.ocr.TesseractOCRConfig;
+import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.EmbeddedContentHandler;
 import org.apache.tika.utils.ExceptionUtils;
@@ -52,6 +58,11 @@ public class EmbedSpawner extends EmbedParser {
 	private final DigestingParser.Digester digester;
 	private final boolean ocrFanout;
 	private final long ocrMinImageBytes;
+	// Class name of the configured OCR parser (e.g. org.apache.tika.parser.ocr.TesseractOCRParser).
+	// Set SYNCHRONOUSLY on the shared embed metadata by the deferred path so OCR_PARSER is present
+	// before spew and identical to serial mode, never written from the pool thread. May be null when
+	// OCR is disabled (in which case the deferred path is never reached).
+	private final String ocrParserClassName;
 
 	// Same translator EmbeddedDocumentExtractor uses: delegates to all service-registered
 	// EmbeddedStreamTranslator implementations (e.g. MSEmbeddedStreamTranslator from
@@ -65,7 +76,7 @@ public class EmbedSpawner extends EmbedParser {
 				 final BooleanSupplier memoryPressureHigh) {
 		// Serial mode: no fan-out. All embeds go through the synchronous spawnEmbedded path.
 		this(root, context, outputPath, handlerFunction, embedMemoryBudgetBytes, tmp, memoryPressureHigh,
-				null, null, null, false, 0L);
+				null, null, null, false, 0L, null);
 	}
 
 	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
@@ -75,7 +86,8 @@ public class EmbedSpawner extends EmbedParser {
 				 final ExecutorService ocrExecutor,
 				 final ExtractionProgress progress,
 				 final DigestingParser.Digester digester,
-				 final boolean ocrFanout, final long ocrMinImageBytes) {
+				 final boolean ocrFanout, final long ocrMinImageBytes,
+				 final String ocrParserClassName) {
 		super(root, context);
 		this.outputPath = outputPath;
 		this.handlerFunction = handlerFunction;
@@ -87,6 +99,7 @@ public class EmbedSpawner extends EmbedParser {
 		this.digester = digester;
 		this.ocrFanout = ocrFanout;
 		this.ocrMinImageBytes = ocrMinImageBytes;
+		this.ocrParserClassName = ocrParserClassName;
 		tikaDocumentStack.add(root);
 	}
 
@@ -264,11 +277,46 @@ public class EmbedSpawner extends EmbedParser {
 			logger.error("Unable to digest embedded image \"{}\" (in \"{}\").", name, root, e);
 		}
 
+		// Set OCR_PARSER on the SHARED metadata SYNCHRONOUSLY (walk thread), before submit. In serial
+		// mode the OCRParserAdapter writes this from inside the parse; here the async parse runs against
+		// a private metadata clone and must NOT touch the shared object, so we set it eagerly to the
+		// configured OCR parser's class name (deterministic; identical to serial). This guarantees the
+		// indexed OCR_PARSER is present before spew, keeping Datashare's on-demand SourceExtractor.useOcr()
+		// (which checks the indexed OCR_PARSER) working without any pool-thread write to shared state.
+		if (ocrParserClassName != null && metadata.get(OCRParser.OCR_PARSER) == null) {
+			metadata.set(OCRParser.OCR_PARSER, ocrParserClassName);
+		}
+
+		// ISOLATE the async OCR parse from all shared mutable state:
+		//  (a) a PRIVATE clone of the metadata — the pool thread writes only this clone, never the shared
+		//      Metadata that the spew thread concurrently reads for getId()/indexing (avoids the
+		//      ConcurrentModificationException / corruption data race), and
+		//  (b) an ISOLATED ParseContext carrying forward this.context's parsing config but with an
+		//      EmbedBlocker as the EmbeddedDocumentExtractor, so a nested embed discovered inside the
+		//      image is ignored instead of re-entering parseEmbedded and mutating the shared
+		//      tikaDocumentStack from the pool thread.
+		final Metadata ocrMeta = new Metadata();
+		for (final String n : metadata.names()) {
+			for (final String v : metadata.getValues(n)) {
+				ocrMeta.add(n, v);
+			}
+		}
+		final ParseContext isolatedContext = buildIsolatedOcrContext();
+
 		// Back the reader with the OCR future so the spew walk blocks until text is ready (backstop;
-		// Extractor also joins all futures before spew).
+		// Extractor also joins all futures before spew). On the spew thread (single-threaded per embed
+		// once done is joined) we merge any parse-derived fields the async parse added to ocrMeta back
+		// into the shared metadata, race-free. We only copy keys ABSENT from the shared metadata, so the
+		// synchronously-set id/digest/OCR_PARSER/name are never overwritten.
+		// TRADEOFF: parse-derived fields (e.g. image dimensions tiff:ImageWidth/Length) are merged at
+		// reader-read time, so a consumer that serializes the embed's metadata strictly BEFORE reading
+		// its content may not see them. The index-critical fields (id/digest/OCR_PARSER) are always
+		// present because they are set synchronously above. This is acceptable and far better than the
+		// prior data race on the shared Metadata.
 		final CompletableFuture<Void> done = new CompletableFuture<>();
 		embed.setReader(() -> {
 			join(done);
+			mergeParseDerivedFields(metadata, ocrMeta);
 			return buffer.readerGenerator().generate();
 		});
 
@@ -281,10 +329,12 @@ public class EmbedSpawner extends EmbedParser {
 		try {
 			ocrExecutor.submit(() -> {
 				try (InputStream in = Files.newInputStream(ocrInput)) {
-					delegateParsing(TikaInputStream.get(in), embedHandler, metadata);
+					// Parse into the private clone + isolated context only. No write to shared state.
+					delegateParsing(TikaInputStream.get(in), embedHandler, ocrMeta, isolatedContext);
 				} catch (final Throwable t) {
 					logger.error("Deferred OCR failed for \"{}\" (in \"{}\").", embedName, root, t);
-					metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM,
+					// Record onto the clone; merged back onto the shared metadata on the spew thread.
+					ocrMeta.add(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM,
 							ExceptionUtils.getFilteredStackTrace(t));
 				} finally {
 					try {
@@ -319,6 +369,53 @@ public class EmbedSpawner extends EmbedParser {
 		// Submit succeeded: now it's safe to count it (keeps submitted/completed balanced).
 		if (progress != null) {
 			progress.incrementOcrSubmitted();
+		}
+	}
+
+	// Build a ParseContext for the async OCR parse that carries forward this.context's parsing config
+	// (the Parser, OCR/PDF/HTML config and DocumentSelector the parse needs) but replaces the
+	// EmbeddedDocumentExtractor with a fresh EmbedBlocker. The blocker makes a nested embed inside the
+	// image a no-op (shouldParseEmbedded() returns false), so the pool thread can never re-enter
+	// parseEmbedded and mutate the shared tikaDocumentStack. We copy only known-safe keys; notably we
+	// do NOT carry over this.context's EmbeddedDocumentExtractor (which IS this EmbedSpawner).
+	private ParseContext buildIsolatedOcrContext() {
+		final ParseContext isolated = new ParseContext();
+		final Parser p = context.get(Parser.class);
+		if (p != null) {
+			isolated.set(Parser.class, p);
+		}
+		final TesseractOCRConfig tess = context.get(TesseractOCRConfig.class);
+		if (tess != null) {
+			isolated.set(TesseractOCRConfig.class, tess);
+		}
+		final PDFParserConfig pdf = context.get(PDFParserConfig.class);
+		if (pdf != null) {
+			isolated.set(PDFParserConfig.class, pdf);
+		}
+		final HtmlMapper html = context.get(HtmlMapper.class);
+		if (html != null) {
+			isolated.set(HtmlMapper.class, html);
+		}
+		final DocumentSelector selector = context.get(DocumentSelector.class);
+		if (selector != null) {
+			isolated.set(DocumentSelector.class, selector);
+		}
+		// Ignore any nested embed discovered inside the image rather than mutating shared state.
+		isolated.set(EmbeddedDocumentExtractor.class, new EmbedBlocker());
+		return isolated;
+	}
+
+	// Copy keys present in the async parse's private metadata clone but ABSENT from the shared metadata
+	// into the shared metadata. Runs on the spew thread after join(done), so it is single-threaded with
+	// respect to this embed and race-free. Never overwrites the synchronously-set id/digest/OCR_PARSER/
+	// name fields (they are already present in the shared metadata, so they are skipped here).
+	private static void mergeParseDerivedFields(final Metadata shared, final Metadata ocrMeta) {
+		for (final String n : ocrMeta.names()) {
+			if (shared.get(n) == null) {
+				for (final String v : ocrMeta.getValues(n)) {
+					shared.add(n, v);
+				}
+			}
 		}
 	}
 

@@ -816,11 +816,17 @@ public class Extractor implements AutoCloseable {
             embedTextResources = new TemporaryResources();
             // Live progress for this path (null when called outside doExtract, e.g. page extraction).
             final ExtractionProgress currentProgress = progressTracker.get(path);
+            // Class name of the configured OCR parser, set SYNCHRONOUSLY on the shared embed metadata
+            // by the deferred-OCR path so the indexed OCR_PARSER matches what serial mode produces
+            // (OCRParserAdapter sets OCR_PARSER to its delegate parser's class name, i.e. the
+            // configured OCR parser class). Datashare's on-demand SourceExtractor.useOcr() reads this.
+            final String ocrParserClassName =
+                    (ocrDisabled || ocrConfig == null) ? null : ocrConfig.getParserClass().getName();
             context.set(EmbeddedDocumentExtractor.class,
                     new EmbedSpawner(rootDocument, context, embedOutput, handlerProvider, embedMemoryBudgetBytes,
                             embedTextResources, new MemoryPressureGauge(embedMemoryPressureThreshold),
                             ocrDisabled ? null : ocrExecutor, currentProgress, digester,
-                            ocrFanout, ocrMinImageBytes));
+                            ocrFanout, ocrMinImageBytes, ocrParserClassName));
         } else if (EmbedHandling.CONCATENATE == embedHandling) {
             context.set(Parser.class, parser);
             context.set(EmbeddedDocumentExtractor.class, new EmbedParser(rootDocument, context));

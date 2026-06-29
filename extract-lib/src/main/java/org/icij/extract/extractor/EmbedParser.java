@@ -67,6 +67,16 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 	}
 
 	void delegateParsing(final InputStream input, final ContentHandler handler, final Metadata metadata) throws IOException, SAXException {
+		delegateParsing(input, handler, metadata, context);
+	}
+
+	// Overload that runs the delegate parse against an explicit ParseContext (rather than the shared
+	// this.context). The deferred-OCR path uses this to parse on a pool thread with an ISOLATED context
+	// (its own EmbeddedDocumentExtractor) and a PRIVATE clone of the metadata, so the async parse never
+	// mutates the shared embed Metadata or the shared tikaDocumentStack. Exceptions are recorded onto the
+	// supplied metadata (which, on that path, is the discardable clone), never the shared object.
+	void delegateParsing(final InputStream input, final ContentHandler handler, final Metadata metadata,
+	                     final ParseContext parseContext) throws IOException, SAXException {
 		try (final TikaInputStream tis = TikaInputStream.get(CloseShieldInputStream.wrap(input))) {
 			if (input instanceof TikaInputStream) {
 				final Object container = ((TikaInputStream) input).getOpenContainer();
@@ -77,7 +87,7 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 			}
 
 			// Use the delegate parser to parse this entry.
-			delegatingParser.parse(tis, handler, metadata, context);
+			delegatingParser.parse(tis, handler, metadata, parseContext);
 		} catch (final EncryptedDocumentException e) {
 			logger.error("Unable to decrypt encrypted document embedded in document: \"{}\" ({}) (in \"{}\").",
 					metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root, e);

@@ -30,7 +30,8 @@ public class EmbedSpawnerDeferredOcrTest {
                 root, new org.apache.tika.parser.ParseContext(), null,
                 writer -> new org.apache.tika.sax.BodyContentHandler(writer),
                 64L * 1024 * 1024, tmp, () -> false,
-                ocr, progress, digester, /*ocrFanout*/ true, /*ocrMinImageBytes*/ 0L);
+                ocr, progress, digester, /*ocrFanout*/ true, /*ocrMinImageBytes*/ 0L,
+                /*ocrParserClassName*/ "org.apache.tika.parser.ocr.TesseractOCRParser");
 
             Metadata m = new Metadata();
             m.set(Metadata.CONTENT_TYPE, "image/png");
@@ -41,14 +42,21 @@ public class EmbedSpawnerDeferredOcrTest {
                 new org.apache.tika.sax.BodyContentHandler(), m, false);
 
             assertThat(progress.ocrSubmitted()).isEqualTo(1L);
+
+            // Index-critical fields are set SYNCHRONOUSLY on the walk thread, BEFORE joining/reading the
+            // reader (i.e. before the async OCR task runs). Asserting them here, prior to the backstop
+            // read below, proves they are not written from the pool thread. If they were, this would
+            // race and flake; reading them now is deterministic.
+            Metadata embedMeta = root.getEmbeds().iterator().next().getMetadata();
+            assertThat(embedMeta.get("X-TIKA:digest:SHA256")).isNotNull();
+            assertThat(embedMeta.get(org.icij.extract.ocr.OCRParser.OCR_PARSER))
+                .isEqualTo("org.apache.tika.parser.ocr.TesseractOCRParser");
+
             // Drive the backstop: reading the embed's reader blocks until the OCR task completes.
             try (Reader r = root.getEmbeds().iterator().next().getReader()) {
                 r.transferTo(java.io.Writer.nullWriter());
             }
             assertThat(progress.ocrCompleted()).isEqualTo(1L);
-            // digest set synchronously on the embed metadata
-            assertThat(root.getEmbeds().iterator().next().getMetadata()
-                .get("X-TIKA:digest:SHA256")).isNotNull();
         } finally {
             ocr.shutdownNow();
         }
@@ -74,7 +82,8 @@ public class EmbedSpawnerDeferredOcrTest {
                 root, new org.apache.tika.parser.ParseContext(), null,
                 writer -> new org.apache.tika.sax.BodyContentHandler(writer),
                 64L * 1024 * 1024, tmp, () -> false,
-                ocr, progress, digester, /*ocrFanout*/ true, /*ocrMinImageBytes*/ 0L);
+                ocr, progress, digester, /*ocrFanout*/ true, /*ocrMinImageBytes*/ 0L,
+                /*ocrParserClassName*/ "org.apache.tika.parser.ocr.TesseractOCRParser");
 
             Metadata m = new Metadata();
             m.set(Metadata.CONTENT_TYPE, "image/png");
@@ -116,7 +125,8 @@ public class EmbedSpawnerDeferredOcrTest {
                 root, new org.apache.tika.parser.ParseContext(), null,
                 writer -> new org.apache.tika.sax.BodyContentHandler(writer),
                 64L * 1024 * 1024, tmp, () -> false,
-                ocr, progress, digester, /*ocrFanout*/ true, /*ocrMinImageBytes*/ 0L);
+                ocr, progress, digester, /*ocrFanout*/ true, /*ocrMinImageBytes*/ 0L,
+                /*ocrParserClassName*/ "org.apache.tika.parser.ocr.TesseractOCRParser");
 
             Metadata m = new Metadata();
             m.set(Metadata.CONTENT_TYPE, "image/png");
