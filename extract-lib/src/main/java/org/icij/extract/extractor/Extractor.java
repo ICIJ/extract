@@ -44,6 +44,8 @@ import org.icij.extract.parser.ResilientOutlookPSTParser;
 import org.icij.extract.report.Reporter;
 import org.icij.spewer.MetadataTransformer;
 import org.icij.spewer.Spewer;
+import org.icij.spewer.SpewSink;
+import org.icij.spewer.StreamingSpewCoordinator;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
 import org.slf4j.Logger;
@@ -131,6 +133,9 @@ import static org.icij.extract.extractor.ArtifactUtils.getEmbeddedPath;
         "inline instead of via the pool. Defaults to 0 (always fan out).", parameter = "bytes")
 @Option(name = "progressHeartbeatInterval", description = "Interval between extraction progress " +
         "heartbeat log lines, e.g. \"60s\". Set to 0 to disable. Defaults to 60s.", parameter = "duration")
+@Option(name = "streamingSpew", description = "Write embedded documents to the spewer as they are " +
+        "parsed, instead of buffering the whole tree and writing it afterwards. On by default; set " +
+        "to false to fall back to the legacy buffer-then-walk path.")
 public class Extractor implements AutoCloseable {
 
     public static final String PAGES_JSON = "pages.json";
@@ -183,6 +188,10 @@ public class Extractor implements AutoCloseable {
     private boolean ocrFanout = true;
     private long ocrMinImageBytes = 0L;
     private Duration progressHeartbeatInterval = Duration.ofSeconds(60);
+    private boolean streamingSpew = true;
+    // Bounded spew queue: caps how many ready-but-unwritten embeds (and thus their buffered text)
+    // are held in flight, providing backpressure on the parse thread when the spewer lags.
+    private static final int SPEW_QUEUE_CAPACITY = 1000;
     // Null until first use; created lazily by ocrExecutor() to avoid leaking threads in
     // Extractors that never actually defer OCR (OCR disabled, fanout off, or no eligible image).
     // Volatile so that close() on any thread sees the value written by the synchronized creator.
@@ -272,6 +281,7 @@ public class Extractor implements AutoCloseable {
         options.valueIfPresent("ocrMinImageBytes").map(Long::parseLong).ifPresent(b -> this.ocrMinImageBytes = b);
         options.get("progressHeartbeatInterval", "60s").parse().asDuration()
                 .ifPresent(d -> this.progressHeartbeatInterval = d);
+        options.get("streamingSpew", "true").parse().asBoolean().ifPresent(b -> this.streamingSpew = b);
         logger.info("extractor configured with digester {} and {}", digester.getClass(), documentFactory);
     }
 
@@ -346,6 +356,7 @@ public class Extractor implements AutoCloseable {
     public int getOcrParallelism() { return ocrParallelism; }
     public boolean isOcrFanout() { return ocrFanout; }
     public long getOcrMinImageBytes() { return ocrMinImageBytes; }
+    public boolean isStreamingSpew() { return streamingSpew; }
 
     /**
      * Returns the shared OCR executor, lazily CREATING it on the first call; callers that only
@@ -561,16 +572,19 @@ public class Extractor implements AutoCloseable {
         long before = currentTimeMillis();
         progressTracker.begin(path);
         try {
-            TikaDocument document = extract(path);
-            // Per-embed OCR text is synchronized by the embed reader backstop: each embed's reader
-            // generator calls join(done) on its OCR future before yielding, so no aggregate pre-spew
-            // join is needed here.
-            logger.info("{} extracted in {}ms", path, currentTimeMillis() - before);
-            // Reader cleanup is owned by the two phases that can hold one open: Spewer.write() walks the
-            // whole tree and closes every document reader in a finally (including the root, which releases
-            // any spilled embed-text temp files), and ParsingReaderWithContentHandler closes its own read
-            // end if the pre-spew first-character read fails. So there is no orphaned reader to close here.
-            spewer.write(document);
+            if (streamingSpew && EmbedHandling.SPAWN == embedHandling) {
+                try (StreamingSpewCoordinator coordinator = new StreamingSpewCoordinator(spewer, SPEW_QUEUE_CAPACITY)) {
+                    final TikaDocument document = extract(path, coordinator);
+                    logger.info("{} streaming-spew started in {}ms", path, currentTimeMillis() - before);
+                    // Foreground writes the root (driving the parse + all embed spews), then the
+                    // coordinator awaits every embed and closes the root reader (temp cleanup).
+                    coordinator.spew(document);
+                }
+            } else {
+                final TikaDocument document = extract(path);
+                logger.info("{} extracted in {}ms", path, currentTimeMillis() - before);
+                spewer.write(document);
+            }
         } finally {
             progressTracker.end(path);
         }
@@ -732,14 +746,17 @@ public class Extractor implements AutoCloseable {
      * @return A pull-parsing reader.
      */
     public TikaDocument extract(final Path path) throws IOException {
+        return extract(path, (SpewSink) null);
+    }
+
+    public TikaDocument extract(final Path path, final SpewSink sink) throws IOException {
         final Function<Writer, ContentHandler> handler;
         if (OutputFormat.HTML == outputFormat) {
             handler = (writer) -> new ExpandedTitleContentHandler(new HTML5Serializer(writer));
         } else {
             handler = BodyContentHandler::new;
         }
-
-        return getTikaDocument(path, handler, metadata -> true);
+        return getTikaDocument(path, handler, metadata -> true, sink);
     }
 
     public PageIndices extractPageIndices(final Path path, DocumentSelector documentSelector, String docId) throws IOException {
@@ -824,6 +841,10 @@ public class Extractor implements AutoCloseable {
     }
 
     private TikaDocument getTikaDocument(Path path, final Function<Writer, ContentHandler> handlerProvider, DocumentSelector documentSelector) throws IOException {
+        return getTikaDocument(path, handlerProvider, documentSelector, null);
+    }
+
+    private TikaDocument getTikaDocument(Path path, final Function<Writer, ContentHandler> handlerProvider, DocumentSelector documentSelector, final SpewSink sink) throws IOException {
         final TikaDocument rootDocument = documentFactory.create(path);
         TikaInputStream tikaInputStream = TikaInputStream.get(path, rootDocument.getMetadata());
         final ParseContext context = new ParseContext();
@@ -869,7 +890,7 @@ public class Extractor implements AutoCloseable {
                     new EmbedSpawner(rootDocument, context, embedOutput, handlerProvider, embedMemoryBudgetBytes,
                             embedTextResources, new MemoryPressureGauge(embedMemoryPressureThreshold),
                             this::ocrExecutor, !ocrDisabled, currentProgress, digester,
-                            ocrFanout, ocrMinImageBytes, ocrParserClassName, null));
+                            ocrFanout, ocrMinImageBytes, ocrParserClassName, sink));
         } else if (EmbedHandling.CONCATENATE == embedHandling) {
             context.set(Parser.class, parser);
             context.set(EmbeddedDocumentExtractor.class, new EmbedParser(rootDocument, context));
