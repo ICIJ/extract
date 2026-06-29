@@ -30,6 +30,10 @@ public class ExtractionProgressTracker implements AutoCloseable {
     }
 
     public ExtractionProgress begin(final Path path) {
+        // Start the heartbeat scheduler lazily on the first extraction so an Extractor that
+        // is constructed but never used starts no scheduler thread. start() is idempotent
+        // and a no-op for a zero/negative interval, so calling it here is always safe.
+        start();
         final ExtractionProgress progress = new ExtractionProgress(path, clock.getAsLong());
         inFlight.put(path, progress);
         return progress;

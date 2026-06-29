@@ -37,6 +37,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static java.lang.Boolean.parseBoolean;
 
@@ -53,7 +54,11 @@ public class EmbedSpawner extends EmbedParser {
 	private final BooleanSupplier memoryPressureHigh;
 	private final AtomicLong reserved = new AtomicLong();
 
-	private final ExecutorService ocrExecutor;
+	// Supplies the OCR executor lazily; called only when an eligible image embed is deferred.
+	// The no-fan-out legacy constructor passes () -> null with ocrEnabled=false so this path
+	// is never reached without an actual executor.
+	private final Supplier<ExecutorService> ocrExecutorSupplier;
+	private final boolean ocrEnabled;
 	private final ExtractionProgress progress;
 	private final DigestingParser.Digester digester;
 	private final boolean ocrFanout;
@@ -75,8 +80,9 @@ public class EmbedSpawner extends EmbedParser {
 				 final long embedMemoryBudgetBytes, final TemporaryResources tmp,
 				 final BooleanSupplier memoryPressureHigh) {
 		// Serial mode: no fan-out. All embeds go through the synchronous spawnEmbedded path.
+		// Pass a no-op supplier and ocrEnabled=false so the deferred path is never reached.
 		this(root, context, outputPath, handlerFunction, embedMemoryBudgetBytes, tmp, memoryPressureHigh,
-				null, null, null, false, 0L, null);
+				() -> null, false, null, null, false, 0L, null);
 	}
 
 	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
@@ -88,13 +94,30 @@ public class EmbedSpawner extends EmbedParser {
 				 final DigestingParser.Digester digester,
 				 final boolean ocrFanout, final long ocrMinImageBytes,
 				 final String ocrParserClassName) {
+		// Backward-compatible overload: wrap the live executor in a supplier so existing call sites
+		// (including tests) that pass a pre-built ExecutorService continue to work unchanged.
+		this(root, context, outputPath, handlerFunction, embedMemoryBudgetBytes, tmp, memoryPressureHigh,
+				() -> ocrExecutor, ocrExecutor != null, progress, digester, ocrFanout, ocrMinImageBytes, ocrParserClassName);
+	}
+
+	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
+				 final Function<Writer, ContentHandler> handlerFunction,
+				 final long embedMemoryBudgetBytes, final TemporaryResources tmp,
+				 final BooleanSupplier memoryPressureHigh,
+				 final Supplier<ExecutorService> ocrExecutorSupplier,
+				 final boolean ocrEnabled,
+				 final ExtractionProgress progress,
+				 final DigestingParser.Digester digester,
+				 final boolean ocrFanout, final long ocrMinImageBytes,
+				 final String ocrParserClassName) {
 		super(root, context);
 		this.outputPath = outputPath;
 		this.handlerFunction = handlerFunction;
 		this.embedMemoryBudgetBytes = embedMemoryBudgetBytes;
 		this.tmp = tmp;
 		this.memoryPressureHigh = memoryPressureHigh;
-		this.ocrExecutor = ocrExecutor;
+		this.ocrExecutorSupplier = ocrExecutorSupplier;
+		this.ocrEnabled = ocrEnabled;
 		this.progress = progress;
 		this.digester = digester;
 		this.ocrFanout = ocrFanout;
@@ -141,7 +164,10 @@ public class EmbedSpawner extends EmbedParser {
 			// an OLE object inside a legacy .doc/.xls/.ppt) is digested over its TRANSLATED bytes by
 			// Tika's DigestingParser in serial mode, so it must take the serial inline path here too,
 			// or its embed ID / X-TIKA:digest:* / artifact filename would diverge between modes.
-			if (ocrFanout && ocrExecutor != null && isOcrEligible(metadata, ocrMinImageBytes)
+			// Defer only when fanout is on, OCR is enabled, the embed is an eligible image, and
+			// the stream translator would not rewrite its bytes (translatable embeds must take
+			// the serial path so their digest matches serial mode).
+			if (ocrFanout && ocrEnabled && isOcrEligible(metadata, ocrMinImageBytes)
 					&& !streamTranslator.shouldTranslate(tis, metadata)) {
 				spawnEmbeddedDeferred(tis, metadata);
 			} else {
@@ -326,8 +352,11 @@ public class EmbedSpawner extends EmbedParser {
 		}
 
 		final String embedName = name;
+		// Resolve the executor lazily here; for the Extractor-backed path this triggers the
+		// synchronized lazy-creation in Extractor.ocrExecutor() on the first deferred embed.
+		final ExecutorService resolvedOcrExecutor = ocrExecutorSupplier.get();
 		try {
-			ocrExecutor.submit(() -> {
+			resolvedOcrExecutor.submit(() -> {
 				try (InputStream in = Files.newInputStream(ocrInput)) {
 					// Parse into the private clone + isolated context only. No write to shared state.
 					delegateParsing(TikaInputStream.get(in), embedHandler, ocrMeta, isolatedContext);

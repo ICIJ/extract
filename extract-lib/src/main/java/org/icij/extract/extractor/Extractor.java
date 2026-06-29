@@ -73,6 +73,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static java.lang.System.currentTimeMillis;
@@ -81,6 +82,12 @@ import static org.icij.extract.extractor.ArtifactUtils.getEmbeddedPath;
 
 /**
  * A reusable class that sets up Tika parsers based on runtime options.
+ *
+ * <p>This class is {@link AutoCloseable}. Callers that construct an {@code Extractor} SHOULD
+ * call {@link #close()} (or use try-with-resources) to release the OCR pool and heartbeat
+ * scheduler. Both are created lazily: an {@code Extractor} that performs no deferred-OCR
+ * extraction holds no extra threads and is safe to discard without closing, but closing is
+ * still strongly recommended to prevent a pool from lingering if OCR was used.
  *
  * @since 1.0.0-beta
  */
@@ -176,7 +183,9 @@ public class Extractor implements AutoCloseable {
     private boolean ocrFanout = true;
     private long ocrMinImageBytes = 0L;
     private Duration progressHeartbeatInterval = Duration.ofSeconds(60);
-    private ExecutorService ocrExecutor;
+    // Null until first use; created lazily by ocrExecutor() to avoid leaking threads in
+    // Extractors that never actually defer OCR (OCR disabled, fanout off, or no eligible image).
+    private ExecutorService ocrExecutor = null;
     private ExtractionProgressTracker progressTracker;
 
     /**
@@ -212,17 +221,11 @@ public class Extractor implements AutoCloseable {
         // Replace Tika's stock OutlookPSTParser, which silently aborts the rest
         // of a PST when one message fails, with the resilient parser.
         replaceParser(OutlookPSTParser.class, parser -> new ResilientOutlookPSTParser());
-        this.ocrExecutor = Executors.newFixedThreadPool(ocrParallelism, new ThreadFactory() {
-            private final AtomicInteger counter = new AtomicInteger();
-            @Override public Thread newThread(final Runnable r) {
-                final Thread thread = new Thread(r, "extract-ocr-" + counter.incrementAndGet());
-                thread.setDaemon(true);
-                return thread;
-            }
-        });
+        // The OCR pool is created lazily on first deferred-OCR use (see ocrExecutor()).
+        // progressTracker.start() is deferred to the first begin() call so an Extractor
+        // that is never used starts no scheduler thread.
         this.progressTracker = new ExtractionProgressTracker(progressHeartbeatInterval);
         this.progressTracker.addListener(new LoggingProgressListener());
-        this.progressTracker.start();
     }
 
     public Extractor() {
@@ -342,12 +345,46 @@ public class Extractor implements AutoCloseable {
     public int getOcrParallelism() { return ocrParallelism; }
     public boolean isOcrFanout() { return ocrFanout; }
     public long getOcrMinImageBytes() { return ocrMinImageBytes; }
-    public ExecutorService getOcrExecutor() { return ocrExecutor; }
+
+    /** Returns the OCR executor, creating it lazily on first call. */
+    public ExecutorService getOcrExecutor() { return ocrExecutor(); }
+
+    /**
+     * Returns the OCR executor field WITHOUT creating it.
+     * Returns {@code null} if the pool has never been needed (no deferred OCR occurred).
+     * Intended for tests that verify the lazy-creation contract.
+     */
+    ExecutorService ocrExecutorOrNull() { return ocrExecutor; }
+
+    /**
+     * Lazy double-checked creation of the shared OCR thread pool.
+     * The pool is built at most once and only when an eligible image embed is actually deferred.
+     */
+    private synchronized ExecutorService ocrExecutor() {
+        if (ocrExecutor == null) {
+            ocrExecutor = Executors.newFixedThreadPool(ocrParallelism, new ThreadFactory() {
+                private final AtomicInteger counter = new AtomicInteger();
+                @Override public Thread newThread(final Runnable r) {
+                    final Thread thread = new Thread(r, "extract-ocr-" + counter.incrementAndGet());
+                    thread.setDaemon(true);
+                    return thread;
+                }
+            });
+        }
+        return ocrExecutor;
+    }
+
     public ExtractionProgressTracker getProgressTracker() { return progressTracker; }
     public void addProgressListener(final ProgressListener listener) {
         progressTracker.addListener(listener);
     }
 
+    /**
+     * Releases resources held by this extractor: the OCR thread pool (if it was created) and
+     * the heartbeat scheduler (if it was started). Safe to call before any extraction has
+     * occurred (both are null/not-started in that case) and safe to call multiple times
+     * (idempotent: shutdownNow on an already-terminated pool is a no-op).
+     */
     @Override
     public void close() {
         if (ocrExecutor != null) { ocrExecutor.shutdownNow(); }
@@ -822,10 +859,12 @@ public class Extractor implements AutoCloseable {
             // configured OCR parser class). Datashare's on-demand SourceExtractor.useOcr() reads this.
             final String ocrParserClassName =
                     (ocrDisabled || ocrConfig == null) ? null : ocrConfig.getParserClass().getName();
+            // Pass the lazy supplier so the OCR pool is created only when an eligible image
+            // is actually deferred, not at Extractor construction time.
             context.set(EmbeddedDocumentExtractor.class,
                     new EmbedSpawner(rootDocument, context, embedOutput, handlerProvider, embedMemoryBudgetBytes,
                             embedTextResources, new MemoryPressureGauge(embedMemoryPressureThreshold),
-                            ocrDisabled ? null : ocrExecutor, currentProgress, digester,
+                            this::ocrExecutor, !ocrDisabled, currentProgress, digester,
                             ocrFanout, ocrMinImageBytes, ocrParserClassName));
         } else if (EmbedHandling.CONCATENATE == embedHandling) {
             context.set(Parser.class, parser);
