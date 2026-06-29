@@ -195,7 +195,15 @@ public class EmbedSpawner extends EmbedParser {
 			name = String.format("untitled_%d", ++untitled);
 		}
 
-		// Spool the bytes now (the stream is only valid during this call).
+		// Spool the bytes now (the stream is only valid during this call), then copy them into a
+		// temp file owned by the SHARED per-parse TemporaryResources (tmp). This is the critical
+		// spool-lifetime fix: tis.getPath() returns tis's OWN transient spool, which is deleted the
+		// moment the container parser (PST/zip/PackageParser) advances to the next entry and closes
+		// tis. But the OCR task below runs ASYNCHRONOUSLY on the shared pool and reads its input
+		// later, long after tis is gone — reading tis's spool directly hits NoSuchFileException and
+		// the OCR text is silently lost. The shared tmp is closed by ResourceClosingReader only AFTER
+		// the full spew completes, and every embed's OCR completes before the spew finishes (the
+		// per-embed reader backstop guarantees it), so a tmp-owned copy outlives the async OCR read.
 		final Path spooled;
 		try {
 			spooled = tis.getPath();
@@ -209,12 +217,33 @@ public class EmbedSpawner extends EmbedParser {
 			return;
 		}
 
+		// Durable, parse-owned copy of the embed bytes for the async OCR read. Made synchronously on
+		// the parse thread while tis is still valid; lifetime spans until the root reader closes
+		// (post-spew), outliving the async OCR. Serialize the createTempFile() call: it mutates the
+		// shared tmp's resource list, which is also touched by BudgetedEmbedBuffer spill on the pool.
+		final Path ocrInput;
+		try {
+			synchronized (tmp) {
+				ocrInput = tmp.createTempFile();
+			}
+			Files.copy(spooled, ocrInput, StandardCopyOption.REPLACE_EXISTING);
+		} catch (final Exception e) {
+			logger.error("Unable to copy embedded image to OCR temp file (\"{}\" in \"{}\").", name, root, e);
+			// Same severity as a spool failure: abort this embed, mirroring spawnEmbedded.
+			tikaDocumentStack.getLast().removeEmbed(embed);
+			embed.clearReader();
+			buffer.discard();
+			writer.close();
+			return;
+		}
+
 		// Digest synchronously so the embed ID and artifact filename are identical to serial mode.
-		// NOTE: this digests the RAW spooled bytes. That is byte-identical to serial mode ONLY because
-		// no org.apache.tika.extractor.EmbeddedStreamTranslator is on the classpath (verified). If one
+		// NOTE: this digests the RAW bytes (now read from the parse-owned copy, which is byte-identical
+		// to the spool). That is byte-identical to serial mode ONLY because no
+		// org.apache.tika.extractor.EmbeddedStreamTranslator is on the classpath (verified). If one
 		// is ever added, serial mode would digest the TRANSLATED bytes, so this eager raw-bytes digest
 		// (and thus the artifact filename) could diverge — revisit then.
-		try (InputStream digestStream = Files.newInputStream(spooled)) {
+		try (InputStream digestStream = Files.newInputStream(ocrInput)) {
 			digester.digest(digestStream, metadata, context);
 		} catch (final Exception e) {
 			logger.error("Unable to digest embedded image \"{}\" (in \"{}\").", name, root, e);
@@ -236,7 +265,7 @@ public class EmbedSpawner extends EmbedParser {
 		final String embedName = name;
 		try {
 			ocrExecutor.submit(() -> {
-				try (InputStream in = Files.newInputStream(spooled)) {
+				try (InputStream in = Files.newInputStream(ocrInput)) {
 					delegateParsing(TikaInputStream.get(in), embedHandler, metadata);
 				} catch (final Throwable t) {
 					logger.error("Deferred OCR failed for \"{}\" (in \"{}\").", embedName, root, t);

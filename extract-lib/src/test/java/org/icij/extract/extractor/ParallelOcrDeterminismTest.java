@@ -82,4 +82,56 @@ public class ParallelOcrDeterminismTest {
         // Core invariant: parallel OCR must not change embed IDs.
         assertThat(parallel).isEqualTo(serial);
     }
+
+    /**
+     * Regression guard for the deferred-OCR spool-lifetime bug.
+     *
+     * Before the fix, the async OCR task read the embed bytes from tis's OWN transient spool, which
+     * the container parser deletes the moment it advances to the next entry. The async read then hit
+     * NoSuchFileException, which spawnEmbeddedDeferred records into the embed's Metadata under
+     * TIKA_META_EXCEPTION_EMBEDDED_STREAM — silently losing the OCR text. The fix copies the bytes
+     * into a parse-owned temp file (lifetime spans until the post-spew root-reader close), so the
+     * async read succeeds and no exception is recorded.
+     *
+     * This drives a PARALLEL run (ocrParallelism=8, ocrFanout=true) over the same image fixture and
+     * asserts NO embed carries the embedded-stream exception key after the OCR task has actually run.
+     */
+    @Test
+    public void testParallelDeferredOcrReadsDoNotFail() throws Exception {
+        try (Extractor extractor = new Extractor(Options.from(Map.of(
+                "ocrParallelism", "8",
+                "ocrFanout", "true",
+                "progressHeartbeatInterval", "0")))) {
+
+            TikaDocument doc = extractor.extract(
+                    Paths.get(getClass().getResource(FIXTURE_RESOURCE).getPath()));
+
+            // Drain the root reader: this drives the per-embed backstop so every deferred OCR task
+            // actually runs and performs its Files.newInputStream(ocrInput) read before we assert.
+            try (java.io.Reader r = doc.getReader()) {
+                Spewer.toString(r);
+            }
+
+            List<TikaDocument> embeds = new ArrayList<>();
+            collectEmbeds(doc, embeds);
+            assertThat(embeds).isNotEmpty();
+
+            // No embed may carry the embedded-stream exception key. Before the fix, the image embed's
+            // async read fails with NoSuchFileException and this key is present; after the fix, absent.
+            for (TikaDocument embed : embeds) {
+                assertThat(embed.getMetadata()
+                        .get(org.apache.tika.metadata.TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM))
+                        .as("embed should have no recorded embedded-stream exception (OCR read must not fail)")
+                        .isNull();
+            }
+        }
+    }
+
+    /** Depth-first walk of the embed tree; appends each embed document. */
+    private void collectEmbeds(TikaDocument doc, List<TikaDocument> embeds) throws Exception {
+        for (EmbeddedTikaDocument embed : doc.getEmbeds()) {
+            embeds.add(embed);
+            collectEmbeds(embed, embeds);
+        }
+    }
 }
