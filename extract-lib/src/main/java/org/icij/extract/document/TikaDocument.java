@@ -202,12 +202,16 @@ public class TikaDocument {
 	}
 
 	private EmbeddedTikaDocument addEmbed(final EmbeddedTikaDocument embed) {
-		embeds.add(embed);
+		synchronized (embeds) {
+			embeds.add(embed);
+		}
 		return embed;
 	}
 
 	public boolean removeEmbed(final EmbeddedTikaDocument embed) {
-		return embeds.remove(embed);
+		synchronized (embeds) {
+			return embeds.remove(embed);
+		}
 	}
 
 	public List<EmbeddedTikaDocument> getEmbeds() {
