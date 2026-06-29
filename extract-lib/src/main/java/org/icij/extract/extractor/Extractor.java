@@ -136,6 +136,9 @@ import static org.icij.extract.extractor.ArtifactUtils.getEmbeddedPath;
 @Option(name = "streamingSpew", description = "Write embedded documents to the spewer as they are " +
         "parsed, instead of buffering the whole tree and writing it afterwards. On by default; set " +
         "to false to fall back to the legacy buffer-then-walk path.")
+@Option(name = "spewQueueCapacity", description = "Maximum number of parsed-but-not-yet-written " +
+        "embedded documents held in the streaming-spew queue before the parse thread blocks " +
+        "(backpressure). Defaults to 1000.", parameter = "count")
 public class Extractor implements AutoCloseable {
 
     public static final String PAGES_JSON = "pages.json";
@@ -191,7 +194,7 @@ public class Extractor implements AutoCloseable {
     private boolean streamingSpew = true;
     // Bounded spew queue: caps how many ready-but-unwritten embeds (and thus their buffered text)
     // are held in flight, providing backpressure on the parse thread when the spewer lags.
-    private static final int SPEW_QUEUE_CAPACITY = 1000;
+    private int spewQueueCapacity = 1000;
     // Null until first use; created lazily by ocrExecutor() to avoid leaking threads in
     // Extractors that never actually defer OCR (OCR disabled, fanout off, or no eligible image).
     // Volatile so that close() on any thread sees the value written by the synchronized creator.
@@ -282,6 +285,8 @@ public class Extractor implements AutoCloseable {
         options.get("progressHeartbeatInterval", "60s").parse().asDuration()
                 .ifPresent(d -> this.progressHeartbeatInterval = d);
         options.get("streamingSpew", "true").parse().asBoolean().ifPresent(b -> this.streamingSpew = b);
+        options.get("spewQueueCapacity", "1000").parse().asInteger()
+                .ifPresent(n -> this.spewQueueCapacity = Math.max(1, n));
         logger.info("extractor configured with digester {} and {}", digester.getClass(), documentFactory);
     }
 
@@ -573,11 +578,18 @@ public class Extractor implements AutoCloseable {
         progressTracker.begin(path);
         try {
             if (streamingSpew && EmbedHandling.SPAWN == embedHandling) {
-                try (StreamingSpewCoordinator coordinator = new StreamingSpewCoordinator(spewer, SPEW_QUEUE_CAPACITY)) {
+                try (StreamingSpewCoordinator coordinator = new StreamingSpewCoordinator(spewer, spewQueueCapacity)) {
+                    // Start the spew worker BEFORE extract(): extract() constructs the pull-parser and
+                    // blocks on Tika's first-character read of the ROOT pipe, which for a PST/OST never
+                    // emits root text until the parse ends. The parse meanwhile produces embeds onto the
+                    // bounded queue, so the worker must already be draining or the queue fills and the
+                    // parse deadlocks (the first-char read can never complete). The worker drains embeds
+                    // throughout the parse; spew() below writes the root last and awaits the worker.
+                    coordinator.start();
                     final TikaDocument document = extract(path, coordinator);
                     logger.info("{} streaming-spew started in {}ms", path, currentTimeMillis() - before);
-                    // Foreground writes the root (driving the parse + all embed spews), then the
-                    // coordinator awaits every embed and closes the root reader (temp cleanup).
+                    // Foreground writes the root (driving the rest of the parse), then the coordinator
+                    // awaits every embed and closes the root reader (temp cleanup). start() is idempotent.
                     coordinator.spew(document);
                 }
             } else {

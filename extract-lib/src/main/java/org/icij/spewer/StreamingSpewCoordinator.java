@@ -42,7 +42,19 @@ public class StreamingSpewCoordinator implements SpewSink, AutoCloseable {
         this.queue = new ArrayBlockingQueue<>(Math.max(1, queueCapacity));
     }
 
-    private void start() {
+    /**
+     * Start the single spew-worker thread. Idempotent: a second call while a worker is running is a
+     * no-op. This MUST be called before the parse begins producing embeds — i.e. before the
+     * potentially long-blocking reader construction inside {@code Extractor.extract(path, sink)} — so
+     * the worker drains the bounded queue WHILE the parse runs. If the worker only started after
+     * {@code extract()} returned, a container whose root body text is emitted late (a PST/OST emits no
+     * root text — all content is in embeds) would block {@code extract()}'s first-character read while
+     * embeds fill the bounded queue with no consumer, deadlocking once the queue is full.
+     */
+    public synchronized void start() {
+        if (worker != null) {
+            return;
+        }
         final Thread t = new Thread(this::run, "extract-spew");
         t.setDaemon(true);
         worker = t;
