@@ -30,11 +30,12 @@ import org.xml.sax.SAXException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.Collections.singleton;
 
@@ -109,7 +110,8 @@ public class ResilientOutlookPSTParser implements Parser {
         final EmbeddedDocumentExtractor extractor = EmbeddedDocumentUtil.getEmbeddedDocumentExtractor(context);
         metadata.set(Metadata.CONTENT_TYPE, MS_OUTLOOK_PST_MIMETYPE.toString());
         final XHTMLContentHandler xhtml = new XHTMLContentHandler(handler, metadata);
-        final EmissionContext emission = new EmissionContext(xhtml, extractor);
+        final Reconciliation reconciliation = new Reconciliation();
+        final EmissionContext emission = new EmissionContext(xhtml, extractor, reconciliation);
 
         xhtml.startDocument();
         final String pstPath = TikaInputStream.get(stream).getFile().getPath();
@@ -603,92 +605,68 @@ public class ResilientOutlookPSTParser implements Parser {
         T get() throws Exception;
     }
 
-    // Mutable per-parse state shared by the folder walk, the orphan-recovery pass, and
-    // message emission: the output sink plus the dedup set and emitted counter. Carrying
-    // it as one collaborator keeps it out of every traversal method's signature.
-    private static final class EmissionContext {
+    // Shared, thread-safe across all folder-walk tasks of one parse: the dedup set, the emitted
+    // counter, and the OST-2013 attachment-integrity counters.
+    private static final class Reconciliation {
+        private final Set<Long> emittedDescriptorIds = ConcurrentHashMap.newKeySet();
+        private final AtomicInteger emittedCount = new AtomicInteger();
+        private volatile boolean checkAttachmentIntegrity = false;
+        private final AtomicInteger unreadableAttachments = new AtomicInteger();
+        private final AtomicInteger recoveredAttachments = new AtomicInteger();
+        private final AtomicInteger unrecoveredAttachments = new AtomicInteger();
+        private final AtomicInteger encryptedAttachments = new AtomicInteger();
 
+        boolean markEmitted(final long id) { return emittedDescriptorIds.add(id); }
+        void unmarkEmitted(final long id) { emittedDescriptorIds.remove(id); }
+        boolean alreadyEmitted(final long id) { return emittedDescriptorIds.contains(id); }
+        void incrementEmitted() { emittedCount.incrementAndGet(); }
+        int emittedCount() { return emittedCount.get(); }
+        void enableAttachmentIntegrityCheck() { checkAttachmentIntegrity = true; }
+        boolean shouldCheckAttachmentIntegrity() { return checkAttachmentIntegrity; }
+        void incrementUnreadableAttachments() { unreadableAttachments.incrementAndGet(); }
+        int unreadableAttachments() { return unreadableAttachments.get(); }
+        void incrementRecoveredAttachments() { recoveredAttachments.incrementAndGet(); }
+        int recoveredAttachments() { return recoveredAttachments.get(); }
+        void incrementUnrecoveredAttachments() { unrecoveredAttachments.incrementAndGet(); }
+        int unrecoveredAttachments() { return unrecoveredAttachments.get(); }
+        void incrementEncryptedAttachments() { encryptedAttachments.incrementAndGet(); }
+        int encryptedAttachments() { return encryptedAttachments.get(); }
+    }
+
+    // Mutable per-parse state shared by the folder walk, the orphan-recovery pass, and
+    // message emission: the output sink plus a reference to the shared Reconciliation.
+    // Carrying it as one collaborator keeps it out of every traversal method's signature.
+    private static final class EmissionContext {
         private final XHTMLContentHandler xhtml;
         private final EmbeddedDocumentExtractor extractor;
-        private final Set<Long> emittedDescriptorIds = new HashSet<>();
-        private int emittedCount = 0;
-        private boolean checkAttachmentIntegrity = false;
-        private int unreadableAttachments = 0;
-        private int recoveredAttachments = 0;
-        private int unrecoveredAttachments = 0;
-        private int encryptedAttachments = 0;
+        private final Reconciliation reconciliation;
 
-        private EmissionContext(final XHTMLContentHandler xhtml, final EmbeddedDocumentExtractor extractor) {
+        private EmissionContext(final XHTMLContentHandler xhtml, final EmbeddedDocumentExtractor extractor,
+                                final Reconciliation reconciliation) {
             this.xhtml = xhtml;
             this.extractor = extractor;
+            this.reconciliation = reconciliation;
         }
 
-        // Turned on only for OST 2013 files, the one format whose attachment data libpst mis-reads.
-        private void enableAttachmentIntegrityCheck() {
-            this.checkAttachmentIntegrity = true;
-        }
-
-        private boolean shouldCheckAttachmentIntegrity() {
-            return checkAttachmentIntegrity;
-        }
-
-        private void incrementUnreadableAttachments() {
-            unreadableAttachments++;
-        }
-
-        private int unreadableAttachments() {
-            return unreadableAttachments;
-        }
-
-        private void incrementRecoveredAttachments() {
-            recoveredAttachments++;
-        }
-
-        private int recoveredAttachments() {
-            return recoveredAttachments;
-        }
-
-        private void incrementUnrecoveredAttachments() {
-            unrecoveredAttachments++;
-        }
-
-        private int unrecoveredAttachments() {
-            return unrecoveredAttachments;
-        }
-
-        private void incrementEncryptedAttachments() {
-            encryptedAttachments++;
-        }
-
-        private int encryptedAttachments() {
-            return encryptedAttachments;
-        }
-
-        // Returns true the first time a descriptor is seen, false on a duplicate.
-        private boolean markEmitted(final long descriptorId) {
-            return emittedDescriptorIds.add(descriptorId);
-        }
-
-        // Rolls back a mark when emission failed, so the descriptor counts as a loss.
-        private void unmarkEmitted(final long descriptorId) {
-            emittedDescriptorIds.remove(descriptorId);
-        }
-
-        private boolean alreadyEmitted(final long descriptorId) {
-            return emittedDescriptorIds.contains(descriptorId);
-        }
+        private void enableAttachmentIntegrityCheck() { reconciliation.enableAttachmentIntegrityCheck(); }
+        private boolean shouldCheckAttachmentIntegrity() { return reconciliation.shouldCheckAttachmentIntegrity(); }
+        private void incrementUnreadableAttachments() { reconciliation.incrementUnreadableAttachments(); }
+        private int unreadableAttachments() { return reconciliation.unreadableAttachments(); }
+        private void incrementRecoveredAttachments() { reconciliation.incrementRecoveredAttachments(); }
+        private int recoveredAttachments() { return reconciliation.recoveredAttachments(); }
+        private void incrementUnrecoveredAttachments() { reconciliation.incrementUnrecoveredAttachments(); }
+        private int unrecoveredAttachments() { return reconciliation.unrecoveredAttachments(); }
+        private void incrementEncryptedAttachments() { reconciliation.incrementEncryptedAttachments(); }
+        private int encryptedAttachments() { return reconciliation.encryptedAttachments(); }
+        private boolean markEmitted(final long id) { return reconciliation.markEmitted(id); }
+        private void unmarkEmitted(final long id) { reconciliation.unmarkEmitted(id); }
+        private boolean alreadyEmitted(final long id) { return reconciliation.alreadyEmitted(id); }
+        private void incrementEmitted() { reconciliation.incrementEmitted(); }
+        private int emittedCount() { return reconciliation.emittedCount(); }
 
         private void parseEmbedded(final TikaInputStream messageStream, final Metadata metadata)
                 throws SAXException, IOException, TikaException {
             extractor.parseEmbedded(messageStream, xhtml, metadata, true);
-        }
-
-        private void incrementEmitted() {
-            emittedCount++;
-        }
-
-        private int emittedCount() {
-            return emittedCount;
         }
     }
 }
