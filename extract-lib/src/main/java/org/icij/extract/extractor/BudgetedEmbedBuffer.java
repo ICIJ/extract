@@ -87,7 +87,14 @@ class BudgetedEmbedBuffer extends OutputStream {
     }
 
     private void spill() throws IOException {
-        file = tmp.createTempFile();
+        // All per-embed buffers in an extraction share ONE TemporaryResources. With parallel OCR,
+        // multiple pool threads may spill concurrently; Tika's TemporaryResources.addResource mutates
+        // a plain LinkedList with no synchronization, so serialize only the temp-file creation (the
+        // shared resource-list mutation). Opening the stream and all writes below touch only this
+        // buffer's own file and stay outside the lock. Uncontended/harmless on the serial path.
+        synchronized (tmp) {
+            file = tmp.createTempFile();
+        }
         fileOut = new BufferedOutputStream(Files.newOutputStream(file));
         memory.writeTo(fileOut);
         reserved.addAndGet(-memoryReserved);

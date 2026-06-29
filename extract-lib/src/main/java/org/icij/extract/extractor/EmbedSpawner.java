@@ -28,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
@@ -213,6 +214,10 @@ public class EmbedSpawner extends EmbedParser {
 		}
 
 		// Digest synchronously so the embed ID and artifact filename are identical to serial mode.
+		// NOTE: this digests the RAW spooled bytes. That is byte-identical to serial mode ONLY because
+		// no org.apache.tika.extractor.EmbeddedStreamTranslator is on the classpath (verified). If one
+		// is ever added, serial mode would digest the TRANSLATED bytes, so this eager raw-bytes digest
+		// (and thus the artifact filename) could diverge — revisit then.
 		try (InputStream digestStream = Files.newInputStream(spooled)) {
 			digester.digest(digestStream, metadata, context);
 		} catch (final Exception e) {
@@ -232,30 +237,51 @@ public class EmbedSpawner extends EmbedParser {
 			writeEmbed(tis, embed, name);
 		}
 
+		final String embedName = name;
+		final Future<?> future;
+		try {
+			future = ocrExecutor.submit(() -> {
+				try (InputStream in = Files.newInputStream(spooled)) {
+					delegateParsing(TikaInputStream.get(in), embedHandler, metadata);
+				} catch (final Throwable t) {
+					logger.error("Deferred OCR failed for \"{}\" (in \"{}\").", embedName, root, t);
+					metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM,
+							ExceptionUtils.getFilteredStackTrace(t));
+				} finally {
+					try {
+						writer.close();
+					} catch (final IOException ignored) {
+						// best-effort: text already buffered
+					}
+					if (progress != null) {
+						progress.incrementOcrCompleted();
+					}
+					done.complete(null);
+				}
+				return null;
+			});
+		} catch (final RejectedExecutionException e) {
+			// The executor was shut down mid-parse (e.g. Extractor.close()). The OCR task will never
+			// run, so the reader backstop (join(done)) would otherwise block forever. Record the error,
+			// release the writer, and complete the backstop so the spew walk never hangs. We only count
+			// the submit as "submitted" once it actually succeeds, so the submitted/completed counters
+			// stay balanced without touching them here.
+			logger.error("Deferred OCR rejected for \"{}\" (in \"{}\").", embedName, root, e);
+			metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM,
+					ExceptionUtils.getFilteredStackTrace(e));
+			try {
+				writer.close();
+			} catch (final IOException ignored) {
+				// best-effort: nothing actionable on the rejection path
+			}
+			done.complete(null);
+			return;
+		}
+		// Submit succeeded: now it's safe to count it (keeps submitted/completed balanced).
 		if (progress != null) {
 			progress.incrementOcrSubmitted();
 		}
-		final String embedName = name;
-		ocrFutures.add(ocrExecutor.submit(() -> {
-			try (InputStream in = Files.newInputStream(spooled)) {
-				delegateParsing(TikaInputStream.get(in), embedHandler, metadata);
-			} catch (final Throwable t) {
-				logger.error("Deferred OCR failed for \"{}\" (in \"{}\").", embedName, root, t);
-				metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM,
-						ExceptionUtils.getFilteredStackTrace(t));
-			} finally {
-				try {
-					writer.close();
-				} catch (final IOException ignored) {
-					// best-effort: text already buffered
-				}
-				if (progress != null) {
-					progress.incrementOcrCompleted();
-				}
-				done.complete(null);
-			}
-			return null;
-		}));
+		ocrFutures.add(future);
 	}
 
 	private static void join(final Future<Void> f) {
