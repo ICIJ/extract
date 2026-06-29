@@ -381,6 +381,14 @@ public class EmbedSpawner extends EmbedParser {
 			return buffer.readerGenerator().generate();
 		});
 
+		// Stream this embed to the spew worker once its OCR future completes (normal completion, a
+		// recorded failure in the task finally, or a rejected submit all complete `done`). The callback
+		// runs on the completing thread, so the worker never dequeues a deferred embed before its OCR is
+		// done -- it therefore never blocks on OCR.
+		if (sink != null) {
+			done.whenComplete((v, t) -> sink.ready(new SpewItem(embed, spewParent, root, spewLevel)));
+		}
+
 		// Write the embed artifact file now, while the stream/container is still valid.
 		if (null != this.outputPath) {
 			writeEmbed(tis, embed, name);
@@ -428,24 +436,11 @@ public class EmbedSpawner extends EmbedParser {
 				// best-effort: nothing actionable on the rejection path
 			}
 			done.complete(null);
-			// Signal the sink synchronously on the rejection path (done is already complete,
-			// so reading the embed's reader via join(done) will return immediately).
-			if (sink != null) {
-				sink.ready(new SpewItem(embed, spewParent, root, spewLevel));
-			}
 			return;
 		}
 		// Submit succeeded: now it's safe to count it (keeps submitted/completed balanced).
 		if (progress != null) {
 			progress.incrementOcrSubmitted();
-		}
-		// Signal the sink synchronously on the parse thread. The embed's reader has a join(done)
-		// backstop that waits for OCR to complete, so the consumer will see the full OCR text
-		// when it reads the embed. Calling ready() here (rather than via done.whenComplete) means
-		// the parse thread enqueues the embed immediately, avoiding the OCR-pool-thread dispatch
-		// latency and making the sink contract deterministic for direct callers (no async).
-		if (sink != null) {
-			sink.ready(new SpewItem(embed, spewParent, root, spewLevel));
 		}
 	}
 

@@ -41,9 +41,23 @@ public class EmbedSpawnerSinkTest {
                 org.icij.spewer.Spewer.toString(r);
             }
 
+            // Deferred readies fire asynchronously when each embed's OCR future completes. Drain every
+            // embed reader (which blocks on join(done) for that embed), ensuring all whenComplete
+            // callbacks have fired before we assert counts.
+            drainEmbedReaders(doc);
+
             assertThat(sink.promises.get()).isGreaterThan(0);
             // Every promise must eventually be matched by a ready.
             assertThat(sink.readyIds.size()).isEqualTo(sink.promises.get());
+        }
+    }
+
+    private void drainEmbedReaders(org.icij.extract.document.TikaDocument doc) throws Exception {
+        for (org.icij.extract.document.EmbeddedTikaDocument embed : doc.getEmbeds()) {
+            try (java.io.Reader r = embed.getReader()) {
+                org.icij.spewer.Spewer.toString(r);
+            }
+            drainEmbedReaders(embed);
         }
     }
 }
