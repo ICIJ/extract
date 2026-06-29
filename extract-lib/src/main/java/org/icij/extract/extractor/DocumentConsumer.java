@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -47,6 +48,24 @@ public class DocumentConsumer extends ExecutorProxy implements Consumer<Path> {
 	 */
 	public static int defaultPoolSize() {
 		return Math.max(1, Runtime.getRuntime().availableProcessors() - 1);
+	}
+
+	/**
+	 * Formats in-flight extraction progress into a human-readable summary string.
+	 * Names files and their elapsed times.
+	 *
+	 * @param inFlight collection of in-flight extraction progress
+	 * @param now current timestamp in milliseconds
+	 * @return human-readable summary; "none" if empty, otherwise semicolon-separated list of "path (XXs)"
+	 */
+	static String inFlightSummary(final Collection<ExtractionProgress> inFlight, final long now) {
+		if (inFlight.isEmpty()) { return "none"; }
+		final StringBuilder sb = new StringBuilder();
+		for (final ExtractionProgress p : inFlight) {
+			if (sb.length() > 0) { sb.append("; "); }
+			sb.append(p.path()).append(" (").append(p.elapsedMillis(now) / 1000L).append("s)");
+		}
+		return sb.toString();
 	}
 
 	/**
@@ -138,12 +157,16 @@ public class DocumentConsumer extends ExecutorProxy implements Consumer<Path> {
 
 	@Override
 	public boolean awaitTermination(final long timeout, final TimeUnit unit) throws InterruptedException {
-		boolean result = super.awaitTermination(timeout, unit);
+		final boolean terminated = executor.awaitTermination(timeout, unit);
+		if (!terminated) {
+			logger.warn(String.format("Still extracting after %d %s; in flight: %s", timeout, unit,
+					inFlightSummary(extractor.getProgressTracker().inFlight(), System.currentTimeMillis())));
+		}
 		try {
-            spewer.close();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-		return result;
-    }
+			spewer.close();
+		} catch (final Exception e) {
+			throw new RuntimeException(e);
+		}
+		return terminated;
+	}
 }
