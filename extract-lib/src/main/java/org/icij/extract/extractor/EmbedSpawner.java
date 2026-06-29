@@ -23,7 +23,6 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -49,7 +48,6 @@ public class EmbedSpawner extends EmbedParser {
 	private final AtomicLong reserved = new AtomicLong();
 
 	private final ExecutorService ocrExecutor;
-	private final List<Future<?>> ocrFutures;
 	private final ExtractionProgress progress;
 	private final DigestingParser.Digester digester;
 	private final boolean ocrFanout;
@@ -61,7 +59,7 @@ public class EmbedSpawner extends EmbedParser {
 				 final BooleanSupplier memoryPressureHigh) {
 		// Serial mode: no fan-out. All embeds go through the synchronous spawnEmbedded path.
 		this(root, context, outputPath, handlerFunction, embedMemoryBudgetBytes, tmp, memoryPressureHigh,
-				null, null, null, null, false, 0L);
+				null, null, null, false, 0L);
 	}
 
 	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
@@ -69,7 +67,6 @@ public class EmbedSpawner extends EmbedParser {
 				 final long embedMemoryBudgetBytes, final TemporaryResources tmp,
 				 final BooleanSupplier memoryPressureHigh,
 				 final ExecutorService ocrExecutor,
-				 final List<Future<?>> ocrFutures,
 				 final ExtractionProgress progress,
 				 final DigestingParser.Digester digester,
 				 final boolean ocrFanout, final long ocrMinImageBytes) {
@@ -80,7 +77,6 @@ public class EmbedSpawner extends EmbedParser {
 		this.tmp = tmp;
 		this.memoryPressureHigh = memoryPressureHigh;
 		this.ocrExecutor = ocrExecutor;
-		this.ocrFutures = ocrFutures;
 		this.progress = progress;
 		this.digester = digester;
 		this.ocrFanout = ocrFanout;
@@ -238,9 +234,8 @@ public class EmbedSpawner extends EmbedParser {
 		}
 
 		final String embedName = name;
-		final Future<?> future;
 		try {
-			future = ocrExecutor.submit(() -> {
+			ocrExecutor.submit(() -> {
 				try (InputStream in = Files.newInputStream(spooled)) {
 					delegateParsing(TikaInputStream.get(in), embedHandler, metadata);
 				} catch (final Throwable t) {
@@ -281,7 +276,6 @@ public class EmbedSpawner extends EmbedParser {
 		if (progress != null) {
 			progress.incrementOcrSubmitted();
 		}
-		ocrFutures.add(future);
 	}
 
 	private static void join(final Future<Void> f) {

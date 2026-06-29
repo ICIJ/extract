@@ -10,12 +10,10 @@ import org.icij.extract.document.TikaDocument;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
+import java.io.Reader;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 import static org.fest.assertions.Assertions.assertThat;
 
@@ -24,7 +22,6 @@ public class EmbedSpawnerDeferredOcrTest {
         TikaDocument root = new DocumentFactory().withIdentifier(new PathIdentifier())
             .create(java.nio.file.Paths.get("/root.eml"));
         ExecutorService ocr = Executors.newSingleThreadExecutor();
-        List<Future<?>> futures = new ArrayList<>();
         ExtractionProgress progress = new ExtractionProgress(root.getPath(), 0L);
         DigestingParser.Digester digester = new CommonsDigester(20 * 1024 * 1024, "SHA256");
 
@@ -33,7 +30,7 @@ public class EmbedSpawnerDeferredOcrTest {
                 root, new org.apache.tika.parser.ParseContext(), null,
                 writer -> new org.apache.tika.sax.BodyContentHandler(writer),
                 64L * 1024 * 1024, tmp, () -> false,
-                ocr, futures, progress, digester, /*ocrFanout*/ true, /*ocrMinImageBytes*/ 0L);
+                ocr, progress, digester, /*ocrFanout*/ true, /*ocrMinImageBytes*/ 0L);
 
             Metadata m = new Metadata();
             m.set(Metadata.CONTENT_TYPE, "image/png");
@@ -44,8 +41,10 @@ public class EmbedSpawnerDeferredOcrTest {
                 new org.apache.tika.sax.BodyContentHandler(), m, false);
 
             assertThat(progress.ocrSubmitted()).isEqualTo(1L);
-            assertThat(futures).hasSize(1);
-            futures.get(0).get();                 // join
+            // Drive the backstop: reading the embed's reader blocks until the OCR task completes.
+            try (Reader r = root.getEmbeds().iterator().next().getReader()) {
+                r.transferTo(java.io.Writer.nullWriter());
+            }
             assertThat(progress.ocrCompleted()).isEqualTo(1L);
             // digest set synchronously on the embed metadata
             assertThat(root.getEmbeds().iterator().next().getMetadata()
@@ -64,7 +63,6 @@ public class EmbedSpawnerDeferredOcrTest {
             .create(java.nio.file.Paths.get("/root.eml"));
         ExecutorService ocr = Executors.newSingleThreadExecutor();
         ocr.shutdownNow(); // submit will be rejected from now on
-        List<Future<?>> futures = new ArrayList<>();
         ExtractionProgress progress = new ExtractionProgress(root.getPath(), 0L);
         DigestingParser.Digester digester = new CommonsDigester(20 * 1024 * 1024, "SHA256");
 
@@ -73,7 +71,7 @@ public class EmbedSpawnerDeferredOcrTest {
                 root, new org.apache.tika.parser.ParseContext(), null,
                 writer -> new org.apache.tika.sax.BodyContentHandler(writer),
                 64L * 1024 * 1024, tmp, () -> false,
-                ocr, futures, progress, digester, /*ocrFanout*/ true, /*ocrMinImageBytes*/ 0L);
+                ocr, progress, digester, /*ocrFanout*/ true, /*ocrMinImageBytes*/ 0L);
 
             Metadata m = new Metadata();
             m.set(Metadata.CONTENT_TYPE, "image/png");
@@ -84,7 +82,6 @@ public class EmbedSpawnerDeferredOcrTest {
                 new org.apache.tika.sax.BodyContentHandler(), m, false);
 
             // No future was scheduled and the submit was never counted (counters stay balanced).
-            assertThat(futures).isEmpty();
             assertThat(progress.ocrSubmitted()).isEqualTo(0L);
 
             // The backstop must have been completed: reading the embed must return, not hang.
