@@ -139,6 +139,11 @@ import static org.icij.extract.extractor.ArtifactUtils.getEmbeddedPath;
 @Option(name = "spewQueueCapacity", description = "Maximum number of parsed-but-not-yet-written " +
         "embedded documents held in the streaming-spew queue before the parse thread blocks " +
         "(backpressure). Defaults to 1000.", parameter = "count")
+@Option(name = "pstFolderFanout", description = "Parse the folders of a single PST/OST mailbox " +
+        "in parallel across a shared bounded pool, instead of one thread per file. Embed ids, " +
+        "digests and artifact filenames are byte-identical to the serial walk.")
+@Option(name = "pstParseParallelism", description = "Number of PST/OST folder-walk tasks run in " +
+        "parallel across all in-flight mailboxes. Separate from ocrParallelism.")
 public class Extractor implements AutoCloseable {
 
     public static final String PAGES_JSON = "pages.json";
@@ -199,6 +204,10 @@ public class Extractor implements AutoCloseable {
     // Extractors that never actually defer OCR (OCR disabled, fanout off, or no eligible image).
     // Volatile so that close() on any thread sees the value written by the synchronized creator.
     private volatile ExecutorService ocrExecutor = null;
+    private boolean pstFolderFanout = true;
+    private int pstParseParallelism = Runtime.getRuntime().availableProcessors();
+    // Null until first use; created lazily by parseExecutor(), mirroring the OCR pool.
+    private volatile ExecutorService pstParseExecutor = null;
     private ExtractionProgressTracker progressTracker;
 
     /**
@@ -287,6 +296,10 @@ public class Extractor implements AutoCloseable {
         options.get("streamingSpew", "true").parse().asBoolean().ifPresent(b -> this.streamingSpew = b);
         options.get("spewQueueCapacity", "1000").parse().asInteger()
                 .ifPresent(n -> this.spewQueueCapacity = Math.max(1, n));
+        options.get("pstFolderFanout", "true").parse().asBoolean()
+                .ifPresent(b -> this.pstFolderFanout = b);
+        options.get("pstParseParallelism", String.valueOf(Runtime.getRuntime().availableProcessors()))
+                .parse().asInteger().ifPresent(n -> this.pstParseParallelism = Math.max(1, n));
         logger.info("extractor configured with digester {} and {}", digester.getClass(), documentFactory);
     }
 
@@ -362,6 +375,26 @@ public class Extractor implements AutoCloseable {
     public boolean isOcrFanout() { return ocrFanout; }
     public long getOcrMinImageBytes() { return ocrMinImageBytes; }
     public boolean isStreamingSpew() { return streamingSpew; }
+    public boolean isPstFolderFanout() { return pstFolderFanout; }
+    public int getPstParseParallelism() { return pstParseParallelism; }
+
+    ExecutorService parseExecutorOrNull() { return pstParseExecutor; }
+
+    // Lazily create the shared PST folder-walk pool on first fan-out use, mirroring ocrExecutor().
+    synchronized ExecutorService parseExecutor() {
+        if (pstParseExecutor == null) {
+            pstParseExecutor = Executors.newFixedThreadPool(pstParseParallelism, new ThreadFactory() {
+                private final java.util.concurrent.atomic.AtomicInteger n =
+                        new java.util.concurrent.atomic.AtomicInteger();
+                @Override public Thread newThread(final Runnable r) {
+                    final Thread t = new Thread(r, "extract-pst-walk-" + n.incrementAndGet());
+                    t.setDaemon(true);
+                    return t;
+                }
+            });
+        }
+        return pstParseExecutor;
+    }
 
     /**
      * Returns the shared OCR executor, lazily CREATING it on the first call; callers that only
@@ -408,6 +441,7 @@ public class Extractor implements AutoCloseable {
     @Override
     public void close() {
         if (ocrExecutor != null) { ocrExecutor.shutdownNow(); ocrExecutor = null; }
+        if (pstParseExecutor != null) { pstParseExecutor.shutdownNow(); pstParseExecutor = null; }
         if (progressTracker != null) { progressTracker.close(); }
         parseExecutor.shutdownNow();
     }
