@@ -10,6 +10,12 @@ import org.junit.Test;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.fest.assertions.Assertions.assertThat;
@@ -149,5 +155,68 @@ public class BudgetedEmbedBufferTest {
         } catch (IOException expected) {
             // expected
         }
+    }
+
+    /**
+     * Concurrency regression test: N threads each own one buffer but share a single AtomicLong
+     * reserved and a small budgetBytes. All threads fire their write() simultaneously via a
+     * CountDownLatch. After all writes settle the shared counter must not exceed budgetBytes
+     * (i.e. the atomic reserve-then-check prevented any budget overrun), and every buffer
+     * whose reservation was rolled back must have spilled to disk.
+     */
+    @Test
+    public void testConcurrentWritesRespectSharedBudget() throws Exception {
+        final int threads = 8;
+        final int chunkSize = 512;          // each buffer writes 512 bytes
+        final long budgetBytes = 1024;      // fits at most 2 chunks in memory
+        final AtomicLong reserved = new AtomicLong();
+
+        final byte[] chunk = new byte[chunkSize];
+        java.util.Arrays.fill(chunk, (byte) 'x');
+
+        final CountDownLatch startGate = new CountDownLatch(1);
+        final List<BudgetedEmbedBuffer> buffers = new ArrayList<>(threads);
+        for (int i = 0; i < threads; i++) {
+            buffers.add(new BudgetedEmbedBuffer(reserved, budgetBytes, tmp));
+        }
+
+        final ExecutorService pool = Executors.newFixedThreadPool(threads);
+        final List<Future<?>> futures = new ArrayList<>(threads);
+        for (final BudgetedEmbedBuffer buf : buffers) {
+            futures.add(pool.submit(() -> {
+                try {
+                    startGate.await();
+                    buf.write(chunk, 0, chunkSize);
+                    buf.close();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+                return null;
+            }));
+        }
+
+        startGate.countDown(); // release all threads at once to maximise interleaving
+        for (final Future<?> f : futures) {
+            f.get();
+        }
+        pool.shutdown();
+
+        // The shared in-memory counter must never exceed the budget.
+        assertThat(reserved.get()).isLessThanOrEqualTo(budgetBytes);
+
+        // Every buffer that kept its bytes in memory must have contributed to the counter;
+        // every buffer that spilled must have released its reservation (reserved == 0 for it).
+        long expectedReserved = 0;
+        int spilledCount = 0;
+        for (final BudgetedEmbedBuffer buf : buffers) {
+            if (!buf.isSpilled()) {
+                expectedReserved += chunkSize;
+            } else {
+                spilledCount++;
+            }
+        }
+        assertThat(reserved.get()).isEqualTo(expectedReserved);
+        // With budget=1024 and chunkSize=512, at most 2 buffers can stay in memory.
+        assertThat(spilledCount).isGreaterThanOrEqualTo(threads - (int) (budgetBytes / chunkSize));
     }
 }

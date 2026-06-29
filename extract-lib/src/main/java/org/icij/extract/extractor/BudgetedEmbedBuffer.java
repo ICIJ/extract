@@ -65,25 +65,31 @@ class BudgetedEmbedBuffer extends OutputStream {
             fileOut.write(b, off, len);
             return;
         }
-        if (shouldSpill(len)) {
+        // Heap-pressure spill takes precedence and needs no reservation.
+        if (memoryPressureHigh.getAsBoolean()) {
             spill();
             fileOut.write(b, off, len);
             return;
         }
-        appendToMemory(b, off, len);
+        // Atomically reserve space in the shared budget. If this reservation pushes the total
+        // over budget, roll it back and spill instead. This prevents the check-then-act race
+        // that allows multiple parallel OCR threads to each see "budget not exceeded" before
+        // any of them has incremented the counter.
+        final long newTotal = reserved.addAndGet(len);
+        if (newTotal > budgetBytes) {
+            reserved.addAndGet(-len);
+            spill();
+            fileOut.write(b, off, len);
+            return;
+        }
+        appendToMemoryReserved(b, off, len);
     }
 
-    // Spill when the shared in-memory budget would be exceeded, or when the heap is already under
-    // pressure — the latter keeps total memory bounded even when the document tree, not the embed
-    // text, is what is filling the heap (e.g. mailboxes with tens of thousands of items).
-    private boolean shouldSpill(final int len) {
-        return reserved.get() + len > budgetBytes || memoryPressureHigh.getAsBoolean();
-    }
-
-    private void appendToMemory(final byte[] b, final int off, final int len) throws IOException {
+    // The reservation was already done atomically in write(); this method only records the bytes
+    // locally (memory buffer + memoryReserved) without touching the shared counter again.
+    private void appendToMemoryReserved(final byte[] b, final int off, final int len) throws IOException {
         memory.write(b, off, len);
         memoryReserved += len;
-        reserved.addAndGet(len);
     }
 
     private void spill() throws IOException {
