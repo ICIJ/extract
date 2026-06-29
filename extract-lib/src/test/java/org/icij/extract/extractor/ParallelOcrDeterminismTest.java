@@ -1,11 +1,15 @@
 package org.icij.extract.extractor;
 
+import org.apache.tika.parser.digestutils.CommonsDigester;
+import org.icij.extract.document.DigestIdentifier;
+import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
 import org.icij.spewer.Spewer;
 import org.icij.task.Options;
 import org.junit.Test;
 
+import java.nio.charset.Charset;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -133,5 +137,71 @@ public class ParallelOcrDeterminismTest {
             embeds.add(embed);
             collectEmbeds(embed, embeds);
         }
+    }
+
+    /**
+     * Extract the fixture using a DigestIdentifier-backed factory (mirroring production) so that
+     * embed IDs are digest-derived and therefore resolvable by the on-demand EmbeddedDocumentExtractor.
+     * Returns (root, embedIds) as an Object array for use by the round-trip test.
+     */
+    private Object[] extractWithDigestIdentifier() throws Exception {
+        DocumentFactory factory = new DocumentFactory()
+                .withIdentifier(new DigestIdentifier("SHA256", Charset.defaultCharset()));
+        try (Extractor extractor = new Extractor(factory, Options.from(Map.of(
+                "ocrParallelism", "8",
+                "ocrFanout", "true",
+                "progressHeartbeatInterval", "0")))) {
+
+            TikaDocument doc = extractor.extract(
+                    Paths.get(getClass().getResource(FIXTURE_RESOURCE).getPath()));
+
+            // Drain the root reader to drive all deferred OCR tasks and materialise every embed's
+            // digest-derived ID before we walk the embed tree.
+            try (java.io.Reader r = doc.getReader()) {
+                Spewer.toString(r);
+            }
+
+            List<String> ids = new ArrayList<>();
+            collectIds(doc, ids);
+            return new Object[]{doc, ids};
+        }
+    }
+
+    /**
+     * Round-trip guard: an embed produced by the PARALLEL deferred-OCR indexing path must be
+     * resolvable BY ITS ID through the on-demand single-embed walker (EmbeddedDocumentExtractor.extract),
+     * which is the path Datashare's SourceExtractor uses.
+     *
+     * Consistency requirement: both the indexing Extractor and the on-demand EmbeddedDocumentExtractor
+     * must use the SAME identifier scheme (DigestIdentifier) and the SAME digest algorithm ("SHA256"),
+     * so that embed IDs computed at index time match those recomputed during on-demand resolution.
+     */
+    @Test
+    public void testParallelOcrEmbedResolvableOnDemand() throws Exception {
+        Object[] result = extractWithDigestIdentifier();
+        TikaDocument root = (TikaDocument) result[0];
+        @SuppressWarnings("unchecked")
+        List<String> ids = (List<String>) result[1];
+
+        // The embed list must not be empty — verifies the fixture has resolvable embeds.
+        assertThat(ids).isNotEmpty();
+
+        String embedId = ids.get(0);
+
+        // Build the on-demand extractor with the same digest algorithm as the indexing run.
+        // artifactPath=null means in-memory resolution (no artifact cache needed for the test).
+        org.apache.tika.parser.DigestingParser.Digester digester =
+                new CommonsDigester(20 * 1024 * 1024, "SHA256");
+        EmbeddedDocumentExtractor onDemand =
+                new EmbeddedDocumentExtractor(digester, "SHA256", null, true);
+
+        // Build a fresh root document using the same DigestIdentifier so its ID matches the
+        // one registered in the on-demand extractor's resolution path.
+        TikaDocument freshRoot = new DocumentFactory()
+                .withIdentifier(new DigestIdentifier("SHA256", Charset.defaultCharset()))
+                .create(root.getPath());
+
+        // Must not throw ContentNotFoundException — the embed must be found and its source returned.
+        assertThat(onDemand.extract(freshRoot, embedId)).isNotNull();
     }
 }
