@@ -115,7 +115,16 @@ import static org.icij.extract.extractor.ArtifactUtils.getEmbeddedPath;
         "embedded-document text spills to temp files early, regardless of the byte budget, to keep " +
         "extraction within the available heap on very large containers. Defaults to 0.7; set to 0 or 1 to disable.",
         parameter = "ratio")
-public class Extractor {
+@Option(name = "ocrParallelism", description = "Number of OCR tasks run in parallel across all " +
+        "extraction threads. Defaults to the number of available processors. Set to 1 for serial OCR.",
+        parameter = "count")
+@Option(name = "ocrFanout", description = "Enable parallel OCR fan-out for image attachments. " +
+        "On by default. When off, images OCR inline on the parse thread.")
+@Option(name = "ocrMinImageBytes", description = "Image embeds smaller than this many bytes OCR " +
+        "inline instead of via the pool. Defaults to 0 (always fan out).", parameter = "bytes")
+@Option(name = "progressHeartbeatInterval", description = "Interval between extraction progress " +
+        "heartbeat log lines, e.g. \"60s\". Set to 0 to disable. Defaults to 60s.", parameter = "duration")
+public class Extractor implements AutoCloseable {
 
     public static final String PAGES_JSON = "pages.json";
 
@@ -163,6 +172,12 @@ public class Extractor {
             return thread;
         }
     });
+    private int ocrParallelism = Runtime.getRuntime().availableProcessors();
+    private boolean ocrFanout = true;
+    private long ocrMinImageBytes = 0L;
+    private Duration progressHeartbeatInterval = Duration.ofSeconds(60);
+    private ExecutorService ocrExecutor;
+    private ExtractionProgressTracker progressTracker;
 
     /**
      * Create a new extractor, which will OCR images by default if Tesseract is available locally, extract inline
@@ -197,6 +212,17 @@ public class Extractor {
         // Replace Tika's stock OutlookPSTParser, which silently aborts the rest
         // of a PST when one message fails, with the resilient parser.
         replaceParser(OutlookPSTParser.class, parser -> new ResilientOutlookPSTParser());
+        this.ocrExecutor = Executors.newFixedThreadPool(ocrParallelism, new ThreadFactory() {
+            private final AtomicInteger counter = new AtomicInteger();
+            @Override public Thread newThread(final Runnable r) {
+                final Thread thread = new Thread(r, "extract-ocr-" + counter.incrementAndGet());
+                thread.setDaemon(true);
+                return thread;
+            }
+        });
+        this.progressTracker = new ExtractionProgressTracker(progressHeartbeatInterval);
+        this.progressTracker.addListener(new LoggingProgressListener());
+        this.progressTracker.start();
     }
 
     public Extractor() {
@@ -236,6 +262,12 @@ public class Extractor {
             // re-run OCR on every extraction because the fallback holds its own OCR-parser reference.
             replaceParser(ImageIOTranscodingOCRParser.class, parser -> new CacheParserDecorator(parser, Paths.get(path)));
         });
+        options.get("ocrParallelism", String.valueOf(Runtime.getRuntime().availableProcessors()))
+                .parse().asInteger().ifPresent(n -> this.ocrParallelism = Math.max(1, n));
+        options.get("ocrFanout", "true").parse().asBoolean().ifPresent(b -> this.ocrFanout = b);
+        options.valueIfPresent("ocrMinImageBytes").map(Long::parseLong).ifPresent(b -> this.ocrMinImageBytes = b);
+        options.get("progressHeartbeatInterval", "60s").parse().asDuration()
+                .ifPresent(d -> this.progressHeartbeatInterval = d);
         logger.info("extractor configured with digester {} and {}", digester.getClass(), documentFactory);
     }
 
@@ -305,6 +337,22 @@ public class Extractor {
      */
     public Path getEmbedOutputPath() {
         return embedOutput;
+    }
+
+    public int getOcrParallelism() { return ocrParallelism; }
+    public boolean isOcrFanout() { return ocrFanout; }
+    public long getOcrMinImageBytes() { return ocrMinImageBytes; }
+    public ExecutorService getOcrExecutor() { return ocrExecutor; }
+    public ExtractionProgressTracker getProgressTracker() { return progressTracker; }
+    public void addProgressListener(final ProgressListener listener) {
+        progressTracker.addListener(listener);
+    }
+
+    @Override
+    public void close() {
+        if (ocrExecutor != null) { ocrExecutor.shutdownNow(); }
+        if (progressTracker != null) { progressTracker.close(); }
+        parseExecutor.shutdownNow();
     }
 
     public long getEmbedMemoryBudgetBytes() {
