@@ -27,14 +27,20 @@ import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
+import org.icij.extract.extractor.EmbedSpawner;
+
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.Collections.singleton;
@@ -112,6 +118,7 @@ public class ResilientOutlookPSTParser implements Parser {
         final XHTMLContentHandler xhtml = new XHTMLContentHandler(handler, metadata);
         final Reconciliation reconciliation = new Reconciliation();
         final EmissionContext emission = new EmissionContext(xhtml, extractor, reconciliation);
+        final PstFanoutConfig fanout = context.get(PstFanoutConfig.class);
 
         xhtml.startDocument();
         final String pstPath = TikaInputStream.get(stream).getFile().getPath();
@@ -121,7 +128,7 @@ public class ResilientOutlookPSTParser implements Parser {
         PSTFile pstFile = null;
         try {
             pstFile = new PSTFile(pstPath);
-            extractAllMessages(pstFile, pstPath, emission, metadata);
+            extractAllMessages(pstFile, pstPath, emission, metadata, reconciliation, fanout);
         } catch (final TikaException e) {
             throw e;
         } catch (final Exception e) {
@@ -138,7 +145,9 @@ public class ResilientOutlookPSTParser implements Parser {
     // then through descriptor recovery for messages no folder links to -- and records
     // how the emitted count reconciles against the descriptor ground truth.
     private void extractAllMessages(final PSTFile pstFile, final String pstPath,
-                                    final EmissionContext emission, final Metadata metadata) throws Exception {
+                                    final EmissionContext emission, final Metadata metadata,
+                                    final Reconciliation reconciliation,
+                                    final PstFanoutConfig fanout) throws Exception {
         // java-libpst reads single-block data from OST 2013 (type-36) files correctly, but
         // truncates or fails on attachment data spanning multiple blocks. We can't repair the
         // bytes, so flag the affected attachments to make the loss visible. Confined to type-36
@@ -147,9 +156,19 @@ public class ResilientOutlookPSTParser implements Parser {
             emission.enableAttachmentIntegrityCheck();
         }
         final List<Integer> messageDescriptorIds = enumerateMessageDescriptorIds(pstFile, pstPath);
-        walkFolder(pstFile.getRootFolder(), "/", emission);
+        final Map<Integer, String> folderPaths = resolveFolderPaths(pstFile, pstPath);
+
+        final boolean canFanOut = fanout != null && fanout.enabled()
+                && emission.extractor instanceof EmbedSpawner
+                && folderPaths != null && folderPaths.size() > 1;
+
+        if (canFanOut) {
+            walkFoldersParallel(pstPath, folderPaths, emission, reconciliation, fanout.executor().get());
+        } else {
+            walkFolder(pstFile.getRootFolder(), "/", emission);
+        }
+
         if (messageDescriptorIds != null) {
-            final Map<Integer, String> folderPaths = resolveFolderPaths(pstFile, pstPath);
             recoverOrphans(messageDescriptorIds, pstFile, folderPaths, emission);
         }
         // The java-libpst-heavy work is done; lift suppression only for the duration of the
@@ -161,6 +180,63 @@ public class ResilientOutlookPSTParser implements Parser {
             recordReconciliation(metadata, pstPath, messageDescriptorIds, emission.emittedCount());
             recordAttachmentIntegrity(metadata, pstPath, emission);
         });
+    }
+
+    // One task per folder. Each task opens its OWN PSTFile handle (libpst is not thread-safe),
+    // loads its folder by descriptor id, and emits that folder's DIRECT messages through a FORKED
+    // EmbedSpawner (its own DFS stack). The shared Reconciliation dedups + counts across tasks.
+    // All PSTFile handles are closed after the pool joins.
+    private void walkFoldersParallel(final String pstPath, final Map<Integer, String> folderPaths,
+                                     final EmissionContext baseEmission, final Reconciliation reconciliation,
+                                     final ExecutorService executor) throws Exception {
+        final EmbedSpawner baseSpawner = (EmbedSpawner) baseEmission.extractor;
+        final Map<Thread, PSTFile> handles = new ConcurrentHashMap<>();
+        final List<Future<?>> futures = new ArrayList<>(folderPaths.size());
+        try {
+            for (final Map.Entry<Integer, String> entry : folderPaths.entrySet()) {
+                final int descriptorId = entry.getKey();
+                final String folderPath = entry.getValue();
+                futures.add(executor.submit(() -> {
+                    try {
+                        final PSTFile own = handles.computeIfAbsent(Thread.currentThread(),
+                                t -> openQuietly(pstPath));
+                        if (own == null) {
+                            return;
+                        }
+                        final PSTObject object = PSTObject.detectAndLoadPSTObject(own, (long) descriptorId);
+                        if (object instanceof PSTFolder) {
+                            final EmissionContext walkerEmission =
+                                    new EmissionContext(baseEmission.xhtml, baseSpawner.fork(), reconciliation);
+                            emitFolderMessages((PSTFolder) object, folderPath, walkerEmission);
+                        }
+                    } catch (final Exception | LinkageError e) {
+                        logger.warn("PST folder \"{}\" (descriptor {}) parallel walk failed; skipping.",
+                                folderPath, descriptorId, e);
+                    }
+                }));
+            }
+            for (final Future<?> f : futures) {
+                try {
+                    f.get();
+                } catch (final ExecutionException e) {
+                    logger.warn("PST folder task failed.", e.getCause());
+                }
+            }
+        } finally {
+            for (final PSTFile h : handles.values()) {
+                closeQuietly(h);
+            }
+        }
+    }
+
+    private static PSTFile openQuietly(final String pstPath) {
+        try {
+            return new PSTFile(pstPath);
+        } catch (final Exception | LinkageError e) {
+            LoggerFactory.getLogger(ResilientOutlookPSTParser.class)
+                    .warn("Could not open a per-walker PSTFile handle for \"{}\".", pstPath, e);
+            return null;
+        }
     }
 
     // Enumerates the descriptor ids of normal mail messages -- our ground-truth count

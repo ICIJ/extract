@@ -937,6 +937,8 @@ public class Extractor implements AutoCloseable {
                             embedTextResources, new MemoryPressureGauge(embedMemoryPressureThreshold),
                             this::ocrExecutor, !ocrDisabled, currentProgress, digester,
                             ocrFanout, ocrMinImageBytes, ocrParserClassName, sink));
+            context.set(org.icij.extract.parser.PstFanoutConfig.class,
+                    new org.icij.extract.parser.PstFanoutConfig(pstFolderFanout, this::pstParseExecutor));
         } else if (EmbedHandling.CONCATENATE == embedHandling) {
             context.set(Parser.class, parser);
             context.set(EmbeddedDocumentExtractor.class, new EmbedParser(rootDocument, context));
