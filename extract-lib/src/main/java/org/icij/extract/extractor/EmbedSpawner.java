@@ -57,7 +57,7 @@ public class EmbedSpawner extends EmbedParser {
 	private final long embedMemoryBudgetBytes;
 	private final TemporaryResources tmp;
 	private final BooleanSupplier memoryPressureHigh;
-	private final AtomicLong reserved = new AtomicLong();
+	private final AtomicLong reserved;
 
 	// Supplies the OCR executor lazily; called only when an eligible image embed is deferred.
 	// The no-fan-out legacy constructor passes () -> null with ocrEnabled=false so this path
@@ -136,8 +136,40 @@ public class EmbedSpawner extends EmbedParser {
 		this.ocrMinImageBytes = ocrMinImageBytes;
 		this.ocrParserClassName = ocrParserClassName;
 		this.sink = sink;
+		this.reserved = new AtomicLong();
 		tikaDocumentStack.add(root);
 	}
+
+	// Shares every collaborator AND the live memory budget with `template`, but gets its own DFS
+	// stack (seeded with the shared root) and its own per-parent untitled state. Used by the PST
+	// folder fan-out so each walker has an isolated parent stack while the global embed-memory
+	// budget stays shared across all walkers.
+	private EmbedSpawner(final EmbedSpawner template) {
+		super(template.root, template.context);
+		this.outputPath = template.outputPath;
+		this.handlerFunction = template.handlerFunction;
+		this.embedMemoryBudgetBytes = template.embedMemoryBudgetBytes;
+		this.tmp = template.tmp;
+		this.memoryPressureHigh = template.memoryPressureHigh;
+		this.ocrExecutorSupplier = template.ocrExecutorSupplier;
+		this.ocrEnabled = template.ocrEnabled;
+		this.progress = template.progress;
+		this.digester = template.digester;
+		this.ocrFanout = template.ocrFanout;
+		this.ocrMinImageBytes = template.ocrMinImageBytes;
+		this.ocrParserClassName = template.ocrParserClassName;
+		this.sink = template.sink;
+		this.reserved = template.reserved; // SHARED budget
+		tikaDocumentStack.add(template.root); // fresh stack, seeded with the shared root
+	}
+
+	public EmbedSpawner fork() {
+		return new EmbedSpawner(this);
+	}
+
+	// Test accessors (package-private).
+	AtomicLong reservedBudget() { return reserved; }
+	int stackDepth() { return tikaDocumentStack.size(); }
 
 	// Deterministic, order-independent name for a non-inline embed that has no resource name.
 	// Derived from the immediate parent id + the embed's ordinal among its parent's children, so
