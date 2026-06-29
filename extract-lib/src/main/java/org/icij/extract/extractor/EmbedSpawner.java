@@ -50,7 +50,10 @@ public class EmbedSpawner extends EmbedParser {
 	private final Path outputPath;
 	private final Function<Writer, ContentHandler> handlerFunction;
 	private final LinkedList<TikaDocument> tikaDocumentStack = new LinkedList<>();
-	private int untitled = 0;
+	// Ordinal of the next unnamed child under the CURRENT parent (top of tikaDocumentStack).
+	// Reset whenever the current parent changes, so naming is per-parent, not global.
+	private int untitledOrdinalUnderCurrentParent = 0;
+	private String untitledOrdinalParentId = null;
 	private final long embedMemoryBudgetBytes;
 	private final TemporaryResources tmp;
 	private final BooleanSupplier memoryPressureHigh;
@@ -136,6 +139,13 @@ public class EmbedSpawner extends EmbedParser {
 		tikaDocumentStack.add(root);
 	}
 
+	// Deterministic, order-independent name for a non-inline embed that has no resource name.
+	// Derived from the immediate parent id + the embed's ordinal among its parent's children, so
+	// the parallel index and the serial on-demand walk produce the same name for the same embed.
+	static String untitledName(final String parentId, final int siblingOrdinal) {
+		return "untitled_" + parentId + "_" + siblingOrdinal;
+	}
+
 	@Override
 	public void parseEmbedded(final InputStream input, final ContentHandler handler, final Metadata metadata,
 	                          final boolean outputHtml) throws SAXException, IOException {
@@ -207,7 +217,12 @@ public class EmbedSpawner extends EmbedParser {
 
 		String name = metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY);
 		if (null == name || name.isEmpty()) {
-			name = String.format("untitled_%d", ++untitled);
+			final String parentId = tikaDocumentStack.getLast().getId();
+			if (!parentId.equals(untitledOrdinalParentId)) {
+				untitledOrdinalParentId = parentId;
+				untitledOrdinalUnderCurrentParent = 0;
+			}
+			name = untitledName(parentId, untitledOrdinalUnderCurrentParent++);
 		}
 
 		try {
@@ -275,7 +290,12 @@ public class EmbedSpawner extends EmbedParser {
 
 		String name = metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY);
 		if (null == name || name.isEmpty()) {
-			name = String.format("untitled_%d", ++untitled);
+			final String parentId = tikaDocumentStack.getLast().getId();
+			if (!parentId.equals(untitledOrdinalParentId)) {
+				untitledOrdinalParentId = parentId;
+				untitledOrdinalUnderCurrentParent = 0;
+			}
+			name = untitledName(parentId, untitledOrdinalUnderCurrentParent++);
 		}
 
 		// Spool the bytes now (the stream is only valid during this call), then copy them into a
