@@ -50,10 +50,10 @@ public class EmbedSpawner extends EmbedParser {
 	private final Path outputPath;
 	private final Function<Writer, ContentHandler> handlerFunction;
 	private final LinkedList<TikaDocument> tikaDocumentStack = new LinkedList<>();
-	// Ordinal of the next unnamed child under the CURRENT parent (top of tikaDocumentStack).
-	// Reset whenever the current parent changes, so naming is per-parent, not global.
-	private int untitledOrdinalUnderCurrentParent = 0;
-	private String untitledOrdinalParentId = null;
+	// Per-parent monotonic ordinal for nameless non-inline embeds: each gets an order-independent
+	// name from its immediate parent id + its 0-based index among that parent's nameless children.
+	// A map (not a reset-on-change slot) so a parent revisited after a nested descent keeps counting.
+	private final java.util.Map<String, Integer> untitledOrdinalsByParent = new java.util.HashMap<>();
 	private final long embedMemoryBudgetBytes;
 	private final TemporaryResources tmp;
 	private final BooleanSupplier memoryPressureHigh;
@@ -218,11 +218,8 @@ public class EmbedSpawner extends EmbedParser {
 		String name = metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY);
 		if (null == name || name.isEmpty()) {
 			final String parentId = tikaDocumentStack.getLast().getId();
-			if (!parentId.equals(untitledOrdinalParentId)) {
-				untitledOrdinalParentId = parentId;
-				untitledOrdinalUnderCurrentParent = 0;
-			}
-			name = untitledName(parentId, untitledOrdinalUnderCurrentParent++);
+			final int ordinal = untitledOrdinalsByParent.merge(parentId, 1, Integer::sum) - 1;
+			name = untitledName(parentId, ordinal);
 		}
 
 		try {
@@ -291,11 +288,8 @@ public class EmbedSpawner extends EmbedParser {
 		String name = metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY);
 		if (null == name || name.isEmpty()) {
 			final String parentId = tikaDocumentStack.getLast().getId();
-			if (!parentId.equals(untitledOrdinalParentId)) {
-				untitledOrdinalParentId = parentId;
-				untitledOrdinalUnderCurrentParent = 0;
-			}
-			name = untitledName(parentId, untitledOrdinalUnderCurrentParent++);
+			final int ordinal = untitledOrdinalsByParent.merge(parentId, 1, Integer::sum) - 1;
+			name = untitledName(parentId, ordinal);
 		}
 
 		// Spool the bytes now (the stream is only valid during this call), then copy them into a
