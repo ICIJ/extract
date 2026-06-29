@@ -109,7 +109,7 @@ public class EmbedSpawnerDeferredOcrTest {
     }
 
     // Fix 2: if the OCR executor is shut down before parsing, submit() is rejected. The reader
-    // backstop must NOT hang forever — it must return and the embed metadata must record the
+    // backstop must NOT hang forever: it must return and the embed metadata must record the
     // exception. A short timeout turns a regression into a test failure rather than a suite hang.
     @Test(timeout = 10000)
     public void testRejectedOcrSubmitDoesNotHangReaderAndRecordsException() throws Exception {

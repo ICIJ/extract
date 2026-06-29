@@ -254,7 +254,7 @@ public class EmbedSpawner extends EmbedParser {
 		// spool-lifetime fix: tis.getPath() returns tis's OWN transient spool, which is deleted the
 		// moment the container parser (PST/zip/PackageParser) advances to the next entry and closes
 		// tis. But the OCR task below runs ASYNCHRONOUSLY on the shared pool and reads its input
-		// later, long after tis is gone — reading tis's spool directly hits NoSuchFileException and
+		// later, long after tis is gone: reading tis's spool directly hits NoSuchFileException and
 		// the OCR text is silently lost. The shared tmp is closed by ResourceClosingReader only AFTER
 		// the full spew completes, and every embed's OCR completes before the spew finishes (the
 		// per-embed reader backstop guarantees it), so a tmp-owned copy outlives the async OCR read.
@@ -314,7 +314,7 @@ public class EmbedSpawner extends EmbedParser {
 		}
 
 		// ISOLATE the async OCR parse from all shared mutable state:
-		//  (a) a PRIVATE clone of the metadata — the pool thread writes only this clone, never the shared
+		//  (a) a PRIVATE clone of the metadata (the pool thread writes only this clone, never the shared
 		//      Metadata that the spew thread concurrently reads for getId()/indexing (avoids the
 		//      ConcurrentModificationException / corruption data race), and
 		//  (b) an ISOLATED ParseContext carrying forward this.context's parsing config but with an

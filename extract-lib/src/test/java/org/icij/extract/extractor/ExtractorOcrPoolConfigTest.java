@@ -24,7 +24,7 @@ public class ExtractorOcrPoolConfigTest {
     }
 
     // Fix wave 7: the OCR pool must be null before any extraction occurs (lazy creation).
-    // An Extractor that is only constructed — never used to extract — must hold no extra
+    // An Extractor that is only constructed (never used to extract) must hold no extra
     // threads and must be safe to close without any prior extraction.
     @Test public void testOcrPoolIsNullBeforeAnyExtraction() {
         Extractor extractor = new Extractor();

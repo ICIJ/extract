@@ -185,7 +185,8 @@ public class Extractor implements AutoCloseable {
     private Duration progressHeartbeatInterval = Duration.ofSeconds(60);
     // Null until first use; created lazily by ocrExecutor() to avoid leaking threads in
     // Extractors that never actually defer OCR (OCR disabled, fanout off, or no eligible image).
-    private ExecutorService ocrExecutor = null;
+    // Volatile so that close() on any thread sees the value written by the synchronized creator.
+    private volatile ExecutorService ocrExecutor = null;
     private ExtractionProgressTracker progressTracker;
 
     /**
@@ -346,7 +347,10 @@ public class Extractor implements AutoCloseable {
     public boolean isOcrFanout() { return ocrFanout; }
     public long getOcrMinImageBytes() { return ocrMinImageBytes; }
 
-    /** Returns the OCR executor, creating it lazily on first call. */
+    /**
+     * Returns the shared OCR executor, lazily CREATING it on the first call; callers that only
+     * want to inspect whether a pool exists should use {@link #ocrExecutorOrNull()} instead.
+     */
     public ExecutorService getOcrExecutor() { return ocrExecutor(); }
 
     /**
@@ -387,7 +391,7 @@ public class Extractor implements AutoCloseable {
      */
     @Override
     public void close() {
-        if (ocrExecutor != null) { ocrExecutor.shutdownNow(); }
+        if (ocrExecutor != null) { ocrExecutor.shutdownNow(); ocrExecutor = null; }
         if (progressTracker != null) { progressTracker.close(); }
         parseExecutor.shutdownNow();
     }

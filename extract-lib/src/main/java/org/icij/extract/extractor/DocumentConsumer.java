@@ -158,7 +158,9 @@ public class DocumentConsumer extends ExecutorProxy implements Consumer<Path> {
 	@Override
 	public boolean awaitTermination(final long timeout, final TimeUnit unit) throws InterruptedException {
 		final boolean terminated = executor.awaitTermination(timeout, unit);
-		if (!terminated) {
+		if (terminated) {
+			logger.info("Terminated.");
+		} else {
 			logger.warn(String.format("Still extracting after %d %s; in flight: %s", timeout, unit,
 					inFlightSummary(extractor.getProgressTracker().inFlight(), System.currentTimeMillis())));
 		}

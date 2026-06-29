@@ -29,7 +29,7 @@ import static org.fest.assertions.Assertions.assertThat;
  *   A minimal RFC 2822 email with a 1x1 PNG image as a non-inline attachment. Tika parses this
  *   as a single embed with Content-Type "image/ocr-png", which satisfies EmbedSpawner.isOcrEligible
  *   (the type starts with "image/"). When ocrFanout=true, the embed is handled by
- *   spawnEmbeddedDeferred() — the deferred OCR path — so this fixture directly exercises the
+ *   spawnEmbeddedDeferred() (the deferred OCR path), so this fixture directly exercises the
  *   digest-synchronous code path that the invariant guards.
  *
  * Materialization: the embed tree is populated lazily as the root document's Reader is consumed.
@@ -80,7 +80,7 @@ public class ParallelOcrDeterminismTest {
         List<String> serial   = idsAfterExtract(1, false);
         List<String> parallel = idsAfterExtract(8, true);
 
-        // The embed list must not be empty — verifies the fixture actually has embeds.
+        // The embed list must not be empty: verifies the fixture actually has embeds.
         assertThat(serial).isNotEmpty();
 
         // Core invariant: parallel OCR must not change embed IDs.
@@ -93,7 +93,7 @@ public class ParallelOcrDeterminismTest {
      * Before the fix, the async OCR task read the embed bytes from tis's OWN transient spool, which
      * the container parser deletes the moment it advances to the next entry. The async read then hit
      * NoSuchFileException, which spawnEmbeddedDeferred records into the embed's Metadata under
-     * TIKA_META_EXCEPTION_EMBEDDED_STREAM — silently losing the OCR text. The fix copies the bytes
+     * TIKA_META_EXCEPTION_EMBEDDED_STREAM, silently losing the OCR text. The fix copies the bytes
      * into a parse-owned temp file (lifetime spans until the post-spew root-reader close), so the
      * async read succeeds and no exception is recorded.
      *
@@ -183,7 +183,7 @@ public class ParallelOcrDeterminismTest {
         @SuppressWarnings("unchecked")
         List<String> ids = (List<String>) result[1];
 
-        // The embed list must not be empty — verifies the fixture has resolvable embeds.
+        // The embed list must not be empty: verifies the fixture has resolvable embeds.
         assertThat(ids).isNotEmpty();
 
         String embedId = ids.get(0);
@@ -201,7 +201,7 @@ public class ParallelOcrDeterminismTest {
                 .withIdentifier(new DigestIdentifier("SHA256", Charset.defaultCharset()))
                 .create(root.getPath());
 
-        // Must not throw ContentNotFoundException — the embed must be found and its source returned.
+        // Must not throw ContentNotFoundException: the embed must be found and its source returned.
         assertThat(onDemand.extract(freshRoot, embedId)).isNotNull();
     }
 }
