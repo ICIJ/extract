@@ -869,7 +869,7 @@ public class Extractor implements AutoCloseable {
                     new EmbedSpawner(rootDocument, context, embedOutput, handlerProvider, embedMemoryBudgetBytes,
                             embedTextResources, new MemoryPressureGauge(embedMemoryPressureThreshold),
                             this::ocrExecutor, !ocrDisabled, currentProgress, digester,
-                            ocrFanout, ocrMinImageBytes, ocrParserClassName));
+                            ocrFanout, ocrMinImageBytes, ocrParserClassName, null));
         } else if (EmbedHandling.CONCATENATE == embedHandling) {
             context.set(Parser.class, parser);
             context.set(EmbeddedDocumentExtractor.class, new EmbedParser(rootDocument, context));

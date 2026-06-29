@@ -18,6 +18,8 @@ import org.apache.tika.utils.ExceptionUtils;
 import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
 import org.icij.extract.ocr.OCRParser;
+import org.icij.spewer.SpewItem;
+import org.icij.spewer.SpewSink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
@@ -69,6 +71,11 @@ public class EmbedSpawner extends EmbedParser {
 	// OCR is disabled (in which case the deferred path is never reached).
 	private final String ocrParserClassName;
 
+	// Streaming spew sink; null in the legacy buffer-then-walk mode. When set, each embed is
+	// promised at creation and readied when its text is buffered (synchronously for non-deferred
+	// embeds, on the OCR completion thread for deferred ones).
+	private final SpewSink sink;
+
 	// Same translator EmbeddedDocumentExtractor uses: delegates to all service-registered
 	// EmbeddedStreamTranslator implementations (e.g. MSEmbeddedStreamTranslator from
 	// tika-parser-microsoft-module), so this stays future-proof rather than hardcoded to MS.
@@ -82,7 +89,7 @@ public class EmbedSpawner extends EmbedParser {
 		// Serial mode: no fan-out. All embeds go through the synchronous spawnEmbedded path.
 		// Pass a no-op supplier and ocrEnabled=false so the deferred path is never reached.
 		this(root, context, outputPath, handlerFunction, embedMemoryBudgetBytes, tmp, memoryPressureHigh,
-				() -> null, false, null, null, false, 0L, null);
+				() -> null, false, null, null, false, 0L, null, null);
 	}
 
 	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
@@ -97,7 +104,8 @@ public class EmbedSpawner extends EmbedParser {
 		// Backward-compatible overload: wrap the live executor in a supplier so existing call sites
 		// (including tests) that pass a pre-built ExecutorService continue to work unchanged.
 		this(root, context, outputPath, handlerFunction, embedMemoryBudgetBytes, tmp, memoryPressureHigh,
-				() -> ocrExecutor, ocrExecutor != null, progress, digester, ocrFanout, ocrMinImageBytes, ocrParserClassName);
+				() -> ocrExecutor, ocrExecutor != null, progress, digester, ocrFanout, ocrMinImageBytes,
+				ocrParserClassName, null);
 	}
 
 	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
@@ -109,7 +117,8 @@ public class EmbedSpawner extends EmbedParser {
 				 final ExtractionProgress progress,
 				 final DigestingParser.Digester digester,
 				 final boolean ocrFanout, final long ocrMinImageBytes,
-				 final String ocrParserClassName) {
+				 final String ocrParserClassName,
+				 final SpewSink sink) {
 		super(root, context);
 		this.outputPath = outputPath;
 		this.handlerFunction = handlerFunction;
@@ -123,6 +132,7 @@ public class EmbedSpawner extends EmbedParser {
 		this.ocrFanout = ocrFanout;
 		this.ocrMinImageBytes = ocrMinImageBytes;
 		this.ocrParserClassName = ocrParserClassName;
+		this.sink = sink;
 		tikaDocumentStack.add(root);
 	}
 
@@ -184,7 +194,12 @@ public class EmbedSpawner extends EmbedParser {
 		final Writer writer = new OutputStreamWriter(buffer, StandardCharsets.UTF_8);
 
 		final ContentHandler embedHandler = handlerFunction.apply(writer);
-		final EmbeddedTikaDocument embed = tikaDocumentStack.getLast().addEmbed(metadata);
+		final TikaDocument spewParent = tikaDocumentStack.getLast();
+		final int spewLevel = tikaDocumentStack.size();
+		if (sink != null) {
+			sink.promise();
+		}
+		final EmbeddedTikaDocument embed = spewParent.addEmbed(metadata);
 
 		// The reader is generated lazily during the spew walk, reading from memory or the
 		// temp file depending on whether this embed spilled.
@@ -208,6 +223,10 @@ public class EmbedSpawner extends EmbedParser {
 			embed.clearReader();
 			buffer.discard();
 			writer.close();
+			if (sink != null) {
+				// Balance the promise(): this embed will never be readied.
+				sink.ready(new SpewItem(embed, spewParent, root, spewLevel));
+			}
 			return;
 		}
 
@@ -232,6 +251,11 @@ public class EmbedSpawner extends EmbedParser {
 		if (null != this.outputPath) {
 			writeEmbed(tis, embed, name);
 		}
+
+		// Text is fully buffered and the artifact (if any) is written: hand this embed to the spew worker.
+		if (sink != null) {
+			sink.ready(new SpewItem(embed, spewParent, root, spewLevel));
+		}
 	}
 
 	// Eligible image attachment: build the embed node, name, digest and (optional) artifact file
@@ -242,7 +266,12 @@ public class EmbedSpawner extends EmbedParser {
 				new BudgetedEmbedBuffer(reserved, embedMemoryBudgetBytes, tmp, memoryPressureHigh);
 		final Writer writer = new OutputStreamWriter(buffer, StandardCharsets.UTF_8);
 		final ContentHandler embedHandler = handlerFunction.apply(writer);
-		final EmbeddedTikaDocument embed = tikaDocumentStack.getLast().addEmbed(metadata);
+		final TikaDocument spewParent = tikaDocumentStack.getLast();
+		final int spewLevel = tikaDocumentStack.size();
+		if (sink != null) {
+			sink.promise();
+		}
+		final EmbeddedTikaDocument embed = spewParent.addEmbed(metadata);
 
 		String name = metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY);
 		if (null == name || name.isEmpty()) {
@@ -268,6 +297,9 @@ public class EmbedSpawner extends EmbedParser {
 			embed.clearReader();
 			buffer.discard();
 			writer.close();
+			if (sink != null) {
+				sink.ready(new SpewItem(embed, spewParent, root, spewLevel));
+			}
 			return;
 		}
 
@@ -288,6 +320,9 @@ public class EmbedSpawner extends EmbedParser {
 			embed.clearReader();
 			buffer.discard();
 			writer.close();
+			if (sink != null) {
+				sink.ready(new SpewItem(embed, spewParent, root, spewLevel));
+			}
 			return;
 		}
 
@@ -345,6 +380,12 @@ public class EmbedSpawner extends EmbedParser {
 			mergeParseDerivedFields(metadata, ocrMeta);
 			return buffer.readerGenerator().generate();
 		});
+
+		// Stream this embed to the spew worker once its OCR future completes (normal completion,
+		// recorded failure, or rejected submit all complete `done`). Runs on the completing thread.
+		if (sink != null) {
+			done.whenComplete((v, t) -> sink.ready(new SpewItem(embed, spewParent, root, spewLevel)));
+		}
 
 		// Write the embed artifact file now, while the stream/container is still valid.
 		if (null != this.outputPath) {
