@@ -64,6 +64,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -178,6 +179,9 @@ public class Extractor implements AutoCloseable {
     private Duration progressHeartbeatInterval = Duration.ofSeconds(60);
     private ExecutorService ocrExecutor;
     private ExtractionProgressTracker progressTracker;
+    // Per-parse list of deferred-OCR futures, set in getTikaDocument and joined in doExtract before spew.
+    private final ThreadLocal<List<Future<?>>> pendingOcrFutures =
+            ThreadLocal.withInitial(Collections::emptyList);
 
     /**
      * Create a new extractor, which will OCR images by default if Tesseract is available locally, extract inline
@@ -518,13 +522,31 @@ public class Extractor implements AutoCloseable {
 
     private void doExtract(final Path path, final Spewer spewer) throws IOException {
         long before = currentTimeMillis();
-        TikaDocument document = extract(path);
-        logger.info("{} extracted in {}ms", path, currentTimeMillis() - before);
-        // Reader cleanup is owned by the two phases that can hold one open: Spewer.write() walks the
-        // whole tree and closes every document reader in a finally (including the root, which releases
-        // any spilled embed-text temp files), and ParsingReaderWithContentHandler closes its own read
-        // end if the pre-spew first-character read fails. So there is no orphaned reader to close here.
-        spewer.write(document);
+        progressTracker.begin(path);
+        try {
+            TikaDocument document = extract(path);
+            // Wait for all of this file's deferred image OCR before joining text into the spew, so the
+            // serialized output is byte-identical to serial OCR. The reader generators also block on
+            // their own future as a backstop, but joining here keeps the spew walk from blocking.
+            for (final Future<?> future : pendingOcrFutures.get()) {
+                try {
+                    future.get();
+                } catch (final InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (final ExecutionException ignored) {
+                    // Each OCR task records TIKA_META_EXCEPTION_EMBEDDED_STREAM itself; never fatal.
+                }
+            }
+            logger.info("{} extracted in {}ms", path, currentTimeMillis() - before);
+            // Reader cleanup is owned by the two phases that can hold one open: Spewer.write() walks the
+            // whole tree and closes every document reader in a finally (including the root, which releases
+            // any spilled embed-text temp files), and ParsingReaderWithContentHandler closes its own read
+            // end if the pre-spew first-character read fails. So there is no orphaned reader to close here.
+            spewer.write(document);
+        } finally {
+            pendingOcrFutures.remove();
+            progressTracker.end(path);
+        }
     }
 
     /**
@@ -806,9 +828,17 @@ public class Extractor implements AutoCloseable {
         if (EmbedHandling.SPAWN == embedHandling) {
             context.set(Parser.class, parser);
             embedTextResources = new TemporaryResources();
+            // The deferred OCR future list is parse-scoped: created here, stashed for the join in
+            // doExtract, and shared with the EmbedSpawner so submitted OCR tasks register here.
+            final List<Future<?>> ocrFutures = new CopyOnWriteArrayList<>();
+            pendingOcrFutures.set(ocrFutures);
+            // Live progress for this path (null when called outside doExtract, e.g. page extraction).
+            final ExtractionProgress currentProgress = progressTracker.get(path);
             context.set(EmbeddedDocumentExtractor.class,
                     new EmbedSpawner(rootDocument, context, embedOutput, handlerProvider, embedMemoryBudgetBytes,
-                            embedTextResources, new MemoryPressureGauge(embedMemoryPressureThreshold)));
+                            embedTextResources, new MemoryPressureGauge(embedMemoryPressureThreshold),
+                            ocrDisabled ? null : ocrExecutor, ocrFutures, currentProgress, digester,
+                            ocrFanout, ocrMinImageBytes));
         } else if (EmbedHandling.CONCATENATE == embedHandling) {
             context.set(Parser.class, parser);
             context.set(EmbeddedDocumentExtractor.class, new EmbedParser(rootDocument, context));

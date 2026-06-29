@@ -17,10 +17,17 @@ import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
+import org.apache.tika.parser.DigestingParser;
+
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
@@ -40,16 +47,43 @@ public class EmbedSpawner extends EmbedParser {
 	private final BooleanSupplier memoryPressureHigh;
 	private final AtomicLong reserved = new AtomicLong();
 
+	private final ExecutorService ocrExecutor;
+	private final List<Future<?>> ocrFutures;
+	private final ExtractionProgress progress;
+	private final DigestingParser.Digester digester;
+	private final boolean ocrFanout;
+	private final long ocrMinImageBytes;
+
 	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
 				 final Function<Writer, ContentHandler> handlerFunction,
 				 final long embedMemoryBudgetBytes, final TemporaryResources tmp,
 				 final BooleanSupplier memoryPressureHigh) {
+		// Serial mode: no fan-out. All embeds go through the synchronous spawnEmbedded path.
+		this(root, context, outputPath, handlerFunction, embedMemoryBudgetBytes, tmp, memoryPressureHigh,
+				null, null, null, null, false, 0L);
+	}
+
+	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
+				 final Function<Writer, ContentHandler> handlerFunction,
+				 final long embedMemoryBudgetBytes, final TemporaryResources tmp,
+				 final BooleanSupplier memoryPressureHigh,
+				 final ExecutorService ocrExecutor,
+				 final List<Future<?>> ocrFutures,
+				 final ExtractionProgress progress,
+				 final DigestingParser.Digester digester,
+				 final boolean ocrFanout, final long ocrMinImageBytes) {
 		super(root, context);
 		this.outputPath = outputPath;
 		this.handlerFunction = handlerFunction;
 		this.embedMemoryBudgetBytes = embedMemoryBudgetBytes;
 		this.tmp = tmp;
 		this.memoryPressureHigh = memoryPressureHigh;
+		this.ocrExecutor = ocrExecutor;
+		this.ocrFutures = ocrFutures;
+		this.progress = progress;
+		this.digester = digester;
+		this.ocrFanout = ocrFanout;
+		this.ocrMinImageBytes = ocrMinImageBytes;
 		tikaDocumentStack.add(root);
 	}
 
@@ -78,9 +112,16 @@ public class EmbedSpawner extends EmbedParser {
 				writeEnd(handler);
 			}
 		} else {
+			if (progress != null) {
+				progress.incrementEmbeds();
+			}
 			// we must not close the input with (try(TikaInputStream.get(input){...}) because
 			// it closes the stream and stops tika to get next entries in the PackageParser
-			spawnEmbedded(TikaInputStream.get(input), metadata);
+			if (ocrFanout && ocrExecutor != null && isOcrEligible(metadata, ocrMinImageBytes)) {
+				spawnEmbeddedDeferred(TikaInputStream.get(input), metadata);
+			} else {
+				spawnEmbedded(TikaInputStream.get(input), metadata);
+			}
 		}
 	}
 
@@ -139,6 +180,91 @@ public class EmbedSpawner extends EmbedParser {
 		// Write the embed file to the given outputPath directory.
 		if (null != this.outputPath) {
 			writeEmbed(tis, embed, name);
+		}
+	}
+
+	// Eligible image attachment: build the embed node, name, digest and (optional) artifact file
+	// synchronously on the walk thread so the embed ID, content hash and artifact filename are
+	// byte-identical to serial mode, then defer ONLY the OCR text parse to the shared pool.
+	private void spawnEmbeddedDeferred(final TikaInputStream tis, final Metadata metadata) throws IOException {
+		final BudgetedEmbedBuffer buffer =
+				new BudgetedEmbedBuffer(reserved, embedMemoryBudgetBytes, tmp, memoryPressureHigh);
+		final Writer writer = new OutputStreamWriter(buffer, StandardCharsets.UTF_8);
+		final ContentHandler embedHandler = handlerFunction.apply(writer);
+		final EmbeddedTikaDocument embed = tikaDocumentStack.getLast().addEmbed(metadata);
+
+		String name = metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY);
+		if (null == name || name.isEmpty()) {
+			name = String.format("untitled_%d", ++untitled);
+		}
+
+		// Spool the bytes now (the stream is only valid during this call).
+		final Path spooled;
+		try {
+			spooled = tis.getPath();
+		} catch (final Exception e) {
+			logger.error("Unable to spool file to disk (\"{}\" in \"{}\").", name, root, e);
+			// Severe problem with the input stream. Abort this embed, mirroring spawnEmbedded.
+			tikaDocumentStack.getLast().removeEmbed(embed);
+			embed.clearReader();
+			buffer.discard();
+			writer.close();
+			return;
+		}
+
+		// Digest synchronously so the embed ID and artifact filename are identical to serial mode.
+		try (InputStream digestStream = Files.newInputStream(spooled)) {
+			digester.digest(digestStream, metadata, context);
+		} catch (final Exception e) {
+			logger.error("Unable to digest embedded image \"{}\" (in \"{}\").", name, root, e);
+		}
+
+		// Back the reader with the OCR future so the spew walk blocks until text is ready (backstop;
+		// Extractor also joins all futures before spew).
+		final CompletableFuture<Void> done = new CompletableFuture<>();
+		embed.setReader(() -> {
+			join(done);
+			return buffer.readerGenerator().generate();
+		});
+
+		// Write the embed artifact file now, while the stream/container is still valid.
+		if (null != this.outputPath) {
+			writeEmbed(tis, embed, name);
+		}
+
+		if (progress != null) {
+			progress.incrementOcrSubmitted();
+		}
+		final String embedName = name;
+		ocrFutures.add(ocrExecutor.submit(() -> {
+			try (InputStream in = Files.newInputStream(spooled)) {
+				delegateParsing(TikaInputStream.get(in), embedHandler, metadata);
+			} catch (final Throwable t) {
+				logger.error("Deferred OCR failed for \"{}\" (in \"{}\").", embedName, root, t);
+				metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM,
+						ExceptionUtils.getFilteredStackTrace(t));
+			} finally {
+				try {
+					writer.close();
+				} catch (final IOException ignored) {
+					// best-effort: text already buffered
+				}
+				if (progress != null) {
+					progress.incrementOcrCompleted();
+				}
+				done.complete(null);
+			}
+			return null;
+		}));
+	}
+
+	private static void join(final Future<Void> f) {
+		try {
+			f.get();
+		} catch (final InterruptedException e) {
+			Thread.currentThread().interrupt();
+		} catch (final ExecutionException ignored) {
+			// OCR task already records TIKA_META_EXCEPTION_EMBEDDED_STREAM; never fatal.
 		}
 	}
 

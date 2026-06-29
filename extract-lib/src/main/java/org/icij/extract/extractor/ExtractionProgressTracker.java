@@ -37,6 +37,9 @@ public class ExtractionProgressTracker implements AutoCloseable {
 
     public void end(final Path path) { inFlight.remove(path); }
 
+    /** The live progress for an in-flight path, or {@code null} if none is currently tracked. */
+    public ExtractionProgress get(final Path path) { return inFlight.get(path); }
+
     public Collection<ExtractionProgress> inFlight() { return inFlight.values(); }
 
     public void addListener(final ProgressListener listener) { listeners.add(listener); }
