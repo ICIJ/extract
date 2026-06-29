@@ -3,12 +3,11 @@ package org.icij.extract.extractor;
 import org.junit.Test;
 import java.nio.file.Paths;
 import static org.fest.assertions.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
 
 public class ExtractionProgressTest {
     @Test public void testCountersStartAtZeroAndIncrement() {
         ExtractionProgress p = new ExtractionProgress(Paths.get("/x.ost"), 1_000L);
-        assertEquals(p.path(), Paths.get("/x.ost"));
+        assertThat(p.path().toString()).isEqualTo(Paths.get("/x.ost").toString());
         assertThat(p.embedsParsed()).isEqualTo(0L);
         p.incrementEmbeds();
         p.incrementOcrSubmitted();

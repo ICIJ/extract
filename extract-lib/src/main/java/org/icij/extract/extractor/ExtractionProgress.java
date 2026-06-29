@@ -3,7 +3,7 @@ package org.icij.extract.extractor;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicLong;
 
-/** Mutable, thread-safe per-file extraction progress snapshot. */
+/** Mutable, thread-safe per-file extraction progress tracker. */
 public class ExtractionProgress {
     private final Path path;
     private final long startMillis;
