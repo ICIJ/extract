@@ -1,0 +1,19 @@
+From: test@example.com
+To: recipient@example.com
+Subject: Test email with image attachment
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="boundary42"
+
+--boundary42
+Content-Type: text/plain; charset=US-ASCII
+
+This email has an attached PNG image for testing deferred OCR determinism.
+
+--boundary42
+Content-Type: image/png; name="test_image.png"
+Content-Disposition: attachment; filename="test_image.png"
+Content-Transfer-Encoding: base64
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC
+
+--boundary42--
