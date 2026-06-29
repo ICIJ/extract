@@ -183,6 +183,28 @@ public class EmbedSpawner extends EmbedParser {
 		}
 	}
 
+	static boolean isOcrEligible(final Metadata metadata, final long minImageBytes) {
+		final String contentType = metadata.get(Metadata.CONTENT_TYPE);
+		if (contentType == null || !contentType.startsWith("image/")) {
+			return false;
+		}
+		final String resourceType = metadata.get(TikaCoreProperties.EMBEDDED_RESOURCE_TYPE);
+		if (TikaCoreProperties.EmbeddedResourceType.INLINE.toString().equals(resourceType)) {
+			return false;
+		}
+		if (minImageBytes > 0) {
+			final String length = metadata.get(Metadata.CONTENT_LENGTH);
+			if (length != null) {
+				try {
+					if (Long.parseLong(length) < minImageBytes) {
+						return false;
+					}
+				} catch (final NumberFormatException ignored) { /* treat as unknown -> eligible */ }
+			}
+		}
+		return true;
+	}
+
 	private void saveEntries(final DirectoryEntry source, final DirectoryEntry destination) throws IOException {
 		for (Entry entry : source) {
 
