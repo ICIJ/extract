@@ -31,4 +31,14 @@ public class ExtractionProgressTrackerTest {
         t.start();   // must be a no-op scheduler
         t.close();
     }
+
+    @Test public void testListenerReceivesFrozenSnapshot() {
+        ExtractionProgressTracker t = new ExtractionProgressTracker(Duration.ofSeconds(60), () -> 0L);
+        final List<Collection<ExtractionProgress>> captured = new ArrayList<>();
+        t.addListener(captured::add);
+        t.begin(Paths.get("/a.ost"));
+        t.tick();
+        t.end(Paths.get("/a.ost"));   // mutate after the tick
+        assertThat(captured.get(0)).hasSize(1);       // snapshot still reflects the moment tick fired
+    }
 }

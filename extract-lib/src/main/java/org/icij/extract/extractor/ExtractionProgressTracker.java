@@ -4,6 +4,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
@@ -24,7 +25,7 @@ public class ExtractionProgressTracker implements AutoCloseable {
     }
 
     public ExtractionProgressTracker(final Duration heartbeatInterval, final LongSupplier clock) {
-        this.heartbeatInterval = heartbeatInterval;
+        this.heartbeatInterval = Objects.requireNonNull(heartbeatInterval, "heartbeatInterval");
         this.clock = clock;
     }
 
@@ -41,14 +42,14 @@ public class ExtractionProgressTracker implements AutoCloseable {
     public void addListener(final ProgressListener listener) { listeners.add(listener); }
 
     void tick() {
-        final Collection<ExtractionProgress> snapshot = inFlight();
+        final java.util.Collection<ExtractionProgress> snapshot = java.util.List.copyOf(inFlight.values());
         for (final ProgressListener listener : listeners) {
             listener.onHeartbeat(snapshot);
         }
     }
 
     public synchronized void start() {
-        if (heartbeatInterval == null || heartbeatInterval.isZero() || heartbeatInterval.isNegative() || scheduler != null) {
+        if (heartbeatInterval.isZero() || heartbeatInterval.isNegative() || scheduler != null) {
             return;
         }
         scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
