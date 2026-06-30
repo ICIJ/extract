@@ -186,49 +186,88 @@ public class ResilientOutlookPSTParser implements Parser {
     // loads its folder by descriptor id, and emits that folder's DIRECT messages through a FORKED
     // EmbedSpawner (its own DFS stack). The shared Reconciliation dedups + counts across tasks.
     // All PSTFile handles are closed after the pool joins.
+    // Parallel walk: submits one task per folder. All PSTFile handles are cleaned up on join/abort.
     private void walkFoldersParallel(final String pstPath, final Map<Integer, String> folderPaths,
                                      final EmissionContext baseEmission, final Reconciliation reconciliation,
                                      final ExecutorService executor) throws Exception {
-        final EmbedSpawner baseSpawner = (EmbedSpawner) baseEmission.extractor;
         final Map<Thread, PSTFile> handles = new ConcurrentHashMap<>();
-        final List<Future<?>> futures = new ArrayList<>(folderPaths.size());
+        List<Future<?>> futures = Collections.emptyList();
         try {
-            for (final Map.Entry<Integer, String> entry : folderPaths.entrySet()) {
-                final int descriptorId = entry.getKey();
-                final String folderPath = entry.getValue();
-                futures.add(executor.submit(() -> {
-                    try {
-                        final PSTFile own = handles.computeIfAbsent(Thread.currentThread(),
-                                t -> openQuietly(pstPath));
-                        if (own == null) {
-                            return;
-                        }
-                        final PSTObject object = PSTObject.detectAndLoadPSTObject(own, (long) descriptorId);
-                        if (object instanceof PSTFolder) {
-                            final EmissionContext walkerEmission =
-                                    new EmissionContext(baseEmission.xhtml, baseSpawner.fork(), reconciliation);
-                            emitFolderMessages((PSTFolder) object, folderPath, walkerEmission);
-                        }
-                    } catch (final Exception | LinkageError e) {
-                        logger.warn("PST folder \"{}\" (descriptor {}) parallel walk failed; skipping.",
-                                folderPath, descriptorId, e);
-                    }
-                }));
-            }
-            for (final Future<?> f : futures) {
-                try {
-                    f.get();
-                } catch (final ExecutionException e) {
-                    logger.warn("PST folder task failed.", e.getCause());
-                }
-            }
+            futures = submitFolderTasks(pstPath, folderPaths, baseEmission, reconciliation, handles, executor);
+            awaitAllTasks(futures);
         } finally {
-            for (final Future<?> f : futures) {
-                f.cancel(true);
+            cleanupParallelWalk(futures, handles);
+        }
+    }
+
+    private List<Future<?>> submitFolderTasks(final String pstPath, final Map<Integer, String> folderPaths,
+                                              final EmissionContext baseEmission, final Reconciliation reconciliation,
+                                              final Map<Thread, PSTFile> handles, final ExecutorService executor) {
+        final List<Future<?>> futures = new ArrayList<>(folderPaths.size());
+        for (final Map.Entry<Integer, String> entry : folderPaths.entrySet()) {
+            final int descriptorId = entry.getKey();
+            final String folderPath = entry.getValue();
+            futures.add(executor.submit(() -> walkSingleFolderParallel(
+                    pstPath, descriptorId, folderPath, baseEmission, reconciliation, handles
+            )));
+        }
+        return futures;
+    }
+
+    private void walkSingleFolderParallel(final String pstPath, final int descriptorId,
+                                          final String folderPath, final EmissionContext baseEmission,
+                                          final Reconciliation reconciliation, final Map<Thread, PSTFile> handles) {
+        try {
+            final PSTFile own = getOrOpenPstHandle(pstPath, handles);
+            if (own == null) {
+                return;
             }
-            for (final PSTFile h : handles.values()) {
-                closeQuietly(h);
+            final PSTObject object = PSTObject.detectAndLoadPSTObject(own, (long) descriptorId);
+            if (object instanceof PSTFolder) {
+                emitFolderParallel((PSTFolder) object, folderPath, baseEmission, reconciliation);
             }
+        } catch (final Exception | LinkageError e) {
+            logger.warn("PST folder \"{}\" (descriptor {}) parallel walk failed; skipping.",
+                    folderPath, descriptorId, e);
+        }
+    }
+
+    private PSTFile getOrOpenPstHandle(final String pstPath, final Map<Thread, PSTFile> handles) {
+        return handles.computeIfAbsent(Thread.currentThread(), t -> openQuietly(pstPath));
+    }
+
+    private void emitFolderParallel(final PSTFolder folder, final String folderPath,
+                                    final EmissionContext baseEmission, final Reconciliation reconciliation) {
+        final EmbedSpawner baseSpawner = (EmbedSpawner) baseEmission.extractor;
+        final EmissionContext walkerEmission =
+                new EmissionContext(baseEmission.xhtml, baseSpawner.fork(), reconciliation);
+        emitFolderMessages(folder, folderPath, walkerEmission);
+    }
+
+    private void awaitAllTasks(final List<Future<?>> futures) throws InterruptedException {
+        for (final Future<?> f : futures) {
+            try {
+                f.get();
+            } catch (final ExecutionException e) {
+                logger.warn("PST folder task failed.", e.getCause());
+            }
+        }
+    }
+
+    private void cleanupParallelWalk(final List<Future<?>> futures, final Map<Thread, PSTFile> handles) {
+        cancelFutures(futures);
+        closeHandles(handles);
+    }
+
+    private void cancelFutures(final List<Future<?>> futures) {
+        for (final Future<?> f : futures) {
+            f.cancel(true);
+        }
+    }
+
+    private void closeHandles(final Map<Thread, PSTFile> handles) {
+        for (final PSTFile h : handles.values()) {
+            closeQuietly(h);
         }
     }
 
