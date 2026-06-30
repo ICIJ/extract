@@ -114,7 +114,7 @@ public class StreamingSpewCoordinator implements SpewSink, AutoCloseable {
                 final SpewItem item = (SpewItem) o;
                 try {
                     // Skip children of a duplicate root, matching the legacy tree walk's gating.
-                    if (workerError == null && !item.root().isDuplicate()) {
+                    if (!item.root().isDuplicate()) {
                         spewer.writeDocument(item.embed(), item.parent(), item.root(), item.level());
                     }
                 } catch (final Throwable t) {

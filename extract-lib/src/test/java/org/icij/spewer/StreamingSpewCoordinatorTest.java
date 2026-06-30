@@ -21,6 +21,7 @@ public class StreamingSpewCoordinatorTest {
     private static class RecordingSpewer extends Spewer {
         final List<String> written = Collections.synchronizedList(new ArrayList<>());
         volatile boolean throwOnEmbed = false;
+        volatile String failOnId = null;
 
         RecordingSpewer() { super(new FieldNames()); }
 
@@ -28,6 +29,9 @@ public class StreamingSpewCoordinatorTest {
         protected void writeDocument(TikaDocument doc, TikaDocument parent, TikaDocument root, int level) throws IOException {
             if (throwOnEmbed && parent != null) {
                 throw new IOException("boom writing " + doc.getId());
+            }
+            if (failOnId != null && failOnId.equals(doc.getId())) {
+                throw new IOException("boom writing specific ID " + doc.getId());
             }
             written.add(doc.getId());
         }
@@ -96,5 +100,36 @@ public class StreamingSpewCoordinatorTest {
                 assertThat(expected.getMessage()).contains("boom");
             }
         }
+    }
+
+    @Test
+    public void testIsolatesPerDocumentWriteFailureAndWritesRemainingEmbeds() throws Exception {
+        RecordingSpewer spewer = new RecordingSpewer();
+        spewer.failOnId = "e2"; // throw on e2, but succeed on e1 and e3
+        TikaDocument root = doc("root", new StringReader("root-body"));
+        TikaDocument e1 = doc("e1", new StringReader("a"));
+        TikaDocument e2 = doc("e2", new StringReader("b"));
+        TikaDocument e3 = doc("e3", new StringReader("c"));
+
+        try (StreamingSpewCoordinator coord = new StreamingSpewCoordinator(spewer, 16)) {
+            coord.promise();
+            coord.ready(new SpewItem(e1, root, root, 1));
+            coord.promise();
+            coord.ready(new SpewItem(e2, root, root, 1));
+            coord.promise();
+            coord.ready(new SpewItem(e3, root, root, 1));
+
+            try {
+                coord.spew(root);
+                org.junit.Assert.fail("expected a worker failure exception to propagate from spew");
+            } catch (IOException expected) {
+                assertThat(expected.getMessage()).contains("boom writing specific ID e2");
+            }
+        }
+
+        // Under per-document isolation, e1 and e3 should still be successfully written,
+        // and only e2 should have been skipped/thrown.
+        assertThat(spewer.written).contains("root", "e1", "e3");
+        assertThat(spewer.written).excludes("e2");
     }
 }
