@@ -223,6 +223,9 @@ public class ResilientOutlookPSTParser implements Parser {
                 }
             }
         } finally {
+            for (final Future<?> f : futures) {
+                f.cancel(true);
+            }
             for (final PSTFile h : handles.values()) {
                 closeQuietly(h);
             }
