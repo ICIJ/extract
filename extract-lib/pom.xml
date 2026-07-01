@@ -13,6 +13,10 @@
     <packaging>jar</packaging>
     <properties>
         <tika-version>3.3.0</tika-version>
+        <!-- Must match the asm.version expected by tika-version's ClassParser (org.objectweb.asm.ASM9).
+             Pinned as a direct dependency so a nearer/older asm on a downstream runtime classpath
+             cannot shadow it and break .class parsing with "Unsupported api 589824". -->
+        <asm-version>9.9.1</asm-version>
     </properties>
 
     <build>
@@ -58,6 +62,15 @@
             <groupId>org.apache.tika</groupId>
             <artifactId>tika-core</artifactId>
             <version>${tika-version}</version>
+        </dependency>
+
+        <!-- Bytecode library used by Tika's ClassParser to parse .class files. Declared directly (rather
+             than left transitive through tika-parser-code-module) so extract-lib exports a modern ASM at
+             a short dependency path, preventing an older asm from winning mediation downstream. -->
+        <dependency>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm</artifactId>
+            <version>${asm-version}</version>
         </dependency>
 
         <dependency>
