@@ -10,7 +10,6 @@ import java.lang.module.ModuleDescriptor.Version;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 import static org.apache.tika.metadata.TikaCoreProperties.RESOURCE_NAME_KEY;
 
@@ -27,7 +26,8 @@ public class TikaDocument {
 	public static String LOCATION = "Location";
 
 	private final Path path;
-	private Supplier<String> id;
+	// volatile so the memoized value is safely published across fan-out threads sharing the root.
+	private volatile String memoizedId;
 	private String language = null;
 	private String foreignId = null;
 	private final Metadata metadata;
@@ -55,7 +55,7 @@ public class TikaDocument {
 		this.path = path;
 		this.identifier = identifier;
 		this.language = language;
-		this.id = ()-> id;
+		this.memoizedId = id;
         if (metadata.get(TIKA_VERSION) == null) {
             metadata.set(TIKA_VERSION, Tika.getString());
         }
@@ -107,19 +107,7 @@ public class TikaDocument {
 		this.path = path;
 		this.identifier = identifier;
 
-		// Create a supplier that will cache the result of the generator after the first invocation.
-		this.id = ()-> {
-			final String id;
-
-			try {
-				id = this.generateId();
-			} catch (final Exception e) {
-				throw new RuntimeException("Unable to generate document ID.", e);
-			}
-
-			this.id = ()-> id;
-			return id;
-		};
+		// The id is generated lazily and memoized on first getId() call (see getId()).
 		if (metadata.get(TIKA_VERSION) == null) {
 			metadata.set(TIKA_VERSION, Tika.getString());
 		}
@@ -161,7 +149,21 @@ public class TikaDocument {
 	}
 
 	public String getId() {
-		return id.get();
+		String value = memoizedId;
+		if (value == null) {
+			synchronized (this) {
+				value = memoizedId;
+				if (value == null) {
+					try {
+						value = generateId();
+					} catch (final Exception e) {
+						throw new RuntimeException("Unable to generate document ID.", e);
+					}
+					memoizedId = value;
+				}
+			}
+		}
+		return value;
 	}
 
 	public String getLanguage() {
@@ -215,11 +217,15 @@ public class TikaDocument {
 	}
 
 	public List<EmbeddedTikaDocument> getEmbeds() {
-		return embeds;
+		synchronized (embeds) {
+			return new java.util.ArrayList<>(embeds);
+		}
 	}
 
 	public boolean hasEmbeds() {
-		return !embeds.isEmpty();
+		synchronized (embeds) {
+			return !embeds.isEmpty();
+		}
 	}
 
 	public EmbeddedTikaDocument getEmbed(final String key) {
@@ -271,7 +277,7 @@ public class TikaDocument {
 	}
 
 	@Override
-	public int hashCode() { return Objects.hash(id.get());}
+	public int hashCode() { return Objects.hash(getId());}
 
 	public void apply(Consumer<TikaDocument> consumer) {
 		consumer.accept(this);
