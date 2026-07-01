@@ -194,7 +194,10 @@ public abstract class Spewer implements AutoCloseable, Serializable {
 
         @Override
         public void accept(String name, String[] values) throws IOException {
-            map.put(name, String.join(",", values));
+            MetadataTransformer.toIso8601Array(values)
+                    .ifPresentOrElse(
+                            iso -> map.put(name, iso),
+                            () -> map.put(name, String.join(",", values)));
         }
     }
 

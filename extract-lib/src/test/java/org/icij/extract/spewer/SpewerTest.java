@@ -15,6 +15,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -42,6 +43,10 @@ public class SpewerTest {
 
 			new MetadataTransformer(metadata, fields).transform(this.metadata::put,
 					(name, values)-> Stream.of(values).forEach(value -> this.metadata.put(name, value)));
+		}
+
+		Map<String, Object> realMetadata(final TikaDocument document) throws IOException {
+			return getMetadata(document);
 		}
 
 		@Override
@@ -115,5 +120,32 @@ public class SpewerTest {
 		assertEquals(spewer.metadata.get("tika_metadata_bar"), "bar");
 		// But this one should
 		Assert.assertNull(spewer.metadata.getOrDefault("tika_metadata_unknown_tag_0x", null), null);
+	}
+
+	@Test
+	public void testMultiValuedDatesBecomeIsoArray() throws IOException {
+		final SpewerStub spewer = new SpewerStub();
+		final TikaDocument tikaDocument = factory.create("test.txt");
+		final Metadata metadata = tikaDocument.getMetadata();
+		metadata.add("signature_date", "2023-05-30T12:35:06Z");
+		metadata.add("signature_date", "2024-06-20T06:39:27Z");
+
+		final Map<String, Object> result = spewer.realMetadata(tikaDocument);
+
+		assertEquals(List.of("2023-05-30T12:35:06Z", "2024-06-20T06:39:27Z"),
+				result.get("tika_metadata_signature_date"));
+	}
+
+	@Test
+	public void testMultiValuedNonDatesStayCommaJoined() throws IOException {
+		final SpewerStub spewer = new SpewerStub();
+		final TikaDocument tikaDocument = factory.create("test.txt");
+		final Metadata metadata = tikaDocument.getMetadata();
+		metadata.add("foo", "alpha");
+		metadata.add("foo", "beta");
+
+		final Map<String, Object> result = spewer.realMetadata(tikaDocument);
+
+		assertEquals("alpha,beta", result.get("tika_metadata_foo"));
 	}
 }
