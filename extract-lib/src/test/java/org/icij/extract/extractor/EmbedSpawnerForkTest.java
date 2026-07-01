@@ -36,4 +36,29 @@ public class EmbedSpawnerForkTest {
         assertThat(forked.stackDepth()).isEqualTo(1); // seeded with root only
         assertThat(base.stackDepth()).isEqualTo(1);
     }
+
+    @Test
+    public void testForkContextRegistersSelfAndOmitsFanout() {
+        final org.apache.tika.parser.ParseContext base = new org.apache.tika.parser.ParseContext();
+        // The base context carries the fan-out config (this is what makes the OUTERMOST PST fan out).
+        base.set(org.icij.extract.parser.PstFanoutConfig.class,
+                new org.icij.extract.parser.PstFanoutConfig(true, () -> null));
+        final org.icij.extract.document.TikaDocument root =
+                new org.icij.extract.document.DocumentFactory()
+                        .withIdentifier(new org.icij.extract.document.DigestIdentifier("SHA-384",
+                                java.nio.charset.StandardCharsets.UTF_8))
+                        .create(java.nio.file.Paths.get("/tmp/fake-root.ost"));
+        final EmbedSpawner baseSpawner = new EmbedSpawner(root, base, null,
+                w -> new org.apache.tika.sax.BodyContentHandler(w),
+                64L * 1024 * 1024, new org.apache.tika.io.TemporaryResources(), () -> false);
+        final EmbedSpawner forked = baseSpawner.fork();
+
+        // The fork registers ITSELF as the extractor so nested embeds recurse into the fork.
+        assertThat(forked.parseContextForTest()
+                .get(org.apache.tika.extractor.EmbeddedDocumentExtractor.class)).isSameAs(forked);
+        // The fork context OMITS PstFanoutConfig, so a nested PST attachment walks serially
+        // (no reentrant pstParseExecutor starvation).
+        assertThat(forked.parseContextForTest()
+                .get(org.icij.extract.parser.PstFanoutConfig.class)).isNull();
+    }
 }
