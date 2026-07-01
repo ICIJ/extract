@@ -3,6 +3,7 @@ package org.icij.extract.extractor;
 import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
+import org.apache.tika.exception.ZeroByteFileException;
 import org.apache.tika.extractor.ParsingEmbeddedDocumentExtractor;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
@@ -89,10 +90,13 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 			// Use the delegate parser to parse this entry.
 			delegatingParser.parse(tis, handler, metadata, parseContext);
 		} catch (final EncryptedDocumentException e) {
-			logger.error("Unable to decrypt encrypted document embedded in document: \"{}\" ({}) (in \"{}\").",
-					metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root, e);
-			metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM,
-					ExceptionUtils.getFilteredStackTrace(e));
+			logger.info("Encrypted document not extracted: \"{}\" ({}) (in \"{}\").",
+					metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root);
+			NoContentReason.stamp(metadata, NoContentReason.ENCRYPTED);
+		} catch (final ZeroByteFileException e) {
+			logger.debug("Empty embedded document not extracted: \"{}\" ({}) (in \"{}\").",
+					metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root);
+			NoContentReason.stamp(metadata, NoContentReason.EMPTY_FILE);
 		} catch (final TikaException e) {
 			logger.error("Unable to parse embedded document: \"{}\" ({}) (in \"{}\").",
 					metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root, e);
