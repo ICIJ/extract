@@ -24,6 +24,7 @@ import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.BodyContentHandler;
+import org.icij.extract.extractor.NoContentReason;
 import org.xml.sax.ContentHandler;
 
 import java.io.BufferedReader;
@@ -295,6 +296,9 @@ public class ParsingReaderWithContentHandler extends Reader {
                     parser.parse(stream, new BodyContentHandler(writer), metadata, context);
                 }
             } catch (Throwable t) {
+                if (t instanceof ZeroByteFileException) {
+                    NoContentReason.stamp(metadata, NoContentReason.EMPTY_FILE);
+                }
                 throwable = t;
             }
 

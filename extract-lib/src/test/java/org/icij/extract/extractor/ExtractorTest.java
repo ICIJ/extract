@@ -196,6 +196,21 @@ public class ExtractorTest {
 	}
 
 	@Test
+	public void testEmptyRootFileIsMarked() throws Throwable {
+        //GIVEN a zero-byte file
+        Path empty = folder.newFile("empty.bin").toPath();
+        //WHEN
+        TikaDocument tikaDocument = aBasicExtractor().extract(empty);
+        final String content;
+        try (final Reader reader = tikaDocument.getReader()) {
+            content = Spewer.toString(reader);
+        }
+        //THEN: indexed as empty, marked empty-file, no exception thrown
+        assertThat(content.trim()).isEmpty();
+        assertThat(tikaDocument.getMetadata().get(NoContentReason.METADATA_KEY)).isEqualTo("empty-file");
+	}
+
+	@Test
 	public void testByProjectDigester() throws Exception {
         //GIVEN
 		DocumentFactory documentFactory = new DocumentFactory().configure(Options.from(Map.of("digestAlgorithm", "SHA-384")));
