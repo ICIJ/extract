@@ -200,7 +200,10 @@ public class TikaDocument {
 
 	public EmbeddedTikaDocument addEmbed(final String key, final Identifier identifier, final Path path, final Metadata
 			metadata) {
-		return lookup.put(key, addEmbed(identifier, path, metadata));
+		final EmbeddedTikaDocument embed = addEmbed(identifier, path, metadata);
+		synchronized (lookup) {
+			return lookup.put(key, embed);
+		}
 	}
 
 	private EmbeddedTikaDocument addEmbed(final EmbeddedTikaDocument embed) {
@@ -229,7 +232,9 @@ public class TikaDocument {
 	}
 
 	public EmbeddedTikaDocument getEmbed(final String key) {
-		return lookup.get(key);
+		synchronized (lookup) {
+			return lookup.get(key);
+		}
 	}
 
 	public void setReader(final Reader reader) {

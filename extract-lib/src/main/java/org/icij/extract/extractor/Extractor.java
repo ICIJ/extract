@@ -306,6 +306,14 @@ public class Extractor implements AutoCloseable {
                 .parse().asInteger().ifPresent(n -> this.pstParseParallelism = Math.max(1, n));
         options.get("legacyUntitledNaming", "false").parse().asBoolean()
                 .ifPresent(b -> this.legacyUntitledNaming = b);
+        // Legacy naming and PST folder fan-out are mutually exclusive. The legacy global untitled_N
+        // counter is serial-only: each fan-out fork carries its own counter starting at 0, so with
+        // fan-out on the nameless embeds would get nondeterministic, non-matching names, defeating the
+        // flag's backward-compat purpose. Force the serial walk so the global counter is used serially.
+        if (legacyUntitledNaming && pstFolderFanout) {
+            logger.warn("legacyUntitledNaming requires the serial PST walk; forcing pstFolderFanout=false.");
+            pstFolderFanout = false;
+        }
         logger.info("extractor configured with digester {} and {}", digester.getClass(), documentFactory);
     }
 

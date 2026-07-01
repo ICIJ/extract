@@ -170,7 +170,9 @@ public class ResilientOutlookPSTParser implements Parser {
         }
 
         if (messageDescriptorIds != null) {
-            recoverOrphans(messageDescriptorIds, pstFile, folderPaths != null ? folderPaths : resolveFolderPaths(pstFile, pstPath), emission);
+            // folderPaths is non-null here: the line-161 guard resolves it whenever messageDescriptorIds
+            // is non-null, and resolveFolderPaths never returns null (empty map on failure).
+            recoverOrphans(messageDescriptorIds, pstFile, folderPaths, emission);
         }
         // The java-libpst-heavy work is done; lift suppression only for the duration of the
         // per-PST reconciliation and attachment-integrity summary (the load-bearing signal) so it
@@ -186,32 +188,41 @@ public class ResilientOutlookPSTParser implements Parser {
     // One task per folder. Each task opens its OWN PSTFile handle (libpst is not thread-safe),
     // loads its folder by descriptor id, and emits that folder's DIRECT messages through a FORKED
     // EmbedSpawner (its own DFS stack). The shared Reconciliation dedups + counts across tasks.
-    // All PSTFile handles are closed after the pool joins.
-    // Parallel walk: submits one task per folder. All PSTFile handles are cleaned up on join/abort.
+    //
+    // Handle ownership is PER TASK: each task opens its handle at the start of its body and closes it in
+    // its OWN finally, so a handle is only ever closed by the same thread that read it, after that read
+    // completes or aborts. This makes a close-during-read race impossible by construction, even on the
+    // abnormal path: the controller's finally cancels (interrupts) still-running tasks, and each task
+    // closes its own handle before the pool thread returns.
+    //
+    // TRADEOFF: concurrent open-handle count is still bounded by the pool size (each thread holds one
+    // open handle at a time, closed before it picks up the next task), but a handle is opened per folder
+    // task rather than reused per thread. This is the correctness-over-reuse choice; the OS page cache
+    // serves the repeated header reads cheaply. A per-thread handle cache with a proper task-completion
+    // latch is a possible future optimization.
     private void walkFoldersParallel(final String pstPath, final Map<Integer, String> folderPaths,
                                      final EmissionContext baseEmission, final Reconciliation reconciliation,
                                      final ExecutorService executor) throws Exception {
-        final Map<Thread, PSTFile> handles = new ConcurrentHashMap<>();
-        final Set<Thread> failedHandleThreads = ConcurrentHashMap.newKeySet();
         List<Future<?>> futures = Collections.emptyList();
         try {
-            futures = submitFolderTasks(pstPath, folderPaths, baseEmission, reconciliation, handles, failedHandleThreads, executor);
+            futures = submitFolderTasks(pstPath, folderPaths, baseEmission, reconciliation, executor);
             awaitAllTasks(futures);
         } finally {
-            cleanupParallelWalk(futures, handles);
+            // On the abnormal path, cancel interrupts still-running tasks; each closes its OWN handle in
+            // its own finally. The controller never touches any handle.
+            cancelFutures(futures);
         }
     }
 
     private List<Future<?>> submitFolderTasks(final String pstPath, final Map<Integer, String> folderPaths,
                                               final EmissionContext baseEmission, final Reconciliation reconciliation,
-                                              final Map<Thread, PSTFile> handles, final Set<Thread> failedHandleThreads,
                                               final ExecutorService executor) {
         final List<Future<?>> futures = new ArrayList<>(folderPaths.size());
         for (final Map.Entry<Integer, String> entry : folderPaths.entrySet()) {
             final int descriptorId = entry.getKey();
             final String folderPath = entry.getValue();
             futures.add(executor.submit(() -> walkSingleFolderParallel(
-                    pstPath, descriptorId, folderPath, baseEmission, reconciliation, handles, failedHandleThreads
+                    pstPath, descriptorId, folderPath, baseEmission, reconciliation
             )));
         }
         return futures;
@@ -219,42 +230,43 @@ public class ResilientOutlookPSTParser implements Parser {
 
     private void walkSingleFolderParallel(final String pstPath, final int descriptorId,
                                           final String folderPath, final EmissionContext baseEmission,
-                                          final Reconciliation reconciliation, final Map<Thread, PSTFile> handles,
-                                          final Set<Thread> failedHandleThreads) {
+                                          final Reconciliation reconciliation) {
         PstStdoutFilter.runWithSuppression(() -> {
-            try {
-                final PSTFile own = getOrOpenPstHandle(pstPath, handles, failedHandleThreads);
-                if (own == null) {
-                    return;
-                }
-                final PSTObject object = PSTObject.detectAndLoadPSTObject(own, (long) descriptorId);
-                if (object instanceof PSTFolder) {
-                    emitFolderParallel((PSTFolder) object, folderPath, baseEmission, reconciliation);
-                }
-            } catch (final Exception | LinkageError e) {
-                logger.warn("PST folder \"{}\" (descriptor {}) parallel walk failed; skipping.",
-                        folderPath, descriptorId, e);
+            // Open this task's OWN handle; the task body then owns closing it (see runOwnedFolderTask),
+            // so it is never closed by another thread while this thread is still reading it.
+            final PSTFile own = openQuietly(pstPath);
+            if (own == null) {
+                return;
             }
+            runOwnedFolderTask(own, descriptorId, folderPath, baseEmission, reconciliation);
         });
     }
 
-    private PSTFile getOrOpenPstHandle(final String pstPath, final Map<Thread, PSTFile> handles,
-                                       final Set<Thread> failedHandleThreads) {
-        final Thread current = Thread.currentThread();
-        if (failedHandleThreads.contains(current)) {
-            return null; // already tried and failed on this thread; don't reopen per folder
+    // Runs one folder task against a handle the CALLER has opened and this task now OWNS: the detect+emit
+    // is wrapped so any failure is logged, and the handle is closed in this task's OWN finally, on this
+    // task's OWN thread, whether the body returns normally or throws. Package-private so a test can inject
+    // a handle whose close() is observable and assert the finally closes it exactly once even on throw.
+    void runOwnedFolderTask(final PSTFile own, final int descriptorId, final String folderPath,
+                            final EmissionContext baseEmission, final Reconciliation reconciliation) {
+        try {
+            walkOneFolder(own, descriptorId, folderPath, baseEmission, reconciliation);
+        } catch (final Exception | LinkageError e) {
+            logger.warn("PST folder \"{}\" (descriptor {}) parallel walk failed; skipping.",
+                    folderPath, descriptorId, e);
+        } finally {
+            closeQuietly(own);
         }
-        final PSTFile existing = handles.get(current);
-        if (existing != null) {
-            return existing;
+    }
+
+    // Detect + emit for a single folder against the GIVEN handle. Package-private so a test can drive the
+    // detect+emit against an injected handle and assert the caller's finally closes it exactly once.
+    // The caller (walkSingleFolderParallel) owns opening and closing `handle`.
+    void walkOneFolder(final PSTFile handle, final int descriptorId, final String folderPath,
+                       final EmissionContext baseEmission, final Reconciliation reconciliation) throws Exception {
+        final PSTObject object = PSTObject.detectAndLoadPSTObject(handle, (long) descriptorId);
+        if (object instanceof PSTFolder) {
+            emitFolderParallel((PSTFolder) object, folderPath, baseEmission, reconciliation);
         }
-        final PSTFile opened = openQuietly(pstPath);
-        if (opened == null) {
-            failedHandleThreads.add(current);
-            return null;
-        }
-        handles.put(current, opened);
-        return opened;
     }
 
     private void emitFolderParallel(final PSTFolder folder, final String folderPath,
@@ -271,51 +283,16 @@ public class ResilientOutlookPSTParser implements Parser {
                 f.get();
             } catch (final InterruptedException e) {
                 Thread.currentThread().interrupt();
-                return; // stop waiting; cleanupParallelWalk (finally) cancels + drains + closes
+                return; // stop waiting; walkFoldersParallel (finally) cancels the rest
             } catch (final ExecutionException e) {
                 logger.warn("PST folder task failed.", e.getCause());
             }
         }
     }
 
-    private void cleanupParallelWalk(final List<Future<?>> futures, final Map<Thread, PSTFile> handles) {
-        cancelFutures(futures);
-        // Wait for every task to actually stop before closing handles: a per-thread PSTFile must never
-        // be closed while a folder task is still reading it, or that folder's remaining messages are
-        // silently dropped on the interrupt/abnormal path.
-        awaitQuietly(futures);
-        closeHandles(handles);
-    }
-
-    // Waits for each future to complete, swallowing cancellation and execution failures (already logged
-    // by awaitAllTasks on the normal path). Re-sets the interrupt flag if interrupted while waiting.
-    private static void awaitQuietly(final List<Future<?>> futures) {
-        for (final Future<?> f : futures) {
-            try {
-                f.get();
-            } catch (final InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return;
-            } catch (final java.util.concurrent.CancellationException | ExecutionException ignored) {
-                // cancelled or already-failed task: nothing to wait on, nothing actionable here
-            }
-        }
-    }
-
-    // Test-only entry point for the cleanup await ordering.
-    static void awaitQuietlyForTest(final List<Future<?>> futures) {
-        awaitQuietly(futures);
-    }
-
     private void cancelFutures(final List<Future<?>> futures) {
         for (final Future<?> f : futures) {
             f.cancel(true);
-        }
-    }
-
-    private void closeHandles(final Map<Thread, PSTFile> handles) {
-        for (final PSTFile h : handles.values()) {
-            closeQuietly(h);
         }
     }
 

@@ -30,7 +30,9 @@ import org.apache.tika.parser.DigestingParser;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -53,7 +55,7 @@ public class EmbedSpawner extends EmbedParser {
 	// Per-parent monotonic ordinal for nameless non-inline embeds: each gets an order-independent
 	// name from its immediate parent id + its 0-based index among that parent's nameless children.
 	// A map (not a reset-on-change slot) so a parent revisited after a nested descent keeps counting.
-	private final java.util.Map<String, Integer> untitledOrdinalsByParent = new java.util.HashMap<>();
+	private final Map<String, Integer> untitledOrdinalsByParent = new HashMap<>();
 	// When true, nameless non-inline embeds use the pre-branch GLOBAL untitled_N counter instead of the
 	// per-parent scheme, so datashare's on-demand SourceExtractor can resolve embeds in corpora indexed
 	// before the per-parent change (dual-resolution). Meaningful only in serial mode: the global counter
@@ -321,9 +323,21 @@ public class EmbedSpawner extends EmbedParser {
 			writer.close();
 		}
 
-		// Write the embed file to the given outputPath directory.
+		// Write the embed file to the given outputPath directory. A write failure must NOT skip the
+		// sink.ready below: the promise() above is already outstanding, so leaving without a ready would
+		// leak a promise and hang StreamingSpewCoordinator.awaitDrained() forever. Mirror the parse-failure
+		// path (which also keeps the embed with its buffered text attached) rather than removing the embed.
 		if (null != this.outputPath) {
-			writeEmbed(tis, embed, name);
+			try {
+				writeEmbed(tis, embed, name);
+			} catch (final IOException e) {
+				logger.error("Unable to write embed artifact for \"{}\" (in \"{}\").", name, root, e);
+				try {
+					writer.close();
+				} catch (final IOException ignored) {
+					// best-effort: text already buffered
+				}
+			}
 		}
 
 		// Text is fully buffered and the artifact (if any) is written: hand this embed to the spew worker.
@@ -463,9 +477,24 @@ public class EmbedSpawner extends EmbedParser {
 			done.whenComplete((v, t) -> sink.ready(new SpewItem(embed, spewParent, root, spewLevel)));
 		}
 
-		// Write the embed artifact file now, while the stream/container is still valid.
+		// Write the embed artifact file now, while the stream/container is still valid. A write failure
+		// must NOT fall through to submit the OCR task: complete `done` (which fires the whenComplete ->
+		// sink.ready, balancing the promise() above and releasing the reader backstop), close the writer
+		// best-effort, and abort this embed. Skipping this would leak a promise and hang awaitDrained().
 		if (null != this.outputPath) {
-			writeEmbed(tis, embed, name);
+			try {
+				writeEmbed(tis, embed, name);
+			} catch (final IOException e) {
+				logger.error("Unable to write embed artifact for \"{}\" (in \"{}\").", name, root, e);
+				try {
+					writer.close();
+				} catch (final IOException ignored) {
+					// best-effort: text already buffered
+				}
+				// Do NOT submit the OCR task or increment the submitted counter on this abort path.
+				done.complete(null);
+				return;
+			}
 		}
 
 		final String embedName = name;

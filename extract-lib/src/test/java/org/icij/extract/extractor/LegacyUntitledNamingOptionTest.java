@@ -22,4 +22,15 @@ public class LegacyUntitledNamingOptionTest {
             assertThat(extractor.isLegacyUntitledNaming()).isTrue();
         }
     }
+
+    @Test
+    public void testLegacyNamingForcesFanoutOff() throws Exception {
+        // Legacy naming and PST folder fan-out are mutually exclusive: the global untitled_N counter is
+        // serial-only, so enabling legacy naming must force pstFolderFanout=false even when explicitly on.
+        try (Extractor extractor = new Extractor(Options.from(Map.of(
+                "legacyUntitledNaming", "true", "pstFolderFanout", "true")))) {
+            assertThat(extractor.isLegacyUntitledNaming()).isTrue();
+            assertThat(extractor.isPstFolderFanout()).isFalse();
+        }
+    }
 }

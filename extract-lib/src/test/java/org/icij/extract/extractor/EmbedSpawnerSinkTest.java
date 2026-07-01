@@ -52,6 +52,35 @@ public class EmbedSpawnerSinkTest {
         }
     }
 
+    // F3 regression: if writeEmbed throws (here: embedOutput points at a regular FILE, so resolving a
+    // destination under it and copying fails for every embed), the promise() taken at embed creation
+    // must still be balanced by a ready(). A leaked promise would hang StreamingSpewCoordinator
+    // .awaitDrained() forever; the bounded timeout catches a regression as a failure, not a hang.
+    @Test(timeout = 60_000)
+    public void testFailedEmbedWriteStillBalancesPromise() throws Exception {
+        final RecordingSink sink = new RecordingSink();
+        // A regular file used as the "output directory": outputPath.resolve(hash) then Files.copy fails.
+        final java.io.File notADir = java.io.File.createTempFile("embed-out-not-a-dir", ".tmp");
+        notADir.deleteOnExit();
+
+        try (Extractor extractor = new Extractor(Options.from(Map.of(
+                "ocrParallelism", "4", "ocrFanout", "true", "progressHeartbeatInterval", "0",
+                "embedOutput", notADir.getAbsolutePath())))) {
+
+            final TikaDocument doc = extractor.extract(
+                    Paths.get(getClass().getResource(FIXTURE).getPath()), sink);
+
+            try (Reader r = doc.getReader()) {
+                org.icij.spewer.Spewer.toString(r);
+            }
+            drainEmbedReaders(doc);
+
+            assertThat(sink.promises.get()).isGreaterThan(0);
+            // Every promise is matched by a ready even though every artifact write failed: no leaked promise.
+            assertThat(sink.readyIds.size()).isEqualTo(sink.promises.get());
+        }
+    }
+
     private void drainEmbedReaders(org.icij.extract.document.TikaDocument doc) throws Exception {
         for (org.icij.extract.document.EmbeddedTikaDocument embed : doc.getEmbeds()) {
             try (java.io.Reader r = embed.getReader()) {
