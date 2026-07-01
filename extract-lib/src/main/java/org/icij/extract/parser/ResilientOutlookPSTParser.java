@@ -217,19 +217,21 @@ public class ResilientOutlookPSTParser implements Parser {
     private void walkSingleFolderParallel(final String pstPath, final int descriptorId,
                                           final String folderPath, final EmissionContext baseEmission,
                                           final Reconciliation reconciliation, final Map<Thread, PSTFile> handles) {
-        try {
-            final PSTFile own = getOrOpenPstHandle(pstPath, handles);
-            if (own == null) {
-                return;
+        PstStdoutFilter.runWithSuppression(() -> {
+            try {
+                final PSTFile own = getOrOpenPstHandle(pstPath, handles);
+                if (own == null) {
+                    return;
+                }
+                final PSTObject object = PSTObject.detectAndLoadPSTObject(own, (long) descriptorId);
+                if (object instanceof PSTFolder) {
+                    emitFolderParallel((PSTFolder) object, folderPath, baseEmission, reconciliation);
+                }
+            } catch (final Exception | LinkageError e) {
+                logger.warn("PST folder \"{}\" (descriptor {}) parallel walk failed; skipping.",
+                        folderPath, descriptorId, e);
             }
-            final PSTObject object = PSTObject.detectAndLoadPSTObject(own, (long) descriptorId);
-            if (object instanceof PSTFolder) {
-                emitFolderParallel((PSTFolder) object, folderPath, baseEmission, reconciliation);
-            }
-        } catch (final Exception | LinkageError e) {
-            logger.warn("PST folder \"{}\" (descriptor {}) parallel walk failed; skipping.",
-                    folderPath, descriptorId, e);
-        }
+        });
     }
 
     private PSTFile getOrOpenPstHandle(final String pstPath, final Map<Thread, PSTFile> handles) {
