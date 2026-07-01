@@ -12,6 +12,9 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
 
 import static org.fest.assertions.Assertions.assertThat;
 
@@ -73,5 +76,37 @@ public class MetadataTransformerTest {
         Files.writeString(metadataFile.toPath(), new MetadataTransformer(metadata).transform());
 
         assertThat(MetadataTransformer.loadMetadata(metadataFile)).isEqualTo(metadata);
+    }
+
+    @Test
+    public void test_toIso8601Array_returns_normalized_list_when_all_values_are_iso() {
+        String[] values = {"2023-05-30T12:35:06Z", "2024-06-20T06:39:27Z"};
+        assertThat(MetadataTransformer.toIso8601Array(values))
+                .isEqualTo(Optional.of(List.of("2023-05-30T12:35:06Z", "2024-06-20T06:39:27Z")));
+    }
+
+    @Test
+    public void test_toIso8601Array_normalizes_lenient_formats() {
+        String[] values = {"Tue Jan 27 17:03:21 2004", "2023-05-30T12:35:06Z"};
+        assertThat(MetadataTransformer.toIso8601Array(values))
+                .isEqualTo(Optional.of(List.of("2004-01-27T17:03:21Z", "2023-05-30T12:35:06Z")));
+    }
+
+    @Test
+    public void test_toIso8601Array_is_empty_when_any_value_is_not_a_date() {
+        String[] values = {"2023-05-30T12:35:06Z", "not a date"};
+        assertThat(MetadataTransformer.toIso8601Array(values)).isEqualTo(Optional.empty());
+    }
+
+    @Test
+    public void test_toIso8601Array_is_empty_when_no_value_is_a_date() {
+        String[] values = {"alpha", "beta"};
+        assertThat(MetadataTransformer.toIso8601Array(values)).isEqualTo(Optional.empty());
+    }
+
+    @Test
+    public void test_parseInstant_parses_offset_datetime() {
+        assertThat(MetadataTransformer.parseInstant("2023-05-30T13:35:06+01:00"))
+                .isEqualTo(Optional.of(Instant.parse("2023-05-30T12:35:06Z")));
     }
 }

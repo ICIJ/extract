@@ -18,6 +18,7 @@ import java.io.Serializable;
 import java.nio.file.Files;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -29,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 public class MetadataTransformer implements Serializable {
@@ -246,6 +248,69 @@ public class MetadataTransformer implements Serializable {
 			throw new IOException(String.format("Unable to parse date \"%s\" from field " +
 					"\"%s\" for ISO 8601 formatting.", metadata.get(name), name));
 		}
+	}
+
+	/**
+	 * Parse a single metadata value into an {@link Instant}. Tries strict ISO-8601 forms first
+	 * (clean values such as "2023-05-30T12:35:06Z" are not matched by any entry in dateFormats),
+	 * then falls back to the lenient formats used by the single-valued path.
+	 */
+	static Optional<Instant> parseInstant(final String value) {
+		if (null == value || value.isEmpty()) {
+			return Optional.empty();
+		}
+
+		try {
+			return Optional.of(Instant.parse(value));
+		} catch (final DateTimeParseException ignored) {
+			// not a Z-suffixed instant; try the next form
+		}
+
+		try {
+			return Optional.of(OffsetDateTime.parse(value).toInstant());
+		} catch (final DateTimeParseException ignored) {
+			// not an offset date-time; try the next form
+		}
+
+		try {
+			return Optional.of(LocalDateTime.parse(value).toInstant(ZoneOffset.UTC));
+		} catch (final DateTimeParseException ignored) {
+			// not a zoneless date-time; fall back to the lenient formats
+		}
+
+		for (final DateTimeFormatter format : dateFormats) {
+			try {
+				final TemporalAccessor accessor = format.parseBest(value, Instant::from, LocalDateTime::from);
+				if (accessor instanceof Instant) {
+					return Optional.of((Instant) accessor);
+				} else if (accessor instanceof LocalDateTime) {
+					return Optional.of(((LocalDateTime) accessor).toInstant(ZoneOffset.UTC));
+				}
+			} catch (final DateTimeParseException ignored) {
+				// try the next format
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	/**
+	 * Normalize a multi-valued field to ISO-8601 instants. Returns the list of normalized values
+	 * (order preserved) only if every value parses as a date, so that a mixed field falls back to
+	 * the caller's default handling instead of emitting a partially-valid date array.
+	 */
+	static Optional<List<String>> toIso8601Array(final String[] values) {
+		final List<String> normalised = new ArrayList<>(values.length);
+
+		for (final String value : values) {
+			final Optional<Instant> instant = parseInstant(value);
+			if (instant.isEmpty()) {
+				return Optional.empty();
+			}
+			normalised.add(instant.get().toString());
+		}
+
+		return normalised.isEmpty() ? Optional.empty() : Optional.of(normalised);
 	}
 
 	@FunctionalInterface
