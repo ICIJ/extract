@@ -311,7 +311,12 @@ public class Extractor implements AutoCloseable {
         options.get("legacyUntitledNaming", "false").parse().asBoolean()
                 .ifPresent(b -> this.legacyUntitledNaming = b);
         options.get("maxEmbedDepth", String.valueOf(EmbedSpawner.DEFAULT_MAX_EMBED_DEPTH))
-                .parse().asInteger().ifPresent(n -> this.maxEmbedDepth = Math.max(0, n));
+                .parse().asInteger().ifPresent(n -> {
+                    if (n < 0) {
+                        logger.warn("maxEmbedDepth {} is negative; clamping to 0 (depth guard disabled).", n);
+                    }
+                    this.maxEmbedDepth = Math.max(0, n);
+                });
         // Legacy naming and PST folder fan-out are mutually exclusive. The legacy global untitled_N
         // counter is serial-only: each fan-out fork carries its own counter starting at 0, so with
         // fan-out on the nameless embeds would get nondeterministic, non-matching names, defeating the
