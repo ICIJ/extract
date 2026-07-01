@@ -38,6 +38,20 @@ public class EmbedSpawnerForkTest {
     }
 
     @Test
+    public void testForkStackIsIndependentOfBase() {
+        final EmbedSpawner base = newSerialSpawner();
+        final EmbedSpawner forked = base.fork();
+        assertThat(base.stackDepth()).isEqualTo(1);
+        assertThat(forked.stackDepth()).isEqualTo(1);
+        forked.pushForTest(new org.icij.extract.document.DocumentFactory()
+                .withIdentifier(new org.icij.extract.document.DigestIdentifier("SHA-384",
+                        java.nio.charset.StandardCharsets.UTF_8))
+                .create(java.nio.file.Paths.get("/tmp/child")));
+        assertThat(forked.stackDepth()).isEqualTo(2);
+        assertThat(base.stackDepth()).isEqualTo(1); // base is unaffected by the fork's push
+    }
+
+    @Test
     public void testForkContextRegistersSelfAndOmitsFanout() {
         final org.apache.tika.parser.ParseContext base = new org.apache.tika.parser.ParseContext();
         // The base context carries the fan-out config (this is what makes the OUTERMOST PST fan out).

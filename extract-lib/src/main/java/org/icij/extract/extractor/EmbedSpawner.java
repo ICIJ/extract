@@ -183,6 +183,8 @@ public class EmbedSpawner extends EmbedParser {
 	// Test accessors (package-private).
 	AtomicLong reservedBudget() { return reserved; }
 	int stackDepth() { return tikaDocumentStack.size(); }
+	// Test accessor (package-private): push a document onto this spawner's DFS stack.
+	void pushForTest(final org.icij.extract.document.TikaDocument doc) { tikaDocumentStack.add(doc); }
 	// Test accessor (package-private): the context this spawner runs nested parses against.
 	ParseContext parseContextForTest() { return context; }
 

@@ -156,11 +156,12 @@ public class ResilientOutlookPSTParser implements Parser {
             emission.enableAttachmentIntegrityCheck();
         }
         final List<Integer> messageDescriptorIds = enumerateMessageDescriptorIds(pstFile, pstPath);
-        final Map<Integer, String> folderPaths = resolveFolderPaths(pstFile, pstPath);
+        final boolean fanoutRequested = fanout != null && fanout.enabled()
+                && emission.extractor instanceof EmbedSpawner;
+        final Map<Integer, String> folderPaths =
+                (fanoutRequested || messageDescriptorIds != null) ? resolveFolderPaths(pstFile, pstPath) : null;
 
-        final boolean canFanOut = fanout != null && fanout.enabled()
-                && emission.extractor instanceof EmbedSpawner
-                && folderPaths != null && folderPaths.size() > 1;
+        final boolean canFanOut = fanoutRequested && folderPaths != null && folderPaths.size() > 1;
 
         if (canFanOut) {
             walkFoldersParallel(pstPath, folderPaths, emission, reconciliation, fanout.executor().get());
@@ -169,7 +170,7 @@ public class ResilientOutlookPSTParser implements Parser {
         }
 
         if (messageDescriptorIds != null) {
-            recoverOrphans(messageDescriptorIds, pstFile, folderPaths, emission);
+            recoverOrphans(messageDescriptorIds, pstFile, folderPaths != null ? folderPaths : resolveFolderPaths(pstFile, pstPath), emission);
         }
         // The java-libpst-heavy work is done; lift suppression only for the duration of the
         // per-PST reconciliation and attachment-integrity summary (the load-bearing signal) so it
@@ -191,9 +192,10 @@ public class ResilientOutlookPSTParser implements Parser {
                                      final EmissionContext baseEmission, final Reconciliation reconciliation,
                                      final ExecutorService executor) throws Exception {
         final Map<Thread, PSTFile> handles = new ConcurrentHashMap<>();
+        final Set<Thread> failedHandleThreads = ConcurrentHashMap.newKeySet();
         List<Future<?>> futures = Collections.emptyList();
         try {
-            futures = submitFolderTasks(pstPath, folderPaths, baseEmission, reconciliation, handles, executor);
+            futures = submitFolderTasks(pstPath, folderPaths, baseEmission, reconciliation, handles, failedHandleThreads, executor);
             awaitAllTasks(futures);
         } finally {
             cleanupParallelWalk(futures, handles);
@@ -202,13 +204,14 @@ public class ResilientOutlookPSTParser implements Parser {
 
     private List<Future<?>> submitFolderTasks(final String pstPath, final Map<Integer, String> folderPaths,
                                               final EmissionContext baseEmission, final Reconciliation reconciliation,
-                                              final Map<Thread, PSTFile> handles, final ExecutorService executor) {
+                                              final Map<Thread, PSTFile> handles, final Set<Thread> failedHandleThreads,
+                                              final ExecutorService executor) {
         final List<Future<?>> futures = new ArrayList<>(folderPaths.size());
         for (final Map.Entry<Integer, String> entry : folderPaths.entrySet()) {
             final int descriptorId = entry.getKey();
             final String folderPath = entry.getValue();
             futures.add(executor.submit(() -> walkSingleFolderParallel(
-                    pstPath, descriptorId, folderPath, baseEmission, reconciliation, handles
+                    pstPath, descriptorId, folderPath, baseEmission, reconciliation, handles, failedHandleThreads
             )));
         }
         return futures;
@@ -216,10 +219,11 @@ public class ResilientOutlookPSTParser implements Parser {
 
     private void walkSingleFolderParallel(final String pstPath, final int descriptorId,
                                           final String folderPath, final EmissionContext baseEmission,
-                                          final Reconciliation reconciliation, final Map<Thread, PSTFile> handles) {
+                                          final Reconciliation reconciliation, final Map<Thread, PSTFile> handles,
+                                          final Set<Thread> failedHandleThreads) {
         PstStdoutFilter.runWithSuppression(() -> {
             try {
-                final PSTFile own = getOrOpenPstHandle(pstPath, handles);
+                final PSTFile own = getOrOpenPstHandle(pstPath, handles, failedHandleThreads);
                 if (own == null) {
                     return;
                 }
@@ -234,8 +238,23 @@ public class ResilientOutlookPSTParser implements Parser {
         });
     }
 
-    private PSTFile getOrOpenPstHandle(final String pstPath, final Map<Thread, PSTFile> handles) {
-        return handles.computeIfAbsent(Thread.currentThread(), t -> openQuietly(pstPath));
+    private PSTFile getOrOpenPstHandle(final String pstPath, final Map<Thread, PSTFile> handles,
+                                       final Set<Thread> failedHandleThreads) {
+        final Thread current = Thread.currentThread();
+        if (failedHandleThreads.contains(current)) {
+            return null; // already tried and failed on this thread; don't reopen per folder
+        }
+        final PSTFile existing = handles.get(current);
+        if (existing != null) {
+            return existing;
+        }
+        final PSTFile opened = openQuietly(pstPath);
+        if (opened == null) {
+            failedHandleThreads.add(current);
+            return null;
+        }
+        handles.put(current, opened);
+        return opened;
     }
 
     private void emitFolderParallel(final PSTFolder folder, final String folderPath,
@@ -246,10 +265,13 @@ public class ResilientOutlookPSTParser implements Parser {
         emitFolderMessages(folder, folderPath, walkerEmission);
     }
 
-    private void awaitAllTasks(final List<Future<?>> futures) throws InterruptedException {
+    private void awaitAllTasks(final List<Future<?>> futures) {
         for (final Future<?> f : futures) {
             try {
                 f.get();
+            } catch (final InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return; // stop waiting; cleanupParallelWalk (finally) cancels + drains + closes
             } catch (final ExecutionException e) {
                 logger.warn("PST folder task failed.", e.getCause());
             }
