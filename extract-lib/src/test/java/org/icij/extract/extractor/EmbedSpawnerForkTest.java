@@ -75,4 +75,16 @@ public class EmbedSpawnerForkTest {
         assertThat(forked.parseContextForTest()
                 .get(org.icij.extract.parser.PstFanoutConfig.class)).isNull();
     }
+
+    @Test
+    public void testForkInheritsMaxEmbedDepth() {
+        final TikaDocument root = new DocumentFactory()
+                .withIdentifier(new DigestIdentifier("SHA-256", Charset.defaultCharset()))
+                .create(Paths.get("/tmp/fake-root.ost"));
+        final EmbedSpawner base = new EmbedSpawner(root, new ParseContext(), null,
+                w -> new org.apache.tika.sax.BodyContentHandler(w),
+                64L * 1024 * 1024, new TemporaryResources(), () -> false, 5);
+        final EmbedSpawner forked = base.fork();
+        assertThat(forked.maxEmbedDepthForTest()).isEqualTo(5);
+    }
 }

@@ -49,6 +49,11 @@ public class EmbedSpawner extends EmbedParser {
 
 	private static final Logger logger = LoggerFactory.getLogger(EmbedParser.class);
 
+	// Default maximum embed nesting depth; embeds deeper than this are refused (see exceedsMaxEmbedDepth).
+	static final int DEFAULT_MAX_EMBED_DEPTH = 20;
+	// Metadata key set on a parent document, counting its direct children refused for exceeding the depth limit.
+	static final String EMBEDS_SKIPPED_MAX_DEPTH = "X-EXTRACT:embedsSkippedMaxDepth";
+
 	private final Path outputPath;
 	private final Function<Writer, ContentHandler> handlerFunction;
 	private final LinkedList<TikaDocument> tikaDocumentStack = new LinkedList<>();
@@ -63,6 +68,7 @@ public class EmbedSpawner extends EmbedParser {
 	private final boolean legacyUntitledNaming;
 	// Pre-branch global counter, used only when legacyUntitledNaming is true.
 	private int untitledGlobalCounter = 0;
+	private final int maxEmbedDepth;
 	private final long embedMemoryBudgetBytes;
 	private final TemporaryResources tmp;
 	private final BooleanSupplier memoryPressureHigh;
@@ -98,10 +104,17 @@ public class EmbedSpawner extends EmbedParser {
 				 final Function<Writer, ContentHandler> handlerFunction,
 				 final long embedMemoryBudgetBytes, final TemporaryResources tmp,
 				 final BooleanSupplier memoryPressureHigh) {
-		// Serial mode: no fan-out. All embeds go through the synchronous spawnEmbedded path.
-		// Pass a no-op supplier and ocrEnabled=false so the deferred path is never reached.
 		this(root, context, outputPath, handlerFunction, embedMemoryBudgetBytes, tmp, memoryPressureHigh,
-				() -> null, false, null, null, false, 0L, null, null, false);
+				DEFAULT_MAX_EMBED_DEPTH);
+	}
+
+	// Serial mode with an explicit depth limit (test-friendly). No fan-out, no OCR.
+	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
+				 final Function<Writer, ContentHandler> handlerFunction,
+				 final long embedMemoryBudgetBytes, final TemporaryResources tmp,
+				 final BooleanSupplier memoryPressureHigh, final int maxEmbedDepth) {
+		this(root, context, outputPath, handlerFunction, embedMemoryBudgetBytes, tmp, memoryPressureHigh,
+				() -> null, false, null, null, false, 0L, null, null, false, maxEmbedDepth);
 	}
 
 	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
@@ -117,7 +130,7 @@ public class EmbedSpawner extends EmbedParser {
 		// (including tests) that pass a pre-built ExecutorService continue to work unchanged.
 		this(root, context, outputPath, handlerFunction, embedMemoryBudgetBytes, tmp, memoryPressureHigh,
 				() -> ocrExecutor, ocrExecutor != null, progress, digester, ocrFanout, ocrMinImageBytes,
-				ocrParserClassName, null, false);
+				ocrParserClassName, null, false, DEFAULT_MAX_EMBED_DEPTH);
 	}
 
 	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
@@ -131,7 +144,8 @@ public class EmbedSpawner extends EmbedParser {
 				 final boolean ocrFanout, final long ocrMinImageBytes,
 				 final String ocrParserClassName,
 				 final SpewSink sink,
-				 final boolean legacyUntitledNaming) {
+				 final boolean legacyUntitledNaming,
+				 final int maxEmbedDepth) {
 		super(root, context);
 		this.outputPath = outputPath;
 		this.handlerFunction = handlerFunction;
@@ -147,6 +161,7 @@ public class EmbedSpawner extends EmbedParser {
 		this.ocrParserClassName = ocrParserClassName;
 		this.sink = sink;
 		this.legacyUntitledNaming = legacyUntitledNaming;
+		this.maxEmbedDepth = maxEmbedDepth;
 		this.reserved = new AtomicLong();
 		tikaDocumentStack.add(root);
 	}
@@ -171,6 +186,7 @@ public class EmbedSpawner extends EmbedParser {
 		this.ocrParserClassName = template.ocrParserClassName;
 		this.sink = template.sink;
 		this.legacyUntitledNaming = template.legacyUntitledNaming;
+		this.maxEmbedDepth = template.maxEmbedDepth; // forks enforce the same depth on their own stack
 		this.reserved = template.reserved; // SHARED budget
 		// Register THIS fork as the extractor in its OWN context so nested embeds (message attachments,
 		// depth>=2) recurse into this fork's DFS stack + untitled map, not the shared base spawner.
@@ -185,6 +201,8 @@ public class EmbedSpawner extends EmbedParser {
 	// Test accessors (package-private).
 	AtomicLong reservedBudget() { return reserved; }
 	int stackDepth() { return tikaDocumentStack.size(); }
+	// Test accessor (package-private): the configured maximum embed nesting depth.
+	int maxEmbedDepthForTest() { return maxEmbedDepth; }
 	// Test accessor (package-private): push a document onto this spawner's DFS stack.
 	void pushForTest(final org.icij.extract.document.TikaDocument doc) { tikaDocumentStack.add(doc); }
 	// Test accessor (package-private): the context this spawner runs nested parses against.
@@ -212,6 +230,29 @@ public class EmbedSpawner extends EmbedParser {
 		return untitledName(parentId, ordinal);
 	}
 
+	// Record a refused embed on its parent: bump the parent's aggregate skip counter (indexed marker)
+	// and the per-file progress counter. Runs on the walk thread for this parent's subtree, so the
+	// read-increment-set is single-threaded with respect to this parent (consistent with how other
+	// embed metadata is set during the walk).
+	private void recordSkippedAtDepth(final Metadata skipped) {
+		final Metadata parent = tikaDocumentStack.getLast().getMetadata();
+		int count = 0;
+		final String existing = parent.get(EMBEDS_SKIPPED_MAX_DEPTH);
+		if (existing != null) {
+			try {
+				count = Integer.parseInt(existing);
+			} catch (final NumberFormatException ignored) {
+				// Treat an unparseable marker as zero and overwrite it.
+			}
+		}
+		parent.set(EMBEDS_SKIPPED_MAX_DEPTH, Integer.toString(count + 1));
+		if (progress != null) {
+			progress.incrementEmbedsSkippedMaxDepth();
+		}
+		logger.warn("Skipping embed \"{}\" nested beyond max depth {} (in \"{}\").",
+				skipped.get(TikaCoreProperties.RESOURCE_NAME_KEY), maxEmbedDepth, root);
+	}
+
 	@Override
 	public void parseEmbedded(final InputStream input, final ContentHandler handler, final Metadata metadata,
 	                          final boolean outputHtml) throws SAXException, IOException {
@@ -237,6 +278,13 @@ public class EmbedSpawner extends EmbedParser {
 				writeEnd(handler);
 			}
 		} else {
+			// Decompression-bomb guard: refuse embeds nested deeper than the limit BEFORE any spool or
+			// recursion. Refused embeds are not spooled, not added, and not recursed into; the skip is
+			// recorded on the parent and counted, so it is visible/alertable rather than silently lost.
+			if (exceedsMaxEmbedDepth(tikaDocumentStack.size(), maxEmbedDepth)) {
+				recordSkippedAtDepth(metadata);
+				return;
+			}
 			if (progress != null) {
 				progress.incrementEmbeds();
 			}
