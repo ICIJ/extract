@@ -145,7 +145,7 @@ public class EmbedSpawner extends EmbedParser {
 	// folder fan-out so each walker has an isolated parent stack while the global embed-memory
 	// budget stays shared across all walkers.
 	private EmbedSpawner(final EmbedSpawner template) {
-		super(template.root, template.context);
+		super(template.root, forkContext(template.context));
 		this.outputPath = template.outputPath;
 		this.handlerFunction = template.handlerFunction;
 		this.embedMemoryBudgetBytes = template.embedMemoryBudgetBytes;
@@ -160,6 +160,9 @@ public class EmbedSpawner extends EmbedParser {
 		this.ocrParserClassName = template.ocrParserClassName;
 		this.sink = template.sink;
 		this.reserved = template.reserved; // SHARED budget
+		// Register THIS fork as the extractor in its OWN context so nested embeds (message attachments,
+		// depth>=2) recurse into this fork's DFS stack + untitled map, not the shared base spawner.
+		this.context.set(EmbeddedDocumentExtractor.class, this);
 		tikaDocumentStack.add(template.root); // fresh stack, seeded with the shared root
 	}
 
@@ -498,29 +501,38 @@ public class EmbedSpawner extends EmbedParser {
 	// do NOT carry over this.context's EmbeddedDocumentExtractor (which IS this EmbedSpawner).
 	private ParseContext buildIsolatedOcrContext() {
 		final ParseContext isolated = new ParseContext();
-		final Parser p = context.get(Parser.class);
-		if (p != null) {
-			isolated.set(Parser.class, p);
-		}
-		final TesseractOCRConfig tess = context.get(TesseractOCRConfig.class);
-		if (tess != null) {
-			isolated.set(TesseractOCRConfig.class, tess);
-		}
-		final PDFParserConfig pdf = context.get(PDFParserConfig.class);
-		if (pdf != null) {
-			isolated.set(PDFParserConfig.class, pdf);
-		}
-		final HtmlMapper html = context.get(HtmlMapper.class);
-		if (html != null) {
-			isolated.set(HtmlMapper.class, html);
-		}
-		final DocumentSelector selector = context.get(DocumentSelector.class);
-		if (selector != null) {
-			isolated.set(DocumentSelector.class, selector);
-		}
+		copyParsingConfig(context, isolated);
 		// Ignore any nested embed discovered inside the image rather than mutating shared state.
 		isolated.set(EmbeddedDocumentExtractor.class, new EmbedBlocker());
 		return isolated;
+	}
+
+	// Copies the parsing collaborators every derived parse needs (parser + OCR/PDF/HTML config +
+	// selector) from `source` into `target`, WITHOUT the EmbeddedDocumentExtractor or PstFanoutConfig.
+	// Single maintenance point shared by fork() and buildIsolatedOcrContext(): if Extractor starts
+	// setting a new parsing-config key on the context, add it here once.
+	private static void copyParsingConfig(final ParseContext source, final ParseContext target) {
+		final Parser p = source.get(Parser.class);
+		if (p != null) { target.set(Parser.class, p); }
+		final TesseractOCRConfig tess = source.get(TesseractOCRConfig.class);
+		if (tess != null) { target.set(TesseractOCRConfig.class, tess); }
+		final PDFParserConfig pdf = source.get(PDFParserConfig.class);
+		if (pdf != null) { target.set(PDFParserConfig.class, pdf); }
+		final HtmlMapper html = source.get(HtmlMapper.class);
+		if (html != null) { target.set(HtmlMapper.class, html); }
+		final DocumentSelector selector = source.get(DocumentSelector.class);
+		if (selector != null) { target.set(DocumentSelector.class, selector); }
+	}
+
+	// Builds a fork's own ParseContext: a copy of the base parsing config, MINUS the
+	// EmbeddedDocumentExtractor (the caller registers `this` after super() so nested embeds recurse
+	// into THIS fork's own DFS stack instead of the shared base spawner -- the byte-identity fix) and
+	// MINUS PstFanoutConfig (so a nested PST/OST attachment reads null -> canFanOut=false -> serial
+	// walk, so only the outermost PST fans out; no reentrant pstParseExecutor starvation).
+	private static ParseContext forkContext(final ParseContext base) {
+		final ParseContext fork = new ParseContext();
+		copyParsingConfig(base, fork);
+		return fork;
 	}
 
 	// Copy keys present in the async parse's private metadata clone but ABSENT from the shared metadata
