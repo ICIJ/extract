@@ -676,6 +676,14 @@ public class EmbedSpawner extends EmbedParser {
 		return true;
 	}
 
+	// True when an embed at the given stack depth must be refused for exceeding the nesting
+	// limit. maxEmbedDepth <= 0 disables the guard. An embed at nesting depth d is entered with
+	// tikaDocumentStack.size() == d (the stack holds the root plus its d-1 embed ancestors), so
+	// "stackSize > maxEmbedDepth" allows depths 1..maxEmbedDepth and refuses maxEmbedDepth+1 down.
+	static boolean exceedsMaxEmbedDepth(final int stackSize, final int maxEmbedDepth) {
+		return maxEmbedDepth > 0 && stackSize > maxEmbedDepth;
+	}
+
 	private void saveEntries(final DirectoryEntry source, final DirectoryEntry destination) throws IOException {
 		for (Entry entry : source) {
 

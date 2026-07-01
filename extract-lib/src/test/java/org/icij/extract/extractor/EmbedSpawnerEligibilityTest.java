@@ -46,4 +46,26 @@ public class EmbedSpawnerEligibilityTest {
         m.set(Metadata.CONTENT_LENGTH, "unknown");
         assertThat(EmbedSpawner.isOcrEligible(m, 4096L)).isTrue();
     }
+
+    @Test public void testDepthDisabledWhenMaxIsZero() {
+        assertThat(EmbedSpawner.exceedsMaxEmbedDepth(9999, 0)).isFalse();
+    }
+
+    @Test public void testDepthDisabledWhenMaxIsNegative() {
+        assertThat(EmbedSpawner.exceedsMaxEmbedDepth(9999, -1)).isFalse();
+    }
+
+    @Test public void testDepthWithinLimitIsAllowed() {
+        // stack size 20 with max 20: the boundary embed is allowed.
+        assertThat(EmbedSpawner.exceedsMaxEmbedDepth(20, 20)).isFalse();
+    }
+
+    @Test public void testDepthBeyondLimitIsRefused() {
+        // stack size 21 with max 20: the child at depth 21 is refused.
+        assertThat(EmbedSpawner.exceedsMaxEmbedDepth(21, 20)).isTrue();
+    }
+
+    @Test public void testDepthOneBelowLimitIsAllowed() {
+        assertThat(EmbedSpawner.exceedsMaxEmbedDepth(1, 20)).isFalse();
+    }
 }
