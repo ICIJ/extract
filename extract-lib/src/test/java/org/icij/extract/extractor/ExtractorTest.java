@@ -666,6 +666,26 @@ public class ExtractorTest {
 		assertThat(extractor.getEmbedMemoryBudgetBytes()).isEqualTo(2L * 1024 * 1024);
 	}
 
+    @Test public void testMaxEmbedDepthDefaultsTo20() {
+        Extractor extractor = new Extractor(Options.from(java.util.Map.of()));
+        assertThat(extractor.getMaxEmbedDepth()).isEqualTo(20);
+    }
+
+    @Test public void testMaxEmbedDepthReadsOption() {
+        Extractor extractor = new Extractor(Options.from(java.util.Map.of("maxEmbedDepth", "8")));
+        assertThat(extractor.getMaxEmbedDepth()).isEqualTo(8);
+    }
+
+    @Test public void testMaxEmbedDepthZeroDisables() {
+        Extractor extractor = new Extractor(Options.from(java.util.Map.of("maxEmbedDepth", "0")));
+        assertThat(extractor.getMaxEmbedDepth()).isEqualTo(0);
+    }
+
+    @Test public void testMaxEmbedDepthClampsNegativeToZero() {
+        Extractor extractor = new Extractor(Options.from(java.util.Map.of("maxEmbedDepth", "-3")));
+        assertThat(extractor.getMaxEmbedDepth()).isEqualTo(0);
+    }
+
 	@Test
 	public void testEmbedTextIsIdenticalWhetherSpilledOrInMemory() throws Exception {
 		String inMemory = spewTreeText(512L * 1024 * 1024); // large budget: nothing spills

@@ -147,6 +147,9 @@ import static org.icij.extract.extractor.ArtifactUtils.getEmbeddedPath;
 @Option(name = "legacyUntitledNaming", description = "Name nameless non-inline embeds with the " +
         "pre-9.x global untitled_N counter instead of the per-parent scheme, for on-demand " +
         "resolution of corpora indexed before the per-parent change. Serial mode only.")
+@Option(name = "maxEmbedDepth", description = "Maximum nesting depth of embedded documents to " +
+        "descend into. Embeds deeper than this are skipped (recorded, not parsed) to guard against " +
+        "decompression-bomb archives. Defaults to 20. Set to 0 to disable.", parameter = "count")
 public class Extractor implements AutoCloseable {
 
     public static final String PAGES_JSON = "pages.json";
@@ -210,6 +213,7 @@ public class Extractor implements AutoCloseable {
     private boolean pstFolderFanout = true;
     private int pstParseParallelism = Runtime.getRuntime().availableProcessors();
     private boolean legacyUntitledNaming = false;
+    private int maxEmbedDepth = EmbedSpawner.DEFAULT_MAX_EMBED_DEPTH;
     // Null until first use; created lazily by parseExecutor(), mirroring the OCR pool.
     private volatile ExecutorService pstParseExecutor = null;
     private ExtractionProgressTracker progressTracker;
@@ -306,6 +310,8 @@ public class Extractor implements AutoCloseable {
                 .parse().asInteger().ifPresent(n -> this.pstParseParallelism = Math.max(1, n));
         options.get("legacyUntitledNaming", "false").parse().asBoolean()
                 .ifPresent(b -> this.legacyUntitledNaming = b);
+        options.get("maxEmbedDepth", String.valueOf(EmbedSpawner.DEFAULT_MAX_EMBED_DEPTH))
+                .parse().asInteger().ifPresent(n -> this.maxEmbedDepth = Math.max(0, n));
         // Legacy naming and PST folder fan-out are mutually exclusive. The legacy global untitled_N
         // counter is serial-only: each fan-out fork carries its own counter starting at 0, so with
         // fan-out on the nameless embeds would get nondeterministic, non-matching names, defeating the
@@ -392,6 +398,7 @@ public class Extractor implements AutoCloseable {
     public boolean isPstFolderFanout() { return pstFolderFanout; }
     public int getPstParseParallelism() { return pstParseParallelism; }
     public boolean isLegacyUntitledNaming() { return legacyUntitledNaming; }
+    public int getMaxEmbedDepth() { return maxEmbedDepth; }
 
     ExecutorService pstParseExecutorOrNull() { return pstParseExecutor; }
 
@@ -951,7 +958,8 @@ public class Extractor implements AutoCloseable {
                     new EmbedSpawner(rootDocument, context, embedOutput, handlerProvider, embedMemoryBudgetBytes,
                             embedTextResources, new MemoryPressureGauge(embedMemoryPressureThreshold),
                             this::ocrExecutor, !ocrDisabled, currentProgress, digester,
-                            ocrFanout, ocrMinImageBytes, ocrParserClassName, sink, legacyUntitledNaming));
+                            ocrFanout, ocrMinImageBytes, ocrParserClassName, sink, legacyUntitledNaming,
+                            maxEmbedDepth));
             context.set(org.icij.extract.parser.PstFanoutConfig.class,
                     new org.icij.extract.parser.PstFanoutConfig(pstFolderFanout, this::pstParseExecutor));
         } else if (EmbedHandling.CONCATENATE == embedHandling) {
