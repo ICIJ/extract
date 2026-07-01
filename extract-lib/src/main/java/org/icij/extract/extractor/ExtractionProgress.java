@@ -10,6 +10,7 @@ public class ExtractionProgress {
     private final AtomicLong embeds = new AtomicLong();
     private final AtomicLong ocrSubmitted = new AtomicLong();
     private final AtomicLong ocrCompleted = new AtomicLong();
+    private final AtomicLong embedsSkippedMaxDepth = new AtomicLong();
 
     public ExtractionProgress(final Path path, final long startMillis) {
         this.path = path;
@@ -21,8 +22,10 @@ public class ExtractionProgress {
     public long embedsParsed() { return embeds.get(); }
     public long ocrSubmitted() { return ocrSubmitted.get(); }
     public long ocrCompleted() { return ocrCompleted.get(); }
+    public long embedsSkippedMaxDepth() { return embedsSkippedMaxDepth.get(); }
     public void incrementEmbeds() { embeds.incrementAndGet(); }
     public void incrementOcrSubmitted() { ocrSubmitted.incrementAndGet(); }
     public void incrementOcrCompleted() { ocrCompleted.incrementAndGet(); }
+    public void incrementEmbedsSkippedMaxDepth() { embedsSkippedMaxDepth.incrementAndGet(); }
     public long elapsedMillis(final long now) { return now - startMillis; }
 }

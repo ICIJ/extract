@@ -22,4 +22,12 @@ public class ExtractionProgressTest {
         ExtractionProgress p = new ExtractionProgress(Paths.get("/x.ost"), 1_000L);
         assertThat(p.elapsedMillis(4_000L)).isEqualTo(3_000L);
     }
+
+    @Test public void testEmbedsSkippedMaxDepthStartsAtZeroAndIncrements() {
+        ExtractionProgress p = new ExtractionProgress(Paths.get("/x.ost"), 1_000L);
+        assertThat(p.embedsSkippedMaxDepth()).isEqualTo(0L);
+        p.incrementEmbedsSkippedMaxDepth();
+        p.incrementEmbedsSkippedMaxDepth();
+        assertThat(p.embedsSkippedMaxDepth()).isEqualTo(2L);
+    }
 }
