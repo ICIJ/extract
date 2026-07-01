@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.nio.file.Files;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -251,9 +252,11 @@ public class MetadataTransformer implements Serializable {
 	}
 
 	/**
-	 * Parse a single metadata value into an {@link Instant}. Tries strict ISO-8601 forms first
-	 * (clean values such as "2023-05-30T12:35:06Z" are not matched by any entry in dateFormats),
-	 * then falls back to the lenient formats used by the single-valued path.
+	 * Parse a single metadata value into an {@link Instant}, accepting only the ISO-8601 forms
+	 * Elasticsearch's date_detection recognizes (strict_date_optional_time). This keeps the set of
+	 * fields we reshape into date arrays equal to the set ES would map as `date`. Lenient formats
+	 * (e.g. RFC-1123) are deliberately not matched: ES maps such fields as text/keyword, so they are
+	 * safely left to comma-join.
 	 */
 	static Optional<Instant> parseInstant(final String value) {
 		if (null == value || value.isEmpty()) {
@@ -263,7 +266,7 @@ public class MetadataTransformer implements Serializable {
 		try {
 			return Optional.of(Instant.parse(value));
 		} catch (final DateTimeParseException ignored) {
-			// not a Z-suffixed instant; try the next form
+			// not a Z/offset instant; try the next form
 		}
 
 		try {
@@ -275,20 +278,13 @@ public class MetadataTransformer implements Serializable {
 		try {
 			return Optional.of(LocalDateTime.parse(value).toInstant(ZoneOffset.UTC));
 		} catch (final DateTimeParseException ignored) {
-			// not a zoneless date-time; fall back to the lenient formats
+			// not a zoneless date-time; try the next form
 		}
 
-		for (final DateTimeFormatter format : dateFormats) {
-			try {
-				final TemporalAccessor accessor = format.parseBest(value, Instant::from, LocalDateTime::from);
-				if (accessor instanceof Instant) {
-					return Optional.of((Instant) accessor);
-				} else if (accessor instanceof LocalDateTime) {
-					return Optional.of(((LocalDateTime) accessor).toInstant(ZoneOffset.UTC));
-				}
-			} catch (final DateTimeParseException ignored) {
-				// try the next format
-			}
+		try {
+			return Optional.of(LocalDate.parse(value).atStartOfDay(ZoneOffset.UTC).toInstant());
+		} catch (final DateTimeParseException ignored) {
+			// not a bare date
 		}
 
 		return Optional.empty();

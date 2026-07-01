@@ -86,10 +86,16 @@ public class MetadataTransformerTest {
     }
 
     @Test
-    public void test_toIso8601Array_normalizes_lenient_formats() {
-        String[] values = {"Tue Jan 27 17:03:21 2004", "2023-05-30T12:35:06Z"};
+    public void test_toIso8601Array_normalizes_bare_dates_to_midnight_utc() {
+        String[] values = {"2015-06-03", "2016-01-01"};
         assertThat(MetadataTransformer.toIso8601Array(values))
-                .isEqualTo(Optional.of(List.of("2004-01-27T17:03:21Z", "2023-05-30T12:35:06Z")));
+                .isEqualTo(Optional.of(List.of("2015-06-03T00:00:00Z", "2016-01-01T00:00:00Z")));
+    }
+
+    @Test
+    public void test_toIso8601Array_is_empty_for_lenient_non_iso_formats() {
+        String[] values = {"Tue Jan 27 17:03:21 2004", "2023-05-30T12:35:06Z"};
+        assertThat(MetadataTransformer.toIso8601Array(values)).isEqualTo(Optional.empty());
     }
 
     @Test

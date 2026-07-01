@@ -194,6 +194,9 @@ public abstract class Spewer implements AutoCloseable, Serializable {
 
         @Override
         public void accept(String name, String[] values) throws IOException {
+            // Emit a JSON array of ISO instants only when every value parses as a date
+            // (all-or-nothing); any non-date value keeps the field comma-joined so we never
+            // send a partially-valid date array to Elasticsearch.
             MetadataTransformer.toIso8601Array(values)
                     .ifPresentOrElse(
                             iso -> map.put(name, iso),
