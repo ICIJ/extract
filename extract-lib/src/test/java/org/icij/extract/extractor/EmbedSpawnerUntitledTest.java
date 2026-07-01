@@ -18,4 +18,11 @@ public class EmbedSpawnerUntitledTest {
         assertThat(EmbedSpawner.untitledName("parentA", 0))
                 .isNotEqualTo(EmbedSpawner.untitledName("parentB", 0));
     }
+
+    @Test
+    public void testLegacyUntitledNameMatchesPreBranchFormat() {
+        // Pre-branch: String.format("untitled_%d", ++untitled) -> untitled_1, untitled_2, ...
+        assertThat(EmbedSpawner.legacyUntitledName(1)).isEqualTo("untitled_1");
+        assertThat(EmbedSpawner.legacyUntitledName(2)).isEqualTo("untitled_2");
+    }
 }

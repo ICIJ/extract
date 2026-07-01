@@ -144,6 +144,9 @@ import static org.icij.extract.extractor.ArtifactUtils.getEmbeddedPath;
         "digests and artifact filenames are byte-identical to the serial walk.")
 @Option(name = "pstParseParallelism", description = "Number of PST/OST folder-walk tasks run in " +
         "parallel across all in-flight mailboxes. Separate from ocrParallelism.")
+@Option(name = "legacyUntitledNaming", description = "Name nameless non-inline embeds with the " +
+        "pre-9.x global untitled_N counter instead of the per-parent scheme, for on-demand " +
+        "resolution of corpora indexed before the per-parent change. Serial mode only.")
 public class Extractor implements AutoCloseable {
 
     public static final String PAGES_JSON = "pages.json";
@@ -206,6 +209,7 @@ public class Extractor implements AutoCloseable {
     private volatile ExecutorService ocrExecutor = null;
     private boolean pstFolderFanout = true;
     private int pstParseParallelism = Runtime.getRuntime().availableProcessors();
+    private boolean legacyUntitledNaming = false;
     // Null until first use; created lazily by parseExecutor(), mirroring the OCR pool.
     private volatile ExecutorService pstParseExecutor = null;
     private ExtractionProgressTracker progressTracker;
@@ -300,6 +304,8 @@ public class Extractor implements AutoCloseable {
                 .ifPresent(b -> this.pstFolderFanout = b);
         options.get("pstParseParallelism", String.valueOf(Runtime.getRuntime().availableProcessors()))
                 .parse().asInteger().ifPresent(n -> this.pstParseParallelism = Math.max(1, n));
+        options.get("legacyUntitledNaming", "false").parse().asBoolean()
+                .ifPresent(b -> this.legacyUntitledNaming = b);
         logger.info("extractor configured with digester {} and {}", digester.getClass(), documentFactory);
     }
 
@@ -377,6 +383,7 @@ public class Extractor implements AutoCloseable {
     public boolean isStreamingSpew() { return streamingSpew; }
     public boolean isPstFolderFanout() { return pstFolderFanout; }
     public int getPstParseParallelism() { return pstParseParallelism; }
+    public boolean isLegacyUntitledNaming() { return legacyUntitledNaming; }
 
     ExecutorService pstParseExecutorOrNull() { return pstParseExecutor; }
 
@@ -936,7 +943,7 @@ public class Extractor implements AutoCloseable {
                     new EmbedSpawner(rootDocument, context, embedOutput, handlerProvider, embedMemoryBudgetBytes,
                             embedTextResources, new MemoryPressureGauge(embedMemoryPressureThreshold),
                             this::ocrExecutor, !ocrDisabled, currentProgress, digester,
-                            ocrFanout, ocrMinImageBytes, ocrParserClassName, sink));
+                            ocrFanout, ocrMinImageBytes, ocrParserClassName, sink, legacyUntitledNaming));
             context.set(org.icij.extract.parser.PstFanoutConfig.class,
                     new org.icij.extract.parser.PstFanoutConfig(pstFolderFanout, this::pstParseExecutor));
         } else if (EmbedHandling.CONCATENATE == embedHandling) {

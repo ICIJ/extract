@@ -54,6 +54,13 @@ public class EmbedSpawner extends EmbedParser {
 	// name from its immediate parent id + its 0-based index among that parent's nameless children.
 	// A map (not a reset-on-change slot) so a parent revisited after a nested descent keeps counting.
 	private final java.util.Map<String, Integer> untitledOrdinalsByParent = new java.util.HashMap<>();
+	// When true, nameless non-inline embeds use the pre-branch GLOBAL untitled_N counter instead of the
+	// per-parent scheme, so datashare's on-demand SourceExtractor can resolve embeds in corpora indexed
+	// before the per-parent change (dual-resolution). Meaningful only in serial mode: the global counter
+	// is deterministic only without fan-out, which is where on-demand resolution runs.
+	private final boolean legacyUntitledNaming;
+	// Pre-branch global counter, used only when legacyUntitledNaming is true.
+	private int untitledGlobalCounter = 0;
 	private final long embedMemoryBudgetBytes;
 	private final TemporaryResources tmp;
 	private final BooleanSupplier memoryPressureHigh;
@@ -92,7 +99,7 @@ public class EmbedSpawner extends EmbedParser {
 		// Serial mode: no fan-out. All embeds go through the synchronous spawnEmbedded path.
 		// Pass a no-op supplier and ocrEnabled=false so the deferred path is never reached.
 		this(root, context, outputPath, handlerFunction, embedMemoryBudgetBytes, tmp, memoryPressureHigh,
-				() -> null, false, null, null, false, 0L, null, null);
+				() -> null, false, null, null, false, 0L, null, null, false);
 	}
 
 	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
@@ -108,7 +115,7 @@ public class EmbedSpawner extends EmbedParser {
 		// (including tests) that pass a pre-built ExecutorService continue to work unchanged.
 		this(root, context, outputPath, handlerFunction, embedMemoryBudgetBytes, tmp, memoryPressureHigh,
 				() -> ocrExecutor, ocrExecutor != null, progress, digester, ocrFanout, ocrMinImageBytes,
-				ocrParserClassName, null);
+				ocrParserClassName, null, false);
 	}
 
 	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
@@ -121,7 +128,8 @@ public class EmbedSpawner extends EmbedParser {
 				 final DigestingParser.Digester digester,
 				 final boolean ocrFanout, final long ocrMinImageBytes,
 				 final String ocrParserClassName,
-				 final SpewSink sink) {
+				 final SpewSink sink,
+				 final boolean legacyUntitledNaming) {
 		super(root, context);
 		this.outputPath = outputPath;
 		this.handlerFunction = handlerFunction;
@@ -136,6 +144,7 @@ public class EmbedSpawner extends EmbedParser {
 		this.ocrMinImageBytes = ocrMinImageBytes;
 		this.ocrParserClassName = ocrParserClassName;
 		this.sink = sink;
+		this.legacyUntitledNaming = legacyUntitledNaming;
 		this.reserved = new AtomicLong();
 		tikaDocumentStack.add(root);
 	}
@@ -159,6 +168,7 @@ public class EmbedSpawner extends EmbedParser {
 		this.ocrMinImageBytes = template.ocrMinImageBytes;
 		this.ocrParserClassName = template.ocrParserClassName;
 		this.sink = template.sink;
+		this.legacyUntitledNaming = template.legacyUntitledNaming;
 		this.reserved = template.reserved; // SHARED budget
 		// Register THIS fork as the extractor in its OWN context so nested embeds (message attachments,
 		// depth>=2) recurse into this fork's DFS stack + untitled map, not the shared base spawner.
@@ -181,6 +191,21 @@ public class EmbedSpawner extends EmbedParser {
 	// the parallel index and the serial on-demand walk produce the same name for the same embed.
 	static String untitledName(final String parentId, final int siblingOrdinal) {
 		return "untitled_" + parentId + "_" + siblingOrdinal;
+	}
+
+	// Pre-branch format: String.format("untitled_%d", ++untitled). n is 1-based.
+	static String legacyUntitledName(final int n) {
+		return "untitled_" + n;
+	}
+
+	// One place that decides a nameless non-inline embed's name, so both spawn paths agree.
+	private String nextUntitledName() {
+		if (legacyUntitledNaming) {
+			return legacyUntitledName(++untitledGlobalCounter);
+		}
+		final String parentId = tikaDocumentStack.getLast().getId();
+		final int ordinal = untitledOrdinalsByParent.merge(parentId, 1, Integer::sum) - 1;
+		return untitledName(parentId, ordinal);
 	}
 
 	@Override
@@ -254,9 +279,7 @@ public class EmbedSpawner extends EmbedParser {
 
 		String name = metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY);
 		if (null == name || name.isEmpty()) {
-			final String parentId = tikaDocumentStack.getLast().getId();
-			final int ordinal = untitledOrdinalsByParent.merge(parentId, 1, Integer::sum) - 1;
-			name = untitledName(parentId, ordinal);
+			name = nextUntitledName();
 		}
 
 		try {
@@ -324,9 +347,7 @@ public class EmbedSpawner extends EmbedParser {
 
 		String name = metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY);
 		if (null == name || name.isEmpty()) {
-			final String parentId = tikaDocumentStack.getLast().getId();
-			final int ordinal = untitledOrdinalsByParent.merge(parentId, 1, Integer::sum) - 1;
-			name = untitledName(parentId, ordinal);
+			name = nextUntitledName();
 		}
 
 		// Spool the bytes now (the stream is only valid during this call), then copy them into a
