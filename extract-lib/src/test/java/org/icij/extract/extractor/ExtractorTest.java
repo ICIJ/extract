@@ -181,23 +181,18 @@ public class ExtractorTest {
 
 	@Test
 	public void testGarbage() throws Throwable {
-        //GIVEN,*THEN
-        final int read;
+        //GIVEN
         Extractor extractor = aBasicExtractor();
-        thrown.expect(IOException.class);
-        thrown.expectMessage("");
-        thrown.expectCause(new CauseMatcher(TikaException.class, "Parse error"));
         //WHEN
         TikaDocument tikaDocument = extractDocument(extractor, "/documents/garbage.bin");
+        final String content;
         try (final Reader reader = tikaDocument.getReader()) {
-			read = reader.read();
-		} catch (IOException e) {
-            //THEN
-			Assert.assertEquals("application/octet-stream", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
-			throw e;
-		}
-
-		Assert.fail(String.format("Read \"%d\" while expecting exception.", read));
+            content = Spewer.toString(reader);
+        }
+        //THEN: indexed as empty, marked unsupported, no exception
+        assertThat(content.trim()).isEmpty();
+        Assert.assertEquals("application/octet-stream", tikaDocument.getMetadata().get(Metadata.CONTENT_TYPE));
+        assertThat(tikaDocument.getMetadata().get(NoContentReason.METADATA_KEY)).isEqualTo("unsupported-media-type");
 	}
 
 	@Test

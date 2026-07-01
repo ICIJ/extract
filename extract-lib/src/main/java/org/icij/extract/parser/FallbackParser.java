@@ -5,6 +5,7 @@ import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.*;
+import org.icij.extract.extractor.NoContentReason;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
@@ -27,7 +28,6 @@ public class FallbackParser extends AbstractParser {
 	@Override
 	public void parse(final InputStream stream, final ContentHandler handler, final Metadata metadata,
 	                  final ParseContext context) throws SAXException, IOException, TikaException {
-		final Parser parser;
 		final long size;
 		String value = metadata.get(Metadata.CONTENT_LENGTH);
 
@@ -41,15 +41,14 @@ public class FallbackParser extends AbstractParser {
 			metadata.set(Metadata.CONTENT_LENGTH, Long.toString(size));
 		}
 
-		// If the file is not empty, throw a parse error.
-		// Otherwise, output an empty document.
+		// Nothing to extract. Index the document as empty and record why, instead of throwing.
 		if (size > 0) {
-			parser = ErrorParser.INSTANCE;
+			NoContentReason.stamp(metadata, NoContentReason.UNSUPPORTED_MEDIA_TYPE);
 		} else {
 			metadata.set(Metadata.CONTENT_TYPE, "application/octet-stream");
-			parser = EmptyParser.INSTANCE;
+			NoContentReason.stamp(metadata, NoContentReason.EMPTY_FILE);
 		}
 
-		parser.parse(stream, handler, metadata, context);
+		EmptyParser.INSTANCE.parse(stream, handler, metadata, context);
 	}
 }
