@@ -258,7 +258,31 @@ public class ResilientOutlookPSTParser implements Parser {
 
     private void cleanupParallelWalk(final List<Future<?>> futures, final Map<Thread, PSTFile> handles) {
         cancelFutures(futures);
+        // Wait for every task to actually stop before closing handles: a per-thread PSTFile must never
+        // be closed while a folder task is still reading it, or that folder's remaining messages are
+        // silently dropped on the interrupt/abnormal path.
+        awaitQuietly(futures);
         closeHandles(handles);
+    }
+
+    // Waits for each future to complete, swallowing cancellation and execution failures (already logged
+    // by awaitAllTasks on the normal path). Re-sets the interrupt flag if interrupted while waiting.
+    private static void awaitQuietly(final List<Future<?>> futures) {
+        for (final Future<?> f : futures) {
+            try {
+                f.get();
+            } catch (final InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            } catch (final java.util.concurrent.CancellationException | ExecutionException ignored) {
+                // cancelled or already-failed task: nothing to wait on, nothing actionable here
+            }
+        }
+    }
+
+    // Test-only entry point for the cleanup await ordering.
+    static void awaitQuietlyForTest(final List<Future<?>> futures) {
+        awaitQuietly(futures);
     }
 
     private void cancelFutures(final List<Future<?>> futures) {
