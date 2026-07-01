@@ -69,12 +69,9 @@ final class PstStdoutFilter {
         return PARSE_DEPTH.get() > 0 && !SUPPRESSION_LIFTED.get();
     }
 
-    // Runs the given action with console suppression temporarily lifted on this thread, restoring the
-    // prior state afterward. Used to emit the per-PST reconciliation summary on the console even though
-    // the parse thread is still inside the suppressed region. Nesting-safe (saves/restores prior state).
     // Runs the given task with suppression armed on the current thread, balanced via try/finally
-    // so depth always returns to its prior value even if the task throws. Mirrors
-    // runWithSuppressionLifted as the canonical lifecycle wrapper for fan-out pool threads.
+    // so depth always returns to its prior value even if the task throws. The canonical lifecycle
+    // wrapper for fan-out pool threads.
     static void runWithSuppression(final Runnable r) {
         begin();
         try {
@@ -89,6 +86,9 @@ final class PstStdoutFilter {
         return PARSE_DEPTH.get();
     }
 
+    // Runs the given action with console suppression temporarily lifted on this thread, restoring the
+    // prior state afterward. Used to emit the per-PST reconciliation summary on the console even though
+    // the parse thread is still inside the suppressed region. Nesting-safe (saves/restores prior state).
     static void runWithSuppressionLifted(final Runnable action) {
         final boolean previouslyLifted = SUPPRESSION_LIFTED.get();
         SUPPRESSION_LIFTED.set(Boolean.TRUE);
