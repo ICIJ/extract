@@ -69,6 +69,10 @@ public class EmbedSpawner extends EmbedParser {
 	// Pre-branch global counter, used only when legacyUntitledNaming is true.
 	private int untitledGlobalCounter = 0;
 	private final int maxEmbedDepth;
+	// Absolute nesting depth of this spawner's reseeded root within the outer document tree.
+	// 0 for the top-level spawner; a PST fan-out fork inherits the depth its shared root sat at,
+	// so the depth guard measures ABSOLUTE nesting rather than depth-relative-to-the-fork.
+	private final int baseDepthOffset;
 	private final long embedMemoryBudgetBytes;
 	private final TemporaryResources tmp;
 	private final BooleanSupplier memoryPressureHigh;
@@ -162,6 +166,7 @@ public class EmbedSpawner extends EmbedParser {
 		this.sink = sink;
 		this.legacyUntitledNaming = legacyUntitledNaming;
 		this.maxEmbedDepth = maxEmbedDepth;
+		this.baseDepthOffset = 0;
 		this.reserved = new AtomicLong();
 		tikaDocumentStack.add(root);
 	}
@@ -187,6 +192,10 @@ public class EmbedSpawner extends EmbedParser {
 		this.sink = template.sink;
 		this.legacyUntitledNaming = template.legacyUntitledNaming;
 		this.maxEmbedDepth = template.maxEmbedDepth; // forks enforce the same depth on their own stack
+		// The fork re-adds `root` as size 1, discarding the depth the template's stack was actually
+		// at; capture that depth here so the guard measures ABSOLUTE nesting rather than
+		// depth-relative-to-the-fork. General form composes correctly if a fork is ever itself forked.
+		this.baseDepthOffset = template.baseDepthOffset + template.tikaDocumentStack.size() - 1;
 		this.reserved = template.reserved; // SHARED budget
 		// Register THIS fork as the extractor in its OWN context so nested embeds (message attachments,
 		// depth>=2) recurse into this fork's DFS stack + untitled map, not the shared base spawner.
@@ -203,6 +212,8 @@ public class EmbedSpawner extends EmbedParser {
 	int stackDepth() { return tikaDocumentStack.size(); }
 	// Test accessor (package-private): the configured maximum embed nesting depth.
 	int maxEmbedDepthForTest() { return maxEmbedDepth; }
+	// Test accessor (package-private): the fork's inherited absolute-depth offset.
+	int baseDepthOffsetForTest() { return baseDepthOffset; }
 	// Test accessor (package-private): push a document onto this spawner's DFS stack.
 	void pushForTest(final org.icij.extract.document.TikaDocument doc) { tikaDocumentStack.add(doc); }
 	// Test accessor (package-private): the context this spawner runs nested parses against.
@@ -249,8 +260,17 @@ public class EmbedSpawner extends EmbedParser {
 		if (progress != null) {
 			progress.incrementEmbedsSkippedMaxDepth();
 		}
-		logger.warn("Skipping embed \"{}\" nested beyond max depth {} (in \"{}\").",
-				skipped.get(TikaCoreProperties.RESOURCE_NAME_KEY), maxEmbedDepth, root);
+		// Log once per parent (on its first refused child): a wide bomb can have very many siblings
+		// past the boundary, and one WARN each would flood the log on the exact attack path. The
+		// per-parent marker and the progress counter carry the full count; this WARN is a breadcrumb.
+		// Identify the parent by its resource name rather than getId(): the latter can force digest
+		// generation on documents whose content hash hasn't been computed yet (e.g. a PST folder
+		// document mid-walk), which would throw instead of merely logging.
+		if (existing == null) {
+			logger.warn("Skipping embed(s) nested beyond max depth {} under \"{}\"; first: \"{}\" (in \"{}\").",
+					maxEmbedDepth, parent.get(TikaCoreProperties.RESOURCE_NAME_KEY),
+					skipped.get(TikaCoreProperties.RESOURCE_NAME_KEY), root);
+		}
 	}
 
 	@Override
@@ -281,7 +301,7 @@ public class EmbedSpawner extends EmbedParser {
 			// Decompression-bomb guard: refuse embeds nested deeper than the limit BEFORE any spool or
 			// recursion. Refused embeds are not spooled, not added, and not recursed into; the skip is
 			// recorded on the parent and counted, so it is visible/alertable rather than silently lost.
-			if (exceedsMaxEmbedDepth(tikaDocumentStack.size(), maxEmbedDepth)) {
+			if (exceedsMaxEmbedDepth(baseDepthOffset + tikaDocumentStack.size(), maxEmbedDepth)) {
 				recordSkippedAtDepth(metadata);
 				return;
 			}

@@ -88,4 +88,79 @@ public class EmbedSpawnerDepthGuardTest {
         // Not refused: nothing recorded on the parent (the embed took the normal spawn path).
         assertThat(parent.getMetadata().get(EmbedSpawner.EMBEDS_SKIPPED_MAX_DEPTH)).isNull();
     }
+
+    @Test
+    public void testForkCountsDepthAbsolutely() throws Exception {
+        final TikaDocument root = root("/tmp/fake-root.pst");
+        final EmbedSpawner base = spawnerWithDepth(root, 3);
+        // Push two docs so the base's stack size becomes 3 (simulating a PST reached at absolute depth 3).
+        final TikaDocument folder = new DocumentFactory()
+                .withIdentifier(new DigestIdentifier("SHA-256", StandardCharsets.UTF_8))
+                .create(Paths.get("/tmp/folder"));
+        final TikaDocument pst = new DocumentFactory()
+                .withIdentifier(new DigestIdentifier("SHA-256", StandardCharsets.UTF_8))
+                .create(Paths.get("/tmp/pst"));
+        base.pushForTest(folder);
+        base.pushForTest(pst);
+
+        final EmbedSpawner forked = base.fork();
+        assertThat(forked.baseDepthOffsetForTest()).isEqualTo(2);
+
+        // Fork stack size 2 (root + one pushed doc) -> absolute depth 2 + 2 = 4 > 3: refused.
+        final TikaDocument message = new DocumentFactory()
+                .withIdentifier(new DigestIdentifier("SHA-256", StandardCharsets.UTF_8))
+                .create(Paths.get("/tmp/message"));
+        forked.pushForTest(message);
+
+        forked.parseEmbedded(new ByteArrayInputStream("payload".getBytes(StandardCharsets.UTF_8)),
+                new BodyContentHandler(), nonInline("attachment.bin"), false);
+
+        assertThat(message.getMetadata().get(EmbedSpawner.EMBEDS_SKIPPED_MAX_DEPTH)).isEqualTo("1");
+
+        // Sibling fork: stack size 1 (root only) -> absolute depth 2 + 1 = 3, NOT > 3: not refused.
+        final EmbedSpawner forkedSibling = base.fork();
+        assertThat(forkedSibling.baseDepthOffsetForTest()).isEqualTo(2);
+
+        forkedSibling.parseEmbedded(new ByteArrayInputStream("payload".getBytes(StandardCharsets.UTF_8)),
+                new BodyContentHandler(), nonInline("attachment2.bin"), false);
+
+        assertThat(pst.getMetadata().get(EmbedSpawner.EMBEDS_SKIPPED_MAX_DEPTH)).isNull();
+    }
+
+    @Test
+    public void testWarnLogsOncePerParentAcrossRefusals() throws Exception {
+        final ch.qos.logback.classic.Logger log =
+                (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(EmbedParser.class);
+        final ch.qos.logback.classic.Level originalLevel = log.getLevel();
+        final ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> appender =
+                new ch.qos.logback.core.read.ListAppender<>();
+        appender.start();
+        log.addAppender(appender);
+        log.setLevel(ch.qos.logback.classic.Level.INFO);
+
+        try {
+            final TikaDocument root = root("/tmp/fake-root.zip");
+            final EmbedSpawner spawner = spawnerWithDepth(root, 1);
+            final TikaDocument parent = new DocumentFactory()
+                    .withIdentifier(new DigestIdentifier("SHA-256", StandardCharsets.UTF_8))
+                    .create(Paths.get("/tmp/parent"));
+            spawner.pushForTest(parent);
+
+            spawner.parseEmbedded(new ByteArrayInputStream("a".getBytes(StandardCharsets.UTF_8)),
+                    new BodyContentHandler(), nonInline("bomb1.bin"), false);
+            spawner.parseEmbedded(new ByteArrayInputStream("b".getBytes(StandardCharsets.UTF_8)),
+                    new BodyContentHandler(), nonInline("bomb2.bin"), false);
+
+            final long warnCount = appender.list.stream()
+                    .filter(e -> e.getLevel() == ch.qos.logback.classic.Level.WARN)
+                    .filter(e -> e.getFormattedMessage().contains("beyond max depth"))
+                    .count();
+            assertThat(warnCount).isEqualTo(1L);
+        } finally {
+            log.detachAppender(appender);
+            if (originalLevel != null) {
+                log.setLevel(originalLevel);
+            }
+        }
+    }
 }
