@@ -153,7 +153,8 @@ import static org.icij.extract.extractor.ArtifactUtils.getEmbeddedPath;
 @Option(name = "maxEmbedSizeBytes", description = "Maximum declared decompressed size, in bytes, of a " +
         "single embedded document to descend into. Embeds larger than this are skipped (recorded, not " +
         "parsed) to guard against decompression-bomb archives whose entries expand to multi-GiB. Only " +
-        "enforced when the embed's size is known. Defaults to 2 GiB. Set to 0 to disable.", parameter = "bytes")
+        "enforced when the embed's size is known. Disabled by default (0). Set to a positive byte " +
+        "count to enable.", parameter = "bytes")
 public class Extractor implements AutoCloseable {
 
     public static final String PAGES_JSON = "pages.json";

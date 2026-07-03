@@ -32,6 +32,14 @@ public class EmbedSpawnerSizeGuardTest {
                 64L * 1024 * 1024, new TemporaryResources(), () -> false, 0, maxEmbedSizeBytes);
     }
 
+    // Serial spawner with the depth guard disabled and NO explicit size cap, so it carries the shipped
+    // default (DEFAULT_MAX_EMBED_SIZE_BYTES). Used to assert the guard is off unless opted into.
+    private EmbedSpawner spawnerWithDefaultSize(final TikaDocument root) {
+        return new EmbedSpawner(root, new ParseContext(), null,
+                w -> new BodyContentHandler(w),
+                64L * 1024 * 1024, new TemporaryResources(), () -> false, 0);
+    }
+
     private TikaDocument parent() {
         return new DocumentFactory()
                 .withIdentifier(new DigestIdentifier("SHA-256", StandardCharsets.UTF_8))
@@ -117,6 +125,24 @@ public class EmbedSpawnerSizeGuardTest {
         spawner.pushForTest(parent);
 
         // Even a huge declared size is not refused when the cap is disabled (cap <= 0).
+        spawner.parseEmbedded(new ByteArrayInputStream("payload".getBytes(StandardCharsets.UTF_8)),
+                new BodyContentHandler(), nonInline("huge.bin", 10L * 1024 * 1024 * 1024), false);
+
+        assertThat(parent.getMetadata().get(EmbedSpawner.EMBEDS_SKIPPED_MAX_SIZE)).isNull();
+        assertThat(parent.getEmbeds()).isNotEmpty();
+    }
+
+    @Test
+    public void testGuardDisabledByDefault() throws Exception {
+        final TikaDocument root = root("/tmp/fake-root.zip");
+        // No explicit cap: the spawner carries the shipped default, which is disabled (opt-in guard).
+        final EmbedSpawner spawner = spawnerWithDefaultSize(root);
+        final TikaDocument parent = parent();
+        spawner.pushForTest(parent);
+
+        // The default must be disabled, so even a huge declared size is extracted, not skipped: a
+        // legitimate multi-GiB attachment is never silently dropped unless an operator opts in.
+        assertThat(spawner.maxEmbedSizeBytesForTest()).isEqualTo(0L);
         spawner.parseEmbedded(new ByteArrayInputStream("payload".getBytes(StandardCharsets.UTF_8)),
                 new BodyContentHandler(), nonInline("huge.bin", 10L * 1024 * 1024 * 1024), false);
 

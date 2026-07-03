@@ -53,11 +53,13 @@ public class EmbedSpawner extends EmbedParser {
 	static final int DEFAULT_MAX_EMBED_DEPTH = 20;
 	// Metadata key set on a parent document, counting its direct children refused for exceeding the depth limit.
 	static final String EMBEDS_SKIPPED_MAX_DEPTH = "X-EXTRACT:embedsSkippedMaxDepth";
-	// Default per-embed decompressed-size cap (2 GiB): an embed whose declared decompressed size exceeds
-	// this is refused before it is spooled/recursed into (see exceedsMaxEmbedSize). Generous enough to
-	// pass any realistic single attachment while defusing the nested-zip "bomb" whose entries decompress
-	// to multi-GiB. Only enforced when the embed's size is actually known, so streaming is never broken.
-	static final long DEFAULT_MAX_EMBED_SIZE_BYTES = 2L * 1024 * 1024 * 1024;
+	// Default per-embed decompressed-size cap: DISABLED (0), i.e. legacy behavior where no embed is ever
+	// refused for its declared size. The guard is opt-in: an operator enables it by passing a positive
+	// maxEmbedSizeBytes (via datashare's --maxEmbedSizeBytes), after which an embed whose declared
+	// decompressed size exceeds the cap is refused before it is spooled/recursed into (see
+	// exceedsMaxEmbedSize). Kept off by default so a legitimate multi-GiB attachment (disk image, DB dump,
+	// video) is never silently dropped; operators facing nested-zip "bombs" opt in explicitly.
+	static final long DEFAULT_MAX_EMBED_SIZE_BYTES = 0L;
 	// Metadata key set on a parent document, counting its direct children refused for exceeding the size cap.
 	static final String EMBEDS_SKIPPED_MAX_SIZE = "X-EXTRACT:embedsSkippedMaxSize";
 
