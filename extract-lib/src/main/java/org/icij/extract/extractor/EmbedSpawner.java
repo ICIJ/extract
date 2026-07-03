@@ -41,6 +41,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -269,14 +270,20 @@ public class EmbedSpawner extends EmbedParser {
 		return untitledName(parentId, ordinal);
 	}
 
-	// Record a refused embed on its parent: bump the parent's aggregate skip counter (indexed marker)
-	// and the per-file progress counter. Runs on the walk thread for this parent's subtree, so the
-	// read-increment-set is single-threaded with respect to this parent (consistent with how other
-	// embed metadata is set during the walk).
-	private void recordSkippedAtDepth(final Metadata skipped) {
+	// Record a refused embed on its parent: bump the parent's aggregate skip counter under metadataKey
+	// (indexed marker) and the per-file progress counter, then emit a once-per-parent WARN breadcrumb.
+	// Runs on the walk thread for this parent's subtree, so the read-increment-set is single-threaded
+	// with respect to this parent (consistent with how other embed metadata is set during the walk).
+	// Both skip guards (depth and size) route through here so their skip accounting can never diverge;
+	// only the marker key, the progress incrementer, and the breadcrumb wording differ. The breadcrumb
+	// is logged once per parent (on its first refused child): a wide bomb can have very many siblings
+	// past the boundary, and one WARN each would flood the log on the exact attack path. The per-parent
+	// marker and the progress counter carry the full count; this WARN is only a breadcrumb.
+	private void recordSkip(final String metadataKey, final Runnable progressIncrement,
+	                        final Consumer<Metadata> logFirstBreadcrumb) {
 		final Metadata parent = tikaDocumentStack.getLast().getMetadata();
 		int count = 0;
-		final String existing = parent.get(EMBEDS_SKIPPED_MAX_DEPTH);
+		final String existing = parent.get(metadataKey);
 		if (existing != null) {
 			try {
 				count = Integer.parseInt(existing);
@@ -284,51 +291,32 @@ public class EmbedSpawner extends EmbedParser {
 				// Treat an unparseable marker as zero and overwrite it.
 			}
 		}
-		parent.set(EMBEDS_SKIPPED_MAX_DEPTH, Integer.toString(count + 1));
+		parent.set(metadataKey, Integer.toString(count + 1));
 		if (progress != null) {
-			progress.incrementEmbedsSkippedMaxDepth();
+			progressIncrement.run();
 		}
-		// Log once per parent (on its first refused child): a wide bomb can have very many siblings
-		// past the boundary, and one WARN each would flood the log on the exact attack path. The
-		// per-parent marker and the progress counter carry the full count; this WARN is a breadcrumb.
-		// Identify the parent by its resource name rather than getId(): the latter can force digest
-		// generation on documents whose content hash hasn't been computed yet (e.g. a PST folder
-		// document mid-walk), which would throw instead of merely logging.
 		if (existing == null) {
-			logger.warn("Skipping embed(s) nested beyond max depth {} under \"{}\"; first: \"{}\" (in \"{}\").",
-					maxEmbedDepth, parent.get(TikaCoreProperties.RESOURCE_NAME_KEY),
-					skipped.get(TikaCoreProperties.RESOURCE_NAME_KEY), root);
+			logFirstBreadcrumb.accept(parent);
 		}
 	}
 
-	// Record a size-refused embed on its parent: bump the parent's aggregate skip counter (indexed marker)
-	// and the per-file progress counter. Mirrors recordSkippedAtDepth exactly (same single-threaded-per-
-	// parent guarantee, same log-once-per-parent breadcrumb), but for the decompressed-size cap.
+	// Identify the parent by its resource name rather than getId() in the breadcrumbs below: the latter can
+	// force digest generation on documents whose content hash hasn't been computed yet (e.g. a PST folder
+	// document mid-walk), which would throw instead of merely logging.
+	private void recordSkippedAtDepth(final Metadata skipped) {
+		recordSkip(EMBEDS_SKIPPED_MAX_DEPTH,
+				() -> progress.incrementEmbedsSkippedMaxDepth(),
+				parent -> logger.warn("Skipping embed(s) nested beyond max depth {} under \"{}\"; first: \"{}\" (in \"{}\").",
+						maxEmbedDepth, parent.get(TikaCoreProperties.RESOURCE_NAME_KEY),
+						skipped.get(TikaCoreProperties.RESOURCE_NAME_KEY), root));
+	}
+
 	private void recordSkippedAtSize(final Metadata skipped) {
-		final Metadata parent = tikaDocumentStack.getLast().getMetadata();
-		int count = 0;
-		final String existing = parent.get(EMBEDS_SKIPPED_MAX_SIZE);
-		if (existing != null) {
-			try {
-				count = Integer.parseInt(existing);
-			} catch (final NumberFormatException ignored) {
-				// Treat an unparseable marker as zero and overwrite it.
-			}
-		}
-		parent.set(EMBEDS_SKIPPED_MAX_SIZE, Integer.toString(count + 1));
-		if (progress != null) {
-			progress.incrementEmbedsSkippedMaxSize();
-		}
-		// Log once per parent (on its first refused child): a bomb can hold many oversized siblings, and
-		// one WARN each would flood the log on the exact attack path. The per-parent marker and progress
-		// counter carry the full count; this WARN is a breadcrumb. Identify the parent by resource name
-		// (not getId()) for the same reason as recordSkippedAtDepth: getId() can force digest generation
-		// on a document whose content hash isn't computed yet, which would throw instead of merely logging.
-		if (existing == null) {
-			logger.warn("Skipping embed(s) exceeding max decompressed size {} bytes under \"{}\"; first: \"{}\" ({} bytes) (in \"{}\").",
-					maxEmbedSizeBytes, parent.get(TikaCoreProperties.RESOURCE_NAME_KEY),
-					skipped.get(TikaCoreProperties.RESOURCE_NAME_KEY), skipped.get(Metadata.CONTENT_LENGTH), root);
-		}
+		recordSkip(EMBEDS_SKIPPED_MAX_SIZE,
+				() -> progress.incrementEmbedsSkippedMaxSize(),
+				parent -> logger.warn("Skipping embed(s) exceeding max decompressed size {} bytes under \"{}\"; first: \"{}\" ({} bytes) (in \"{}\").",
+						maxEmbedSizeBytes, parent.get(TikaCoreProperties.RESOURCE_NAME_KEY),
+						skipped.get(TikaCoreProperties.RESOURCE_NAME_KEY), skipped.get(Metadata.CONTENT_LENGTH), root));
 	}
 
 	@Override
