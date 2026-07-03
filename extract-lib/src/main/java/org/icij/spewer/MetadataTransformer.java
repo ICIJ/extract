@@ -40,6 +40,13 @@ public class MetadataTransformer implements Serializable {
 
 	private static final Logger logger = LoggerFactory.getLogger(MetadataTransformer.class);
 	private static final List<DateTimeFormatter> dateFormats = new ArrayList<>();
+	private static final List<DateTimeFormatter> compactDateFormats = new ArrayList<>();
+
+	// Bound epoch parsing to a plausible calendar window. Epoch seconds start at the 1970 Unix epoch,
+	// and realistic document metadata predates ~2100; a number that lands outside this window is far
+	// more likely a misread identifier or a compact timestamp than a real epoch.
+	private static final int MIN_PLAUSIBLE_EPOCH_YEAR = 1970;
+	private static final int MAX_PLAUSIBLE_EPOCH_YEAR = 2100;
 	private static final Map<String, Property> dateProperties = new HashMap<>();
 	@SuppressWarnings("deprecation")
 	private static final List<String> deduplicateProperties;
@@ -67,6 +74,14 @@ public class MetadataTransformer implements Serializable {
 	static {
 		dateFormats.add(DateTimeFormatter.RFC_1123_DATE_TIME);
 		dateFormats.add(DateTimeFormatter.ofPattern("EEE MMM d HH:mm:ss uuuu", Locale.ENGLISH)); // Example: "Tue Jan 27 17:03:21 2004"
+
+		// Bare, all-digit COMPACT timestamps (no separators). Tried before epoch parsing because a
+		// value like "202312312359" (yyyyMMddHHmm) or "20231231235959" (yyyyMMddHHmmss) would otherwise
+		// be misread as epoch seconds/millis and land thousands of years away.
+		compactDateFormats.add(DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS", Locale.ENGLISH));
+		compactDateFormats.add(DateTimeFormatter.ofPattern("yyyyMMddHHmmss", Locale.ENGLISH));
+		compactDateFormats.add(DateTimeFormatter.ofPattern("yyyyMMddHHmm", Locale.ENGLISH));
+		compactDateFormats.add(DateTimeFormatter.ofPattern("yyyyMMdd", Locale.ENGLISH));
 
 		//noinspection deprecation
 		Stream.of(
@@ -265,7 +280,35 @@ public class MetadataTransformer implements Serializable {
 			}
 		}
 
-		return parseEpoch(normalised);
+		// Bare all-digit values: try compact calendar patterns first, then epoch. Compact must win so a
+		// 12- or 14-digit timestamp is not misread as an epoch number pointing thousands of years away.
+		return parseCompactDate(normalised).or(() -> parseEpoch(normalised));
+	}
+
+	private static Optional<Instant> parseCompactDate(final String value) {
+		if (value.isEmpty() || !value.chars().allMatch(Character::isDigit)) {
+			return Optional.empty();
+		}
+
+		for (final DateTimeFormatter format: compactDateFormats) {
+			final TemporalAccessor accessor;
+
+			// Each pattern has a fixed digit count, so a full-string parse also disambiguates by length
+			// (e.g. genuine 10-digit epoch seconds match none of these and fall through to parseEpoch).
+			try {
+				accessor = format.parseBest(value, LocalDateTime::from, LocalDate::from);
+			} catch (final DateTimeParseException e) {
+				continue;
+			}
+
+			if (accessor instanceof LocalDateTime) {
+				return Optional.of(((LocalDateTime) accessor).toInstant(ZoneOffset.UTC));
+			} else if (accessor instanceof LocalDate) {
+				return Optional.of(((LocalDate) accessor).atStartOfDay(ZoneOffset.UTC).toInstant());
+			}
+		}
+
+		return Optional.empty();
 	}
 
 	private static Optional<Instant> parseEpoch(final String value) {
@@ -278,13 +321,22 @@ public class MetadataTransformer implements Serializable {
 
 			// Heuristic on digit length: 13 or more digits are epoch milliseconds, 10 to 12 digits are
 			// epoch seconds. Shorter all-digit values (e.g. a bare "yyyyMMdd") are not treated as epochs.
+			final Instant instant;
 			if (value.length() >= 13) {
-				return Optional.of(Instant.ofEpochMilli(epoch));
+				instant = Instant.ofEpochMilli(epoch);
+			} else if (value.length() >= 10) {
+				instant = Instant.ofEpochSecond(epoch);
+			} else {
+				return Optional.empty();
 			}
-			if (value.length() >= 10) {
-				return Optional.of(Instant.ofEpochSecond(epoch));
+
+			// Reject implausible years so an out-of-range number degrades to the raw string rather than
+			// silently indexing an absurd date that would wreck Elasticsearch date range and sort.
+			final int year = instant.atOffset(ZoneOffset.UTC).getYear();
+			if (year < MIN_PLAUSIBLE_EPOCH_YEAR || year > MAX_PLAUSIBLE_EPOCH_YEAR) {
+				return Optional.empty();
 			}
-			return Optional.empty();
+			return Optional.of(instant);
 		} catch (final NumberFormatException e) {
 			return Optional.empty();
 		}
