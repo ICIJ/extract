@@ -92,6 +92,15 @@ public class ResilientOutlookPSTParser implements Parser {
     // Per-attachment recovery marker promoted by datashare into the typed Document.recoveryStatus
     // field. Value is one of RECOVERED | ENCRYPTED | UNRECOVERED.
     public static final String PST_ATTACHMENT_RECOVERY = "tika:pst_attachment_recovery";
+    // Stable, cross-run resumable key stamped on every emitted message: the message's descriptor
+    // node id. Datashare persists it once the message subtree is durably indexed and supplies a
+    // ResumePolicy that skips it on a later resumed run. Not read by DigestIdentifier, so stamping
+    // it never perturbs embed identity (see the resumable-OST design doc).
+    public static final String PST_RESUME_KEY = "tika:pst_resume_key";
+    // Count of messages skipped on this run because a ResumePolicy reported them already emitted and
+    // durably indexed by a previous run. Set on the root only when > 0, so a non-resumed run never
+    // carries a misleading "0".
+    public static final String PST_RESUMED_SKIPPED = "tika:pst_resumed_skipped";
 
     private static final long serialVersionUID = 1L;
     private static final Set<MediaType> SUPPORTED_TYPES = singleton(MS_OUTLOOK_PST_MIMETYPE);
@@ -117,7 +126,10 @@ public class ResilientOutlookPSTParser implements Parser {
         metadata.set(Metadata.CONTENT_TYPE, MS_OUTLOOK_PST_MIMETYPE.toString());
         final XHTMLContentHandler xhtml = new XHTMLContentHandler(handler, metadata);
         final Reconciliation reconciliation = new Reconciliation();
-        final EmissionContext emission = new EmissionContext(xhtml, extractor, reconciliation);
+        // Resume skip policy (default: skip nothing). Consulted per message in emitMessage.
+        final ResumePolicy resumePolicy =
+                context.get(ResumePolicy.class) != null ? context.get(ResumePolicy.class) : ResumePolicy.NONE;
+        final EmissionContext emission = new EmissionContext(xhtml, extractor, reconciliation, resumePolicy);
         final PstFanoutConfig fanout = context.get(PstFanoutConfig.class);
 
         xhtml.startDocument();
@@ -182,6 +194,7 @@ public class ResilientOutlookPSTParser implements Parser {
         PstStdoutFilter.runWithSuppressionLifted(() -> {
             recordReconciliation(metadata, pstPath, messageDescriptorIds, emission.emittedCount());
             recordAttachmentIntegrity(metadata, pstPath, emission);
+            recordResumeProgress(metadata, pstPath, emission);
         });
     }
 
@@ -273,7 +286,7 @@ public class ResilientOutlookPSTParser implements Parser {
                                     final EmissionContext baseEmission, final Reconciliation reconciliation) {
         final EmbedSpawner baseSpawner = (EmbedSpawner) baseEmission.extractor;
         final EmissionContext walkerEmission =
-                new EmissionContext(baseEmission.xhtml, baseSpawner.fork(), reconciliation);
+                new EmissionContext(baseEmission.xhtml, baseSpawner.fork(), reconciliation, baseEmission.resumePolicy);
         emitFolderMessages(folder, folderPath, walkerEmission);
     }
 
@@ -440,9 +453,19 @@ public class ResilientOutlookPSTParser implements Parser {
         if (!emission.markEmitted(descriptorId)) {
             return;
         }
+        // Resume: a unit a previous run already emitted and durably indexed is skipped WITHOUT
+        // re-parsing. It stays marked emitted (so orphan recovery does not re-reach it) and counts
+        // toward the emitted total (so reconciliation does not read it as loss); only the parse/emit
+        // work is elided. Inert unless a ResumePolicy is supplied (default resumes nothing), so a
+        // non-resumed run behaves exactly as before.
+        if (emission.isUnitDone(descriptorId)) {
+            emission.incrementEmitted();
+            emission.incrementResumeSkipped();
+            return;
+        }
         // subject is best-effort: it only feeds the resource name and the failure log.
         final String subject = safe(message::getSubject, null);
-        final Metadata metadata = buildMessageMetadata(folderPath, subject);
+        final Metadata metadata = buildMessageMetadata(folderPath, subject, descriptorId);
 
         final long estimatedSize = estimateSize(message);
         try (TikaInputStream messageStream = TikaInputStream.getFromContainer(message, estimatedSize, metadata)) {
@@ -615,11 +638,16 @@ public class ResilientOutlookPSTParser implements Parser {
 
     // Builds the per-message metadata that routes the body to PSTMailItemParser and
     // gives it a folder path and a resource name.
-    private Metadata buildMessageMetadata(final String folderPath, final String subject) {
+    private Metadata buildMessageMetadata(final String folderPath, final String subject, final long descriptorId) {
         final Metadata metadata = new Metadata();
         metadata.set(TikaCoreProperties.CONTENT_TYPE_PARSER_OVERRIDE, PSTMailItemParser.PST_MAIL_ITEM_STRING);
         metadata.set(PST.PST_FOLDER_PATH, folderPath);
         metadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, resourceName(subject));
+        // Stable, cross-run resumable key: datashare persists it once this message's subtree is
+        // durably indexed, then supplies a ResumePolicy that skips it on a later resumed run. Not
+        // read by DigestIdentifier (which uses only the content hash, parent id, relationship id and
+        // resource name), so stamping it never perturbs this message's or its attachments' ids.
+        metadata.set(PST_RESUME_KEY, Long.toString(descriptorId));
         return metadata;
     }
 
@@ -695,6 +723,19 @@ public class ResilientOutlookPSTParser implements Parser {
         }
     }
 
+    // Records, only on a resumed run that actually skipped something, how many messages were skipped
+    // because a previous run had already emitted and durably indexed them. Left absent otherwise so a
+    // non-resumed run never carries a misleading "0".
+    private void recordResumeProgress(final Metadata metadata, final String pstPath,
+                                      final EmissionContext emission) {
+        final int skipped = emission.resumeSkipped();
+        if (skipped > 0) {
+            metadata.set(PST_RESUMED_SKIPPED, Integer.toString(skipped));
+            logger.info("PST resume for \"{}\": skipped {} message(s) already emitted by a previous run.",
+                    pstPath, skipped);
+        }
+    }
+
     // Closes the underlying file handle, ignoring close-time failures: by the time we
     // get here the content is already emitted, so a failing close must not mask it.
     private static void closeQuietly(final PSTFile pstFile) {
@@ -758,6 +799,7 @@ public class ResilientOutlookPSTParser implements Parser {
         private final AtomicInteger recoveredAttachments = new AtomicInteger();
         private final AtomicInteger unrecoveredAttachments = new AtomicInteger();
         private final AtomicInteger encryptedAttachments = new AtomicInteger();
+        private final AtomicInteger resumeSkipped = new AtomicInteger();
 
         boolean markEmitted(final long id) { return emittedDescriptorIds.add(id); }
         void unmarkEmitted(final long id) { emittedDescriptorIds.remove(id); }
@@ -774,6 +816,8 @@ public class ResilientOutlookPSTParser implements Parser {
         int unrecoveredAttachments() { return unrecoveredAttachments.get(); }
         void incrementEncryptedAttachments() { encryptedAttachments.incrementAndGet(); }
         int encryptedAttachments() { return encryptedAttachments.get(); }
+        void incrementResumeSkipped() { resumeSkipped.incrementAndGet(); }
+        int resumeSkipped() { return resumeSkipped.get(); }
     }
 
     // Mutable per-parse state shared by the folder walk, the orphan-recovery pass, and
@@ -783,13 +827,20 @@ public class ResilientOutlookPSTParser implements Parser {
         private final XHTMLContentHandler xhtml;
         private final EmbeddedDocumentExtractor extractor;
         private final Reconciliation reconciliation;
+        // Read-only, safe to share across fan-out forks: skip predicate for resumed runs.
+        private final ResumePolicy resumePolicy;
 
         private EmissionContext(final XHTMLContentHandler xhtml, final EmbeddedDocumentExtractor extractor,
-                                final Reconciliation reconciliation) {
+                                final Reconciliation reconciliation, final ResumePolicy resumePolicy) {
             this.xhtml = xhtml;
             this.extractor = extractor;
             this.reconciliation = reconciliation;
+            this.resumePolicy = resumePolicy;
         }
+
+        private boolean isUnitDone(final long resumeKey) { return resumePolicy.isUnitDone(resumeKey); }
+        private void incrementResumeSkipped() { reconciliation.incrementResumeSkipped(); }
+        private int resumeSkipped() { return reconciliation.resumeSkipped(); }
 
         private void enableAttachmentIntegrityCheck() { reconciliation.enableAttachmentIntegrityCheck(); }
         private boolean shouldCheckAttachmentIntegrity() { return reconciliation.shouldCheckAttachmentIntegrity(); }

@@ -41,6 +41,7 @@ import org.icij.extract.parser.HTML5Serializer;
 import org.icij.extract.parser.ParsingReaderWithContentHandler;
 import org.icij.extract.parser.ResourceClosingReader;
 import org.icij.extract.parser.ResilientOutlookPSTParser;
+import org.icij.extract.parser.ResumePolicy;
 import org.icij.extract.report.Reporter;
 import org.icij.spewer.MetadataTransformer;
 import org.icij.spewer.Spewer;
@@ -223,6 +224,10 @@ public class Extractor implements AutoCloseable {
     // Null until first use; created lazily by parseExecutor(), mirroring the OCR pool.
     private volatile ExecutorService pstParseExecutor = null;
     private ExtractionProgressTracker progressTracker;
+    // Per-file resume skip policy provider for RESUMABLE PST/OST extraction. Datashare installs a
+    // provider that returns, for a given file, a policy skipping the messages a previous run already
+    // durably indexed. Default: skip nothing, so non-resumed extraction is byte-for-byte unchanged.
+    private Function<Path, ResumePolicy> resumePolicyProvider = p -> ResumePolicy.NONE;
 
     /**
      * Create a new extractor, which will OCR images by default if Tesseract is available locally, extract inline
@@ -470,6 +475,17 @@ public class Extractor implements AutoCloseable {
     public ExtractionProgressTracker getProgressTracker() { return progressTracker; }
     public void addProgressListener(final ProgressListener listener) {
         progressTracker.addListener(listener);
+    }
+
+    /**
+     * Install a per-file resume skip policy provider for RESUMABLE PST/OST extraction. The provider
+     * is called with the file being extracted and returns a {@link ResumePolicy} that reports which
+     * of that file's mail messages a previous run already emitted and durably indexed, so this run
+     * skips re-parsing them. A {@code null} provider (or the default) resumes nothing. Consumed only
+     * by {@code ResilientOutlookPSTParser}; a no-op for every other file type.
+     */
+    public void setResumePolicyProvider(final Function<Path, ResumePolicy> provider) {
+        this.resumePolicyProvider = provider == null ? p -> ResumePolicy.NONE : provider;
     }
 
     /**
@@ -980,6 +996,9 @@ public class Extractor implements AutoCloseable {
                             maxEmbedDepth, maxEmbedSizeBytes));
             context.set(org.icij.extract.parser.PstFanoutConfig.class,
                     new org.icij.extract.parser.PstFanoutConfig(pstFolderFanout, this::pstParseExecutor));
+            // Per-file resume skip policy (default NONE). Only ResilientOutlookPSTParser reads it, so
+            // setting it here is a no-op for every non-PST file and never changes non-resumed runs.
+            context.set(ResumePolicy.class, resumePolicyProvider.apply(path));
         } else if (EmbedHandling.CONCATENATE == embedHandling) {
             context.set(Parser.class, parser);
             context.set(EmbeddedDocumentExtractor.class, new EmbedParser(rootDocument, context));
