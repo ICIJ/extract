@@ -28,6 +28,7 @@ import org.xml.sax.SAXException;
 import org.apache.tika.parser.DigestingParser;
 
 import java.io.*;
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.HashMap;
@@ -821,8 +822,11 @@ public class EmbedSpawner extends EmbedParser {
 	// True when an embed must be refused for exceeding the per-embed decompressed-size cap.
 	// maxEmbedSizeBytes <= 0 disables the guard. The size is read from Tika's Metadata.CONTENT_LENGTH,
 	// which the container parser sets to the entry's UNCOMPRESSED size for archive embeds. When the length
-	// is absent or unparseable the size is unknown: we do NOT guess and leave the embed unguarded (returning
-	// false), so streaming containers that don't report a length keep working exactly as before.
+	// is absent or genuinely non-numeric the size is unknown: we do NOT guess and leave the embed unguarded
+	// (returning false), so streaming containers that don't report a length keep working exactly as before.
+	// Parsed as a BigInteger rather than a long so a well-formed but out-of-long-range size (e.g. a crafted
+	// ZIP64 entry declaring more than Long.MAX_VALUE bytes) is treated as exceeding the cap instead of
+	// overflowing Long.parseLong and failing open on the exact attack it guards against.
 	static boolean exceedsMaxEmbedSize(final Metadata metadata, final long maxEmbedSizeBytes) {
 		if (maxEmbedSizeBytes <= 0) {
 			return false;
@@ -832,7 +836,7 @@ public class EmbedSpawner extends EmbedParser {
 			return false;
 		}
 		try {
-			return Long.parseLong(length.trim()) > maxEmbedSizeBytes;
+			return new BigInteger(length.trim()).compareTo(BigInteger.valueOf(maxEmbedSizeBytes)) > 0;
 		} catch (final NumberFormatException ignored) {
 			return false;
 		}
