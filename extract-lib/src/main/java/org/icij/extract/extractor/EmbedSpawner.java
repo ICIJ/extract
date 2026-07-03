@@ -53,6 +53,13 @@ public class EmbedSpawner extends EmbedParser {
 	static final int DEFAULT_MAX_EMBED_DEPTH = 20;
 	// Metadata key set on a parent document, counting its direct children refused for exceeding the depth limit.
 	static final String EMBEDS_SKIPPED_MAX_DEPTH = "X-EXTRACT:embedsSkippedMaxDepth";
+	// Default per-embed decompressed-size cap (2 GiB): an embed whose declared decompressed size exceeds
+	// this is refused before it is spooled/recursed into (see exceedsMaxEmbedSize). Generous enough to
+	// pass any realistic single attachment while defusing the nested-zip "bomb" whose entries decompress
+	// to multi-GiB. Only enforced when the embed's size is actually known, so streaming is never broken.
+	static final long DEFAULT_MAX_EMBED_SIZE_BYTES = 2L * 1024 * 1024 * 1024;
+	// Metadata key set on a parent document, counting its direct children refused for exceeding the size cap.
+	static final String EMBEDS_SKIPPED_MAX_SIZE = "X-EXTRACT:embedsSkippedMaxSize";
 
 	private final Path outputPath;
 	private final Function<Writer, ContentHandler> handlerFunction;
@@ -69,6 +76,9 @@ public class EmbedSpawner extends EmbedParser {
 	// Pre-branch global counter, used only when legacyUntitledNaming is true.
 	private int untitledGlobalCounter = 0;
 	private final int maxEmbedDepth;
+	// Per-embed decompressed-size cap in bytes; an embed whose declared size exceeds this is refused
+	// (see exceedsMaxEmbedSize). <= 0 disables the guard.
+	private final long maxEmbedSizeBytes;
 	// Absolute nesting depth of this spawner's reseeded root within the outer document tree.
 	// 0 for the top-level spawner; a PST fan-out fork inherits the depth its shared root sat at,
 	// so the depth guard measures ABSOLUTE nesting rather than depth-relative-to-the-fork.
@@ -118,7 +128,17 @@ public class EmbedSpawner extends EmbedParser {
 				 final long embedMemoryBudgetBytes, final TemporaryResources tmp,
 				 final BooleanSupplier memoryPressureHigh, final int maxEmbedDepth) {
 		this(root, context, outputPath, handlerFunction, embedMemoryBudgetBytes, tmp, memoryPressureHigh,
-				() -> null, false, null, null, false, 0L, null, null, false, maxEmbedDepth);
+				maxEmbedDepth, DEFAULT_MAX_EMBED_SIZE_BYTES);
+	}
+
+	// Serial mode with explicit depth AND decompressed-size limits (test-friendly). No fan-out, no OCR.
+	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
+				 final Function<Writer, ContentHandler> handlerFunction,
+				 final long embedMemoryBudgetBytes, final TemporaryResources tmp,
+				 final BooleanSupplier memoryPressureHigh, final int maxEmbedDepth,
+				 final long maxEmbedSizeBytes) {
+		this(root, context, outputPath, handlerFunction, embedMemoryBudgetBytes, tmp, memoryPressureHigh,
+				() -> null, false, null, null, false, 0L, null, null, false, maxEmbedDepth, maxEmbedSizeBytes);
 	}
 
 	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
@@ -134,7 +154,7 @@ public class EmbedSpawner extends EmbedParser {
 		// (including tests) that pass a pre-built ExecutorService continue to work unchanged.
 		this(root, context, outputPath, handlerFunction, embedMemoryBudgetBytes, tmp, memoryPressureHigh,
 				() -> ocrExecutor, ocrExecutor != null, progress, digester, ocrFanout, ocrMinImageBytes,
-				ocrParserClassName, null, false, DEFAULT_MAX_EMBED_DEPTH);
+				ocrParserClassName, null, false, DEFAULT_MAX_EMBED_DEPTH, DEFAULT_MAX_EMBED_SIZE_BYTES);
 	}
 
 	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
@@ -149,7 +169,8 @@ public class EmbedSpawner extends EmbedParser {
 				 final String ocrParserClassName,
 				 final SpewSink sink,
 				 final boolean legacyUntitledNaming,
-				 final int maxEmbedDepth) {
+				 final int maxEmbedDepth,
+				 final long maxEmbedSizeBytes) {
 		super(root, context);
 		this.outputPath = outputPath;
 		this.handlerFunction = handlerFunction;
@@ -166,6 +187,7 @@ public class EmbedSpawner extends EmbedParser {
 		this.sink = sink;
 		this.legacyUntitledNaming = legacyUntitledNaming;
 		this.maxEmbedDepth = maxEmbedDepth;
+		this.maxEmbedSizeBytes = maxEmbedSizeBytes;
 		this.baseDepthOffset = 0;
 		this.reserved = new AtomicLong();
 		tikaDocumentStack.add(root);
@@ -192,6 +214,7 @@ public class EmbedSpawner extends EmbedParser {
 		this.sink = template.sink;
 		this.legacyUntitledNaming = template.legacyUntitledNaming;
 		this.maxEmbedDepth = template.maxEmbedDepth; // forks enforce the same depth on their own stack
+		this.maxEmbedSizeBytes = template.maxEmbedSizeBytes; // and the same per-embed size cap
 		// The fork re-adds `root` as size 1, discarding the depth the template's stack was actually
 		// at; capture that depth here so the guard measures ABSOLUTE nesting rather than
 		// depth-relative-to-the-fork. General form composes correctly if a fork is ever itself forked.
@@ -212,6 +235,8 @@ public class EmbedSpawner extends EmbedParser {
 	int stackDepth() { return tikaDocumentStack.size(); }
 	// Test accessor (package-private): the configured maximum embed nesting depth.
 	int maxEmbedDepthForTest() { return maxEmbedDepth; }
+	// Test accessor (package-private): the configured per-embed decompressed-size cap in bytes.
+	long maxEmbedSizeBytesForTest() { return maxEmbedSizeBytes; }
 	// Test accessor (package-private): the fork's inherited absolute-depth offset.
 	int baseDepthOffsetForTest() { return baseDepthOffset; }
 	// Test accessor (package-private): push a document onto this spawner's DFS stack.
@@ -273,6 +298,36 @@ public class EmbedSpawner extends EmbedParser {
 		}
 	}
 
+	// Record a size-refused embed on its parent: bump the parent's aggregate skip counter (indexed marker)
+	// and the per-file progress counter. Mirrors recordSkippedAtDepth exactly (same single-threaded-per-
+	// parent guarantee, same log-once-per-parent breadcrumb), but for the decompressed-size cap.
+	private void recordSkippedAtSize(final Metadata skipped) {
+		final Metadata parent = tikaDocumentStack.getLast().getMetadata();
+		int count = 0;
+		final String existing = parent.get(EMBEDS_SKIPPED_MAX_SIZE);
+		if (existing != null) {
+			try {
+				count = Integer.parseInt(existing);
+			} catch (final NumberFormatException ignored) {
+				// Treat an unparseable marker as zero and overwrite it.
+			}
+		}
+		parent.set(EMBEDS_SKIPPED_MAX_SIZE, Integer.toString(count + 1));
+		if (progress != null) {
+			progress.incrementEmbedsSkippedMaxSize();
+		}
+		// Log once per parent (on its first refused child): a bomb can hold many oversized siblings, and
+		// one WARN each would flood the log on the exact attack path. The per-parent marker and progress
+		// counter carry the full count; this WARN is a breadcrumb. Identify the parent by resource name
+		// (not getId()) for the same reason as recordSkippedAtDepth: getId() can force digest generation
+		// on a document whose content hash isn't computed yet, which would throw instead of merely logging.
+		if (existing == null) {
+			logger.warn("Skipping embed(s) exceeding max decompressed size {} bytes under \"{}\"; first: \"{}\" ({} bytes) (in \"{}\").",
+					maxEmbedSizeBytes, parent.get(TikaCoreProperties.RESOURCE_NAME_KEY),
+					skipped.get(TikaCoreProperties.RESOURCE_NAME_KEY), skipped.get(Metadata.CONTENT_LENGTH), root);
+		}
+	}
+
 	@Override
 	public void parseEmbedded(final InputStream input, final ContentHandler handler, final Metadata metadata,
 	                          final boolean outputHtml) throws SAXException, IOException {
@@ -303,6 +358,15 @@ public class EmbedSpawner extends EmbedParser {
 			// recorded on the parent and counted, so it is visible/alertable rather than silently lost.
 			if (exceedsMaxEmbedDepth(baseDepthOffset + tikaDocumentStack.size(), maxEmbedDepth)) {
 				recordSkippedAtDepth(metadata);
+				return;
+			}
+			// Decompression-bomb guard, part two: refuse an embed whose DECLARED decompressed size exceeds
+			// the cap BEFORE any spool or recursion, so a nested zip with multi-GiB entries can't fill /tmp
+			// or drive OOM even within the depth limit. Only fires when the size is actually known (see
+			// exceedsMaxEmbedSize); an unknown size is left unguarded rather than guessed, so streaming
+			// containers that don't report a length are never broken.
+			if (exceedsMaxEmbedSize(metadata, maxEmbedSizeBytes)) {
+				recordSkippedAtSize(metadata);
 				return;
 			}
 			if (progress != null) {
@@ -750,6 +814,26 @@ public class EmbedSpawner extends EmbedParser {
 	// "stackSize > maxEmbedDepth" allows depths 1..maxEmbedDepth and refuses maxEmbedDepth+1 down.
 	static boolean exceedsMaxEmbedDepth(final int stackSize, final int maxEmbedDepth) {
 		return maxEmbedDepth > 0 && stackSize > maxEmbedDepth;
+	}
+
+	// True when an embed must be refused for exceeding the per-embed decompressed-size cap.
+	// maxEmbedSizeBytes <= 0 disables the guard. The size is read from Tika's Metadata.CONTENT_LENGTH,
+	// which the container parser sets to the entry's UNCOMPRESSED size for archive embeds. When the length
+	// is absent or unparseable the size is unknown: we do NOT guess and leave the embed unguarded (returning
+	// false), so streaming containers that don't report a length keep working exactly as before.
+	static boolean exceedsMaxEmbedSize(final Metadata metadata, final long maxEmbedSizeBytes) {
+		if (maxEmbedSizeBytes <= 0) {
+			return false;
+		}
+		final String length = metadata.get(Metadata.CONTENT_LENGTH);
+		if (length == null) {
+			return false;
+		}
+		try {
+			return Long.parseLong(length.trim()) > maxEmbedSizeBytes;
+		} catch (final NumberFormatException ignored) {
+			return false;
+		}
 	}
 
 	private void saveEntries(final DirectoryEntry source, final DirectoryEntry destination) throws IOException {
