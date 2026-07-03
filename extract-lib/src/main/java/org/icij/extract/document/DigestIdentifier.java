@@ -45,7 +45,7 @@ public class DigestIdentifier extends AbstractIdentifier {
 		if (null != hash) {
 			digest.update(hash.getBytes(charset));
 		} else {
-			LoggerFactory.getLogger(getClass()).warn(
+			LoggerFactory.getLogger(getClass()).debug(
 					"No content hash for embed \"{}\" (relId {}) under parent {}; deriving id without the file digest.",
 					name, embeddedRelationshipId, embed.getParent().getId());
 		}
