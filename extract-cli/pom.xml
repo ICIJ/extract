@@ -128,8 +128,8 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Compile scope: PdfBoxNoiseFilter (referenced from logback.xml) extends logback's
-             Filter, so the classes must be on the main classpath, not only at test time. -->
+        <!-- extract-cli ships logback as its logging runtime; its logback.xml references
+             org.icij.extract.log.PdfBoxNoiseFilter (provided by extract-lib) at startup. -->
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>

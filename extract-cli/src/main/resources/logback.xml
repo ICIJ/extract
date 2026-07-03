@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-        <filter class="org.icij.extract.cli.PdfBoxNoiseFilter"/>
+        <filter class="org.icij.extract.log.PdfBoxNoiseFilter"/>
         <encoder>
             <pattern>%d [%thread] %-5level %logger{0} - %msg%n</pattern>
         </encoder>
     </appender>
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <filter class="org.icij.extract.cli.PdfBoxNoiseFilter"/>
+        <filter class="org.icij.extract.log.PdfBoxNoiseFilter"/>
         <file>./logs/datashare.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <!-- daily rollover -->
