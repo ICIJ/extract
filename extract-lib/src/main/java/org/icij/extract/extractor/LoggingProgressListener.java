@@ -16,9 +16,9 @@ public class LoggingProgressListener implements ProgressListener {
 
     static String formatLine(final ExtractionProgress p, final long now) {
         final long seconds = p.elapsedMillis(now) / 1000L;
-        return String.format("%s: %ds, %d embeds, %d/%d OCR done, %d skipped(maxDepth)",
+        return String.format("%s: %ds, %d embeds, %d/%d OCR done, %d skipped(maxDepth), %d skipped(maxSize)",
                 p.path(), seconds, p.embedsParsed(), p.ocrCompleted(), p.ocrSubmitted(),
-                p.embedsSkippedMaxDepth());
+                p.embedsSkippedMaxDepth(), p.embedsSkippedMaxSize());
     }
 
     @Override

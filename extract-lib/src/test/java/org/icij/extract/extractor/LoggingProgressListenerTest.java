@@ -17,7 +17,7 @@ public class LoggingProgressListenerTest {
         p.incrementOcrSubmitted(); p.incrementOcrSubmitted(); p.incrementOcrSubmitted();
         p.incrementOcrCompleted();
         assertThat(LoggingProgressListener.formatLine(p, 3_000L))
-            .isEqualTo("/x.ost: 3s, 2 embeds, 1/3 OCR done, 0 skipped(maxDepth)");
+            .isEqualTo("/x.ost: 3s, 2 embeds, 1/3 OCR done, 0 skipped(maxDepth), 0 skipped(maxSize)");
     }
 
     @Test public void testFormatLineIncludesSkippedCount() {
@@ -25,6 +25,13 @@ public class LoggingProgressListenerTest {
         p.incrementEmbeds();
         p.incrementEmbedsSkippedMaxDepth();
         assertThat(LoggingProgressListener.formatLine(p, 3_000L)).contains("1 skipped(maxDepth)");
+    }
+
+    @Test public void testFormatLineIncludesSkippedMaxSizeCount() {
+        ExtractionProgress p = new ExtractionProgress(Paths.get("/x.ost"), 1_000L);
+        p.incrementEmbeds();
+        p.incrementEmbedsSkippedMaxSize();
+        assertThat(LoggingProgressListener.formatLine(p, 3_000L)).contains("1 skipped(maxSize)");
     }
 
     @Test public void testEmptyInFlightLogsNothing() {
