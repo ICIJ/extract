@@ -145,6 +145,33 @@ public class MetadataTransformerTest {
     }
 
     @Test
+    public void test_parseFallbackDate_parses_compact_date_time_with_minutes() {
+        // "yyyyMMddHHmm" (12 digits): must parse as a 2023 date, NOT be misread as epoch seconds (year ~8377).
+        assertThat(MetadataTransformer.parseFallbackDate("202312312359"))
+                .isEqualTo(Optional.of(Instant.parse("2023-12-31T23:59:00Z")));
+    }
+
+    @Test
+    public void test_parseFallbackDate_parses_compact_date_time_with_seconds() {
+        // "yyyyMMddHHmmss" (14 digits): must parse as a 2023 date, NOT be misread as epoch millis (year ~2611).
+        assertThat(MetadataTransformer.parseFallbackDate("20231231235959"))
+                .isEqualTo(Optional.of(Instant.parse("2023-12-31T23:59:59Z")));
+    }
+
+    @Test
+    public void test_parseFallbackDate_parses_compact_date() {
+        assertThat(MetadataTransformer.parseFallbackDate("20231231"))
+                .isEqualTo(Optional.of(Instant.parse("2023-12-31T00:00:00Z")));
+    }
+
+    @Test
+    public void test_parseFallbackDate_is_empty_for_implausible_epoch() {
+        // A genuinely huge all-digit value maps to an absurd year, so it degrades to the raw string.
+        assertThat(MetadataTransformer.parseFallbackDate("999999999999999"))
+                .isEqualTo(Optional.empty());
+    }
+
+    @Test
     public void test_parseFallbackDate_is_empty_for_corrupt_date() {
         assertThat(MetadataTransformer.parseFallbackDate("Thu May  0:00:00 17:37:52 1997"))
                 .isEqualTo(Optional.empty());
