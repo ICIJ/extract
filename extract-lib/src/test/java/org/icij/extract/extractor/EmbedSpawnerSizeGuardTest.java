@@ -47,10 +47,16 @@ public class EmbedSpawnerSizeGuardTest {
     }
 
     private Metadata nonInline(final String name, final Long contentLength) {
+        return nonInlineRaw(name, contentLength == null ? null : Long.toString(contentLength));
+    }
+
+    // Same as nonInline but sets CONTENT_LENGTH to a raw string, so tests can exercise values that are not
+    // representable as a Java long (e.g. a crafted ZIP64 size above Long.MAX_VALUE) or non-numeric garbage.
+    private Metadata nonInlineRaw(final String name, final String rawContentLength) {
         final Metadata m = new Metadata();
         m.set(org.apache.tika.metadata.TikaCoreProperties.RESOURCE_NAME_KEY, name);
-        if (contentLength != null) {
-            m.set(Metadata.CONTENT_LENGTH, Long.toString(contentLength));
+        if (rawContentLength != null) {
+            m.set(Metadata.CONTENT_LENGTH, rawContentLength);
         }
         return m;
     }
@@ -112,6 +118,39 @@ public class EmbedSpawnerSizeGuardTest {
         // No CONTENT_LENGTH on the embed: size is unknown, so the guard does not fire (do not guess).
         spawner.parseEmbedded(new ByteArrayInputStream("payload".getBytes(StandardCharsets.UTF_8)),
                 new BodyContentHandler(), nonInline("unknown.bin", null), false);
+
+        assertThat(parent.getMetadata().get(EmbedSpawner.EMBEDS_SKIPPED_MAX_SIZE)).isNull();
+        assertThat(parent.getEmbeds()).isNotEmpty();
+    }
+
+    @Test
+    public void testDeclaredSizeAboveLongRangeIsRefused() throws Exception {
+        final TikaDocument root = root("/tmp/fake-root.zip");
+        final EmbedSpawner spawner = spawnerWithSize(root, 100L);
+        final TikaDocument parent = parent();
+        spawner.pushForTest(parent);
+
+        // A crafted ZIP64 entry can declare an uncompressed size above Long.MAX_VALUE. Such a value is not
+        // "unknown" — it is unambiguously enormous — so it must be refused, not fail open past Long.parseLong.
+        final String aboveLongMax = "18446744073709551615"; // 2^64 - 1, > Long.MAX_VALUE
+        spawner.parseEmbedded(new ByteArrayInputStream("payload".getBytes(StandardCharsets.UTF_8)),
+                new BodyContentHandler(), nonInlineRaw("zip64-bomb.bin", aboveLongMax), false);
+
+        assertThat(parent.getMetadata().get(EmbedSpawner.EMBEDS_SKIPPED_MAX_SIZE)).isEqualTo("1");
+        assertThat(parent.getEmbeds()).isEmpty();
+    }
+
+    @Test
+    public void testNonNumericSizeIsNotGuarded() throws Exception {
+        final TikaDocument root = root("/tmp/fake-root.zip");
+        final EmbedSpawner spawner = spawnerWithSize(root, 100L);
+        final TikaDocument parent = parent();
+        spawner.pushForTest(parent);
+
+        // A genuinely non-numeric CONTENT_LENGTH is unknown (not a huge number), so the guard does not fire:
+        // we do not guess, matching the absent-length behaviour.
+        spawner.parseEmbedded(new ByteArrayInputStream("payload".getBytes(StandardCharsets.UTF_8)),
+                new BodyContentHandler(), nonInlineRaw("weird.bin", "not-a-number"), false);
 
         assertThat(parent.getMetadata().get(EmbedSpawner.EMBEDS_SKIPPED_MAX_SIZE)).isNull();
         assertThat(parent.getEmbeds()).isNotEmpty();
