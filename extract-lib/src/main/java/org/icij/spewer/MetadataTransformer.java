@@ -11,6 +11,8 @@ import org.apache.tika.metadata.PDF;
 import org.apache.tika.metadata.Property;
 import org.apache.tika.metadata.TIFF;
 import org.apache.tika.metadata.TikaCoreProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -36,6 +38,7 @@ import java.util.stream.Stream;
 
 public class MetadataTransformer implements Serializable {
 
+	private static final Logger logger = LoggerFactory.getLogger(MetadataTransformer.class);
 	private static final List<DateTimeFormatter> dateFormats = new ArrayList<>();
 	private static final Map<String, Property> dateProperties = new HashMap<>();
 	@SuppressWarnings("deprecation")
@@ -215,39 +218,75 @@ public class MetadataTransformer implements Serializable {
 
 	private void transformDate(final String name, final ValueConsumer consumer) throws IOException {
 		final Date date = metadata.getDate(dateProperties.get(name));
-		Instant instant = null;
+		final Optional<Instant> instant = (null != date)
+				? Optional.of(date.toInstant())
+				: parseFallbackDate(metadata.get(name));
 
-		if (null != date) {
-			instant = date.toInstant();
+		if (instant.isPresent()) {
+			consumer.accept(fields.forMetadataISODate(name), instant.get().toString());
 		} else {
 
-			// Try some other formats.
-			for (DateTimeFormatter format: dateFormats) {
-				final TemporalAccessor accessor;
+			// Degrade instead of failing: the raw value has already been emitted by the caller, so a
+			// date we cannot normalize must never veto the whole document. Skip only the ISO variant.
+			logger.warn("Unable to parse date \"{}\" from field \"{}\" for ISO 8601 formatting; " +
+					"keeping raw value.", metadata.get(name), name);
+		}
+	}
 
-				try {
-					accessor = format.parseBest(metadata.get(name), Instant::from, LocalDateTime::from);
-				} catch (final DateTimeParseException e) {
-					continue;
-				}
+	/**
+	 * Parse a single, possibly lenient date value into an {@link Instant} for the ISO-8601 variant.
+	 * Tries the {@link #dateFormats} fallbacks (RFC-1123 and C asctime) after collapsing runs of
+	 * whitespace to a single space, so double-space-padded asctime days (e.g. "Thu May  1 …") match.
+	 * Also accepts bare epoch seconds and epoch milliseconds. Returns empty when nothing matches so
+	 * the caller can degrade gracefully rather than fail the document.
+	 */
+	static Optional<Instant> parseFallbackDate(final String value) {
+		if (null == value || value.isBlank()) {
+			return Optional.empty();
+		}
 
-				if (accessor instanceof Instant) {
-					instant = (Instant) accessor;
-				} else if (accessor instanceof LocalDateTime) {
+		final String normalised = value.trim().replaceAll("\\s+", " ");
 
-					// Default to UTC for dates with not time zone.
-					instant = ((LocalDateTime) accessor).toInstant(ZoneOffset.UTC);
-				}
+		for (final DateTimeFormatter format: dateFormats) {
+			final TemporalAccessor accessor;
 
-				break;
+			try {
+				accessor = format.parseBest(normalised, Instant::from, LocalDateTime::from);
+			} catch (final DateTimeParseException e) {
+				continue;
+			}
+
+			if (accessor instanceof Instant) {
+				return Optional.of((Instant) accessor);
+			} else if (accessor instanceof LocalDateTime) {
+
+				// Default to UTC for dates with no time zone.
+				return Optional.of(((LocalDateTime) accessor).toInstant(ZoneOffset.UTC));
 			}
 		}
 
-		if (null != instant) {
-			consumer.accept(fields.forMetadataISODate(name), instant.toString());
-		} else {
-			throw new IOException(String.format("Unable to parse date \"%s\" from field " +
-					"\"%s\" for ISO 8601 formatting.", metadata.get(name), name));
+		return parseEpoch(normalised);
+	}
+
+	private static Optional<Instant> parseEpoch(final String value) {
+		if (value.isEmpty() || !value.chars().allMatch(Character::isDigit)) {
+			return Optional.empty();
+		}
+
+		try {
+			final long epoch = Long.parseLong(value);
+
+			// Heuristic on digit length: 13 or more digits are epoch milliseconds, 10 to 12 digits are
+			// epoch seconds. Shorter all-digit values (e.g. a bare "yyyyMMdd") are not treated as epochs.
+			if (value.length() >= 13) {
+				return Optional.of(Instant.ofEpochMilli(epoch));
+			}
+			if (value.length() >= 10) {
+				return Optional.of(Instant.ofEpochSecond(epoch));
+			}
+			return Optional.empty();
+		} catch (final NumberFormatException e) {
+			return Optional.empty();
 		}
 	}
 

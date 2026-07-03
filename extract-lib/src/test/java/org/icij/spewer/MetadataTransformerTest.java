@@ -4,6 +4,7 @@ package org.icij.spewer;
 import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.tika.metadata.DublinCore;
 import org.apache.tika.metadata.Metadata;
 import org.junit.Rule;
 import org.junit.Test;
@@ -13,7 +14,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.fest.assertions.Assertions.assertThat;
@@ -114,5 +117,66 @@ public class MetadataTransformerTest {
     public void test_parseInstant_parses_offset_datetime() {
         assertThat(MetadataTransformer.parseInstant("2023-05-30T13:35:06+01:00"))
                 .isEqualTo(Optional.of(Instant.parse("2023-05-30T12:35:06Z")));
+    }
+
+    @Test
+    public void test_parseFallbackDate_parses_double_space_padded_ctime() {
+        // C asctime pads a single-digit day to width 2, producing two spaces before the day.
+        assertThat(MetadataTransformer.parseFallbackDate("Thu May  1 17:27:09 1997"))
+                .isEqualTo(Optional.of(Instant.parse("1997-05-01T17:27:09Z")));
+    }
+
+    @Test
+    public void test_parseFallbackDate_parses_single_space_ctime() {
+        assertThat(MetadataTransformer.parseFallbackDate("Tue Jan 27 17:03:21 2004"))
+                .isEqualTo(Optional.of(Instant.parse("2004-01-27T17:03:21Z")));
+    }
+
+    @Test
+    public void test_parseFallbackDate_parses_bare_epoch_seconds() {
+        assertThat(MetadataTransformer.parseFallbackDate("1705133865"))
+                .isEqualTo(Optional.of(Instant.parse("2024-01-13T08:17:45Z")));
+    }
+
+    @Test
+    public void test_parseFallbackDate_parses_bare_epoch_milliseconds() {
+        assertThat(MetadataTransformer.parseFallbackDate("1705133865000"))
+                .isEqualTo(Optional.of(Instant.parse("2024-01-13T08:17:45Z")));
+    }
+
+    @Test
+    public void test_parseFallbackDate_is_empty_for_corrupt_date() {
+        assertThat(MetadataTransformer.parseFallbackDate("Thu May  0:00:00 17:37:52 1997"))
+                .isEqualTo(Optional.empty());
+    }
+
+    @Test
+    public void test_transform_keeps_raw_value_and_skips_iso_when_date_is_unparseable() throws Exception {
+        // A cosmetic, unparseable date must never veto the whole document: the raw value is kept,
+        // only the ISO-normalized variant is skipped, and no exception is thrown.
+        Metadata metadata = new Metadata();
+        final String field = DublinCore.CREATED.getName();
+        metadata.add(field, "Thu May  0:00:00 17:37:52 1997");
+
+        final FieldNames fields = new FieldNames();
+        final Map<String, String> single = new HashMap<>();
+        new MetadataTransformer(metadata, fields).transform(single::put, (name, values) -> {});
+
+        assertThat(single.get(fields.forMetadata(field))).isEqualTo("Thu May  0:00:00 17:37:52 1997");
+        assertThat(single.containsKey(fields.forMetadataISODate(field))).isFalse();
+    }
+
+    @Test
+    public void test_transform_emits_iso_for_double_space_ctime_date() throws Exception {
+        Metadata metadata = new Metadata();
+        final String field = DublinCore.CREATED.getName();
+        metadata.add(field, "Thu May  1 17:27:09 1997");
+
+        final FieldNames fields = new FieldNames();
+        final Map<String, String> single = new HashMap<>();
+        new MetadataTransformer(metadata, fields).transform(single::put, (name, values) -> {});
+
+        assertThat(single.get(fields.forMetadata(field))).isEqualTo("Thu May  1 17:27:09 1997");
+        assertThat(single.get(fields.forMetadataISODate(field))).isEqualTo("1997-05-01T17:27:09Z");
     }
 }
