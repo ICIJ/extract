@@ -107,6 +107,23 @@ public class ScannerTest {
 	}
 
 	@Test
+	public void testHandlesSymlinkForFiles() throws Throwable {
+		final Path root = Paths.get(getClass().getResource("/links/").toURI());
+		scanner.followSymLinks(true);
+
+		final Path csv = root.resolve("csv_document.csv");
+		if (Files.notExists(csv)) {
+			Files.createSymbolicLink(csv, root.resolve("../documents/csv_document.csv"));
+		}
+
+		scanner.scan(root).get();
+
+		Assert.assertTrue(Files.isSymbolicLink(csv));
+		Assert.assertTrue(Files.exists(csv));
+		Assert.assertTrue(queue.contains(csv));
+	}
+
+	@Test
 	public void testIgnoreHiddenFiles() throws Throwable {
 		final Path root = Paths.get(getClass().getResource("/documents/").toURI());
 		final Path hidden = root.resolve(".hidden");
