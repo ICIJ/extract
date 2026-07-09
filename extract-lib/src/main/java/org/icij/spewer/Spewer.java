@@ -73,6 +73,22 @@ public abstract class Spewer implements AutoCloseable, Serializable {
         // no-op by default
     }
 
+    /**
+     * Finalize a container ROOT that was fully written on the normal streaming path, once the spew
+     * worker has drained and the child count is final. Lets an index-backed spewer record how many
+     * children were indexed under the root and mark it complete. Called at most once per root, only
+     * when the root was written successfully and had at least one child written (so it is a container).
+     *
+     * <p>Default no-op. Unlike {@link #writeRootStub} (the aborted path), this runs on successful
+     * completion: the root document already exists, so implementations update it rather than create it.
+     *
+     * @param root            the container root already written during the parse
+     * @param writtenChildren the total number of embedded children written under this root
+     */
+    protected void finalizeRoot(final TikaDocument root, final long writtenChildren) throws IOException {
+        // no-op by default
+    }
+
     public void write(final TikaDocument document) throws IOException {
         try {
             writeDocument(document, null, null, 0);
