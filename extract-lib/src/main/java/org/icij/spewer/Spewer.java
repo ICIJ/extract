@@ -56,6 +56,19 @@ public abstract class Spewer implements AutoCloseable, Serializable {
 
     protected abstract void writeDocument(TikaDocument doc, TikaDocument parent, TikaDocument root, int level) throws IOException;
 
+    /**
+     * Write a minimal, contentless "stub" for a container ROOT whose full write never happened because
+     * the parse was aborted (timeout/cancel/crash) after some of its embeds had already been streamed to
+     * the index. Writing the stub keeps those embeds from being orphaned under a root that does not
+     * exist; a later re-run of the stage replaces the stub with the fully-parsed root.
+     *
+     * <p>Default no-op: only index-backed spewers, where orphaning is observable, need to act. Called at
+     * most once per aborted root, after the streaming spew worker has drained.
+     */
+    protected void writeRootStub(final TikaDocument root) throws IOException {
+        // no-op by default
+    }
+
     public void write(final TikaDocument document) throws IOException {
         try {
             writeDocument(document, null, null, 0);
