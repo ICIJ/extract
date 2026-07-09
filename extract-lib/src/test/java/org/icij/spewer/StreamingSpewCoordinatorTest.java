@@ -20,6 +20,7 @@ public class StreamingSpewCoordinatorTest {
     // A thread-safe recording spewer: records each written doc id and whether the root was a child write.
     private static class RecordingSpewer extends Spewer {
         final List<String> written = Collections.synchronizedList(new ArrayList<>());
+        final List<String> rootStubs = Collections.synchronizedList(new ArrayList<>());
         volatile boolean throwOnEmbed = false;
         volatile String failOnId = null;
 
@@ -34,6 +35,11 @@ public class StreamingSpewCoordinatorTest {
                 throw new IOException("boom writing specific ID " + doc.getId());
             }
             written.add(doc.getId());
+        }
+
+        @Override
+        protected void writeRootStub(TikaDocument root) {
+            rootStubs.add(root.getId());
         }
     }
 
@@ -63,6 +69,54 @@ public class StreamingSpewCoordinatorTest {
         // Root and both embeds written; the two embeds before await completes.
         assertThat(spewer.written).contains("root", "e1", "e2");
         assertThat(spewer.written).hasSize(3);
+    }
+
+    @Test
+    public void testWritesRootStubWhenParseAbortsBeforeRootIsWritten() throws Exception {
+        RecordingSpewer spewer = new RecordingSpewer();
+        TikaDocument root = doc("root", new StringReader("root-body"));
+        TikaDocument e1 = doc("e1", new StringReader("a"));
+
+        try (StreamingSpewCoordinator coord = new StreamingSpewCoordinator(spewer, 16)) {
+            // Production starts the worker before the parse; simulate that so the embed drains while
+            // the parse runs. The parse then throws (timeout/cancel) BEFORE the foreground wrote the
+            // root: spew(root) is never called; close() runs via try-with-resources.
+            coord.start();
+            coord.promise();
+            coord.ready(new SpewItem(e1, root, root, 1));
+        }
+
+        // The embed was written; the root would be orphaned, so close() must write a stub for it.
+        assertThat(spewer.written).contains("e1");
+        assertThat(spewer.rootStubs).contains("root");
+    }
+
+    @Test
+    public void testDoesNotWriteRootStubOnNormalCompletion() throws Exception {
+        RecordingSpewer spewer = new RecordingSpewer();
+        TikaDocument root = doc("root", new StringReader("root-body"));
+        TikaDocument e1 = doc("e1", new StringReader("a"));
+
+        try (StreamingSpewCoordinator coord = new StreamingSpewCoordinator(spewer, 16)) {
+            coord.promise();
+            coord.ready(new SpewItem(e1, root, root, 1));
+            coord.spew(root); // foreground writes the real root
+        }
+
+        // The real root was written; no stub is needed.
+        assertThat(spewer.written).contains("root", "e1");
+        assertThat(spewer.rootStubs).isEmpty();
+    }
+
+    @Test
+    public void testDoesNotWriteRootStubWhenNoEmbedsWereWritten() throws Exception {
+        RecordingSpewer spewer = new RecordingSpewer();
+
+        try (StreamingSpewCoordinator coord = new StreamingSpewCoordinator(spewer, 16)) {
+            // Parse aborted before producing any embed: nothing to orphan, so no stub.
+        }
+
+        assertThat(spewer.rootStubs).isEmpty();
     }
 
     @Test

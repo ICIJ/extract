@@ -33,9 +33,15 @@ public class StreamingSpewCoordinator implements SpewSink, AutoCloseable {
     private final BlockingQueue<Object> queue;
     private final AtomicLong promised = new AtomicLong();
     private final AtomicLong completed = new AtomicLong();
+    private final AtomicLong writtenEmbeds = new AtomicLong();
     private final Object drainLock = new Object();
     private volatile Throwable workerError;
     private volatile Thread worker;
+    // The root the streamed embeds belong to, captured off the worker as it writes them, so that on an
+    // aborted parse (the foreground never reaches spew()) close() can still write a root stub and keep
+    // those embeds from being orphaned. rootWritten is set once the real root is written by spew().
+    private volatile TikaDocument seenRoot;
+    private volatile boolean rootWritten;
 
     public StreamingSpewCoordinator(final Spewer spewer, final int queueCapacity) {
         this.spewer = spewer;
@@ -87,6 +93,7 @@ public class StreamingSpewCoordinator implements SpewSink, AutoCloseable {
         Throwable rootError = null;
         try {
             spewer.writeDocument(root, null, null, 0);
+            rootWritten = true;
         } catch (final Throwable t) {
             rootError = t;
         } finally {
@@ -112,10 +119,14 @@ public class StreamingSpewCoordinator implements SpewSink, AutoCloseable {
                     return;
                 }
                 final SpewItem item = (SpewItem) o;
+                if (seenRoot == null) {
+                    seenRoot = item.root();
+                }
                 try {
                     // Skip children of a duplicate root, matching the legacy tree walk's gating.
                     if (!item.root().isDuplicate()) {
                         spewer.writeDocument(item.embed(), item.parent(), item.root(), item.level());
+                        writtenEmbeds.incrementAndGet();
                     }
                 } catch (final Throwable t) {
                     if (workerError == null) {
@@ -177,6 +188,29 @@ public class StreamingSpewCoordinator implements SpewSink, AutoCloseable {
     @Override
     public void close() {
         shutdownWorker();
+        writeRootStubIfOrphaned();
+    }
+
+    /**
+     * If the parse aborted before the foreground wrote the real root (spew() never ran to completion)
+     * yet embeds were already streamed to the index, write a contentless root stub so those embeds are
+     * not orphaned under a non-existent root. Best-effort and idempotent; runs after the worker drained,
+     * so writtenEmbeds/seenRoot are final. A duplicate root needs no stub (its children were skipped).
+     */
+    private void writeRootStubIfOrphaned() {
+        if (rootWritten) {
+            return;
+        }
+        final TikaDocument root = seenRoot;
+        if (root == null || root.isDuplicate() || writtenEmbeds.get() == 0) {
+            return;
+        }
+        try {
+            spewer.writeRootStub(root);
+            rootWritten = true;
+        } catch (final Throwable t) {
+            logger.error("failed to write root stub for aborted parse of {}", root.getId(), t);
+        }
     }
 
     private static void throwAsIO(final Throwable t) throws IOException {
