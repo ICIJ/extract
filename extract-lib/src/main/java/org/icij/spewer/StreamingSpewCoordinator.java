@@ -101,6 +101,17 @@ public class StreamingSpewCoordinator implements SpewSink, AutoCloseable {
             // resources are still alive while the worker reads them; only then close the root reader.
             awaitDrained();
             shutdownWorker();
+            // The child count is final only now (the root was written before the worker drained,
+            // because reading its content drives the parse). If the root was fully written and it is a
+            // container (at least one child written), finalize it so the endpoint can record the child
+            // count and mark it complete. Best-effort: a finalize failure must not mask the parse result.
+            if (rootWritten && !root.isDuplicate() && writtenEmbeds.get() > 0) {
+                try {
+                    spewer.finalizeRoot(root, writtenEmbeds.get());
+                } catch (final Throwable t) {
+                    logger.error("failed to finalize root {}", root.getId(), t);
+                }
+            }
             Spewer.closeReaderQuietly(root);
         }
         if (rootError != null) {

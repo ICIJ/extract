@@ -43,6 +43,15 @@ public class StreamingSpewCoordinatorTest {
             rootStubs.add(root.getId());
             rootStubChildCounts.add(writtenChildren);
         }
+
+        final List<String> finalizedRoots = Collections.synchronizedList(new ArrayList<>());
+        final List<Long> finalizeChildCounts = Collections.synchronizedList(new ArrayList<>());
+
+        @Override
+        protected void finalizeRoot(TikaDocument root, long writtenChildren) {
+            finalizedRoots.add(root.getId());
+            finalizeChildCounts.add(writtenChildren);
+        }
     }
 
     private TikaDocument doc(String id, Reader reader) {
@@ -71,6 +80,42 @@ public class StreamingSpewCoordinatorTest {
         // Root and both embeds written; the two embeds before await completes.
         assertThat(spewer.written).contains("root", "e1", "e2");
         assertThat(spewer.written).hasSize(3);
+    }
+
+    @Test
+    public void testFinalizesRootWithChildCountOnNormalCompletion() throws Exception {
+        RecordingSpewer spewer = new RecordingSpewer();
+        TikaDocument root = doc("root", new StringReader("root-body"));
+        TikaDocument e1 = doc("e1", new StringReader("a"));
+        TikaDocument e2 = doc("e2", new StringReader("b"));
+
+        try (StreamingSpewCoordinator coord = new StreamingSpewCoordinator(spewer, 16)) {
+            coord.promise();
+            coord.ready(new SpewItem(e1, root, root, 1));
+            coord.promise();
+            coord.ready(new SpewItem(e2, root, root, 1));
+            coord.spew(root);
+        }
+
+        // Root written normally + it is a container (2 children written): finalize once with the count.
+        assertThat(spewer.written).contains("root", "e1", "e2");
+        assertThat(spewer.finalizedRoots).containsOnly("root");
+        assertThat(spewer.finalizeChildCounts).containsOnly(2L);
+        // The normal path never writes a stub.
+        assertThat(spewer.rootStubs).isEmpty();
+    }
+
+    @Test
+    public void testDoesNotFinalizeRootWithoutChildren() throws Exception {
+        RecordingSpewer spewer = new RecordingSpewer();
+        TikaDocument root = doc("root", new StringReader("root-body"));
+
+        try (StreamingSpewCoordinator coord = new StreamingSpewCoordinator(spewer, 16)) {
+            coord.spew(root); // a plain, childless document is not a container: no finalize
+        }
+
+        assertThat(spewer.written).contains("root");
+        assertThat(spewer.finalizedRoots).isEmpty();
     }
 
     @Test
