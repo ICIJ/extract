@@ -98,8 +98,13 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 					metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root);
 			NoContentReason.stamp(metadata, NoContentReason.EMPTY_FILE);
 		} catch (final TikaException e) {
-			logger.error("Unable to parse embedded document: \"{}\" ({}) (in \"{}\").",
-					metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root, e);
+			// A malformed embedded entry (corrupt XML, unsupported image, nested zip bomb, ...) is a
+			// per-document data quirk, not a datashare fault: the parent document still parses and the
+			// failing entry is skipped. Log a single WARN line without the stack trace to keep the ARTIFACT
+			// log readable on large corpora; the full filtered trace is preserved on the document metadata
+			// below for anyone who needs to investigate a specific file.
+			logger.warn("Unable to parse embedded document: \"{}\" ({}) (in \"{}\").",
+					metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root);
 			metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM,
 					ExceptionUtils.getFilteredStackTrace(e));
 		}
