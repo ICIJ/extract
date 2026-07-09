@@ -14,13 +14,20 @@ import org.icij.extract.document.DigestIdentifier;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.TikaDocument;
 import org.junit.Test;
+import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
 import static org.fest.assertions.Assertions.assertThat;
@@ -75,5 +82,28 @@ public class EmbedParserMarkerTest {
         Metadata metadata = parseWith(new TikaException("boom"));
         assertThat(metadata.get(NoContentReason.METADATA_KEY)).isNull();
         assertThat(metadata.get(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM)).isNotNull();
+    }
+
+    @Test
+    public void testGenuineParseFailureLogsAtWarnWithoutStacktrace() throws Exception {
+        Logger embedLogger = (Logger) LoggerFactory.getLogger(EmbedParser.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        embedLogger.addAppender(appender);
+        try {
+            parseWith(new TikaException("boom"));
+        } finally {
+            embedLogger.detachAppender(appender);
+        }
+
+        List<ILoggingEvent> events = appender.list.stream()
+                .filter(e -> e.getFormattedMessage().startsWith("Unable to parse embedded document"))
+                .toList();
+        assertThat(events).hasSize(1);
+        // benign per-embedded-document failure: a single WARN line, not an ERROR, and no attached
+        // stack trace (the exception is already preserved into the document metadata). This is what
+        // keeps the ARTIFACT log from being dominated by tens of thousands of full stack traces.
+        assertThat(events.get(0).getLevel()).isEqualTo(Level.WARN);
+        assertThat(events.get(0).getThrowableProxy()).isNull();
     }
 }
