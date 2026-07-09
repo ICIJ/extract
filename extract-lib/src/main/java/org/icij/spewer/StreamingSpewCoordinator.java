@@ -206,7 +206,7 @@ public class StreamingSpewCoordinator implements SpewSink, AutoCloseable {
             return;
         }
         try {
-            spewer.writeRootStub(root);
+            spewer.writeRootStub(root, writtenEmbeds.get());
             rootWritten = true;
         } catch (final Throwable t) {
             logger.error("failed to write root stub for aborted parse of {}", root.getId(), t);

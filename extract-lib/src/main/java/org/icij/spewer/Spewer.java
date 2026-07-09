@@ -64,8 +64,12 @@ public abstract class Spewer implements AutoCloseable, Serializable {
      *
      * <p>Default no-op: only index-backed spewers, where orphaning is observable, need to act. Called at
      * most once per aborted root, after the streaming spew worker has drained.
+     *
+     * @param root            the container root whose full write never happened
+     * @param writtenChildren the number of embedded children actually written to the endpoint before
+     *                        the abort, so the stub can record how much of the container was recovered
      */
-    protected void writeRootStub(final TikaDocument root) throws IOException {
+    protected void writeRootStub(final TikaDocument root, final long writtenChildren) throws IOException {
         // no-op by default
     }
 
