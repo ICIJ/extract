@@ -194,6 +194,17 @@ public class TikaDocument {
 		return addEmbed(new EmbeddedTikaDocument(this, metadata));
 	}
 
+	/**
+	 * Create an embedded document parented to this one WITHOUT retaining it in this document's embeds
+	 * list. Streaming spew writes every embed as it is produced and never re-walks the tree, so keeping
+	 * embeds linked would grow the heap O(n) with the embed count and OOM a large container (a PST/OST
+	 * with hundreds of thousands of items). The parent pointer still lets the embed resolve its id and
+	 * metadata chain. See StreamingEmbedRetentionTest.
+	 */
+	public EmbeddedTikaDocument newDetachedEmbed(final Metadata metadata) {
+		return new EmbeddedTikaDocument(this, metadata);
+	}
+
 	private EmbeddedTikaDocument addEmbed(final Identifier identifier, final Path path, final Metadata metadata) {
 		return addEmbed(new EmbeddedTikaDocument(this, identifier, path, metadata));
 	}

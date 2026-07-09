@@ -409,7 +409,11 @@ public class EmbedSpawner extends EmbedParser {
 		if (sink != null) {
 			sink.promise();
 		}
-		final EmbeddedTikaDocument embed = spewParent.addEmbed(metadata);
+		// Streaming spew writes each embed as it is produced and never re-walks the tree, so it must
+		// not retain embeds under their parent (that grows the heap O(n) and OOMs large containers).
+		final EmbeddedTikaDocument embed = sink != null
+				? spewParent.newDetachedEmbed(metadata)
+				: spewParent.addEmbed(metadata);
 
 		// The reader is generated lazily during the spew walk, reading from memory or the
 		// temp file depending on whether this embed spilled.
@@ -493,7 +497,10 @@ public class EmbedSpawner extends EmbedParser {
 		if (sink != null) {
 			sink.promise();
 		}
-		final EmbeddedTikaDocument embed = spewParent.addEmbed(metadata);
+		// Streaming spew must not retain embeds under their parent (see the sibling spawn path).
+		final EmbeddedTikaDocument embed = sink != null
+				? spewParent.newDetachedEmbed(metadata)
+				: spewParent.addEmbed(metadata);
 
 		String name = metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY);
 		if (null == name || name.isEmpty()) {
