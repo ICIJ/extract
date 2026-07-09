@@ -106,6 +106,37 @@ public class StreamingSpewCoordinatorTest {
     }
 
     @Test
+    public void testDoesNotFinalizeRootWhenCancelledMidStream() throws Exception {
+        RecordingSpewer spewer = new RecordingSpewer();
+        TikaDocument root = doc("root", new StringReader("root-body"));
+        TikaDocument e1 = doc("e1", new StringReader("a"));
+
+        try (StreamingSpewCoordinator coord = new StreamingSpewCoordinator(spewer, 16)) {
+            coord.start();
+            coord.promise();
+            coord.ready(new SpewItem(e1, root, root, 1));
+            // wait until the child is actually written, so writtenEmbeds > 0 and the only thing that
+            // can suppress finalize is the cancellation guard (not the empty-container guard).
+            for (int i = 0; i < 200 && coord.writtenCount() < 1; i++) {
+                Thread.sleep(5);
+            }
+            assertThat(coord.writtenCount()).isEqualTo(1L);
+
+            Thread.currentThread().interrupt(); // the parse thread is cancelled
+            try {
+                coord.spew(root);
+            } finally {
+                Thread.interrupted(); // clear so we don't poison the test-runner thread
+            }
+        }
+
+        // A cancelled parse must not be finalized as a complete container (its count is unreliable and
+        // the container was not fully processed); the child was still written.
+        assertThat(spewer.written).contains("e1");
+        assertThat(spewer.finalizedRoots).isEmpty();
+    }
+
+    @Test
     public void testDoesNotFinalizeRootWithoutChildren() throws Exception {
         RecordingSpewer spewer = new RecordingSpewer();
         TikaDocument root = doc("root", new StringReader("root-body"));
