@@ -323,6 +323,17 @@ public class EmbedSpawner extends EmbedParser {
 	public void parseEmbedded(final InputStream input, final ContentHandler handler, final Metadata metadata,
 	                          final boolean outputHtml) throws SAXException, IOException {
 
+		// Cooperative cancellation point. Extractor's parse-timeout cancels the parse with
+		// future.cancel(true), which interrupts this thread; a parser stuck producing embeds (a huge
+		// PST/OST) would otherwise keep spawning them long after the task gave up, accumulating memory
+		// with no consumer. Abort at each embed boundary instead. The interrupt flag is deliberately
+		// left set so every subsequent embed on this parse also aborts, even if a Tika container parser
+		// swallows an individual throw.
+		if (Thread.currentThread().isInterrupted()) {
+			throw new InterruptedIOException("embedded extraction cancelled (thread interrupted): "
+					+ metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY));
+		}
+
 		// There's no need to spawn inline embeds, like images in PDFs. These should be concatenated to the main
 		// document as usual.
 		if (TikaCoreProperties.EmbeddedResourceType.INLINE.toString().equals(metadata.get(TikaCoreProperties.EMBEDDED_RESOURCE_TYPE))) {
