@@ -21,6 +21,7 @@ public class StreamingSpewCoordinatorTest {
     private static class RecordingSpewer extends Spewer {
         final List<String> written = Collections.synchronizedList(new ArrayList<>());
         final List<String> rootStubs = Collections.synchronizedList(new ArrayList<>());
+        final List<Long> rootStubChildCounts = Collections.synchronizedList(new ArrayList<>());
         volatile boolean throwOnEmbed = false;
         volatile String failOnId = null;
 
@@ -38,8 +39,9 @@ public class StreamingSpewCoordinatorTest {
         }
 
         @Override
-        protected void writeRootStub(TikaDocument root) {
+        protected void writeRootStub(TikaDocument root, long writtenChildren) {
             rootStubs.add(root.getId());
+            rootStubChildCounts.add(writtenChildren);
         }
     }
 
@@ -86,9 +88,11 @@ public class StreamingSpewCoordinatorTest {
             coord.ready(new SpewItem(e1, root, root, 1));
         }
 
-        // The embed was written; the root would be orphaned, so close() must write a stub for it.
+        // The embed was written; the root would be orphaned, so close() must write a stub for it,
+        // recording the number of children actually written (1) so the root can be marked partial.
         assertThat(spewer.written).contains("e1");
         assertThat(spewer.rootStubs).contains("root");
+        assertThat(spewer.rootStubChildCounts).containsOnly(1L);
     }
 
     @Test
