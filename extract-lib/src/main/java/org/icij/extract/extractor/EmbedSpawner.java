@@ -145,6 +145,16 @@ public class EmbedSpawner extends EmbedParser {
 				() -> null, false, null, null, false, 0L, null, null, false, maxEmbedDepth, maxEmbedSizeBytes);
 	}
 
+	// Serial spawner with an explicit depth limit AND a live progress tracker (test-friendly). Mirrors
+	// the no-progress serial+depth constructor above (no fan-out, no OCR, no spool), substituting the
+	// passed `progress` for the `null` progress argument in that delegation.
+	EmbedSpawner(final TikaDocument root, final ExtractionProgress progress, final int maxEmbedDepth) {
+		this(root, new ParseContext(), null, w -> new BodyContentHandler(w),
+				64L * 1024 * 1024, new TemporaryResources(), () -> false,
+				() -> null, false, progress, null, false, 0L, null, null, false, maxEmbedDepth,
+				DEFAULT_MAX_EMBED_SIZE_BYTES);
+	}
+
 	EmbedSpawner(final TikaDocument root, final ParseContext context, final Path outputPath,
 				 final Function<Writer, ContentHandler> handlerFunction,
 				 final long embedMemoryBudgetBytes, final TemporaryResources tmp,
@@ -373,6 +383,12 @@ public class EmbedSpawner extends EmbedParser {
 			}
 			if (progress != null) {
 				progress.incrementEmbeds();
+				// A top-level archive entry is a depth-1 embed; it is the countable "unit" for the
+				// completion estimate. Skip when a parser (PST) supplies its own unit numerator.
+				final int embedDepth = baseDepthOffset + tikaDocumentStack.size();
+				if (embedDepth == 1 && !progress.parserTracksUnits()) {
+					progress.incrementUnits();
+				}
 			}
 			// we must not close the input with (try(TikaInputStream.get(input){...}) because
 			// it closes the stream and stops tika to get next entries in the PackageParser.
