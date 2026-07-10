@@ -113,8 +113,6 @@ public class StreamingSpewCoordinatorTest {
         assertThat(spewer.written).contains("root", "e1", "e2");
         assertThat(spewer.finalizedRoots).containsOnly("root");
         assertThat(spewer.finalizeChildCounts).containsOnly(2L);
-        // The normal path never writes a stub.
-        assertThat(spewer.rootStubs).isEmpty();
     }
 
     @Test
@@ -162,42 +160,78 @@ public class StreamingSpewCoordinatorTest {
     }
 
     @Test
-    public void testWritesRootStubWhenParseAbortsBeforeRootIsWritten() throws Exception {
+    public void testWritesEarlyRootStubOnNormalCompletionThenFinalizes() throws Exception {
         RecordingSpewer spewer = new RecordingSpewer();
         TikaDocument root = doc("root", new StringReader("root-body"));
         TikaDocument e1 = doc("e1", new StringReader("a"));
 
         try (StreamingSpewCoordinator coord = new StreamingSpewCoordinator(spewer, 16)) {
-            // Production starts the worker before the parse; simulate that so the embed drains while
-            // the parse runs. The parse then throws (timeout/cancel) BEFORE the foreground wrote the
-            // root: spew(root) is never called; close() runs via try-with-resources.
+            coord.start();
+            coord.promise();
+            coord.ready(new SpewItem(e1, root, root, 1));
+            // Wait until the worker has drained the first child; the early stub is written just before
+            // that child, so writtenCount() >= 1 proves the stub was already written -- and the real
+            // root has NOT been written yet (spew() not yet called), so the stub was not suppressed.
+            for (int i = 0; i < 200 && coord.writtenCount() < 1; i++) {
+                Thread.sleep(5);
+            }
+            assertThat(coord.writtenCount()).isEqualTo(1L);
+            assertThat(spewer.rootStubs).containsOnly("root"); // visible up front, before the real root
+
+            coord.spew(root); // foreground now writes the real root, driving completion
+        }
+
+        // Real root written + at least one child -> finalized COMPLETE with the final count; the early
+        // stub is NOT re-written and the abort refresh does not run.
+        assertThat(spewer.written).contains("root", "e1");
+        assertThat(spewer.finalizedRoots).containsOnly("root");
+        assertThat(spewer.finalizeChildCounts).containsOnly(1L);
+        assertThat(spewer.finalizedAbortedRoots).isEmpty();
+    }
+
+    @Test
+    public void testAbortAfterEarlyStubRefreshesChildCountKeepingPartial() throws Exception {
+        RecordingSpewer spewer = new RecordingSpewer();
+        TikaDocument root = doc("root", new StringReader("root-body"));
+        TikaDocument e1 = doc("e1", new StringReader("a"));
+
+        try (StreamingSpewCoordinator coord = new StreamingSpewCoordinator(spewer, 16)) {
+            // Worker starts before the parse; the parse aborts (timeout/cancel) BEFORE the foreground
+            // writes the root: spew(root) is never called, close() runs via try-with-resources.
             coord.start();
             coord.promise();
             coord.ready(new SpewItem(e1, root, root, 1));
         }
 
-        // The embed was written; the root would be orphaned, so close() must write a stub for it,
-        // recording the number of children actually written (1) so the root can be marked partial.
+        // The early stub made the root visible at the first child (count 0 at that point). On abort the
+        // real root was never written, so close() refreshes the count on the still-PARTIAL stub with the
+        // final drained value (1) rather than writing a second stub.
         assertThat(spewer.written).contains("e1");
-        assertThat(spewer.rootStubs).contains("root");
-        assertThat(spewer.rootStubChildCounts).containsOnly(1L);
+        assertThat(spewer.rootStubs).containsOnly("root");
+        assertThat(spewer.rootStubChildCounts).containsOnly(0L);
+        assertThat(spewer.finalizedAbortedRoots).containsOnly("root");
+        assertThat(spewer.finalizeAbortedChildCounts).containsOnly(1L);
     }
 
     @Test
-    public void testDoesNotWriteRootStubOnNormalCompletion() throws Exception {
+    public void testAbortDoesNotRefreshCountWhenEarlyStubReportedRootAlreadyExists() throws Exception {
         RecordingSpewer spewer = new RecordingSpewer();
+        spewer.rootStubExists = true; // e.g. a prior COMPLETE root already indexed (reindex): stub is a no-op
         TikaDocument root = doc("root", new StringReader("root-body"));
         TikaDocument e1 = doc("e1", new StringReader("a"));
 
         try (StreamingSpewCoordinator coord = new StreamingSpewCoordinator(spewer, 16)) {
+            coord.start();
             coord.promise();
             coord.ready(new SpewItem(e1, root, root, 1));
-            coord.spew(root); // foreground writes the real root
+            // parse aborts before the foreground writes the root: spew() never called.
         }
 
-        // The real root was written; no stub is needed.
-        assertThat(spewer.written).contains("root", "e1");
-        assertThat(spewer.rootStubs).isEmpty();
+        // writeRootStub reported "not written" (root already exists), so rootStubWritten stayed false and
+        // the abort path must NOT call finalizeAbortedRoot -- refreshing the count would regress a prior
+        // COMPLETE root. It falls back to writeRootStub, itself a no-op against the existing root.
+        assertThat(spewer.finalizedAbortedRoots).isEmpty();
+        assertThat(spewer.rootStubs).contains("root"); // attempted early + fallback, both no-ops
     }
 
     @Test
