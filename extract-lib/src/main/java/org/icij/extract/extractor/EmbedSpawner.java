@@ -321,6 +321,17 @@ public class EmbedSpawner extends EmbedParser {
 						skipped.get(TikaCoreProperties.RESOURCE_NAME_KEY), root));
 	}
 
+	// A top-level (depth-1) archive entry is the countable "unit" for the completion estimate. It is
+	// counted on BOTH the normal spawn path and the size-skip path: ArchiveEntryCounter's denominator
+	// included the entry, so a size-refused top-level entry must still advance the numerator or the
+	// percentage can never reach 100%. Skipped when a parser (PST) supplies its own numerator.
+	private void countTopLevelUnit() {
+		if (progress != null && !progress.parserTracksUnits()
+				&& baseDepthOffset + tikaDocumentStack.size() == 1) {
+			progress.incrementUnits();
+		}
+	}
+
 	private void recordSkippedAtSize(final Metadata skipped) {
 		recordSkip(EMBEDS_SKIPPED_MAX_SIZE,
 				() -> progress.incrementEmbedsSkippedMaxSize(),
@@ -379,17 +390,13 @@ public class EmbedSpawner extends EmbedParser {
 			// containers that don't report a length are never broken.
 			if (exceedsMaxEmbedSize(metadata, maxEmbedSizeBytes)) {
 				recordSkippedAtSize(metadata);
+				countTopLevelUnit(); // size-refused top-level entry is still in the archive denominator
 				return;
 			}
 			if (progress != null) {
 				progress.incrementEmbeds();
-				// A top-level archive entry is a depth-1 embed; it is the countable "unit" for the
-				// completion estimate. Skip when a parser (PST) supplies its own unit numerator.
-				final int embedDepth = baseDepthOffset + tikaDocumentStack.size();
-				if (embedDepth == 1 && !progress.parserTracksUnits()) {
-					progress.incrementUnits();
-				}
 			}
+			countTopLevelUnit();
 			// we must not close the input with (try(TikaInputStream.get(input){...}) because
 			// it closes the stream and stops tika to get next entries in the PackageParser.
 			// Wrap once and reuse for whichever path runs: shouldTranslate() inspects the stream's
