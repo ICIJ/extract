@@ -42,6 +42,7 @@ public class StreamingSpewCoordinator implements SpewSink, AutoCloseable {
     // those embeds from being orphaned. rootWritten is set once the real root is written by spew().
     private volatile TikaDocument seenRoot;
     private volatile boolean rootWritten;
+    private volatile boolean rootStubWritten;
 
     public StreamingSpewCoordinator(final Spewer spewer, final int queueCapacity) {
         this.spewer = spewer;
@@ -107,7 +108,7 @@ public class StreamingSpewCoordinator implements SpewSink, AutoCloseable {
             // count and mark it complete. Best-effort: a finalize failure must not mask the parse result.
             // Skip finalize when the thread was interrupted (parse cancelled): awaitDrained may have
             // returned early, so writtenEmbeds is not final, and a cancelled container must not be
-            // recorded as a fully-processed one. The aborted-root path (writeRootStubIfOrphaned) covers
+            // recorded as a fully-processed one. The aborted-root path (finalizeOrStubAbortedRoot) covers
             // orphaned children instead.
             if (rootWritten && !root.isDuplicate() && writtenEmbeds.get() > 0
                     && !Thread.currentThread().isInterrupted()) {
@@ -137,6 +138,7 @@ public class StreamingSpewCoordinator implements SpewSink, AutoCloseable {
                 final SpewItem item = (SpewItem) o;
                 if (seenRoot == null) {
                     seenRoot = item.root();
+                    writeEarlyRootStub();
                 }
                 try {
                     // Skip children of a duplicate root, matching the legacy tree walk's gating.
@@ -156,6 +158,27 @@ public class StreamingSpewCoordinator implements SpewSink, AutoCloseable {
             }
         } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
+     * Write the container root as a contentless PARTIAL stub as soon as the parse begins emitting
+     * children, so the root is visible in the index during a long parse instead of only at the end
+     * (the foreground is blocked reading the root's content the whole time). Best-effort and once per
+     * parse, on the worker thread. The end-of-parse real root write (same id+path) later overwrites the
+     * stub with full content, and finalizeRoot marks it complete. A duplicate root needs no stub (its
+     * children are skipped). The !rootWritten guard avoids clobbering an already-written real root in
+     * the degenerate case where the root body was read before the first child was drained.
+     */
+    private void writeEarlyRootStub() {
+        final TikaDocument root = seenRoot;
+        if (rootStubWritten || rootWritten || root == null || root.isDuplicate()) {
+            return;
+        }
+        try {
+            rootStubWritten = spewer.writeRootStub(root, writtenEmbeds.get());
+        } catch (final Throwable t) {
+            logger.error("failed to write early root stub for {}", root.getId(), t);
         }
     }
 
@@ -204,28 +227,34 @@ public class StreamingSpewCoordinator implements SpewSink, AutoCloseable {
     @Override
     public void close() {
         shutdownWorker();
-        writeRootStubIfOrphaned();
+        finalizeOrStubAbortedRoot();
     }
 
     /**
-     * If the parse aborted before the foreground wrote the real root (spew() never ran to completion)
-     * yet embeds were already streamed to the index, write a contentless root stub so those embeds are
-     * not orphaned under a non-existent root. Best-effort and idempotent; runs after the worker drained,
-     * so writtenEmbeds/seenRoot are final. A duplicate root needs no stub (its children were skipped).
+     * On close after an aborted parse (the foreground never completed the real root write), keep the
+     * streamed children from being orphaned and record their count. If this run's early stub was
+     * written, refresh its child count while keeping it PARTIAL; otherwise write the stub now (fallback
+     * when the early stub failed, or when writeRootStub reported the root already existed so we must not
+     * refresh a pre-existing complete root's count). Best-effort; runs after the worker drained, so
+     * writtenEmbeds/seenRoot are final. A duplicate root or a root with no written children needs
+     * nothing.
      */
-    private void writeRootStubIfOrphaned() {
+    private void finalizeOrStubAbortedRoot() {
         if (rootWritten) {
-            return;
+            return; // the real root was written; the happy path already finalized it
         }
         final TikaDocument root = seenRoot;
         if (root == null || root.isDuplicate() || writtenEmbeds.get() == 0) {
             return;
         }
         try {
-            spewer.writeRootStub(root, writtenEmbeds.get());
-            rootWritten = true;
+            if (rootStubWritten) {
+                spewer.finalizeAbortedRoot(root, writtenEmbeds.get());
+            } else {
+                rootStubWritten = spewer.writeRootStub(root, writtenEmbeds.get());
+            }
         } catch (final Throwable t) {
-            logger.error("failed to write root stub for aborted parse of {}", root.getId(), t);
+            logger.error("failed to finalize/stub aborted root {}", root.getId(), t);
         }
     }
 
