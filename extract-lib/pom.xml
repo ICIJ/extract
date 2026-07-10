@@ -64,6 +64,16 @@
             <version>${tika-version}</version>
         </dependency>
 
+        <!-- Was previously only a transitive dependency (via tika-parser-webarchive-module). Declared
+             directly so extract-lib can use its ZIP/7z catalog APIs without relying on Tika's classpath.
+             No dependencyManagement entry exists for it; pinned to the version already resolved
+             transitively (1.28.0) so this addition does not change what the rest of the build gets. -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+            <version>1.28.0</version>
+        </dependency>
+
         <!-- Bytecode library used by Tika's ClassParser to parse .class files. Declared directly (rather
              than left transitive through tika-parser-code-module) so extract-lib exports a modern ASM at
              a short dependency path, preventing an older asm from winning mediation downstream. -->
