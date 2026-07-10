@@ -37,12 +37,16 @@ public class StreamingSpewCoordinator implements SpewSink, AutoCloseable {
     private final Object drainLock = new Object();
     private volatile Throwable workerError;
     private volatile Thread worker;
-    // The root the streamed embeds belong to, captured off the worker as it writes them, so that on an
-    // aborted parse (the foreground never reaches spew()) close() can still write a root stub and keep
-    // those embeds from being orphaned. rootWritten is set once the real root is written by spew().
+    // The root the streamed embeds belong to, captured off the worker as it writes them. It drives two
+    // things: writeEarlyRootStub() makes the root visible in the index as soon as the first child is
+    // written (during a long parse), and on close() after an aborted parse (the foreground never
+    // reaches spew()) finalizeOrStubAbortedRoot() refreshes that stub's child count -- or, if no stub
+    // was written, writes one -- so the streamed embeds are not orphaned. rootWritten is set once the
+    // real root is written by spew(); rootStubWritten tracks whether this run's PARTIAL stub was written.
     private volatile TikaDocument seenRoot;
     private volatile boolean rootWritten;
     private volatile boolean rootStubWritten;
+    private volatile boolean closed;
 
     public StreamingSpewCoordinator(final Spewer spewer, final int queueCapacity) {
         this.spewer = spewer;
@@ -138,13 +142,17 @@ public class StreamingSpewCoordinator implements SpewSink, AutoCloseable {
                 final SpewItem item = (SpewItem) o;
                 if (seenRoot == null) {
                     seenRoot = item.root();
-                    writeEarlyRootStub();
                 }
                 try {
                     // Skip children of a duplicate root, matching the legacy tree walk's gating.
                     if (!item.root().isDuplicate()) {
                         spewer.writeDocument(item.embed(), item.parent(), item.root(), item.level());
                         writtenEmbeds.incrementAndGet();
+                        // Only after the first child is durably indexed: a stub must never outlive a
+                        // parse that wrote zero children (that would leave a contentless PARTIAL ghost
+                        // root on abort). writeEarlyRootStub() is idempotent, so calling it per child is
+                        // fine -- only the first call writes.
+                        writeEarlyRootStub();
                     }
                 } catch (final Throwable t) {
                     if (workerError == null) {
@@ -162,8 +170,8 @@ public class StreamingSpewCoordinator implements SpewSink, AutoCloseable {
     }
 
     /**
-     * Write the container root as a contentless PARTIAL stub as soon as the parse begins emitting
-     * children, so the root is visible in the index during a long parse instead of only at the end
+     * Write the container root as a contentless PARTIAL stub as soon as the first child is durably
+     * indexed, so the root is visible in the index during a long parse instead of only at the end
      * (the foreground is blocked reading the root's content the whole time). Best-effort and once per
      * parse, on the worker thread. The end-of-parse real root write (same id+path) later overwrites the
      * stub with full content, and finalizeRoot marks it complete. A duplicate root needs no stub (its
@@ -226,6 +234,10 @@ public class StreamingSpewCoordinator implements SpewSink, AutoCloseable {
 
     @Override
     public void close() {
+        if (closed) {
+            return; // idempotent: a second close() must not re-invoke the endpoint for the same root
+        }
+        closed = true;
         shutdownWorker();
         finalizeOrStubAbortedRoot();
     }
