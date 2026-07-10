@@ -964,6 +964,12 @@ public class Extractor implements AutoCloseable {
             embedTextResources = new TemporaryResources();
             // Live progress for this path (null when called outside doExtract, e.g. page extraction).
             final ExtractionProgress currentProgress = progressTracker.get(path);
+            if (currentProgress != null) {
+                // PST parser reads this back from the context to publish its message total/numerator.
+                context.set(ExtractionProgress.class, currentProgress);
+                // Archives (ZIP/7z) get their total here; EmbedSpawner supplies their numerator.
+                applyArchiveUnitCount(path, currentProgress);
+            }
             // Class name of the configured OCR parser, set SYNCHRONOUSLY on the shared embed metadata
             // by the deferred-OCR path so the indexed OCR_PARSER matches what serial mode produces
             // (OCRParserAdapter sets OCR_PARSER to its delegate parser's class name, i.e. the
@@ -1006,6 +1012,13 @@ public class Extractor implements AutoCloseable {
             }
             throw e;
         }
+    }
+
+    // Best-effort: give the progress heartbeat a denominator for catalog archives (ZIP/7z). Any
+    // failure leaves expectedUnits unknown (-1) and the heartbeat stays count-only. Package-private
+    // for direct testing.
+    void applyArchiveUnitCount(final Path path, final ExtractionProgress progress) {
+        ArchiveEntryCounter.countTopLevelEntries(path).ifPresent(progress::setExpectedUnits);
     }
 
     private void excludeParser(final Class<? extends Parser> exclude) {
