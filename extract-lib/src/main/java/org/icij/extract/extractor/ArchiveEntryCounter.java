@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Enumeration;
 import java.util.OptionalLong;
+import java.util.zip.ZipEntry;
 
 /**
  * Cheaply counts the top-level entries of an archive whose format carries a catalog (ZIP central
@@ -83,7 +84,12 @@ public final class ArchiveEntryCounter {
                 // this central-directory count would otherwise count every internal ZIP part
                 // (dozens), producing a percentage that never reaches 100%. Fall back to the
                 // count-only heartbeat for these.
-                if ("[Content_Types].xml".equals(name) || "mimetype".equals(name)) {
+                // OOXML marks itself with a root "[Content_Types].xml"; ODF/EPUB with a root "mimetype"
+                // entry that the spec requires to be STORED (uncompressed). Requiring STORED for the
+                // mimetype case avoids misclassifying a genuine archive that merely contains a
+                // (typically deflated) file named "mimetype".
+                if ("[Content_Types].xml".equals(name)
+                        || ("mimetype".equals(name) && entry.getMethod() == ZipEntry.STORED)) {
                     isContainerDocument = true;
                 }
                 if (!entry.isDirectory()) {

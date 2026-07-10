@@ -84,11 +84,18 @@ public class ArchiveEntryCounterTest {
 
     @Test public void testEmptyForOdfOrEpubZipContainer() throws Exception {
         // ODF (odt/ods/odp) and EPUB documents are also ZIP containers with a dedicated,
-        // non-PackageParser Tika parser, signalled by a "mimetype" entry.
+        // non-PackageParser Tika parser, signalled by a root "mimetype" entry that the EPUB/ODF
+        // spec requires to be STORED (uncompressed).
         Path epub = tmp.newFile("fake.epub").toPath();
         try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(epub))) {
-            zos.putNextEntry(new ZipEntry("mimetype"));
-            zos.write("application/epub+zip".getBytes(StandardCharsets.UTF_8));
+            ZipEntry mimetype = new ZipEntry("mimetype");
+            byte[] mimetypeBytes = "application/epub+zip".getBytes(StandardCharsets.UTF_8);
+            mimetype.setMethod(ZipEntry.STORED);
+            mimetype.setSize(mimetypeBytes.length);
+            mimetype.setCompressedSize(mimetypeBytes.length);
+            mimetype.setCrc(crc32(mimetypeBytes));
+            zos.putNextEntry(mimetype);
+            zos.write(mimetypeBytes);
             zos.closeEntry();
             zos.putNextEntry(new ZipEntry("META-INF/container.xml"));
             zos.write("<container/>".getBytes(StandardCharsets.UTF_8));
@@ -98,5 +105,34 @@ public class ArchiveEntryCounterTest {
             zos.closeEntry();
         }
         assertThat(ArchiveEntryCounter.countTopLevelEntries(epub).isPresent()).isFalse();
+    }
+
+    @Test public void testCountsZipWithDeflatedRootFileNamedMimetype() throws Exception {
+        // A genuine archive can happen to contain a root file literally named "mimetype" that is
+        // (as is typical) DEFLATED, not STORED. That must NOT be misclassified as an EPUB/ODF
+        // container: it should still be counted normally. This is the regression the fix closes.
+        Path zip = tmp.newFile("genuine.zip").toPath();
+        try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zip))) {
+            ZipEntry mimetype = new ZipEntry("mimetype");
+            mimetype.setMethod(ZipEntry.DEFLATED);
+            zos.putNextEntry(mimetype);
+            zos.write("just a coincidentally named file".getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
+            zos.putNextEntry(new ZipEntry("readme.txt"));
+            zos.write("hello".getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
+            zos.putNextEntry(new ZipEntry("data.bin"));
+            zos.write(new byte[] {1, 2, 3});
+            zos.closeEntry();
+        }
+        OptionalLong result = ArchiveEntryCounter.countTopLevelEntries(zip);
+        assertThat(result.isPresent()).isTrue();
+        assertThat(result.getAsLong()).isEqualTo(3L);
+    }
+
+    private static long crc32(final byte[] data) {
+        java.util.zip.CRC32 crc = new java.util.zip.CRC32();
+        crc.update(data);
+        return crc.getValue();
     }
 }
