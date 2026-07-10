@@ -2,6 +2,8 @@ package org.icij.extract.extractor;
 
 import org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry;
 import org.apache.commons.compress.archivers.sevenz.SevenZOutputFile;
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -128,6 +130,24 @@ public class ArchiveEntryCounterTest {
         OptionalLong result = ArchiveEntryCounter.countTopLevelEntries(zip);
         assertThat(result.isPresent()).isTrue();
         assertThat(result.getAsLong()).isEqualTo(3L);
+    }
+
+    @Test public void testEmptyForDetectedButUnsupportedFormat() throws Exception {
+        // TAR carries no catalog we can read cheaply (no central directory / header index), so a
+        // detected-but-unsupported format must fall back to the count-only heartbeat rather than
+        // being counted or crashing.
+        Path tar = tmp.newFile("a.tar").toPath();
+        try (TarArchiveOutputStream taos = new TarArchiveOutputStream(Files.newOutputStream(tar))) {
+            for (int i = 0; i < 2; i++) {
+                byte[] content = ("hello" + i).getBytes(StandardCharsets.UTF_8);
+                TarArchiveEntry entry = new TarArchiveEntry("f" + i + ".txt");
+                entry.setSize(content.length);
+                taos.putArchiveEntry(entry);
+                taos.write(content);
+                taos.closeArchiveEntry();
+            }
+        }
+        assertThat(ArchiveEntryCounter.countTopLevelEntries(tar).isPresent()).isFalse();
     }
 
     private static long crc32(final byte[] data) {

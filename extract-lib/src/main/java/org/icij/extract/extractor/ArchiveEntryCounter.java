@@ -1,5 +1,6 @@
 package org.icij.extract.extractor;
 
+import org.apache.commons.compress.archivers.ArchiveStreamFactory;
 import org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry;
 import org.apache.commons.compress.archivers.sevenz.SevenZFile;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
@@ -7,6 +8,7 @@ import org.apache.commons.compress.archivers.zip.ZipFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -29,11 +31,14 @@ public final class ArchiveEntryCounter {
 
     public static OptionalLong countTopLevelEntries(final Path path) {
         try {
-            final byte[] magic = readMagic(path, 6);
-            if (isZip(magic)) {
+            final String type;
+            try (InputStream in = new BufferedInputStream(Files.newInputStream(path))) {
+                type = ArchiveStreamFactory.detect(in);
+            }
+            if (ArchiveStreamFactory.ZIP.equals(type)) {
                 return countZip(path);
             }
-            if (isSevenZ(magic)) {
+            if (ArchiveStreamFactory.SEVEN_Z.equals(type)) {
                 return countSevenZ(path);
             }
             return OptionalLong.empty();
@@ -42,31 +47,6 @@ public final class ArchiveEntryCounter {
             logger.debug("archive pre-count skipped for {}: {}", path, t.toString());
             return OptionalLong.empty();
         }
-    }
-
-    private static byte[] readMagic(final Path path, final int n) throws IOException {
-        final byte[] buf = new byte[n];
-        try (InputStream in = Files.newInputStream(path)) {
-            int off = 0, r;
-            while (off < n && (r = in.read(buf, off, n - off)) != -1) {
-                off += r;
-            }
-        }
-        return buf;
-    }
-
-    // Local file header "PK\x03\x04", empty archive "PK\x05\x06", spanned "PK\x07\x08".
-    private static boolean isZip(final byte[] m) {
-        return m.length >= 4 && m[0] == 'P' && m[1] == 'K'
-                && (m[2] == 3 || m[2] == 5 || m[2] == 7)
-                && (m[3] == 4 || m[3] == 6 || m[3] == 8);
-    }
-
-    // 7z signature: 37 7A BC AF 27 1C
-    private static boolean isSevenZ(final byte[] m) {
-        return m.length >= 6 && (m[0] & 0xFF) == 0x37 && (m[1] & 0xFF) == 0x7A
-                && (m[2] & 0xFF) == 0xBC && (m[3] & 0xFF) == 0xAF
-                && (m[4] & 0xFF) == 0x27 && (m[5] & 0xFF) == 0x1C;
     }
 
     private static OptionalLong countZip(final Path path) throws IOException {
