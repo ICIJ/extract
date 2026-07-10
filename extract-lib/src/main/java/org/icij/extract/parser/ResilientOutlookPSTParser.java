@@ -163,8 +163,9 @@ public class ResilientOutlookPSTParser implements Parser {
         // measurable PST wins ownership; a nested PST-in-PST loses and never tracks units. On win we
         // mark parserTracksUnits (so EmbedSpawner does not also count) and point THIS parse's
         // Reconciliation at the progress, so every emitted message increments the numerator.
-        if (progress != null && messageDescriptorIds != null
-                && progress.setExpectedUnits(messageDescriptorIds.size())) {
+        final boolean ownsUnits = progress != null && messageDescriptorIds != null
+                && progress.setExpectedUnits(messageDescriptorIds.size());
+        if (ownsUnits) {
             progress.markParserTracksUnits();
             reconciliation.trackUnits(progress);
         }
@@ -195,6 +196,15 @@ public class ResilientOutlookPSTParser implements Parser {
             recordReconciliation(metadata, pstPath, messageDescriptorIds, emission.emittedCount());
             recordAttachmentIntegrity(metadata, pstPath, emission);
         });
+
+        // The parse of this container is complete; snap the numerator to 100%. During the walk the
+        // numerator tracked emitted messages (live progress); some enumerated descriptors may have
+        // failed to emit or been recovered, so force the final reading to a clean 100% rather than
+        // leaving it stuck just below. Only the owning top-level parse does this (nested PSTs lost the
+        // set-once CAS above, so ownsUnits is false for them).
+        if (ownsUnits) {
+            progress.completeUnits();
+        }
     }
 
     // One task per folder. Each task opens its OWN PSTFile handle (libpst is not thread-safe),

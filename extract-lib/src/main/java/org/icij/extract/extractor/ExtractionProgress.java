@@ -39,6 +39,14 @@ public class ExtractionProgress {
     public long expectedUnits() { return expectedUnits.get(); }
     public void incrementUnits() { unitsParsed.incrementAndGet(); }
     public long unitsParsed() { return unitsParsed.get(); }
+    /** Snap the numerator to the known total, so a container whose parse has completed reads 100%
+     * even when some sub-units were skipped, failed, or filtered. No-op when the total is unknown. */
+    public void completeUnits() {
+        final long total = expectedUnits.get();
+        if (total >= 0) {
+            unitsParsed.set(total);
+        }
+    }
     /** Marked by a parser that supplies its own unit numerator (PST), so EmbedSpawner does not also count. */
     public void markParserTracksUnits() { parserTracksUnits = true; }
     public boolean parserTracksUnits() { return parserTracksUnits; }

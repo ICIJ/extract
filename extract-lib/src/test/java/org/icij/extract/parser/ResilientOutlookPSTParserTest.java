@@ -349,7 +349,8 @@ public class ResilientOutlookPSTParserTest {
         assertThat(progress.parserTracksUnits()).isTrue();
         assertThat(progress.expectedUnits()).isGreaterThan(0L);
         assertThat(progress.unitsParsed()).isGreaterThan(0L);
-        // The numerator equals the parser's own emitted-message count and never exceeds the total.
-        assertThat(progress.unitsParsed()).isLessThanOrEqualTo(progress.expectedUnits());
+        // The fixture has message loss (expected 7, emitted 6), but the completed parse snaps the
+        // numerator to the total, so the reading is a clean 100%, not stuck just below.
+        assertThat(progress.unitsParsed()).isEqualTo(progress.expectedUnits());
     }
 }

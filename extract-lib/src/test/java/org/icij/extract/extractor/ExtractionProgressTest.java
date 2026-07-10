@@ -54,4 +54,20 @@ public class ExtractionProgressTest {
         p.markParserTracksUnits();
         assertThat(p.parserTracksUnits()).isTrue();
     }
+
+    @Test public void testCompleteUnitsSnapsToTotal() {
+        ExtractionProgress p = new ExtractionProgress(java.nio.file.Paths.get("/x.ost"), 0L);
+        p.setExpectedUnits(10L);
+        p.incrementUnits(); p.incrementUnits(); p.incrementUnits();
+        p.completeUnits();
+        assertThat(p.unitsParsed()).isEqualTo(10L);
+    }
+
+    @Test public void testCompleteUnitsNoOpWhenUnknown() {
+        ExtractionProgress p = new ExtractionProgress(java.nio.file.Paths.get("/x.ost"), 0L);
+        p.incrementUnits(); p.incrementUnits();
+        p.completeUnits();
+        assertThat(p.unitsParsed()).isEqualTo(2L);
+        assertThat(p.expectedUnits()).isEqualTo(-1L);
+    }
 }
