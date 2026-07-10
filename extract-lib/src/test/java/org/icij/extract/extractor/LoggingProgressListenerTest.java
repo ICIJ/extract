@@ -74,4 +74,28 @@ public class LoggingProgressListenerTest {
         }
         assertThat(appender.list).hasSize(2);
     }
+
+    @Test public void testFormatLineShowsEstimateWhenUnitsKnown() {
+        ExtractionProgress p = new ExtractionProgress(Paths.get("/foo.ost"), 0L);
+        for (int i = 0; i < 300; i++) p.incrementEmbeds();   // 300 embeds so far
+        for (int i = 0; i < 3; i++) p.incrementUnits();      // 3 of ...
+        p.setExpectedUnits(4L);                              // ... 4 units => 75%
+        // estTotal = round(300 * 4 / 3) = 400
+        assertThat(LoggingProgressListener.formatLine(p, 1_000L))
+            .isEqualTo("/foo.ost: 1s, 300/~400 embeds (~75%), 0/0 OCR done, 0 skipped(maxDepth), 0 skipped(maxSize)");
+    }
+
+    @Test public void testFormatLineFallsBackWhenUnitsUnknown() {
+        ExtractionProgress p = new ExtractionProgress(Paths.get("/logs.tar.gz"), 0L);
+        p.incrementEmbeds();
+        assertThat(LoggingProgressListener.formatLine(p, 1_000L))
+            .isEqualTo("/logs.tar.gz: 1s, 1 embeds, 0/0 OCR done, 0 skipped(maxDepth), 0 skipped(maxSize)");
+    }
+
+    @Test public void testFormatLineFallsBackBeforeFirstUnit() {
+        ExtractionProgress p = new ExtractionProgress(Paths.get("/foo.ost"), 0L);
+        p.incrementEmbeds();
+        p.setExpectedUnits(10L);   // total known, but unitsParsed == 0 -> no divide, fall back
+        assertThat(LoggingProgressListener.formatLine(p, 1_000L)).contains("1 embeds,");
+    }
 }
