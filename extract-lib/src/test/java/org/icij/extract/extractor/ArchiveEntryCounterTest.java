@@ -62,4 +62,41 @@ public class ArchiveEntryCounterTest {
         Files.write(fake, new byte[] {'P','K',3,4, 0,0,0,0}); // ZIP magic but truncated/garbage
         assertThat(ArchiveEntryCounter.countTopLevelEntries(fake).isPresent()).isFalse();
     }
+
+    @Test public void testEmptyForOoxmlZipContainer() throws Exception {
+        // OOXML documents (docx/xlsx/pptx) are ZIP containers parsed by Tika's OOXML parser, not
+        // PackageParser: only the real embedded media becomes depth-1 embeds, so the central
+        // directory count (which includes every internal part) must not be used as the estimate.
+        Path docx = tmp.newFile("fake.docx").toPath();
+        try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(docx))) {
+            zos.putNextEntry(new ZipEntry("[Content_Types].xml"));
+            zos.write("<Types/>".getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
+            zos.putNextEntry(new ZipEntry("word/document.xml"));
+            zos.write("<document/>".getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
+            zos.putNextEntry(new ZipEntry("word/media/image1.png"));
+            zos.write(new byte[] {1, 2, 3});
+            zos.closeEntry();
+        }
+        assertThat(ArchiveEntryCounter.countTopLevelEntries(docx).isPresent()).isFalse();
+    }
+
+    @Test public void testEmptyForOdfOrEpubZipContainer() throws Exception {
+        // ODF (odt/ods/odp) and EPUB documents are also ZIP containers with a dedicated,
+        // non-PackageParser Tika parser, signalled by a "mimetype" entry.
+        Path epub = tmp.newFile("fake.epub").toPath();
+        try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(epub))) {
+            zos.putNextEntry(new ZipEntry("mimetype"));
+            zos.write("application/epub+zip".getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
+            zos.putNextEntry(new ZipEntry("META-INF/container.xml"));
+            zos.write("<container/>".getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
+            zos.putNextEntry(new ZipEntry("content.opf"));
+            zos.write("<package/>".getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
+        }
+        assertThat(ArchiveEntryCounter.countTopLevelEntries(epub).isPresent()).isFalse();
+    }
 }

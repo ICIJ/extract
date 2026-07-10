@@ -72,11 +72,26 @@ public final class ArchiveEntryCounter {
         // ZipFile reads only the central directory; no entry data is decompressed.
         try (ZipFile zip = ZipFile.builder().setPath(path).get()) {
             long count = 0;
+            boolean isContainerDocument = false;
             final Enumeration<ZipArchiveEntry> entries = zip.getEntries();
             while (entries.hasMoreElements()) {
-                if (!entries.nextElement().isDirectory()) {
+                final ZipArchiveEntry entry = entries.nextElement();
+                final String name = entry.getName();
+                // OOXML (docx/xlsx/pptx) and ODF/EPUB (odt/ods/odp/epub) are ZIP containers, but
+                // Tika parses them with the dedicated OOXML/ODF parsers, not PackageParser. Those
+                // parsers emit only the real embedded media as depth-1 embeds (a handful), while
+                // this central-directory count would otherwise count every internal ZIP part
+                // (dozens), producing a percentage that never reaches 100%. Fall back to the
+                // count-only heartbeat for these.
+                if ("[Content_Types].xml".equals(name) || "mimetype".equals(name)) {
+                    isContainerDocument = true;
+                }
+                if (!entry.isDirectory()) {
                     count++;
                 }
+            }
+            if (isContainerDocument) {
+                return OptionalLong.empty();
             }
             return OptionalLong.of(count);
         }
