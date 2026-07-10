@@ -12,6 +12,9 @@ public class ExtractionProgress {
     private final AtomicLong ocrCompleted = new AtomicLong();
     private final AtomicLong embedsSkippedMaxDepth = new AtomicLong();
     private final AtomicLong embedsSkippedMaxSize = new AtomicLong();
+    private final AtomicLong expectedUnits = new AtomicLong(-1L);
+    private final AtomicLong unitsParsed = new AtomicLong();
+    private volatile boolean parserTracksUnits = false;
 
     public ExtractionProgress(final Path path, final long startMillis) {
         this.path = path;
@@ -30,5 +33,14 @@ public class ExtractionProgress {
     public void incrementOcrCompleted() { ocrCompleted.incrementAndGet(); }
     public void incrementEmbedsSkippedMaxDepth() { embedsSkippedMaxDepth.incrementAndGet(); }
     public void incrementEmbedsSkippedMaxSize() { embedsSkippedMaxSize.incrementAndGet(); }
+    /** A "unit" is the container's cheaply-countable top-level element (a PST message or an
+     * archive entry). Used only to project a completion percentage; -1 means unknown. */
+    public boolean setExpectedUnits(final long total) { return expectedUnits.compareAndSet(-1L, total); }
+    public long expectedUnits() { return expectedUnits.get(); }
+    public void incrementUnits() { unitsParsed.incrementAndGet(); }
+    public long unitsParsed() { return unitsParsed.get(); }
+    /** Marked by a parser that supplies its own unit numerator (PST), so EmbedSpawner does not also count. */
+    public void markParserTracksUnits() { parserTracksUnits = true; }
+    public boolean parserTracksUnits() { return parserTracksUnits; }
     public long elapsedMillis(final long now) { return now - startMillis; }
 }

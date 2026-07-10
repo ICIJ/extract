@@ -30,4 +30,28 @@ public class ExtractionProgressTest {
         p.incrementEmbedsSkippedMaxDepth();
         assertThat(p.embedsSkippedMaxDepth()).isEqualTo(2L);
     }
+
+    @Test public void testExpectedUnitsDefaultsToUnknown() {
+        ExtractionProgress p = new ExtractionProgress(java.nio.file.Paths.get("/x.ost"), 0L);
+        assertThat(p.expectedUnits()).isEqualTo(-1L);
+        assertThat(p.unitsParsed()).isEqualTo(0L);
+        assertThat(p.parserTracksUnits()).isFalse();
+    }
+
+    @Test public void testSetExpectedUnitsIsSetOnce() {
+        ExtractionProgress p = new ExtractionProgress(java.nio.file.Paths.get("/x.ost"), 0L);
+        assertThat(p.setExpectedUnits(250_000L)).isTrue();
+        assertThat(p.expectedUnits()).isEqualTo(250_000L);
+        // A second call (e.g. a nested container) must not clobber the root total.
+        assertThat(p.setExpectedUnits(7L)).isFalse();
+        assertThat(p.expectedUnits()).isEqualTo(250_000L);
+    }
+
+    @Test public void testIncrementUnitsAndFlag() {
+        ExtractionProgress p = new ExtractionProgress(java.nio.file.Paths.get("/x.ost"), 0L);
+        p.incrementUnits(); p.incrementUnits();
+        assertThat(p.unitsParsed()).isEqualTo(2L);
+        p.markParserTracksUnits();
+        assertThat(p.parserTracksUnits()).isTrue();
+    }
 }
