@@ -203,14 +203,53 @@ public class StreamingSpewCoordinatorTest {
             coord.ready(new SpewItem(e1, root, root, 1));
         }
 
-        // The early stub made the root visible at the first child (count 0 at that point). On abort the
-        // real root was never written, so close() refreshes the count on the still-PARTIAL stub with the
-        // final drained value (1) rather than writing a second stub.
+        // The early stub is written only after the first child is durably indexed (count 1 at that
+        // point). On abort the real root was never written, so close() refreshes the count on the
+        // still-PARTIAL stub with the final drained value (1) rather than writing a second stub.
         assertThat(spewer.written).contains("e1");
         assertThat(spewer.rootStubs).containsOnly("root");
-        assertThat(spewer.rootStubChildCounts).containsOnly(0L);
+        assertThat(spewer.rootStubChildCounts).containsOnly(1L);
         assertThat(spewer.finalizedAbortedRoots).containsOnly("root");
         assertThat(spewer.finalizeAbortedChildCounts).containsOnly(1L);
+    }
+
+    @Test
+    public void testAbortWithOnlyChildFailingWritesNoGhostRoot() throws Exception {
+        RecordingSpewer spewer = new RecordingSpewer();
+        spewer.failOnId = "e1"; // the only/first child fails to write
+        TikaDocument root = doc("root", new StringReader("root-body"));
+        TikaDocument e1 = doc("e1", new StringReader("a"));
+
+        try (StreamingSpewCoordinator coord = new StreamingSpewCoordinator(spewer, 16)) {
+            coord.start();
+            coord.promise();
+            coord.ready(new SpewItem(e1, root, root, 1));
+            // parse aborts before the foreground writes the root: spew() never called.
+        }
+
+        // The only child failed to write (writtenEmbeds stays 0), so no stub is ever written and the
+        // abort path leaves nothing behind -- no contentless PARTIAL "ghost" root, matching pre-feature
+        // behavior.
+        assertThat(spewer.written).excludes("e1");
+        assertThat(spewer.rootStubs).isEmpty();
+        assertThat(spewer.finalizedAbortedRoots).isEmpty();
+    }
+
+    @Test
+    public void testCloseIsIdempotentOnAbortedRoot() throws Exception {
+        RecordingSpewer spewer = new RecordingSpewer();
+        TikaDocument root = doc("root", new StringReader("root-body"));
+        TikaDocument e1 = doc("e1", new StringReader("a"));
+
+        StreamingSpewCoordinator coord = new StreamingSpewCoordinator(spewer, 16);
+        coord.start();
+        coord.promise();
+        coord.ready(new SpewItem(e1, root, root, 1));
+        coord.close();
+        coord.close(); // a second close must not refresh the aborted root a second time
+
+        assertThat(spewer.finalizedAbortedRoots).containsOnly("root");
+        assertThat(spewer.finalizeAbortedChildCounts).hasSize(1);
     }
 
     @Test
