@@ -327,4 +327,29 @@ public class ResilientOutlookPSTParserTest {
             .forEach(m -> assertThat(m.get(org.apache.tika.metadata.TikaCoreProperties.EMBEDDED_RELATIONSHIP_ID))
                     .matches("-?\\d+-\\d+"));
     }
+
+    private org.icij.extract.extractor.ExtractionProgress parseWithProgress(Path file) throws Exception {
+        ResilientOutlookPSTParser parser = new ResilientOutlookPSTParser();
+        CountingExtractor counting = new CountingExtractor();
+        org.icij.extract.extractor.ExtractionProgress progress =
+                new org.icij.extract.extractor.ExtractionProgress(file, 0L);
+        ParseContext context = new ParseContext();
+        context.set(Parser.class, parser);
+        context.set(EmbeddedDocumentExtractor.class, counting);
+        context.set(org.icij.extract.extractor.ExtractionProgress.class, progress);
+        Metadata metadata = new Metadata();
+        try (InputStream is = TikaInputStream.get(file, metadata)) {
+            parser.parse(is, new BodyContentHandler(-1), metadata, context);
+        }
+        return progress;
+    }
+
+    @Test public void testPstPublishesMessageTotalAndNumerator() throws Exception {
+        org.icij.extract.extractor.ExtractionProgress progress = parseWithProgress(testPst());
+        assertThat(progress.parserTracksUnits()).isTrue();
+        assertThat(progress.expectedUnits()).isGreaterThan(0L);
+        assertThat(progress.unitsParsed()).isGreaterThan(0L);
+        // The numerator equals the parser's own emitted-message count and never exceeds the total.
+        assertThat(progress.unitsParsed()).isLessThanOrEqualTo(progress.expectedUnits());
+    }
 }
