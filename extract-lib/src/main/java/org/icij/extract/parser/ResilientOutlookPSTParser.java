@@ -119,6 +119,8 @@ public class ResilientOutlookPSTParser implements Parser {
         final Reconciliation reconciliation = new Reconciliation();
         final EmissionContext emission = new EmissionContext(xhtml, extractor, reconciliation);
         final PstFanoutConfig fanout = context.get(PstFanoutConfig.class);
+        final org.icij.extract.extractor.ExtractionProgress progress =
+                context.get(org.icij.extract.extractor.ExtractionProgress.class);
 
         xhtml.startDocument();
         final String pstPath = TikaInputStream.get(stream).getFile().getPath();
@@ -128,7 +130,7 @@ public class ResilientOutlookPSTParser implements Parser {
         PSTFile pstFile = null;
         try {
             pstFile = new PSTFile(pstPath);
-            extractAllMessages(pstFile, pstPath, emission, metadata, reconciliation, fanout);
+            extractAllMessages(pstFile, pstPath, emission, metadata, reconciliation, fanout, progress);
         } catch (final TikaException e) {
             throw e;
         } catch (final Exception e) {
@@ -147,7 +149,8 @@ public class ResilientOutlookPSTParser implements Parser {
     private void extractAllMessages(final PSTFile pstFile, final String pstPath,
                                     final EmissionContext emission, final Metadata metadata,
                                     final Reconciliation reconciliation,
-                                    final PstFanoutConfig fanout) throws Exception {
+                                    final PstFanoutConfig fanout,
+                                    final org.icij.extract.extractor.ExtractionProgress progress) throws Exception {
         // java-libpst reads single-block data from OST 2013 (type-36) files correctly, but
         // truncates or fails on attachment data spanning multiple blocks. We can't repair the
         // bytes, so flag the affected attachments to make the loss visible. Confined to type-36
@@ -156,6 +159,15 @@ public class ResilientOutlookPSTParser implements Parser {
             emission.enableAttachmentIntegrityCheck();
         }
         final List<Integer> messageDescriptorIds = enumerateMessageDescriptorIds(pstFile, pstPath);
+        // Publish the message total for the progress estimate. Set-once (CAS): only the top-level,
+        // measurable PST wins ownership; a nested PST-in-PST loses and never tracks units. On win we
+        // mark parserTracksUnits (so EmbedSpawner does not also count) and point THIS parse's
+        // Reconciliation at the progress, so every emitted message increments the numerator.
+        if (progress != null && messageDescriptorIds != null
+                && progress.setExpectedUnits(messageDescriptorIds.size())) {
+            progress.markParserTracksUnits();
+            reconciliation.trackUnits(progress);
+        }
         final boolean fanoutRequested = fanout != null && fanout.enabled()
                 && emission.extractor instanceof EmbedSpawner;
         final Map<Integer, String> folderPaths =
@@ -759,10 +771,19 @@ public class ResilientOutlookPSTParser implements Parser {
         private final AtomicInteger unrecoveredAttachments = new AtomicInteger();
         private final AtomicInteger encryptedAttachments = new AtomicInteger();
 
+        private volatile org.icij.extract.extractor.ExtractionProgress unitProgress;
+
         boolean markEmitted(final long id) { return emittedDescriptorIds.add(id); }
         void unmarkEmitted(final long id) { emittedDescriptorIds.remove(id); }
         boolean alreadyEmitted(final long id) { return emittedDescriptorIds.contains(id); }
-        void incrementEmitted() { emittedCount.incrementAndGet(); }
+        void trackUnits(final org.icij.extract.extractor.ExtractionProgress p) { this.unitProgress = p; }
+        void incrementEmitted() {
+            emittedCount.incrementAndGet();
+            final org.icij.extract.extractor.ExtractionProgress p = unitProgress;
+            if (p != null) {
+                p.incrementUnits();
+            }
+        }
         int emittedCount() { return emittedCount.get(); }
         void enableAttachmentIntegrityCheck() { checkAttachmentIntegrity = true; }
         boolean shouldCheckAttachmentIntegrity() { return checkAttachmentIntegrity; }
