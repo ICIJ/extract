@@ -68,9 +68,11 @@ public abstract class Spewer implements AutoCloseable, Serializable {
      * @param root            the container root whose full write never happened
      * @param writtenChildren the number of embedded children actually written to the endpoint before
      *                        the abort, so the stub can record how much of the container was recovered
+     * @return {@code true} if a stub row was actually written, {@code false} if the call was a no-op
+     *         (e.g. the root already exists so writing a contentless stub would clobber it)
      */
-    protected void writeRootStub(final TikaDocument root, final long writtenChildren) throws IOException {
-        // no-op by default
+    protected boolean writeRootStub(final TikaDocument root, final long writtenChildren) throws IOException {
+        return false; // no-op by default: nothing was written
     }
 
     /**
@@ -86,6 +88,21 @@ public abstract class Spewer implements AutoCloseable, Serializable {
      * @param writtenChildren the total number of embedded children written under this root
      */
     protected void finalizeRoot(final TikaDocument root, final long writtenChildren) throws IOException {
+        // no-op by default
+    }
+
+    /**
+     * Refresh the child count on a container ROOT still represented by its early PARTIAL stub because
+     * the parse aborted after the stub was written (see {@link #writeRootStub}) but before the real
+     * root write. Unlike {@link #finalizeRoot}, this must NOT mark the root complete: the parse did not
+     * finish, so the root stays PARTIAL. Called at most once per aborted root, after the worker drained.
+     *
+     * <p>Default no-op.
+     *
+     * @param root            the container root still represented by its early PARTIAL stub
+     * @param writtenChildren the number of embedded children written before the abort
+     */
+    protected void finalizeAbortedRoot(final TikaDocument root, final long writtenChildren) throws IOException {
         // no-op by default
     }
 

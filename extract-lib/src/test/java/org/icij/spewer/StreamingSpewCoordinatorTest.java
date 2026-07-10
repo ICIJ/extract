@@ -38,10 +38,13 @@ public class StreamingSpewCoordinatorTest {
             written.add(doc.getId());
         }
 
+        volatile boolean rootStubExists = false; // simulate a root already indexed (reindex): stub write is a no-op
+
         @Override
-        protected void writeRootStub(TikaDocument root, long writtenChildren) {
+        protected boolean writeRootStub(TikaDocument root, long writtenChildren) {
             rootStubs.add(root.getId());
             rootStubChildCounts.add(writtenChildren);
+            return !rootStubExists;
         }
 
         final List<String> finalizedRoots = Collections.synchronizedList(new ArrayList<>());
@@ -51,6 +54,15 @@ public class StreamingSpewCoordinatorTest {
         protected void finalizeRoot(TikaDocument root, long writtenChildren) {
             finalizedRoots.add(root.getId());
             finalizeChildCounts.add(writtenChildren);
+        }
+
+        final List<String> finalizedAbortedRoots = Collections.synchronizedList(new ArrayList<>());
+        final List<Long> finalizeAbortedChildCounts = Collections.synchronizedList(new ArrayList<>());
+
+        @Override
+        protected void finalizeAbortedRoot(TikaDocument root, long writtenChildren) {
+            finalizedAbortedRoots.add(root.getId());
+            finalizeAbortedChildCounts.add(writtenChildren);
         }
     }
 
