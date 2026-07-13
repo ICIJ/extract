@@ -500,6 +500,28 @@ public class ExtractorTest {
 	}
 
 	@Test
+	public void testEmbeddedWithDuplicatesFlatWhenNotContentAddressable() throws Exception {
+        //GIVEN: the CLI default (bare PathIdentifier via new Extractor()), under which embed ids are
+        // filesystem paths, not content digests. --embedOutput must keep its legacy flat, hash-keyed dump.
+		Extractor extractor = aBasicExtractor();
+		extractor.disableOcr();
+		Path embedsRoot = folder.newFolder("embeds-flat").toPath();
+		extractor.setEmbedOutputPath(embedsRoot);
+		/* embedded_with_duplicate.tgz: two byte-identical images collapse to one file under the flat
+		   content-hash layout, so 6 unique files are written (the historical behavior). */
+        //WHEN
+		TikaDocument tikaDocument = extractDocument(extractor, "/documents/embedded_with_duplicate.tgz");
+		FileSpewer fileSpewer = new FileSpewer(new FieldNames());
+		fileSpewer.setOutputDirectory(folder.getRoot().toPath());
+		fileSpewer.write(tikaDocument);
+        //THEN: flat files named by content hash directly under embedsRoot, deduped to 6, no xx/yy nesting.
+		assertThat(embedsRoot.toFile().listFiles()).hasSize(6);
+		try (Stream<Path> walk = Files.walk(embedsRoot)) {
+			assertThat(walk.anyMatch(p -> p.getFileName().toString().equals("raw"))).isFalse();
+		}
+	}
+
+	@Test
 	public void testPageIndicesExtractionForPdf() throws Exception {
         //GIVEN
         String text;

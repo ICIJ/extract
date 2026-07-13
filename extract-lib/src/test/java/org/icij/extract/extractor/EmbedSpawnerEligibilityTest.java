@@ -68,4 +68,35 @@ public class EmbedSpawnerEligibilityTest {
     @Test public void testDepthOneBelowLimitIsAllowed() {
         assertThat(EmbedSpawner.exceedsMaxEmbedDepth(1, 20)).isFalse();
     }
+
+    @Test public void testLongLowercaseHexDigestIsContentAddressable() {
+        assertThat(EmbedSpawner.isContentAddressableId(
+                "1eeb334ca60c61baca50b9df851b60c52b856c727932d0d1cae4e56a34190e7e")).isTrue();
+    }
+
+    @Test public void testShortLowercaseHexIsContentAddressable() {
+        assertThat(EmbedSpawner.isContentAddressableId("abcd")).isTrue();
+    }
+
+    @Test public void testFilesystemPathIsNotContentAddressable() {
+        // PathIdentifier case: getId() returns the document's filesystem path.
+        assertThat(EmbedSpawner.isContentAddressableId("/home/user/doc.pdf")).isFalse();
+    }
+
+    @Test public void testUppercaseHexIsNotContentAddressable() {
+        // DigestIdentifier ids are always lowercased.
+        assertThat(EmbedSpawner.isContentAddressableId("ABCD")).isFalse();
+    }
+
+    @Test public void testNullIsNotContentAddressable() {
+        assertThat(EmbedSpawner.isContentAddressableId(null)).isFalse();
+    }
+
+    @Test public void testEmptyStringIsNotContentAddressable() {
+        assertThat(EmbedSpawner.isContentAddressableId("")).isFalse();
+    }
+
+    @Test public void testTooShortHexIsNotContentAddressable() {
+        assertThat(EmbedSpawner.isContentAddressableId("abc")).isFalse();
+    }
 }

@@ -804,11 +804,45 @@ public class EmbedSpawner extends EmbedParser {
 			metadata.set(Metadata.CONTENT_LENGTH, Long.toString(Files.size(source)));
 		}
 
-		// Write the raw payload and its raw.json sidecar in the content-addressed layout, keyed by the
-		// embed id (NOT the raw file digest). This is the same layout and key EmbeddedDocumentExtractor
-		// uses, so an id-addressed manifest and datashare's on-demand SourceExtractor resolve to these
-		// exact bytes. The name is used only for the log breadcrumb on failure (see the call sites).
-		EmbeddedArtifactWriter.write(outputPath, embed.getId(), metadata, source);
+		final String id = embed.getId();
+		if (isContentAddressableId(id)) {
+			// Content-addressed layout (datashare / DigestIdentifier): raw + raw.json under xx/yy/<id>,
+			// keyed by the embed id, matching EmbeddedDocumentExtractor so a manifest and datashare's
+			// on-demand SourceExtractor resolve to these exact bytes.
+			EmbeddedArtifactWriter.write(outputPath, id, metadata, source);
+		} else {
+			// Legacy flat dump (extract-cli --embedOutput under PathIdentifier): the id is a filesystem
+			// path, not a shardable content digest, so keep the historical behavior of writing a single
+			// flat file named by the raw content hash. Preserves the "output attachments en masse" CLI
+			// feature unchanged for non-content-addressable ids.
+			final Path destination = outputPath.resolve(embed.getHash());
+			try {
+				Files.copy(source, destination);
+			} catch (final FileAlreadyExistsException e) {
+				if (Files.size(source) != Files.size(destination)) {
+					Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
+				} else {
+					logger.info("Temporary file for document \"{}\" in \"{}\" already exists.", name, root);
+				}
+			}
+		}
+	}
+
+	// A content-addressable id is the lowercase-hex digest composite produced by DigestIdentifier /
+	// PathDigestIdentifier; it can be safely sharded into xx/yy/<id> (see ArtifactUtils.getEmbeddedPath).
+	// PathIdentifier instead yields the document's filesystem path, which is neither hex nor shard-safe
+	// (an absolute path escapes the artifact dir), so those ids take the legacy flat write in writeEmbed.
+	static boolean isContentAddressableId(final String id) {
+		if (id == null || id.length() < 4) {
+			return false;
+		}
+		for (int i = 0; i < id.length(); i++) {
+			final char c = id.charAt(i);
+			if ((c < '0' || c > '9') && (c < 'a' || c > 'f')) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	static boolean isOcrEligible(final Metadata metadata, final long minImageBytes) {
