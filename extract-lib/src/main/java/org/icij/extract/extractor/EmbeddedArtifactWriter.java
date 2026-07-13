@@ -42,7 +42,10 @@ class EmbeddedArtifactWriter {
     // Stream the embed bytes into the raw payload (8K buffer) and write the raw.json sidecar, then
     // reset the stream so the caller can reuse it. Mirrors EmbeddedDocumentExtractor's prior writeFile(tis).
     // Marks the stream itself before reading so reset() below is always valid, regardless of whether
-    // the caller already marked it.
+    // the caller already marked it. Callers pass a file-backed TikaInputStream (spooled to disk), for
+    // which mark/reset re-seeks the file and the readlimit is ignored; the 0 readlimit is therefore safe
+    // here and would only be a concern for a purely in-memory, non-file-backed stream, which never reaches
+    // this overload (EmbeddedDocumentExtractor's callers spool first; EmbedSpawner uses the Path overload).
     static File write(final Path artifactPath, final String id, final Metadata metadata, final TikaInputStream tis) throws IOException {
         final File embedded = rawPath(artifactPath, id).toFile();
         Files.createDirectories(Paths.get(embedded.getParent()));
