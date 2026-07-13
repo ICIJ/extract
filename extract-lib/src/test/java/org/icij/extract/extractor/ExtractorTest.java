@@ -13,6 +13,7 @@ import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
+import org.icij.extract.document.TikaDocumentSource;
 import org.icij.extract.ocr.Tess4JOCRConfigAdapter;
 import org.icij.extract.ocr.Tess4JOCRParser;
 import org.icij.spewer.FieldNames;
@@ -497,6 +498,41 @@ public class ExtractorTest {
 			rawFilesOnDisk = walk.filter(p -> p.getFileName().toString().equals("raw")).count();
 		}
 		assertThat(toIntExact(rawFilesOnDisk)).isEqualTo((int) embedIds.stream().distinct().count());
+	}
+
+	@Test
+	public void testEmbedSpawnerWriteIsReadableByEmbeddedDocumentExtractor() throws Exception {
+        //GIVEN
+        // NOTE: aBasicExtractor() cannot be used here either, for the same reason as
+        // testEmbeddedWithDuplicates() above: under a bare PathIdentifier every embed's getId()
+        // collapses to the root document's path, so embeds are written with the legacy flat
+        // layout, not the nested xx/yy/<id>/raw layout, and getEmbeddedPath would never resolve
+        // to a file. Use the DigestIdentifier-configured factory instead.
+        DocumentFactory documentFactory = new DocumentFactory().configure();
+        Extractor extractor = new Extractor(documentFactory);
+        extractor.disableOcr();
+        Path artifactDir = folder.newFolder("artifacts").toPath();
+        extractor.setEmbedOutputPath(artifactDir);
+
+        //WHEN: EmbedSpawner writes each embed's raw bytes under artifactDir during extraction.
+        TikaDocument tikaDocument = extractDocument(extractor, "/documents/embedded_with_duplicate.tgz");
+        FileSpewer fileSpewer = new FileSpewer(new FieldNames());
+        fileSpewer.setOutputDirectory(folder.getRoot().toPath());
+        fileSpewer.write(tikaDocument);
+
+        // Pick a first-level embed that actually has bytes on disk.
+        EmbeddedTikaDocument embed = tikaDocument.getEmbeds().stream()
+                .filter(e -> EmbeddedDocumentExtractor.getEmbeddedPath(artifactDir, e.getId()).toFile().isFile())
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("no first-level embed was written to the artifact dir"));
+        byte[] expected = Files.readAllBytes(EmbeddedDocumentExtractor.getEmbeddedPath(artifactDir, embed.getId()));
+
+        //THEN: the on-demand reader (datashare's serving path) resolves the same id to the same bytes,
+        // via EmbeddedDocumentExtractor.extract's cache-hit branch (no re-parse needed).
+        EmbeddedDocumentExtractor reader = new EmbeddedDocumentExtractor(
+                new UpdatableDigester("prj", "SHA-256"), artifactDir);
+        TikaDocumentSource source = reader.extract(tikaDocument, embed.getId());
+        assertThat(source.getContent()).isEqualTo(expected);
 	}
 
 	@Test
