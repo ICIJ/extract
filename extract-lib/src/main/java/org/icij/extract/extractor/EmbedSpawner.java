@@ -778,7 +778,6 @@ public class EmbedSpawner extends EmbedParser {
 	}
 
 	private void writeEmbed(final TikaInputStream tis, final EmbeddedTikaDocument embed, final String name) throws IOException {
-		final Path destination = outputPath.resolve(embed.getHash());
 		final Path source;
 
 		final Metadata metadata = embed.getMetadata();
@@ -805,17 +804,11 @@ public class EmbedSpawner extends EmbedParser {
 			metadata.set(Metadata.CONTENT_LENGTH, Long.toString(Files.size(source)));
 		}
 
-		// To prevent massive duplication and because the disk is only a storage for underlying data, save using the
-		// straight hash as a filename.
-		try {
-			Files.copy(source, destination);
-		} catch (final FileAlreadyExistsException e) {
-			if (Files.size(source) != Files.size(destination)) {
-				Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
-			} else {
-				logger.info("Temporary file for document \"{}\" in \"{}\" already exists.", name, root);
-			}
-		}
+		// Write the raw payload and its raw.json sidecar in the content-addressed layout, keyed by the
+		// embed id (NOT the raw file digest). This is the same layout and key EmbeddedDocumentExtractor
+		// uses, so an id-addressed manifest and datashare's on-demand SourceExtractor resolve to these
+		// exact bytes. The name is used only for the log breadcrumb on failure (see the call sites).
+		EmbeddedArtifactWriter.write(outputPath, embed.getId(), metadata, source);
 	}
 
 	static boolean isOcrEligible(final Metadata metadata, final long minImageBytes) {

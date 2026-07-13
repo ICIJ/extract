@@ -451,18 +451,24 @@ public class ExtractorTest {
 	@Test
 	public void testEmbeddedWithDuplicates() throws Exception {
         //GIVEN
-        Extractor extractor = aBasicExtractor();
+        // NOTE: aBasicExtractor() cannot be used here. It builds its DocumentFactory with a bare
+        // PathIdentifier (see Extractor()), and EmbeddedTikaDocument inherits its parent's `path`
+        // unchanged, so under PathIdentifier every embed's getId() collapses to the SAME value (the
+        // root document's absolute file path), which breaks both id-uniqueness and the xx/yy sharding
+        // in ArtifactUtils.getEmbeddedPath. Use the DigestIdentifier-configured factory instead (same
+        // pattern as testDocumentHasNoLanguage() above), which is what production (DocumentFactory's
+        // own configure()/CLI default) actually uses and matches the id formula documented below.
+        DocumentFactory documentFactory = new DocumentFactory().configure();
+        Extractor extractor = new Extractor(documentFactory);
 		extractor.disableOcr();
-		extractor.setEmbedOutputPath(folder.newFolder("embeds").toPath());
+		Path embedsRoot = folder.newFolder("embeds").toPath();
+		extractor.setEmbedOutputPath(embedsRoot);
 		/*
-		embedded_with_duplicate.tgz :
-			2020-09-11 08:56 level1/
-			2020-09-08 15:10 level1/one_pixel_level1.jpg
-			2020-09-08 15:11 level1/file.txt          |
-			2020-09-08 15:11 level1/level2.tgz        |
-			2020-09-08 15:10 		level2/          same
-			2020-09-08 15:10 		level2/file.txt   |
-			2020-09-08 15:10 		level2/one_pixel.jpg
+		embedded_with_duplicate.tgz contains a nested tree in which two images
+		(level1/one_pixel_level1.jpg and level1/level2/one_pixel.jpg) are byte-identical.
+		Keyed by embed id (parent + relationship + name + file digest) they are DISTINCT
+		documents, so each gets its own raw payload -- unlike the old flat, hash-keyed layout
+		that collapsed them into one file.
 		 */
         //WHEN
 		TikaDocument tikaDocument = extractDocument(extractor, "/documents/embedded_with_duplicate.tgz");
@@ -470,15 +476,27 @@ public class ExtractorTest {
 		fileSpewer.setOutputDirectory(folder.getRoot().toPath());
 		fileSpewer.write(tikaDocument);
 
-		/* should find
-		 hash(embedded_with_duplicate.tgz)
-		 hash(embedded_with_duplicate.tar)
-		 hash(level1/file.txt)
-		 hash(level1/level2.tgz)
-		 hash(level1/level2/file.txt)
-		 hash(level1/one_pixel_level1.jpg) = hash(level1/level2/one_pixel.jpg) */
         //THEN
-		assertThat(folder.getRoot().toPath().resolve("embeds").toFile().listFiles()).hasSize(6);
+		// Collect every embed id in the tree (skip the root; only embeds are written).
+		List<String> embedIds = new ArrayList<>();
+		tikaDocument.apply(doc -> {
+			if (doc != tikaDocument) {
+				embedIds.add(doc.getId());
+			}
+		});
+		// Every embed's bytes live at its id-keyed raw path, with a raw.json sidecar next to it.
+		for (String id : embedIds) {
+			Path raw = EmbeddedDocumentExtractor.getEmbeddedPath(embedsRoot, id);
+			assertThat(raw.toFile()).isFile();
+			assertThat(raw.resolveSibling("raw.json").toFile()).isFile();
+		}
+		// The number of raw payloads on disk equals the number of distinct embed ids
+		// (the two identical images are distinct ids, so they are NOT deduplicated).
+		long rawFilesOnDisk;
+		try (Stream<Path> walk = Files.walk(embedsRoot)) {
+			rawFilesOnDisk = walk.filter(p -> p.getFileName().toString().equals("raw")).count();
+		}
+		assertThat(toIntExact(rawFilesOnDisk)).isEqualTo((int) embedIds.stream().distinct().count());
 	}
 
 	@Test
