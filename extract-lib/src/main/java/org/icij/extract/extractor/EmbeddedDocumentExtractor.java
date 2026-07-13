@@ -23,10 +23,8 @@ import org.xml.sax.SAXException;
 
 import java.io.*;
 import java.lang.module.ModuleDescriptor;
-import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.LinkedList;
 import java.util.function.Supplier;
@@ -118,7 +116,7 @@ public class EmbeddedDocumentExtractor {
     }
 
     static Path getEmbeddedPath(Path artifactPath, String digest) {
-        return ArtifactUtils.getEmbeddedPath(artifactPath, digest).resolve("raw");
+        return EmbeddedArtifactWriter.rawPath(artifactPath, digest);
     }
 
     private static abstract class DigestEmbeddedDocumentExtractor extends EmbedParser {
@@ -226,28 +224,11 @@ public class EmbeddedDocumentExtractor {
         }
 
         protected File writeFile(Metadata metadata, String digest, TikaInputStream tis) throws IOException {
-            File embedded = getEmbeddedPath(this.artifactPath, digest).toFile();
-            Files.createDirectories(Paths.get(embedded.getParent()));
-            try (FileOutputStream embeddedOutputStream = new FileOutputStream(embedded);
-                 FileOutputStream metadataOutputStream = new FileOutputStream(embedded + ".json")) {
-                int nbTmpBytesRead;
-                for (byte[] tmp = new byte[8192]; (nbTmpBytesRead = tis.read(tmp)) > 0; ) {
-                    embeddedOutputStream.write(tmp, 0, nbTmpBytesRead); // streams in a file (using 8K memory buffer)
-                }
-                metadataOutputStream.write(new MetadataTransformer(metadata).transform().getBytes(Charset.defaultCharset()));
-            }
-            tis.reset();
-            return embedded;
+            return EmbeddedArtifactWriter.write(this.artifactPath, digest, metadata, tis);
         }
 
         protected File writeFile(Metadata metadata, String digest, Path source) throws IOException {
-            File embedded = getEmbeddedPath(this.artifactPath, digest).toFile();
-            Files.createDirectories(Paths.get(embedded.getParent()));
-            Files.copy(source, embedded.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            try (FileOutputStream metadataOutputStream = new FileOutputStream(embedded + ".json")) {
-                metadataOutputStream.write(new MetadataTransformer(metadata).transform().getBytes(Charset.defaultCharset()));
-            }
-            return embedded;
+            return EmbeddedArtifactWriter.write(this.artifactPath, digest, metadata, source);
         }
     }
 
