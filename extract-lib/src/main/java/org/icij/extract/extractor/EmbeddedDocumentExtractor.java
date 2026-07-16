@@ -12,11 +12,13 @@ import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.DigestingParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
+import org.apache.tika.parser.microsoft.pst.OutlookPSTParser;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.sax.BodyContentHandler;
 import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.TikaDocumentSource;
+import org.icij.extract.parser.ResilientOutlookPSTParser;
 import org.icij.spewer.MetadataTransformer;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
@@ -52,7 +54,7 @@ public class EmbeddedDocumentExtractor {
     }
 
     public EmbeddedDocumentExtractor(final DigestingParser.Digester digester, String algorithm, Path artifactPath, boolean ocr) {
-        this.parser = new DigestingParser(ocr ? new AutoDetectParser() : createParserWithoutOCR(), digester, false);
+        this.parser = new DigestingParser(ocr ? withResilientPstParser() : createParserWithoutOCR(), digester, false);
         this.digester = digester;
         this.artifactPath = artifactPath;
         this.algorithm = algorithm;
@@ -121,6 +123,13 @@ public class EmbeddedDocumentExtractor {
 
     static Path getEmbeddedPath(Path artifactPath, String digest) {
         return EmbeddedArtifactWriter.rawPath(artifactPath, digest);
+    }
+
+    // Test-support only: exposes the constructed parser so a test can walk its sub-parser
+    // tree and assert which concrete parsers are wired in (e.g. resilient vs stock Outlook
+    // PST parser), without re-deriving the construction logic in the test itself.
+    Parser getParser() {
+        return parser;
     }
 
     private static abstract class DigestEmbeddedDocumentExtractor extends EmbedParser {
@@ -343,15 +352,35 @@ public class EmbeddedDocumentExtractor {
 
     private Parser createParserWithoutOCR() {
         try {
-            return new AutoDetectParser(new TikaConfig(new ByteArrayInputStream((
+            TikaConfig config = new TikaConfig(new ByteArrayInputStream((
                     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
                             "<properties><parsers><parser class=\"org.apache.tika.parser.DefaultParser\">" +
                             "<parser-exclude class=\"org.apache.tika.parser.ocr.TesseractOCRParser\"/>" +
-                            "</parser></parsers></properties>").getBytes())));
+                            "</parser></parsers></properties>").getBytes()));
+            return new AutoDetectParser(config.getDetector(), withResilientPstParser(config.getParser()));
         } catch (TikaException | IOException | SAXException e) {
             throw new RuntimeException(e);
         }
     }
+
+    // Builds the default (OCR-enabled) base parser, with Tika's stock OutlookPSTParser swapped
+    // for the resilient one -- the same swap Extractor applies at INDEX time (see
+    // Extractor.replaceParser(OutlookPSTParser.class, ...)). Without it, ARTIFACT/download
+    // re-extraction from a PST/OST uses the stock parser and fails (e.g. "OST 2013 support not
+    // added yet") even though INDEX succeeded.
+    private Parser withResilientPstParser() {
+        return new AutoDetectParser(withResilientPstParser(TikaConfig.getDefaultConfig().getParser()));
+    }
+
+    // Applies the same swap to an already-built (non-AutoDetectParser) composite, such as
+    // TikaConfig's DefaultParser. Must run on this inner composite, not on a constructed
+    // AutoDetectParser: replaceParser flattens whatever composite it's given into a plain
+    // CompositeParser, so applying it to an AutoDetectParser instance directly would discard its
+    // detector/config wiring and break MIME-type auto-detection for every format, not just PST.
+    private static Parser withResilientPstParser(Parser configParser) {
+        return Extractor.replaceParser(configParser, OutlookPSTParser.class, p -> new ResilientOutlookPSTParser());
+    }
+
     public static class ContentNotFoundException extends NullPointerException {
         public ContentNotFoundException(String rootId, String embedId) {
             super(String.format("<%s> embedded document not found in root document <%s>", embedId, rootId));
