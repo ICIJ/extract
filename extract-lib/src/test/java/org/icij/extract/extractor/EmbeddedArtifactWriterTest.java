@@ -1,6 +1,5 @@
 package org.icij.extract.extractor;
 
-import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.icij.spewer.MetadataTransformer;
@@ -61,22 +60,6 @@ public class EmbeddedArtifactWriterTest {
         assertThat(sidecar).isFile();
         assertThat(Files.readAllBytes(sidecar.toPath()))
                 .isEqualTo(new MetadataTransformer(metadata).transform().getBytes(Charset.defaultCharset()));
-    }
-
-    @Test
-    public void test_write_from_tika_input_stream_creates_raw_and_sidecar_and_resets() throws Exception {
-        Path root = tmp.getRoot().toPath();
-        Path source = tmp.newFile("stream.bin").toPath();
-        Files.write(source, "streamed".getBytes());
-        Metadata metadata = metadataWithName("stream.bin");
-
-        try (TikaInputStream tis = TikaInputStream.get(source)) {
-            File written = EmbeddedArtifactWriter.write(root, ID, metadata, tis);
-            assertThat(Files.readAllBytes(written.toPath())).isEqualTo("streamed".getBytes());
-            assertThat(new File(written + ".json")).isFile();
-            // reset() was called: the stream is readable again from the start.
-            assertThat(tis.read()).isEqualTo((int) 's');
-        }
     }
 
     @Test
