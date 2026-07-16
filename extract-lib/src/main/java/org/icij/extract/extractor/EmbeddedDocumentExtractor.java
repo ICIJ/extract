@@ -20,6 +20,8 @@ import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.TikaDocumentSource;
 import org.icij.extract.parser.ResilientOutlookPSTParser;
 import org.icij.spewer.MetadataTransformer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
@@ -34,6 +36,7 @@ import java.util.function.Supplier;
 import static java.util.Optional.ofNullable;
 
 public class EmbeddedDocumentExtractor {
+    private static final Logger logger = LoggerFactory.getLogger(EmbeddedDocumentExtractor.class);
     private final Parser parser;
     private final DigestingParser.Digester digester;
     private final String algorithm;
@@ -97,7 +100,14 @@ public class EmbeddedDocumentExtractor {
         if (artifactPath != null) {
             File cachedFile = getEmbeddedPath(artifactPath, embeddedDocumentDigest).toFile();
             if (cachedFile.exists()) {
-                return new TikaDocumentSource(MetadataTransformer.loadMetadata(new File(cachedFile + ".json")), DigestEmbeddedDocumentFileExtractor.getFileInputStream(cachedFile));
+                try {
+                    return new TikaDocumentSource(MetadataTransformer.loadMetadata(new File(cachedFile + ".json")), DigestEmbeddedDocumentFileExtractor.getFileInputStream(cachedFile));
+                } catch (IOException e) {
+                    // N2: a missing/corrupt sidecar (partial write, crash, format drift) must not be
+                    // a permanent failure -- the source is re-derivable from the root document, so
+                    // treat this as a cache miss and fall through to the live-parse path below.
+                    logger.debug("cache read failed for embedded document <{}>; falling back to live parse", embeddedDocumentDigest, e);
+                }
             }
         }
         ParseContext context = newParseContext();
