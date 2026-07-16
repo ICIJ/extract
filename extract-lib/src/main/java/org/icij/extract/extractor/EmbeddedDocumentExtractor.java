@@ -174,126 +174,159 @@ public class EmbeddedDocumentExtractor {
             // underflow the stack and corrupt the walk for the next sibling embed.
             this.documentStack.add(embed);
             try (final TikaInputStream tis = TikaInputStream.get(CloseShieldInputStream.wrap(stream))) {
-                if (stream instanceof TikaInputStream) {
-                    final Object container = ((TikaInputStream) stream).getOpenContainer();
+                // Hoisted so the failure handler below can reach the spooled bytes. Stays null until a
+                // successful tis.getPath() spool populates it: null therefore means "the read/spool
+                // itself failed and no bytes were ever captured" (the OST-2013 truncated by-value
+                // attachment case), while non-null means the real entry bytes exist on disk (a later
+                // sub-parse failure does not consume or delete them, since the parse reads a separate
+                // stream / tis stays open until the enclosing try-with-resources). This is the EmbedSpawner
+                // mirror: EmbedSpawner.writeEmbed writes tis.getPath() regardless of the parse outcome.
+                Path spooled = null;
+                try {
+                    if (stream instanceof TikaInputStream) {
+                        final Object container = ((TikaInputStream) stream).getOpenContainer();
 
-                    if (container != null) {
-                        tis.setOpenContainer(container);
+                        if (container != null) {
+                            tis.setOpenContainer(container);
+                        }
                     }
-                }
-                // this if/else is coming from DigestingParser since 3.3.0 to fix issues with Microsoft OLE docs
-                // see https://issues.apache.org/jira/browse/TIKA-4533
-                boolean shouldTranslate = embeddedStreamTranslator.shouldTranslate(tis, metadata);
-                boolean retroCompat = documentTikaVersion.compareTo(TIKA_3_2_3) <= 0;
+                    // this if/else is coming from DigestingParser since 3.3.0 to fix issues with Microsoft OLE docs
+                    // see https://issues.apache.org/jira/browse/TIKA-4533
+                    boolean shouldTranslate = embeddedStreamTranslator.shouldTranslate(tis, metadata);
+                    boolean retroCompat = documentTikaVersion.compareTo(TIKA_3_2_3) <= 0;
 
-                if (!(shouldTranslate && !retroCompat) && tis.getOpenContainer() == null) {
-                    // Raw (non-translated) entry from a container such as a zip/tar archive.
-                    // Spool the entry to a temp file once, then read independent file-backed
-                    // streams for the digest, the document callback and the recursive parse.
-                    // This avoids the in-memory mark()/reset() on the embedded stream, which
-                    // fails with "Resetting to invalid mark" (surfaced as TIKA-198 from
-                    // PackageParser) once an entry exceeds the digester's mark limit, and keeps
-                    // the per-entry parse memory bounded regardless of entry size. (The memory
-                    // extractor still buffers the single matched entry into a byte[] by design.)
-                    final Path spooled = tis.getPath();
-                    try (TikaInputStream digestStream = TikaInputStream.get(spooled)) {
-                        digester.digest(digestStream, metadata, context);
+                    if (!(shouldTranslate && !retroCompat) && tis.getOpenContainer() == null) {
+                        // Raw (non-translated) entry from a container such as a zip/tar archive.
+                        // Spool the entry to a temp file once, then read independent file-backed
+                        // streams for the digest, the document callback and the recursive parse.
+                        // This avoids the in-memory mark()/reset() on the embedded stream, which
+                        // fails with "Resetting to invalid mark" (surfaced as TIKA-198 from
+                        // PackageParser) once an entry exceeds the digester's mark limit, and keeps
+                        // the per-entry parse memory bounded regardless of entry size. (The memory
+                        // extractor still buffers the single matched entry into a byte[] by design.)
+                        spooled = tis.getPath();
+                        try (TikaInputStream digestStream = TikaInputStream.get(spooled)) {
+                            digester.digest(digestStream, metadata, context);
+                        }
+                        // Parse FIRST, then freeze the id and write -- mirroring EmbedSpawner
+                        // (parse-then-write). The sub-parse (e.g. PSTMailItemParser) enriches this
+                        // embed's metadata with EMBEDDED_RELATIONSHIP_ID / resourceName / Content-Type,
+                        // all of which DigestIdentifier folds into the id. Freezing the id BEFORE the
+                        // sub-parse (as this used to) dropped those fields, so retrieval wrote bytes
+                        // under ids the index never produced (OST-2). This embed's own content hash is
+                        // set above and is NOT overwritten by the recursion (each child digests into its
+                        // OWN metadata), so the frozen id = SHA(thisEmbedHash || parentId || relId ||
+                        // name) matches the id EmbedSpawner froze after the same sub-parse at index time.
+                        try (TikaInputStream parseStream = TikaInputStream.get(spooled)) {
+                            super.delegateParsing(parseStream, handler, metadata);
+                        }
+                        String digest = embed.getId();
+                        documentCallback(metadata, digest, spooled);
+                        return;
                     }
-                    // Parse FIRST, then freeze the id and write -- mirroring EmbedSpawner
-                    // (parse-then-write). The sub-parse (e.g. PSTMailItemParser) enriches this
-                    // embed's metadata with EMBEDDED_RELATIONSHIP_ID / resourceName / Content-Type,
-                    // all of which DigestIdentifier folds into the id. Freezing the id BEFORE the
-                    // sub-parse (as this used to) dropped those fields, so retrieval wrote bytes
-                    // under ids the index never produced (OST-2). This embed's own content hash is
-                    // set above and is NOT overwritten by the recursion (each child digests into its
-                    // OWN metadata), so the frozen id = SHA(thisEmbedHash || parentId || relId ||
-                    // name) matches the id EmbedSpawner froze after the same sub-parse at index time.
-                    try (TikaInputStream parseStream = TikaInputStream.get(spooled)) {
-                        super.delegateParsing(parseStream, handler, metadata);
+
+                    // Spool the entry to a temp file so its bytes survive the sub-parse below (which
+                    // consumes the stream) and remain writable afterwards; mirrors EmbedSpawner, which
+                    // spools via tis.getPath() before delegateParsing and writes the same file after.
+                    // This also file-backs tis so the mark/reset digest below re-seeks the file.
+                    spooled = tis.getPath();
+                    tis.mark(0); // Marking the position before resetting
+                    if (shouldTranslate && !retroCompat) {
+                        // Tika >= 3.3.0: hash the translated bytes so the digest matches the actual content
+                        Path translatedBytes;
+                        try (TemporaryResources tmp = new TemporaryResources()) {
+                            translatedBytes = tmp.createTempFile();
+                            if (tis.getOpenContainer() == null) {
+                                try (InputStream is = TikaInputStream.get(tis.getPath())) {
+                                    Files.copy(embeddedStreamTranslator.translate(is, metadata), translatedBytes, StandardCopyOption.REPLACE_EXISTING);
+                                }
+                            } else {
+                                Files.copy(embeddedStreamTranslator.translate(tis, metadata), translatedBytes, StandardCopyOption.REPLACE_EXISTING);
+                            }
+                            try (TikaInputStream translated = TikaInputStream.get(translatedBytes)) {
+                                digester.digest(translated, metadata, context);
+                            }
+                        }
+                    } else {
+                        // retro-compat (<= 3.2.3) or no translation needed: hash raw bytes
+                        digester.digest(tis, metadata, context);
                     }
+                    tis.reset();
+                    // Parse FIRST, then freeze the id and write from the spooled bytes -- see the
+                    // raw-branch note above. The sub-parse enriches EMBEDDED_RELATIONSHIP_ID /
+                    // resourceName / Content-Type that DigestIdentifier folds into the id, so freezing
+                    // the id after it makes retrieval ids match the index ids (OST-2). This embed's own
+                    // content hash is set above and survives the recursion (children digest into their
+                    // own metadata), so the composed id is unchanged from EmbedSpawner's.
+                    super.delegateParsing(tis, handler, metadata);
                     String digest = embed.getId();
                     documentCallback(metadata, digest, spooled);
-                    return;
-                }
-
-                // Spool the entry to a temp file so its bytes survive the sub-parse below (which
-                // consumes the stream) and remain writable afterwards; mirrors EmbedSpawner, which
-                // spools via tis.getPath() before delegateParsing and writes the same file after.
-                // This also file-backs tis so the mark/reset digest below re-seeks the file.
-                final Path spooled = tis.getPath();
-                tis.mark(0); // Marking the position before resetting
-                if (shouldTranslate && !retroCompat) {
-                    // Tika >= 3.3.0: hash the translated bytes so the digest matches the actual content
-                    Path translatedBytes;
-                    try (TemporaryResources tmp = new TemporaryResources()) {
-                        translatedBytes = tmp.createTempFile();
-                        if (tis.getOpenContainer() == null) {
-                            try (InputStream is = TikaInputStream.get(tis.getPath())) {
-                                Files.copy(embeddedStreamTranslator.translate(is, metadata), translatedBytes, StandardCopyOption.REPLACE_EXISTING);
-                            }
-                        } else {
-                            Files.copy(embeddedStreamTranslator.translate(tis, metadata), translatedBytes, StandardCopyOption.REPLACE_EXISTING);
-                        }
-                        try (TikaInputStream translated = TikaInputStream.get(translatedBytes)) {
-                            digester.digest(translated, metadata, context);
-                        }
+                } catch (final Exception e) {
+                    // Per-embed resilience, mirroring EmbedSpawner.spawnEmbedded's catch(Exception)+keep.
+                    // Two distinct failures land here and must be written differently so retrieval serves
+                    // the SAME bytes the index (EmbedSpawner) did under the SAME id:
+                    //   1. read/spool FAILED (spooled == null): no bytes were ever captured -- e.g. an
+                    //      OST-2013 multi-block TRUNCATED by-value attachment whose java-libpst read throws
+                    //      IndexOutOfBoundsException at com.pff.PSTNodeInputStream.read during tis.getPath().
+                    //      The digest never ran, so embed.getId() is the CONTENT-LESS id (DigestIdentifier
+                    //      null-hash path) -- the same id EmbedSpawner composed and polled. Write a zero-byte
+                    //      raw under it (faithful: there really are no bytes), else RawArtifact reports
+                    //      "produced no bytes" (F4b).
+                    //   2. spool+digest SUCCEEDED, then the sub-parse threw (spooled != null): the real
+                    //      entry bytes exist on disk and embed.getId() is now the CONTENT-FULL id (digest
+                    //      ran). EmbedSpawner.writeEmbed writes those real bytes regardless of the parse
+                    //      outcome, so write them here too -- writing an empty raw instead would silently
+                    //      serve an empty download for a document that actually has content.
+                    // The write happens only on the failure path (the try's own callback ran only on
+                    // success), so a healthy embed is never double-written and its real failure is never
+                    // hidden. Cancellation is never swallowed: an interrupt is rethrown without any write,
+                    // and rethrowing (unless the single-embed target was captured) preserves the
+                    // stack-balance (F4a) contract that the finally pop always matches the push above.
+                    if (e instanceof InterruptedIOException || Thread.currentThread().isInterrupted()) {
+                        throw e;
                     }
-                } else {
-                    // retro-compat (<= 3.2.3) or no translation needed: hash raw bytes
-                    digester.digest(tis, metadata, context);
+                    // tis is still open here (we are inside its try-with-resources), so a non-null
+                    // spooled path is still readable -- it is copied out by documentCallback before the
+                    // rethrow closes tis and deletes its temp resources.
+                    boolean targetCaptured = writeFailedEmbed(embed, metadata, e, spooled);
+                    // Single-embed retrieval: if this failing embed WAS the requested target, its
+                    // (possibly empty) source is now captured, so let getDocument() return it cleanly
+                    // instead of relying on Tika catching the rethrow before extract() unwinds. The
+                    // write-all extractor never captures a target (documentCallback returns false), so
+                    // it always rethrows and its per-embed isolation continues to the next sibling.
+                    if (!targetCaptured) {
+                        throw e;
+                    }
                 }
-                tis.reset();
-                // Parse FIRST, then freeze the id and write from the spooled bytes -- see the
-                // raw-branch note above. The sub-parse enriches EMBEDDED_RELATIONSHIP_ID /
-                // resourceName / Content-Type that DigestIdentifier folds into the id, so freezing
-                // the id after it makes retrieval ids match the index ids (OST-2). This embed's own
-                // content hash is set above and survives the recursion (children digest into their
-                // own metadata), so the composed id is unchanged from EmbedSpawner's.
-                super.delegateParsing(tis, handler, metadata);
-                String digest = embed.getId();
-                documentCallback(metadata, digest, spooled);
-            } catch (final Exception e) {
-                // Per-embed resilience, mirroring EmbedSpawner.spawnEmbedded's catch(Exception)+keep.
-                // Reading/parsing this embed's bytes failed -- e.g. an OST-2013 multi-block TRUNCATED
-                // by-value attachment whose java-libpst stream read throws IndexOutOfBoundsException at
-                // com.pff.PSTNodeInputStream.read while spooling above. The index (EmbedSpawner) kept
-                // such an embed and composed a CONTENT-LESS id for it (DigestIdentifier null-hash path),
-                // then polled that id. Here the same failure would otherwise propagate PAST the write,
-                // leaving that id with no raw -> RawArtifact "produced no bytes" (F4b). So write a
-                // zero-byte raw under the SAME id (embed.getId() with no content hash == the indexed
-                // id) before letting the exception propagate: Tika's per-attachment isolation then
-                // continues the walk to the next sibling exactly as it does today (only now the id
-                // resolves). The write happens only on the failure path (the try's own callback ran only
-                // on success), so a healthy embed is never double-written and its real failure is never
-                // hidden. Cancellation is never swallowed: an interrupt is rethrown without a spurious
-                // content-less write, and rethrowing here preserves the stack-balance (F4a) contract
-                // that the finally pop always matches the push above.
-                if (e instanceof InterruptedIOException || Thread.currentThread().isInterrupted()) {
-                    throw e;
-                }
-                writeContentLessEmbed(embed, metadata, e);
-                throw e;
             } finally {
                 this.documentStack.removeLast();
             }
         }
 
-        // Mirror EmbedSpawner's keep-on-failure for an embed whose bytes could not be read/parsed:
+        // Mirror EmbedSpawner's keep-on-failure for an embed that could not be fully read/parsed:
         // record the stream exception on the embed metadata (as EmbedSpawner does) and produce an
-        // id-addressed ZERO-BYTE artifact via the normal documentCallback, so the embed resolves to
-        // an empty raw under the same content-less id the index composed. Routes through the empty
-        // temp file + documentCallback so every subclass write path (write-all, single-embed file,
-        // in-memory) is reused unchanged, keeping the atomic-write contract (E-c) intact.
-        private void writeContentLessEmbed(final EmbeddedTikaDocument embed, final Metadata metadata,
-                                           final Exception cause) throws IOException {
+        // id-addressed artifact via the normal documentCallback, reusing every subclass write path
+        // (write-all, single-embed file, in-memory) unchanged so the atomic-write contract (E-c)
+        // holds. Returns documentCallback's result: true iff a single-embed extractor captured this
+        // embed as its requested target. When spooled bytes exist (spool+digest succeeded before the
+        // sub-parse failed) they are written under the content-full id; otherwise a zero-byte raw is
+        // written under the content-less id (the read/spool-failure case, hash == null).
+        private boolean writeFailedEmbed(final EmbeddedTikaDocument embed, final Metadata metadata,
+                                         final Exception cause, final Path spooled) throws IOException {
+            metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM,
+                    ExceptionUtils.getFilteredStackTrace(cause));
+            if (spooled != null && Files.isReadable(spooled)) {
+                logger.warn("Embedded document sub-parse failed after spooling; writing its real bytes: \"{}\" ({}) (in \"{}\").",
+                        metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE),
+                        documentStack.getFirst());
+                return documentCallback(metadata, embed.getId(), spooled);
+            }
             logger.warn("Unable to read embedded document bytes; writing content-less artifact: \"{}\" ({}) (in \"{}\").",
                     metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE),
                     documentStack.getFirst());
-            metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM,
-                    ExceptionUtils.getFilteredStackTrace(cause));
             final Path empty = Files.createTempFile("content-less-embed", ".raw");
             try {
-                documentCallback(metadata, embed.getId(), empty);
+                return documentCallback(metadata, embed.getId(), empty);
             } finally {
                 Files.deleteIfExists(empty);
             }
