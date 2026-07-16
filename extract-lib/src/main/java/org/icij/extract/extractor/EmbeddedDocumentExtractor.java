@@ -161,7 +161,6 @@ public class EmbeddedDocumentExtractor {
             this.documentTikaVersion = document.getTikaVersion();
         }
 
-        protected abstract boolean documentCallback(Metadata metadata, String digest, TikaInputStream tis) throws IOException;
         protected abstract boolean documentCallback(Metadata metadata, String digest, Path spooled) throws IOException;
 
         @Override
@@ -256,10 +255,6 @@ public class EmbeddedDocumentExtractor {
             }
         }
 
-        protected File writeFile(Metadata metadata, String digest, TikaInputStream tis) throws IOException {
-            return EmbeddedArtifactWriter.write(this.artifactPath, digest, metadata, tis);
-        }
-
         protected File writeFile(Metadata metadata, String digest, Path source) throws IOException {
             return EmbeddedArtifactWriter.write(this.artifactPath, digest, metadata, source);
         }
@@ -268,12 +263,6 @@ public class EmbeddedDocumentExtractor {
     static class DigestAllEmbeddedDocumentExtractor extends DigestEmbeddedDocumentExtractor {
         DigestAllEmbeddedDocumentExtractor(TikaDocument document, ParseContext context, DigestingParser.Digester digester, String algorithm, Path artifactPath) {
             super(document, context, digester, algorithm, artifactPath);
-        }
-
-        @Override
-        protected boolean documentCallback(Metadata metadata, String digest, TikaInputStream tis) throws IOException {
-            writeFile(metadata, digest, tis);
-            return false;
         }
 
         @Override
@@ -299,21 +288,6 @@ public class EmbeddedDocumentExtractor {
             // OCR-heavy) entries instead of walking the whole archive. This hook is the clean
             // way to short-circuit: it needs no exception and works the same for every container.
             return document == null && super.shouldParseEmbedded(metadata);
-        }
-
-        @Override
-        protected boolean documentCallback(Metadata metadata, String digest, TikaInputStream tis) throws IOException {
-            if (digestToFind.equals(digest)) {
-                Supplier<InputStream> inputStreamSupplier = getInputStreamSupplier(metadata, digest, tis);
-                this.document = new TikaDocumentSource(metadata, inputStreamSupplier);
-                return true;
-            }
-            return false;
-        }
-
-        protected Supplier<InputStream> getInputStreamSupplier(Metadata metadata, String digest, TikaInputStream tis) throws IOException {
-            File embedded = writeFile(metadata, digest, tis);
-            return getFileInputStream(embedded);
         }
 
         @Override
@@ -351,16 +325,6 @@ public class EmbeddedDocumentExtractor {
     static class DigestEmbeddedDocumentMemoryExtractor extends DigestEmbeddedDocumentFileExtractor {
         DigestEmbeddedDocumentMemoryExtractor(TikaDocument rootDocument, String digestToFind, ParseContext context, DigestingParser.Digester digester, String algorithm) {
             super(rootDocument, digestToFind, context, digester, algorithm, null);
-        }
-
-        @Override
-        protected Supplier<InputStream> getInputStreamSupplier(Metadata metadata, String digest, TikaInputStream tis) throws IOException {
-            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-            int nbTmpBytesRead;
-            for (byte[] tmp = new byte[8192]; (nbTmpBytesRead = tis.read(tmp)) > 0; ) {
-                buffer.write(tmp, 0, nbTmpBytesRead); // uses the memory
-            }
-            return () -> new ByteArrayInputStream(buffer.toByteArray());
         }
 
         @Override
