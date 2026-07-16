@@ -8,6 +8,7 @@ import org.icij.extract.document.TikaDocumentSource;
 import org.icij.extract.extractor.EmbeddedDocumentExtractor.ContentNotFoundException;
 import org.icij.spewer.Spewer;
 import org.junit.After;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -160,6 +161,21 @@ public class EmbeddedDocumentMemoryExtractorTest {
         // parse workload that a real per-call fd leak is invisible if measured in-process.
         // Epsilon never collects, so any leaked fd has nowhere to hide.
         String javaBin = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
+
+        // Some hardened CI JVMs disable experimental VM options outright, which would make
+        // the subprocess below exit non-zero before it ever runs the parse loop -- not a real
+        // fd leak, just an environment that can't run this probe. Skip (don't fail) in that
+        // case with a cheap "-version" pre-check; the real leak assertion below stays intact
+        // and un-weakened wherever Epsilon-GC is actually available.
+        Process precheck = new ProcessBuilder(javaBin,
+                "-XX:+UnlockExperimentalVMOptions", "-XX:+UseEpsilonGC", "-version")
+                .redirectErrorStream(true).start();
+        precheck.getInputStream().readAllBytes(); // drain so the process can exit
+        boolean epsilonGcAvailable = precheck.waitFor() == 0;
+        Assume.assumeTrue(
+                "JVM rejects -XX:+UnlockExperimentalVMOptions/-XX:+UseEpsilonGC on this host; skipping fd-leak probe",
+                epsilonGcAvailable);
+
         ProcessBuilder builder = new ProcessBuilder(javaBin,
                 "--add-opens", "java.base/java.lang=ALL-UNNAMED",
                 "-XX:+UnlockExperimentalVMOptions", "-XX:+UseEpsilonGC", "-Xmx1536m",
