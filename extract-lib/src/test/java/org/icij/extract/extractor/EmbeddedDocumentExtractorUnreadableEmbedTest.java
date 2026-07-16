@@ -3,7 +3,9 @@ package org.icij.extract.extractor;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
+import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.Parser;
 import org.icij.extract.document.DigestIdentifier;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.EmbeddedTikaDocument;
@@ -12,6 +14,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.xml.sax.ContentHandler;
 import org.xml.sax.helpers.DefaultHandler;
 
 import java.io.ByteArrayInputStream;
@@ -21,6 +24,8 @@ import java.io.InterruptedIOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
+import java.util.Set;
 
 import static org.fest.assertions.Assertions.assertThat;
 import static org.fest.assertions.Fail.fail;
@@ -124,6 +129,55 @@ public class EmbeddedDocumentExtractorUnreadableEmbedTest {
         assertThat(Files.size(good1Raw)).isGreaterThan(0L);
         assertThat(Files.size(good2Raw)).isGreaterThan(0L);
         //AND (3) the walk continued past the failure without cascading (the third call did not throw)
+    }
+
+    // A parser that always throws a non-Tika RuntimeException, reproducing a sub-parse failure that
+    // hits AFTER the entry has been successfully spooled + digested (unlike the read failure above,
+    // which throws while spooling). EmbedParser.delegateParsing only catches Tika exceptions, so this
+    // propagates into DigestEmbeddedDocumentExtractor's per-embed catch.
+    private static Parser subParseFailingParser() {
+        return new Parser() {
+            @Override
+            public Set<MediaType> getSupportedTypes(ParseContext context) {
+                return Collections.emptySet();
+            }
+
+            @Override
+            public void parse(InputStream stream, ContentHandler handler, Metadata metadata, ParseContext context) {
+                throw new IllegalStateException("sub-parse boom");
+            }
+        };
+    }
+
+    @Test
+    public void spooled_embed_with_failing_subparse_writes_real_bytes_under_content_full_id() throws Exception {
+        //GIVEN a write-all extractor whose delegate parser throws only during the sub-parse, so the
+        //embed's bytes are spooled and digested OK before the failure (id is CONTENT-FULL)
+        Path artifactDir = tmp.newFolder("artifacts").toPath();
+        UpdatableDigester digester = new UpdatableDigester("prj", "SHA-256");
+        TikaDocument root = freshDigestedRoot(digester);
+        ParseContext context = new ParseContext();
+        context.set(Parser.class, subParseFailingParser());
+        EmbeddedDocumentExtractor.DigestAllEmbeddedDocumentExtractor extractor =
+                new EmbeddedDocumentExtractor.DigestAllEmbeddedDocumentExtractor(
+                        root, context, digester, "SHA-256", artifactDir);
+
+        //WHEN an embed with real, readable bytes is walked and its sub-parse throws
+        byte[] realBytes = "real-embedded-content".getBytes();
+        try {
+            extractor.delegateParsing(new ByteArrayInputStream(realBytes), new DefaultHandler(), named("has-bytes.bin"));
+            fail("expected the sub-parse failure to propagate to the caller's per-attachment isolation");
+        } catch (RuntimeException isolated) {
+            assertThat(isolated).isInstanceOf(IllegalStateException.class);
+        }
+
+        //THEN the embed's REAL bytes are written under its content-full id (NOT an empty raw)
+        assertThat(root.getEmbeds()).hasSize(1);
+        EmbeddedTikaDocument embed = root.getEmbeds().get(0);
+        assertThat(embed.getHash()).isNotNull(); // digest ran -> content-full id (contrast the read-fail case)
+        Path raw = EmbeddedDocumentExtractor.getEmbeddedPath(artifactDir, embed.getId());
+        assertThat(raw.toFile()).isFile();
+        assertThat(Files.readAllBytes(raw)).isEqualTo(realBytes);
     }
 
     @Test
