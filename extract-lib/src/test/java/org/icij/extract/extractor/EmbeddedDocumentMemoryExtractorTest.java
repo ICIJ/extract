@@ -382,15 +382,19 @@ public class EmbeddedDocumentMemoryExtractorTest {
                 new UpdatableDigester("local-datashare", "SHA-384"), "SHA-384", tmp.getRoot().toPath(), false);
 
         //WHEN/THEN
+        // These ids are composed AFTER the embed sub-parse (OST-2 fix): DigestIdentifier folds
+        // EMBEDDED_RELATIONSHIP_ID / resourceName into the id, and those are populated by the .msg
+        // sub-parse. The retrieval walk now freezes the id after that sub-parse, exactly as the
+        // index (EmbedSpawner) walk does, so these values match the indexed ids.
         TikaDocumentSource test2 = contentExtractor.extract(tikaDocument256,
-                "48ff8c7811277eaa17d0455cb83f9ffa53db86cc3f90f35a4d48031ecb103c039b2864857d3ed5886ecd45581eebde73");
+                "e215f4a3856edd816253d30fe65df3af13ee8fcdffb9d78f71f74c91d9d68040711c2e9cfc738018b5e82baec2f824a1");
         assertThat(test2).isNotNull();
         TikaDocumentSource test = contentExtractor.extract(tikaDocument256,
-                "e571ca1d275d9fc6f9ad2856786ff7efbfc7475b6d20d3cc5c0793b3e163978edcde26d09722996f45130561eecc0350");
+                "7f2ef2e56d30ea00d05f9c5f9415f7d3715d6fd4990d8f1c1bcc085c29b94a5c5aac25e92381ee3ca795810049d2f769");
         assertThat(test).isNotNull();
         assertThat(test2.metadata().get("resourceName")).contains("Test2.msg");
         TikaDocumentSource pdf = contentExtractor.extract(tikaDocument256,
-                "f27a5ea51ffc8a9a023e5bf46930b6e9f112ff508008fa13ac3fc81cac3a7dfa2176cd25a94d0f6a9de82d44c2ccbc3a");
+                "6cfea149d2931cdd03317d933dac2a05065e584d582daca127aca715b3b202b6f5a4059bed425b3c82b83000078880d2");
         assertThat(pdf.metadata().get("resourceName")).contains("POD Layout ICIJ 2020.pdf");
     }
 

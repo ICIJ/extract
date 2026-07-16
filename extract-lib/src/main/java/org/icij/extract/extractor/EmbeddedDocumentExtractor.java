@@ -198,21 +198,28 @@ public class EmbeddedDocumentExtractor {
                     try (TikaInputStream digestStream = TikaInputStream.get(spooled)) {
                         digester.digest(digestStream, metadata, context);
                     }
-                    // Cache the embed id now while metadata still holds the correct hash:
-                    // super.delegateParsing below triggers DigestingParser which overwrites it.
-                    String digest = embed.getId();
-                    boolean found = documentCallback(metadata, digest, spooled);
-                    // Once the target embed is captured, skip recursing into it: its content is
-                    // already saved and recursion would parse/OCR it needlessly. Combined with
-                    // shouldParseEmbedded() returning false afterwards, this stops the walk early.
-                    if (!found) {
-                        try (TikaInputStream parseStream = TikaInputStream.get(spooled)) {
-                            super.delegateParsing(parseStream, handler, metadata);
-                        }
+                    // Parse FIRST, then freeze the id and write -- mirroring EmbedSpawner
+                    // (parse-then-write). The sub-parse (e.g. PSTMailItemParser) enriches this
+                    // embed's metadata with EMBEDDED_RELATIONSHIP_ID / resourceName / Content-Type,
+                    // all of which DigestIdentifier folds into the id. Freezing the id BEFORE the
+                    // sub-parse (as this used to) dropped those fields, so retrieval wrote bytes
+                    // under ids the index never produced (OST-2). This embed's own content hash is
+                    // set above and is NOT overwritten by the recursion (each child digests into its
+                    // OWN metadata), so the frozen id = SHA(thisEmbedHash || parentId || relId ||
+                    // name) matches the id EmbedSpawner froze after the same sub-parse at index time.
+                    try (TikaInputStream parseStream = TikaInputStream.get(spooled)) {
+                        super.delegateParsing(parseStream, handler, metadata);
                     }
+                    String digest = embed.getId();
+                    documentCallback(metadata, digest, spooled);
                     return;
                 }
 
+                // Spool the entry to a temp file so its bytes survive the sub-parse below (which
+                // consumes the stream) and remain writable afterwards; mirrors EmbedSpawner, which
+                // spools via tis.getPath() before delegateParsing and writes the same file after.
+                // This also file-backs tis so the mark/reset digest below re-seeks the file.
+                final Path spooled = tis.getPath();
                 tis.mark(0); // Marking the position before resetting
                 if (shouldTranslate && !retroCompat) {
                     // Tika >= 3.3.0: hash the translated bytes so the digest matches the actual content
@@ -235,15 +242,15 @@ public class EmbeddedDocumentExtractor {
                     digester.digest(tis, metadata, context);
                 }
                 tis.reset();
-                // Force the embed ID to be cached now while metadata still holds the correct hash.
-                // super.delegateParsing below triggers DigestingParser which overwrites the hash in metadata;
-                // without pre-caching, lazy getId() on this embed would compute with the wrong hash
-                // and break ID lookups for any child embeds that reference this embed as parent.
+                // Parse FIRST, then freeze the id and write from the spooled bytes -- see the
+                // raw-branch note above. The sub-parse enriches EMBEDDED_RELATIONSHIP_ID /
+                // resourceName / Content-Type that DigestIdentifier folds into the id, so freezing
+                // the id after it makes retrieval ids match the index ids (OST-2). This embed's own
+                // content hash is set above and survives the recursion (children digest into their
+                // own metadata), so the composed id is unchanged from EmbedSpawner's.
+                super.delegateParsing(tis, handler, metadata);
                 String digest = embed.getId();
-                boolean found = documentCallback(metadata, digest, tis);
-                if (!found) {
-                    super.delegateParsing(tis, handler, metadata);
-                }
+                documentCallback(metadata, digest, spooled);
             } finally {
                 this.documentStack.removeLast();
             }
