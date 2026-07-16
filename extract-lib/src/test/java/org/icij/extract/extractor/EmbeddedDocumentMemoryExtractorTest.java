@@ -101,6 +101,28 @@ public class EmbeddedDocumentMemoryExtractorTest {
     }
 
     @Test
+    public void test_extract_falls_back_to_live_parse_when_cached_sidecar_is_missing() throws Exception {
+        //GIVEN a cache entry whose raw payload exists but whose sidecar was lost (crash/partial
+        // write, or the entry simply predates a format change) -- N2: this must degrade to a cache
+        // miss (live re-parse) rather than a permanent failure, since the source is re-derivable.
+        EmbeddedDocumentExtractor extractor = new EmbeddedDocumentExtractor(
+                new UpdatableDigester("prj", "SHA-256"), tmp.getRoot().toPath());
+        String digest = "1eeb334ca60c61baca50b9df851b60c52b856c727932d0d1cae4e56a34190e7e";
+        extractor.extract(tikaDocument, digest);
+        File cachedFile = EmbeddedDocumentExtractor.getEmbeddedPath(tmp.getRoot().toPath(), digest).toFile();
+        File sidecar = new File(cachedFile + ".json");
+        assertThat(sidecar.isFile()).isTrue();
+        assertThat(sidecar.delete()).isTrue();
+
+        //WHEN
+        TikaDocumentSource emfImage = extractor.extract(tikaDocument, digest);
+
+        //THEN it must not throw and must still return the correct bytes via a live re-parse
+        assertThat(emfImage).isNotNull();
+        assertThat(emfImage.getContent()).hasSize(4992);
+    }
+
+    @Test
     public void test_embedded_file_extraction_level_1_should_use_cache_if_it_exists() throws Exception {
         //GIVEN
         EmbeddedDocumentExtractor extractor = new EmbeddedDocumentExtractor(
