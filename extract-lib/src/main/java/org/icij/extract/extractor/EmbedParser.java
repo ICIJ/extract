@@ -23,6 +23,7 @@ import org.xml.sax.helpers.AttributesImpl;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 
 import static org.apache.tika.sax.XHTMLContentHandler.XHTML;
 
@@ -78,6 +79,18 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 	// supplied metadata (which, on that path, is the discardable clone), never the shared object.
 	void delegateParsing(final InputStream input, final ContentHandler handler, final Metadata metadata,
 	                     final ParseContext parseContext) throws IOException, SAXException {
+		// Cooperative cancellation point, mirroring EmbedSpawner.parseEmbedded: this method is the
+		// one place every embed-boundary parse (serial spawn, deferred OCR AND the ARTIFACT/download
+		// retrieval walk built on this class) funnels through to actually delegate a parse. The
+		// retrieval path has no per-entry timeout of its own, so without this check a pathological
+		// entry (quadratic parser, huge/malformed container) ignores ArtifactTask.cancel()'s
+		// future.cancel(true) interrupt and hangs the worker. Check before any work (outside the
+		// try, so it can never be caught/downgraded by the TikaException handling below) so the walk
+		// aborts between entries; leave the interrupt flag set so every subsequent embed also aborts.
+		if (Thread.currentThread().isInterrupted()) {
+			throw new InterruptedIOException("embedded extraction cancelled (thread interrupted): "
+					+ metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY));
+		}
 		try (final TikaInputStream tis = TikaInputStream.get(CloseShieldInputStream.wrap(input))) {
 			if (input instanceof TikaInputStream) {
 				final Object container = ((TikaInputStream) input).getOpenContainer();
