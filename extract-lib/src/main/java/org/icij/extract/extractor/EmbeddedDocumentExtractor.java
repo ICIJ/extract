@@ -167,6 +167,11 @@ public class EmbeddedDocumentExtractor {
         @Override
         void delegateParsing(InputStream stream, ContentHandler handler, Metadata metadata) throws IOException, SAXException {
             EmbeddedTikaDocument embed = this.documentStack.getLast().addEmbed(metadata);
+            // Push right away, before any of the digesting/callback work below that can throw
+            // (e.g. a per-message digest failure in a resilient walk). The matching finally
+            // always pops exactly what this invocation pushed, so a failure here can never
+            // underflow the stack and corrupt the walk for the next sibling embed.
+            this.documentStack.add(embed);
             try (final TikaInputStream tis = TikaInputStream.get(CloseShieldInputStream.wrap(stream))) {
                 if (stream instanceof TikaInputStream) {
                     final Object container = ((TikaInputStream) stream).getOpenContainer();
@@ -197,7 +202,6 @@ public class EmbeddedDocumentExtractor {
                     // super.delegateParsing below triggers DigestingParser which overwrites it.
                     String digest = embed.getId();
                     boolean found = documentCallback(metadata, digest, spooled);
-                    this.documentStack.add(embed);
                     // Once the target embed is captured, skip recursing into it: its content is
                     // already saved and recursion would parse/OCR it needlessly. Combined with
                     // shouldParseEmbedded() returning false afterwards, this stops the walk early.
@@ -237,7 +241,6 @@ public class EmbeddedDocumentExtractor {
                 // and break ID lookups for any child embeds that reference this embed as parent.
                 String digest = embed.getId();
                 boolean found = documentCallback(metadata, digest, tis);
-                this.documentStack.add(embed);
                 if (!found) {
                     super.delegateParsing(tis, handler, metadata);
                 }
