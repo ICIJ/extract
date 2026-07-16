@@ -86,7 +86,9 @@ public class EmbeddedDocumentExtractor {
         DigestEmbeddedDocumentExtractor extractor = new DigestAllEmbeddedDocumentExtractor(document, context, digester, algorithm, artifactPath);
         context.set(org.apache.tika.extractor.EmbeddedDocumentExtractor.class, extractor);
 
-        parser.parse(new FileInputStream(document.getPath().toFile()), handler, document.getMetadata(), context);
+        try (InputStream in = Files.newInputStream(document.getPath())) {
+            parser.parse(in, handler, document.getMetadata(), context);
+        }
     }
 
     public TikaDocumentSource extract(final TikaDocument rootDocument, final String embeddedDocumentDigest) throws SAXException, TikaException, IOException {
@@ -102,7 +104,9 @@ public class EmbeddedDocumentExtractor {
         DigestEmbeddedDocumentFileExtractor extractor = getExtractor(rootDocument, embeddedDocumentDigest, context, artifactPath);
         context.set(org.apache.tika.extractor.EmbeddedDocumentExtractor.class, extractor);
 
-        parser.parse(new FileInputStream(rootDocument.getPath().toFile()), handler, rootDocument.getMetadata(), context);
+        try (InputStream in = Files.newInputStream(rootDocument.getPath())) {
+            parser.parse(in, handler, rootDocument.getMetadata(), context);
+        }
 
         return extractor.getDocument();
     }
