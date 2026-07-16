@@ -13,8 +13,10 @@ import org.apache.tika.parser.DigestingParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.microsoft.pst.OutlookPSTParser;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.sax.BodyContentHandler;
+import org.apache.tika.utils.ExceptionUtils;
 import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
 import org.icij.extract.document.TikaDocumentSource;
@@ -250,8 +252,50 @@ public class EmbeddedDocumentExtractor {
                 super.delegateParsing(tis, handler, metadata);
                 String digest = embed.getId();
                 documentCallback(metadata, digest, spooled);
+            } catch (final Exception e) {
+                // Per-embed resilience, mirroring EmbedSpawner.spawnEmbedded's catch(Exception)+keep.
+                // Reading/parsing this embed's bytes failed -- e.g. an OST-2013 multi-block TRUNCATED
+                // by-value attachment whose java-libpst stream read throws IndexOutOfBoundsException at
+                // com.pff.PSTNodeInputStream.read while spooling above. The index (EmbedSpawner) kept
+                // such an embed and composed a CONTENT-LESS id for it (DigestIdentifier null-hash path),
+                // then polled that id. Here the same failure would otherwise propagate PAST the write,
+                // leaving that id with no raw -> RawArtifact "produced no bytes" (F4b). So write a
+                // zero-byte raw under the SAME id (embed.getId() with no content hash == the indexed
+                // id) before letting the exception propagate: Tika's per-attachment isolation then
+                // continues the walk to the next sibling exactly as it does today (only now the id
+                // resolves). The write happens only on the failure path (the try's own callback ran only
+                // on success), so a healthy embed is never double-written and its real failure is never
+                // hidden. Cancellation is never swallowed: an interrupt is rethrown without a spurious
+                // content-less write, and rethrowing here preserves the stack-balance (F4a) contract
+                // that the finally pop always matches the push above.
+                if (e instanceof InterruptedIOException || Thread.currentThread().isInterrupted()) {
+                    throw e;
+                }
+                writeContentLessEmbed(embed, metadata, e);
+                throw e;
             } finally {
                 this.documentStack.removeLast();
+            }
+        }
+
+        // Mirror EmbedSpawner's keep-on-failure for an embed whose bytes could not be read/parsed:
+        // record the stream exception on the embed metadata (as EmbedSpawner does) and produce an
+        // id-addressed ZERO-BYTE artifact via the normal documentCallback, so the embed resolves to
+        // an empty raw under the same content-less id the index composed. Routes through the empty
+        // temp file + documentCallback so every subclass write path (write-all, single-embed file,
+        // in-memory) is reused unchanged, keeping the atomic-write contract (E-c) intact.
+        private void writeContentLessEmbed(final EmbeddedTikaDocument embed, final Metadata metadata,
+                                           final Exception cause) throws IOException {
+            logger.warn("Unable to read embedded document bytes; writing content-less artifact: \"{}\" ({}) (in \"{}\").",
+                    metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE),
+                    documentStack.getFirst());
+            metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM,
+                    ExceptionUtils.getFilteredStackTrace(cause));
+            final Path empty = Files.createTempFile("content-less-embed", ".raw");
+            try {
+                documentCallback(metadata, embed.getId(), empty);
+            } finally {
+                Files.deleteIfExists(empty);
             }
         }
 
