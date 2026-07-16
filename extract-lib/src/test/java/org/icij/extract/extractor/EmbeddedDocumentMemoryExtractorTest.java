@@ -13,12 +13,21 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.InputStreamReader;
 import java.io.Reader;
+import java.lang.management.ManagementFactory;
+import java.lang.management.OperatingSystemMXBean;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -119,6 +128,68 @@ public class EmbeddedDocumentMemoryExtractorTest {
         //THEN
         assertThat(tmp.getRoot().toPath().resolve("prj").toFile()).isDirectory();
         assertThat(tmp.getRoot().toPath().resolve("prj").toFile().listFiles()).hasSize(11);
+    }
+
+    @Test
+    public void extractAll_does_not_leak_root_file_descriptors() throws Exception {
+        // GIVEN a subprocess pinned to an allocation-only GC (Epsilon). A regular collector
+        // reclaims an unreferenced, unclosed FileInputStream (and its native fd) via its
+        // Cleaner action on pretty much every young GC, which happens so often during this
+        // parse workload that a real per-call fd leak is invisible if measured in-process.
+        // Epsilon never collects, so any leaked fd has nowhere to hide.
+        String javaBin = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
+        ProcessBuilder builder = new ProcessBuilder(javaBin,
+                "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+                "-XX:+UnlockExperimentalVMOptions", "-XX:+UseEpsilonGC", "-Xmx1536m",
+                "-cp", System.getProperty("java.class.path"),
+                EmbeddedDocumentMemoryExtractorTest.class.getName(),
+                tmp.getRoot().toPath().resolve("prj").toString(), "60");
+        builder.redirectErrorStream(true);
+        Process process = builder.start();
+        String output;
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            output = reader.lines().collect(Collectors.joining("\n"));
+        }
+        int exitCode = process.waitFor();
+
+        //THEN the root file stream must be closed after each parse, so the descriptor
+        // count in the subprocess stays flat instead of growing by ~1 per iteration
+        assertThat(exitCode).isEqualTo(0);
+        Matcher matcher = Pattern.compile("FD_DIFF=(-?\\d+)").matcher(output);
+        assertThat(matcher.find()).isTrue();
+        assertThat(Long.parseLong(matcher.group(1))).isLessThan(20);
+    }
+
+    /**
+     * Entry point for the subprocess spawned by {@link #extractAll_does_not_leak_root_file_descriptors()}.
+     * Runs outside JUnit/Maven's own fork so it can pin the GC to Epsilon.
+     */
+    public static void main(String[] args) throws Exception {
+        Path artifactPath = Paths.get(args[0]);
+        int iterations = Integer.parseInt(args[1]);
+        DocumentFactory documentFactory = new DocumentFactory()
+                .withIdentifier(new DigestIdentifier("SHA-256", Charset.defaultCharset()));
+        TikaDocument document = documentFactory.create(
+                EmbeddedDocumentMemoryExtractorTest.class.getResource("/documents/recursive_embedded.docx"));
+        EmbeddedDocumentExtractor extractor = new EmbeddedDocumentExtractor(
+                new UpdatableDigester("prj", "SHA-256"), artifactPath);
+
+        long before = openFileDescriptorCount();
+        for (int i = 0; i < iterations; i++) {
+            extractor.extractAll(document);
+        }
+        long after = openFileDescriptorCount();
+        System.out.println("FD_DIFF=" + (after - before));
+    }
+
+    private static long openFileDescriptorCount() throws Exception {
+        OperatingSystemMXBean osBean = ManagementFactory.getOperatingSystemMXBean();
+        if (osBean instanceof com.sun.management.UnixOperatingSystemMXBean) {
+            return ((com.sun.management.UnixOperatingSystemMXBean) osBean).getOpenFileDescriptorCount();
+        }
+        try (Stream<Path> fds = Files.list(Paths.get("/proc/self/fd"))) {
+            return fds.count();
+        }
     }
 
     @Test(expected = IllegalStateException.class)
