@@ -9,6 +9,7 @@ import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
+import org.apache.tika.parser.AutoDetectParserConfig;
 import org.apache.tika.parser.DigestingParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
@@ -93,7 +94,7 @@ public class EmbeddedDocumentExtractor {
     // to a null writer instead: same SAX/embed processing, no buffering. (Mirrors Extractor's
     // BodyContentHandler(Writer.nullWriter()) for its content-less handlers.)
     private static ContentHandler discardingHandler() {
-        return new BodyContentHandler(java.io.Writer.nullWriter());
+        return new BodyContentHandler(Writer.nullWriter());
     }
 
     public void extractAll(final TikaDocument document) throws SAXException, TikaException, IOException {
@@ -450,16 +451,18 @@ public class EmbeddedDocumentExtractor {
         }
     }
 
-    // The ARTIFACT/download re-extraction re-parses documents the INDEX pass already accepted, so the
-    // input is trusted. Each embed the walk emits is wrapped in a nested <div class="package-entry">
-    // (see EmbedParser.writeStart/writeEnd), and that nesting -- plus the embedded email HTML's own
-    // deep nesting (forwarded/quoted chains, nested tables) -- accumulates past Tika's default 100-level
-    // SecureContentHandler depth guard. The guard then throws a SecureSAXException that is not a
-    // TikaException, so EmbedParser's catch misses it and the message is dropped from the cache while
-    // the index kept it. Relax the depth/package-entry guard for this trusted re-parse so retrieval
-    // reaches every message the index did. (Compression-ratio guard left at its default.)
+    // Turns OFF Tika's SecureContentHandler DEPTH counters for this walk. They cannot serve as its
+    // bound: they accumulate across the whole root parse, they are inflated by any embed that throws
+    // mid-document (endElement, and therefore the package-entry pop, never runs for the elements that
+    // parser left open), and SecureSAXException is a SAXException rather than a TikaException, so
+    // EmbedParser's tolerant catch misses it and the embed is dropped from the cache even though the
+    // index kept it. Left at their defaults, one early failure therefore cascades: each failure raises
+    // the count until embeds that are barely nested are refused, losing most of a large container.
+    // The real nesting bound lives in DigestEmbeddedDocumentExtractor.delegateParsing, which refuses
+    // embeds nested deeper than EmbedSpawner.DEFAULT_MAX_EMBED_DEPTH exactly as the index does. The
+    // COMPRESSION-RATIO guard, which is what actually detects a real bomb, keeps its default here.
     private static AutoDetectParser relaxZipBombGuard(final AutoDetectParser parser) {
-        org.apache.tika.parser.AutoDetectParserConfig config = new org.apache.tika.parser.AutoDetectParserConfig();
+        AutoDetectParserConfig config = new AutoDetectParserConfig();
         config.setMaximumDepth(Integer.MAX_VALUE);
         config.setMaximumPackageEntryDepth(Integer.MAX_VALUE);
         parser.setAutoDetectParserConfig(config);
