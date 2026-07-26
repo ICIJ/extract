@@ -93,7 +93,9 @@ public class EmbeddedDocumentExtractor {
     // relaxed) overflows Java's ~2GB array limit and OOMs the whole root document. Discard the text
     // to a null writer instead: same SAX/embed processing, no buffering. (Mirrors Extractor's
     // BodyContentHandler(Writer.nullWriter()) for its content-less handlers.)
-    private static ContentHandler discardingHandler() {
+    // Package-private rather than private so EmbeddedDocumentExtractorDiscardingHandlerTest can pin
+    // the no-buffering property directly; it has no other callers outside this class.
+    static ContentHandler discardingHandler() {
         return new BodyContentHandler(Writer.nullWriter());
     }
 
