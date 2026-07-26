@@ -47,12 +47,6 @@ public class EmbedParserPackageEntryBalanceTest {
         }
     }
 
-    private TikaDocument root() {
-        return new DocumentFactory()
-                .withIdentifier(new DigestIdentifier("SHA-256", Charset.defaultCharset()))
-                .create(Paths.get("/tmp/root.zip"));
-    }
-
     private Metadata named(final String name) {
         final Metadata metadata = new Metadata();
         metadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, name);
@@ -70,7 +64,10 @@ public class EmbedParserPackageEntryBalanceTest {
         final SecureContentHandler secure =
                 new SecureContentHandler(new DefaultHandler(), TikaInputStream.get(new byte[0]));
         secure.setMaximumPackageEntryDepth(2);
-        final EmbedParser parser = new FailingEmbedParser(root(), new ParseContext());
+        final TikaDocument root = new DocumentFactory()
+                .withIdentifier(new DigestIdentifier("SHA-256", Charset.defaultCharset()))
+                .create(Paths.get("/tmp/root.zip"));
+        final EmbedParser parser = new FailingEmbedParser(root, new ParseContext());
 
         // First embed fails. Propagating is correct (the caller decides whether to keep walking), but
         // it must not leave this embed's package-entry div open.
