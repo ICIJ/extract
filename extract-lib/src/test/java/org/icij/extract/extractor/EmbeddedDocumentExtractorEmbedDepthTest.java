@@ -21,30 +21,23 @@ import static org.fest.assertions.Assertions.assertThat;
  * deeper than EmbedSpawner.DEFAULT_MAX_EMBED_DEPTH, and nothing deeper. Tika's SecureContentHandler
  * depth counters cannot express that bound here (they count the whole root parse and are corrupted by
  * any partial embed failure), so the walk carries its own guard, reusing the index's constant and
- * predicate. These tests pin both ends of the bound, including the off-by-one at the check site.
+ * predicate. This pins both ends of the bound at once, including the off-by-one at the check site.
  */
 public class EmbeddedDocumentExtractorEmbedDepthTest {
 
     @Rule public TemporaryFolder tmp = new TemporaryFolder();
 
     @Test
-    public void cachesEveryLevelWithinTheIndexDepthBound() throws Exception {
-        final int depth = EmbedSpawner.DEFAULT_MAX_EMBED_DEPTH - 5; // 15, comfortably inside the bound
-
-        // Every level is within the bound, so every level is cached. This also guards the reason the
-        // zip-bomb depth relaxation exists: Tika's default 10-level package-entry counter aborts this
-        // walk around level 9 (one <div class="package-entry"> per embed level, the 10th throws), far
-        // below the bound the index actually applies.
-        assertThat(cachedRawCount(nestedZip(depth))).isEqualTo(depth);
-    }
-
-    @Test
-    public void refusesLevelsPastTheIndexDepthBound() throws Exception {
+    public void cachesEveryLevelUpToTheIndexDepthBoundAndRefusesTheRest() throws Exception {
         final int bound = EmbedSpawner.DEFAULT_MAX_EMBED_DEPTH; // 20
         final int depth = bound + 5;
 
         // Levels 1..bound are kept, everything below is refused, so retrieval caches no more than the
-        // index produced. An off-by-one at the check site shows up here as bound-1 or bound+1.
+        // index produced. An off-by-one at the check site shows up here as bound-1 or bound+1. This
+        // also guards the reason the zip-bomb depth relaxation exists: without it, Tika's default
+        // 10-level package-entry counter aborts this walk around level 9 (one <div
+        // class="package-entry"> per embed level, the 10th throws), so the count lands nowhere near
+        // the bound the index actually applies.
         assertThat(cachedRawCount(nestedZip(depth))).isEqualTo(bound);
     }
 
