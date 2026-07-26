@@ -32,8 +32,9 @@ public class EmbeddedDocumentExtractorEmbedDepthTest {
         final int depth = EmbedSpawner.DEFAULT_MAX_EMBED_DEPTH - 5; // 15, comfortably inside the bound
 
         // Every level is within the bound, so every level is cached. This also guards the reason the
-        // zip-bomb depth relaxation exists: Tika's default 100-level XML nesting counter aborts this
-        // walk around level 9, far below the bound the index actually applies.
+        // zip-bomb depth relaxation exists: Tika's default 10-level package-entry counter aborts this
+        // walk around level 9 (one <div class="package-entry"> per embed level, the 10th throws), far
+        // below the bound the index actually applies.
         assertThat(cachedRawCount(nestedZip(depth))).isEqualTo(depth);
     }
 
