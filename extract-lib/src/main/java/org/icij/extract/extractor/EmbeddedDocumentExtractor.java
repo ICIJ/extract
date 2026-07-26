@@ -178,6 +178,21 @@ public class EmbeddedDocumentExtractor {
 
         @Override
         void delegateParsing(InputStream stream, ContentHandler handler, Metadata metadata) throws IOException, SAXException {
+            // Nesting bound, mirroring INDEX exactly: same constant, same predicate, same check site
+            // relative to the stack push (see EmbedSpawner.parseEmbedded, which tests
+            // baseDepthOffset + tikaDocumentStack.size() before pushing the embed). documentStack is
+            // seeded with the root, so its size here IS the nesting level of the embed being
+            // considered. Checking before addEmbed also matches INDEX in not attaching a refused
+            // embed to its parent. This is the walk's real depth protection: Tika's
+            // SecureContentHandler counters cannot serve as the bound here because they accumulate
+            // across the whole root parse and any embed that fails mid-document leaves them inflated
+            // (see relaxZipBombGuard).
+            if (EmbedSpawner.exceedsMaxEmbedDepth(this.documentStack.size(), EmbedSpawner.DEFAULT_MAX_EMBED_DEPTH)) {
+                logger.warn("Embedded document nested deeper than {} levels not extracted: \"{}\" (in \"{}\").",
+                        EmbedSpawner.DEFAULT_MAX_EMBED_DEPTH, metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY),
+                        this.documentStack.getFirst());
+                return;
+            }
             EmbeddedTikaDocument embed = this.documentStack.getLast().addEmbed(metadata);
             // Push right away, before any of the digesting/callback work below that can throw
             // (e.g. a per-message digest failure in a resilient walk). The matching finally
