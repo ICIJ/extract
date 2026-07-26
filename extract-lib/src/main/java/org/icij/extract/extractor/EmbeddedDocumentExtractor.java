@@ -190,6 +190,10 @@ public class EmbeddedDocumentExtractor {
             // SecureContentHandler counters cannot serve as the bound here because they accumulate
             // across the whole root parse and any embed that fails mid-document leaves them inflated
             // (see relaxZipBombGuard).
+            // This uses INDEX's DEFAULT depth, not the effective one: maxEmbedDepth is an Extractor
+            // option that can override the default at index time, so a deployment that configures it
+            // makes this walk refuse at a different level than the index did. The real fix is to pass
+            // the effective depth in here instead of the constant.
             if (EmbedSpawner.exceedsMaxEmbedDepth(this.documentStack.size(), EmbedSpawner.DEFAULT_MAX_EMBED_DEPTH)) {
                 logger.warn("Embedded document nested deeper than {} levels not extracted: \"{}\" (in \"{}\").",
                         EmbedSpawner.DEFAULT_MAX_EMBED_DEPTH, metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY),
@@ -462,7 +466,10 @@ public class EmbeddedDocumentExtractor {
     // the count until embeds that are barely nested are refused, losing most of a large container.
     // The real nesting bound lives in DigestEmbeddedDocumentExtractor.delegateParsing, which refuses
     // embeds nested deeper than EmbedSpawner.DEFAULT_MAX_EMBED_DEPTH exactly as the index does. The
-    // COMPRESSION-RATIO guard, which is what actually detects a real bomb, keeps its default here.
+    // COMPRESSION-RATIO guard keeps its default here: it compares output characters against root
+    // input bytes, so it covers TEXT-EXPANSION bombs, but a pure nested-archive bomb emits almost no
+    // characters and effectively never trips it -- archive-nesting depth is bounded by the explicit
+    // guard above instead.
     private static AutoDetectParser relaxZipBombGuard(final AutoDetectParser parser) {
         AutoDetectParserConfig config = new AutoDetectParserConfig();
         config.setMaximumDepth(Integer.MAX_VALUE);
