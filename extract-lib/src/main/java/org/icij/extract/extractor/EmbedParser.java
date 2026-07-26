@@ -61,10 +61,20 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 			writeStart(handler, metadata);
 		}
 
-		delegateParsing(input, new EmbeddedContentHandler(new BodyContentHandler(handler)), metadata);
-
-		if (outputHtml) {
-			writeEnd(handler);
+		// writeEnd MUST run even when the delegate parse throws. Tika's SecureContentHandler pops a
+		// package entry only on the matching endElement, and its counters live for the whole root
+		// parse, so a skipped writeEnd leaves this embed's <div class="package-entry"> open forever.
+		// Callers of this walk tolerate per-entry failures and continue with the next sibling, so each
+		// unclosed div permanently raises the nesting count until the guard starts refusing embeds
+		// that are barely nested at all. Note writeStart stays OUTSIDE the try: if it throws, its
+		// startElement never reached the downstream handler, so emitting a matching endElement would
+		// push an unmatched end event downstream.
+		try {
+			delegateParsing(input, new EmbeddedContentHandler(new BodyContentHandler(handler)), metadata);
+		} finally {
+			if (outputHtml) {
+				writeEnd(handler);
+			}
 		}
 	}
 
