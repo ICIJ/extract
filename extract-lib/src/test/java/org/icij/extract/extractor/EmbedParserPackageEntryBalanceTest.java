@@ -9,6 +9,7 @@ import org.icij.extract.document.DigestIdentifier;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.TikaDocument;
 import org.junit.Test;
+import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
@@ -18,6 +19,8 @@ import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.fest.assertions.Assertions.assertThat;
 
@@ -87,5 +90,51 @@ public class EmbedParserPackageEntryBalanceTest {
         } catch (final SAXException expected) {
             assertThat(expected.getMessage()).isEqualTo(DELEGATE_FAILURE);
         }
+    }
+
+    // Records the elements it receives and refuses characters, so writeStart fails PART WAY: the
+    // package-entry div's startElement has already reached the handler when the name emission throws.
+    private static class RejectsCharacters extends DefaultHandler {
+        static final String REJECTED = "handler rejected characters";
+        final List<String> events = new ArrayList<>();
+
+        @Override
+        public void startElement(final String uri, final String localName, final String qName, final Attributes atts) {
+            events.add("start:" + qName);
+        }
+
+        @Override
+        public void endElement(final String uri, final String localName, final String qName) {
+            events.add("end:" + qName);
+        }
+
+        @Override
+        public void characters(final char[] ch, final int start, final int length) throws SAXException {
+            throw new SAXException(REJECTED);
+        }
+    }
+
+    @Test
+    public void writeStartClosesItsOwnDivWhenTheNameEmissionThrows() throws Exception {
+        // parseEmbedded's finally cannot help here: writeStart is deliberately outside its try (an
+        // endElement for a startElement that never reached the handler would be unmatched), so if
+        // writeStart itself throws after opening the div, only writeStart can close it. The live
+        // compression-ratio guard makes this reachable: SecureContentHandler.advance throws from
+        // characters(), which is exactly where writeStart emits the resource name.
+        final RejectsCharacters handler = new RejectsCharacters();
+        final TikaDocument root = new DocumentFactory()
+                .withIdentifier(new DigestIdentifier("SHA-256", Charset.defaultCharset()))
+                .create(Paths.get("/tmp/root.zip"));
+        final EmbedParser parser = new FailingEmbedParser(root, new ParseContext());
+
+        try {
+            parser.parseEmbedded(entryBytes(), handler, named("first.txt"), true);
+            throw new AssertionError("expected the name emission to fail");
+        } catch (final SAXException expected) {
+            assertThat(expected.getMessage()).isEqualTo(RejectsCharacters.REJECTED);
+        }
+
+        // RED before the fix: events are [start:div, start:h1] and the div stays open forever.
+        assertThat(handler.events).contains("end:div");
     }
 }

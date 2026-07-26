@@ -141,10 +141,22 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 		handler.startElement(XHTML, "div", "div", attributes);
 
 		if (name != null && name.length() > 0) {
-			handler.startElement(XHTML, "h1", "h1", new AttributesImpl());
-			char[] chars = name.toCharArray();
-			handler.characters(chars, 0, chars.length);
-			handler.endElement(XHTML, "h1", "h1");
+			try {
+				handler.startElement(XHTML, "h1", "h1", new AttributesImpl());
+				char[] chars = name.toCharArray();
+				handler.characters(chars, 0, chars.length);
+				handler.endElement(XHTML, "h1", "h1");
+			} catch (final SAXException e) {
+				// parseEmbedded's finally cannot cover this: writeStart runs outside its try, so only
+				// writeStart can close the div it just opened. Reachable because the compression-ratio
+				// guard stays live and SecureContentHandler.advance throws from characters(), which is
+				// where the name is emitted. Closing the div is what matters: it is the element the
+				// package-entry accounting tracks, so leaving it open would cost every later embed a
+				// level of nesting budget. A partly-emitted <h1> may stay open, which affects only the
+				// element-depth counter this walk relaxes.
+				writeEnd(handler);
+				throw e;
+			}
 		}
 	}
 
