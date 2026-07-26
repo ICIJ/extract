@@ -85,10 +85,21 @@ public class EmbeddedDocumentExtractor {
         return context;
     }
 
+    // The ARTIFACT/download re-extraction only needs each embed's BYTES (written by documentCallback
+    // via Files.copy) and its digest -- never the extracted text. A BodyContentHandler(-1) would
+    // still accumulate the whole document's text into an unbounded in-memory buffer, which for a
+    // huge body (a multi-GB message/attachment, now reached since the zip-bomb depth guard is
+    // relaxed) overflows Java's ~2GB array limit and OOMs the whole root document. Discard the text
+    // to a null writer instead: same SAX/embed processing, no buffering. (Mirrors Extractor's
+    // BodyContentHandler(Writer.nullWriter()) for its content-less handlers.)
+    private static ContentHandler discardingHandler() {
+        return new BodyContentHandler(java.io.Writer.nullWriter());
+    }
+
     public void extractAll(final TikaDocument document) throws SAXException, TikaException, IOException {
         ofNullable(artifactPath).orElseThrow(() -> new IllegalStateException("cannot extract all embedded files in memory"));
         ParseContext context = newParseContext();
-        ContentHandler handler = new BodyContentHandler(-1);
+        ContentHandler handler = discardingHandler();
 
         DigestEmbeddedDocumentExtractor extractor = new DigestAllEmbeddedDocumentExtractor(document, context, digester, algorithm, artifactPath);
         context.set(org.apache.tika.extractor.EmbeddedDocumentExtractor.class, extractor);
@@ -113,7 +124,7 @@ public class EmbeddedDocumentExtractor {
             }
         }
         ParseContext context = newParseContext();
-        ContentHandler handler = new BodyContentHandler(-1);
+        ContentHandler handler = discardingHandler();
 
         DigestEmbeddedDocumentFileExtractor extractor = getExtractor(rootDocument, embeddedDocumentDigest, context, artifactPath);
         context.set(org.apache.tika.extractor.EmbeddedDocumentExtractor.class, extractor);
@@ -418,10 +429,26 @@ public class EmbeddedDocumentExtractor {
                             "<properties><parsers><parser class=\"org.apache.tika.parser.DefaultParser\">" +
                             "<parser-exclude class=\"org.apache.tika.parser.ocr.TesseractOCRParser\"/>" +
                             "</parser></parsers></properties>").getBytes()));
-            return new AutoDetectParser(config.getDetector(), withResilientPstParser(config.getParser()));
+            return relaxZipBombGuard(new AutoDetectParser(config.getDetector(), withResilientPstParser(config.getParser())));
         } catch (TikaException | IOException | SAXException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    // The ARTIFACT/download re-extraction re-parses documents the INDEX pass already accepted, so the
+    // input is trusted. Each embed the walk emits is wrapped in a nested <div class="package-entry">
+    // (see EmbedParser.writeStart/writeEnd), and that nesting -- plus the embedded email HTML's own
+    // deep nesting (forwarded/quoted chains, nested tables) -- accumulates past Tika's default 100-level
+    // SecureContentHandler depth guard. The guard then throws a SecureSAXException that is not a
+    // TikaException, so EmbedParser's catch misses it and the message is dropped from the cache while
+    // the index kept it. Relax the depth/package-entry guard for this trusted re-parse so retrieval
+    // reaches every message the index did. (Compression-ratio guard left at its default.)
+    private static AutoDetectParser relaxZipBombGuard(final AutoDetectParser parser) {
+        org.apache.tika.parser.AutoDetectParserConfig config = new org.apache.tika.parser.AutoDetectParserConfig();
+        config.setMaximumDepth(Integer.MAX_VALUE);
+        config.setMaximumPackageEntryDepth(Integer.MAX_VALUE);
+        parser.setAutoDetectParserConfig(config);
+        return parser;
     }
 
     // Builds the default (OCR-enabled) base parser, with Tika's stock OutlookPSTParser swapped
@@ -430,7 +457,7 @@ public class EmbeddedDocumentExtractor {
     // re-extraction from a PST/OST uses the stock parser and fails (e.g. "OST 2013 support not
     // added yet") even though INDEX succeeded.
     private Parser withResilientPstParser() {
-        return new AutoDetectParser(withResilientPstParser(TikaConfig.getDefaultConfig().getParser()));
+        return relaxZipBombGuard(new AutoDetectParser(withResilientPstParser(TikaConfig.getDefaultConfig().getParser())));
     }
 
     // Applies the same swap to an already-built (non-AutoDetectParser) composite, such as
