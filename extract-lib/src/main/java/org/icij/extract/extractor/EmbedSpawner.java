@@ -364,16 +364,25 @@ public class EmbedSpawner extends EmbedParser {
 				writeStart(handler, metadata);
 			}
 
-			delegateParsing(input, embedHandler, metadata);
+			// writeEnd MUST run even when the delegate parse throws, for the same reason it does in
+			// EmbedParser.parseEmbedded: SecureContentHandler pops this package entry only on the
+			// matching endElement and counts across the whole root parse, so a skipped writeEnd costs
+			// every later embed a level of nesting budget. This path runs at Tika's DEFAULT limits,
+			// where the package-entry ceiling is 10, so a handful of failed inline embeds is enough to
+			// start refusing embeds that are barely nested. delegateParsing's tolerant catch handles
+			// TikaException but not SAXException, which is what the secure handler throws.
+			try {
+				delegateParsing(input, embedHandler, metadata);
 
-            // If OCR was used for this embedded leaf item, bubble up to the parent document metadata only
-            String ocrParser = metadata.get(OCRParser.OCR_PARSER);
-            if (ocrParser != null) {
-                tikaDocumentStack.getLast().getMetadata().set(OCRParser.OCR_PARSER, ocrParser);
-            }
-
-			if (outputHtml) {
-				writeEnd(handler);
+				// If OCR was used for this embedded leaf item, bubble up to the parent document metadata only
+				String ocrParser = metadata.get(OCRParser.OCR_PARSER);
+				if (ocrParser != null) {
+					tikaDocumentStack.getLast().getMetadata().set(OCRParser.OCR_PARSER, ocrParser);
+				}
+			} finally {
+				if (outputHtml) {
+					writeEnd(handler);
+				}
 			}
 		} else {
 			// Decompression-bomb guard: refuse embeds nested deeper than the limit BEFORE any spool or
