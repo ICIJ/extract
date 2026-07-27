@@ -17,11 +17,10 @@ import java.util.zip.ZipOutputStream;
 import static org.fest.assertions.Assertions.assertThat;
 
 /**
- * The ARTIFACT re-extraction walk must cache exactly what the index accepted: every embed nested no
- * deeper than EmbedSpawner.DEFAULT_MAX_EMBED_DEPTH, and nothing deeper. Tika's SecureContentHandler
- * depth counters cannot express that bound here (they count the whole root parse and are corrupted by
- * any partial embed failure), so the walk carries its own guard, reusing the index's constant and
- * predicate. This pins both ends of the bound at once, including the off-by-one at the check site.
+ * The ARTIFACT re-extraction walk must cache what the index accepted: every embed nested no deeper than
+ * EmbedSpawner.DEFAULT_MAX_EMBED_DEPTH, and nothing deeper. Tika's depth counters cannot express that
+ * bound here (they count the whole root parse and are corrupted by any partial embed failure), so the
+ * walk carries its own guard. This pins both ends of the bound, including the check site's off-by-one.
  */
 public class EmbeddedDocumentExtractorEmbedDepthTest {
 
@@ -32,17 +31,15 @@ public class EmbeddedDocumentExtractorEmbedDepthTest {
         final int bound = EmbedSpawner.DEFAULT_MAX_EMBED_DEPTH; // 20
         final int depth = bound + 5;
 
-        // Levels 1..bound are kept, everything below is refused, so retrieval caches no more than the
-        // index produced. An off-by-one at the check site shows up here as bound-1 or bound+1. This
-        // also guards the reason the zip-bomb depth relaxation exists: without it, Tika's default
-        // 10-level package-entry counter aborts this walk around level 9 (one <div
-        // class="package-entry"> per embed level, the 10th throws), so the count lands nowhere near
-        // the bound the index actually applies.
+        // Levels 1..bound are kept and the rest refused, so retrieval caches no more than the index
+        // produced; an off-by-one at the check site shows up as bound-1 or bound+1. Also guards why the
+        // depth relaxation exists: without it Tika's default 10-level package-entry counter aborts this
+        // walk around level 9 (one package-entry div per embed level, the 10th throws).
         assertThat(cachedRawCount(nestedZip(depth))).isEqualTo(bound);
     }
 
-    // Runs the full ARTIFACT walk over `zipBytes` and counts the raw payloads it cached. The nested
-    // zip yields exactly one embed per level, so the count IS the deepest level reached.
+    // Runs the full ARTIFACT walk and counts cached raw payloads. One embed per nesting level, so the
+    // count IS the deepest level reached.
     private int cachedRawCount(final byte[] zipBytes) throws Exception {
         final Path zip = tmp.newFile().toPath();
         Files.write(zip, zipBytes);

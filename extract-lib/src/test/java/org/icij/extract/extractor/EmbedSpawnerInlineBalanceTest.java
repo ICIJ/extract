@@ -24,13 +24,11 @@ import java.nio.file.Paths;
 import static org.fest.assertions.Assertions.assertThat;
 
 /**
- * EmbedSpawner overrides parseEmbedded rather than inheriting EmbedParser's, so it needs the same
- * balance guarantee on its own terms: its INLINE branch wraps the embed in a <div class="package-entry">
- * too, and Tika's SecureContentHandler pops that entry only on the matching endElement, counting across
- * the whole root parse. A skipped writeEnd therefore costs every later embed one level of nesting
- * budget. This path runs at Tika's DEFAULT limits (unlike the ARTIFACT walk, which relaxes them), where
- * the package-entry ceiling is 10, so a handful of failed inline embeds is enough to start refusing
- * embeds that are barely nested.
+ * EmbedSpawner overrides parseEmbedded instead of inheriting EmbedParser's, so it needs the same balance
+ * guarantee on its own terms: its INLINE branch also wraps the embed in a <div class="package-entry">,
+ * which SecureContentHandler pops only on the matching endElement, counting across the whole root parse.
+ * Unlike the ARTIFACT walk this path runs at Tika's DEFAULT limits, where the package-entry ceiling is
+ * 10, so a handful of failed inline embeds starts refusing barely-nested ones.
  */
 public class EmbedSpawnerInlineBalanceTest {
 
@@ -43,8 +41,8 @@ public class EmbedSpawnerInlineBalanceTest {
     }
 
     // Serial spawner (no fan-out, no OCR, no spool) whose delegate parse always fails with a
-    // SAXException -- the class delegateParsing's tolerant catch (TikaException) does not catch, so it
-    // propagates out of parseEmbedded exactly as SecureSAXException does in production.
+    // SAXException, which delegateParsing's tolerant catch (TikaException) misses, exactly as
+    // SecureSAXException does in production.
     private EmbedSpawner failingSpawner(final TikaDocument root) {
         return new EmbedSpawner(root, new ParseContext(), null,
                 w -> new BodyContentHandler(w), 64L * 1024 * 1024, new TemporaryResources(),

@@ -8,12 +8,10 @@ import org.xml.sax.ContentHandler;
 import static org.fest.assertions.Assertions.assertThat;
 
 /**
- * The ARTIFACT/download walk needs each embed's bytes and digest, never the extracted text: bytes are
- * written by documentCallback via Files.copy. A buffering handler therefore accumulates a whole
- * document's text for nothing, and on a very large body it overflows Java's array limit and aborts the
- * entire root document with an OutOfMemoryError that the per-embed Exception | LinkageError handlers
- * cannot catch. That scale is not reproducible in CI, so this pins the property instead: the handler
- * the walk parses into must not retain body text.
+ * The ARTIFACT/download walk needs each embed's bytes and digest, never the extracted text. A buffering
+ * handler accumulates a whole document's text for nothing, and on a very large body overflows Java's
+ * array limit, aborting the root document with an OutOfMemoryError no per-embed handler catches. That
+ * scale is not reproducible in CI, so this pins the property instead: no retained body text.
  */
 public class EmbeddedDocumentExtractorDiscardingHandlerTest {
 

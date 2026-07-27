@@ -364,13 +364,11 @@ public class EmbedSpawner extends EmbedParser {
 				writeStart(handler, metadata);
 			}
 
-			// writeEnd MUST run even when the delegate parse throws, for the same reason it does in
-			// EmbedParser.parseEmbedded: SecureContentHandler pops this package entry only on the
-			// matching endElement and counts across the whole root parse, so a skipped writeEnd costs
-			// every later embed a level of nesting budget. This path runs at Tika's DEFAULT limits,
-			// where the package-entry ceiling is 10, so a handful of failed inline embeds is enough to
-			// start refusing embeds that are barely nested. delegateParsing's tolerant catch handles
-			// TikaException but not SAXException, which is what the secure handler throws.
+			// writeEnd MUST run even when the delegate parse throws, as in EmbedParser.parseEmbedded:
+			// SecureContentHandler pops this package entry only on the matching endElement and counts across
+			// the whole root parse. This path runs at Tika's DEFAULT limits, where the package-entry ceiling
+			// is 10, so a handful of failed inline embeds starts refusing barely-nested ones. delegateParsing
+			// catches TikaException, not the SAXException the secure handler throws.
 			try {
 				delegateParsing(input, embedHandler, metadata);
 

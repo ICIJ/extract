@@ -86,15 +86,11 @@ public class EmbeddedDocumentExtractor {
         return context;
     }
 
-    // The ARTIFACT/download re-extraction only needs each embed's BYTES (written by documentCallback
-    // via Files.copy) and its digest -- never the extracted text. A BodyContentHandler(-1) would
-    // still accumulate the whole document's text into an unbounded in-memory buffer, which for a
-    // huge body (a multi-GB message/attachment, now reached since the zip-bomb depth guard is
-    // relaxed) overflows Java's ~2GB array limit and OOMs the whole root document. Discard the text
-    // to a null writer instead: same SAX/embed processing, no buffering. (Mirrors Extractor's
-    // BodyContentHandler(Writer.nullWriter()) for its content-less handlers.)
-    // Package-private rather than private so EmbeddedDocumentExtractorDiscardingHandlerTest can pin
-    // the no-buffering property directly; it has no other callers outside this class.
+    // This walk needs each embed's bytes (written by documentCallback via Files.copy) and digest, never
+    // the extracted text. BodyContentHandler(-1) would buffer the whole document's text for nothing,
+    // and a multi-GB body overflows Java's ~2GB array limit, OOMing the entire root document. Discard
+    // to a null writer instead: same SAX/embed processing, no buffering. Package-private so
+    // EmbeddedDocumentExtractorDiscardingHandlerTest can pin that; no callers outside this class.
     static ContentHandler discardingHandler() {
         return new BodyContentHandler(Writer.nullWriter());
     }
@@ -181,19 +177,15 @@ public class EmbeddedDocumentExtractor {
 
         @Override
         void delegateParsing(InputStream stream, ContentHandler handler, Metadata metadata) throws IOException, SAXException {
-            // Nesting bound, mirroring INDEX exactly: same constant, same predicate, same check site
-            // relative to the stack push (see EmbedSpawner.parseEmbedded, which tests
-            // baseDepthOffset + tikaDocumentStack.size() before pushing the embed). documentStack is
-            // seeded with the root, so its size here IS the nesting level of the embed being
-            // considered. Checking before addEmbed also matches INDEX in not attaching a refused
-            // embed to its parent. This is the walk's real depth protection: Tika's
-            // SecureContentHandler counters cannot serve as the bound here because they accumulate
-            // across the whole root parse and any embed that fails mid-document leaves them inflated
-            // (see relaxZipBombGuard).
-            // This uses INDEX's DEFAULT depth, not the effective one: maxEmbedDepth is an Extractor
-            // option that can override the default at index time, so a deployment that configures it
-            // makes this walk refuse at a different level than the index did. The real fix is to pass
-            // the effective depth in here instead of the constant.
+            // This walk's real depth protection; Tika's SecureContentHandler counters cannot serve as
+            // the bound (see relaxZipBombGuard). Mirrors INDEX exactly: same constant, same predicate,
+            // and the same check site relative to the stack push as EmbedSpawner.parseEmbedded, which
+            // tests baseDepthOffset + tikaDocumentStack.size() before pushing. documentStack is seeded
+            // with the root, so its size here IS the candidate embed's nesting level; checking before
+            // addEmbed also matches INDEX in not attaching a refused embed to its parent.
+            // Caveat: this is INDEX's DEFAULT depth. maxEmbedDepth is an Extractor option, so a
+            // deployment that sets it makes this walk refuse at a different level than the index did.
+            // The real fix is passing the effective depth in instead of the constant.
             if (EmbedSpawner.exceedsMaxEmbedDepth(this.documentStack.size(), EmbedSpawner.DEFAULT_MAX_EMBED_DEPTH)) {
                 logger.warn("Embedded document nested deeper than {} levels not extracted: \"{}\" (in \"{}\").",
                         EmbedSpawner.DEFAULT_MAX_EMBED_DEPTH, metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY),
@@ -457,19 +449,15 @@ public class EmbeddedDocumentExtractor {
         }
     }
 
-    // Turns OFF Tika's SecureContentHandler DEPTH counters for this walk. They cannot serve as its
-    // bound: they accumulate across the whole root parse, they are inflated by any embed that throws
-    // mid-document (endElement, and therefore the package-entry pop, never runs for the elements that
-    // parser left open), and SecureSAXException is a SAXException rather than a TikaException, so
-    // EmbedParser's tolerant catch misses it and the embed is dropped from the cache even though the
-    // index kept it. Left at their defaults, one early failure therefore cascades: each failure raises
-    // the count until embeds that are barely nested are refused, losing most of a large container.
-    // The real nesting bound lives in DigestEmbeddedDocumentExtractor.delegateParsing, which refuses
-    // embeds nested deeper than EmbedSpawner.DEFAULT_MAX_EMBED_DEPTH exactly as the index does. The
-    // COMPRESSION-RATIO guard keeps its default here: it compares output characters against root
-    // input bytes, so it covers TEXT-EXPANSION bombs, but a pure nested-archive bomb emits almost no
-    // characters and effectively never trips it -- archive-nesting depth is bounded by the explicit
-    // guard above instead.
+    // Turns OFF Tika's SecureContentHandler DEPTH counters for this walk. They cannot be its bound:
+    // they accumulate across the whole root parse and stay inflated after any embed that throws
+    // mid-document (the package-entry pop needs an endElement that parser never emitted), and
+    // SecureSAXException is a SAXException, not a TikaException, so EmbedParser's tolerant catch misses
+    // it and the embed is dropped even though the index kept it. At their defaults one early failure
+    // cascades, refusing barely-nested embeds and losing most of a large container. The real bound is
+    // in DigestEmbeddedDocumentExtractor.delegateParsing (EmbedSpawner.DEFAULT_MAX_EMBED_DEPTH).
+    // The COMPRESSION-RATIO guard keeps its default: it weighs output characters against input bytes,
+    // so it covers text-expansion bombs, not nested-archive ones, which emit almost no characters.
     private static AutoDetectParser relaxZipBombGuard(final AutoDetectParser parser) {
         AutoDetectParserConfig config = new AutoDetectParserConfig();
         config.setMaximumDepth(Integer.MAX_VALUE);
