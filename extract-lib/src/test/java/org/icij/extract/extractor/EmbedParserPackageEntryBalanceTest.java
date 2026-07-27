@@ -25,12 +25,10 @@ import java.util.List;
 import static org.fest.assertions.Assertions.assertThat;
 
 /**
- * EmbedParser wraps every emitted embed in a nested <div class="package-entry">, and Tika's
- * SecureContentHandler counts those divs across the WHOLE root parse, popping an entry only on the
- * matching endElement. A per-embed parse failure that skips writeEnd therefore leaves the entry on
- * the stack forever, and since callers of this walk tolerate per-entry failures and keep going, the
- * nesting count climbs with every failure until the guard refuses embeds that are not nested at all.
- * This pins that one failed embed cannot cost its siblings any nesting budget.
+ * EmbedParser wraps each embed in a <div class="package-entry">, and Tika's SecureContentHandler counts
+ * those across the whole root parse, popping only on the matching endElement. A failure that skips
+ * writeEnd leaves the entry stuck, so the count climbs with every failure until barely-nested embeds are
+ * refused. This pins that one failed embed costs its siblings no nesting budget.
  */
 public class EmbedParserPackageEntryBalanceTest {
 
@@ -116,11 +114,9 @@ public class EmbedParserPackageEntryBalanceTest {
 
     @Test
     public void writeStartClosesItsOwnDivWhenTheNameEmissionThrows() throws Exception {
-        // parseEmbedded's finally cannot help here: writeStart is deliberately outside its try (an
-        // endElement for a startElement that never reached the handler would be unmatched), so if
-        // writeStart itself throws after opening the div, only writeStart can close it. The live
-        // compression-ratio guard makes this reachable: SecureContentHandler.advance throws from
-        // characters(), which is exactly where writeStart emits the resource name.
+        // parseEmbedded's finally cannot help: writeStart runs outside its try (an endElement for a
+        // startElement that never reached the handler would be unmatched), so only writeStart can close
+        // the div. The live compression-ratio guard makes it reachable, throwing from characters().
         final RejectsCharacters handler = new RejectsCharacters();
         final TikaDocument root = new DocumentFactory()
                 .withIdentifier(new DigestIdentifier("SHA-256", Charset.defaultCharset()))

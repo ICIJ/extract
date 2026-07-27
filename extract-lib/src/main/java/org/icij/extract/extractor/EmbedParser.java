@@ -61,14 +61,11 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 			writeStart(handler, metadata);
 		}
 
-		// writeEnd MUST run even when the delegate parse throws. Tika's SecureContentHandler pops a
-		// package entry only on the matching endElement, and its counters live for the whole root
-		// parse, so a skipped writeEnd leaves this embed's <div class="package-entry"> open forever.
-		// Callers of this walk tolerate per-entry failures and continue with the next sibling, so each
-		// unclosed div permanently raises the nesting count until the guard starts refusing embeds
-		// that are barely nested at all. Note writeStart stays OUTSIDE the try: if it throws, its
-		// startElement never reached the downstream handler, so emitting a matching endElement would
-		// push an unmatched end event downstream.
+		// writeEnd MUST run even when the delegate parse throws: SecureContentHandler pops a package
+		// entry only on the matching endElement and counts across the whole root parse, so each div
+		// left open costs every later embed a level of nesting budget (callers tolerate per-entry
+		// failures and keep going). writeStart stays OUTSIDE the try: if it throws, its startElement
+		// never reached the handler, so a matching endElement would be unmatched.
 		try {
 			delegateParsing(input, new EmbeddedContentHandler(new BodyContentHandler(handler)), metadata);
 		} finally {
@@ -147,13 +144,10 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 				handler.characters(chars, 0, chars.length);
 				handler.endElement(XHTML, "h1", "h1");
 			} catch (final SAXException e) {
-				// parseEmbedded's finally cannot cover this: writeStart runs outside its try, so only
-				// writeStart can close the div it just opened. Reachable because the compression-ratio
-				// guard stays live and SecureContentHandler.advance throws from characters(), which is
-				// where the name is emitted. Closing the div is what matters: it is the element the
-				// package-entry accounting tracks, so leaving it open would cost every later embed a
-				// level of nesting budget. A partly-emitted <h1> may stay open, which affects only the
-				// element-depth counter this walk relaxes.
+				// Only writeStart can close the div it opened, since it runs outside parseEmbedded's try.
+				// Reachable via the still-live compression-ratio guard, which throws from characters(). A
+				// partly-emitted <h1> may stay open: only the div is package-entry accounted, and element
+				// depth is relaxed on this walk.
 				writeEnd(handler);
 				throw e;
 			}
