@@ -2,11 +2,13 @@ package org.icij.extract.ocr;
 
 import static org.apache.tika.metadata.TikaCoreProperties.CONTENT_TYPE_PARSER_OVERRIDE;
 import static org.fest.assertions.Assertions.assertThat;
+import static org.junit.Assert.fail;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.Set;
 
+import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.ParseContext;
@@ -43,6 +45,40 @@ public class OCRParserAdapterTest {
         assertThat(metadata.get(Metadata.CONTENT_TYPE)).isEqualTo("image/jpeg");
         assertThat(metadata.get(CONTENT_TYPE_PARSER_OVERRIDE)).isEqualTo("image/jpeg");
         assertThat(metadata.get(OCRParser.OCR_PARSER)).isEqualTo(NoopParser.class.getName());
+    }
+
+    // Mirrors a failing OCR parse: Tess4JOCRParser rethrows IOException/TikaException (e.g. the OCR
+    // timeout), and EmbedSpawner keeps the embed on parse failure, so the routing type would otherwise
+    // be the content type that gets indexed.
+    private static class ThrowingParser implements Parser {
+        @Override
+        public Set<MediaType> getSupportedTypes(ParseContext context) {
+            return Set.of(MediaType.image("ocr-jpeg"));
+        }
+
+        @Override
+        public void parse(InputStream stream, ContentHandler handler, Metadata metadata, ParseContext context)
+                throws TikaException {
+            throw new TikaException("OCR timeout");
+        }
+    }
+
+    @Test
+    public void test_restores_real_media_type_when_the_ocr_parse_fails() throws Exception {
+        OCRParserAdapter<ThrowingParser> adapter = new OCRParserAdapter<>(new ThrowingParser());
+        Metadata metadata = new Metadata();
+        metadata.set(CONTENT_TYPE_PARSER_OVERRIDE, "image/ocr-jpeg");
+        metadata.set(Metadata.CONTENT_TYPE, "image/ocr-jpeg");
+
+        try {
+            adapter.parse(new ByteArrayInputStream(new byte[0]), new BodyContentHandler(), metadata, new ParseContext());
+            fail("expected the OCR failure to propagate");
+        } catch (final TikaException e) {
+            assertThat(e.getMessage()).isEqualTo("OCR timeout");
+        }
+
+        assertThat(metadata.get(Metadata.CONTENT_TYPE)).isEqualTo("image/jpeg");
+        assertThat(metadata.get(CONTENT_TYPE_PARSER_OVERRIDE)).isEqualTo("image/jpeg");
     }
 
     @Test
