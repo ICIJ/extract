@@ -41,13 +41,19 @@ public class OCRParserAdapter<P extends Parser> implements Parser {
             throw new NullPointerException("Parser is null");
         }
         metadata.set(OCRParser.OCR_PARSER, delegatedParser.getClass().getName());
-        delegatedParser.parse(stream, handler, metadata, parseContext);
-        // The delegated OCR parser has already resolved its input format from
-        // CONTENT_TYPE_PARSER_OVERRIDE, so it is now safe to rewrite the routing type back to the real
-        // media type. Stripping the override is the effective fix (Tika promotes it onto Content-Type
-        // after this parse returns); Content-Type is normalised too as a defensive measure.
-        restoreMediaType(metadata, CONTENT_TYPE_PARSER_OVERRIDE);
-        restoreMediaType(metadata, Metadata.CONTENT_TYPE);
+        try {
+            delegatedParser.parse(stream, handler, metadata, parseContext);
+        } finally {
+            // The delegated OCR parser has already resolved its input format from
+            // CONTENT_TYPE_PARSER_OVERRIDE, so it is now safe to rewrite the routing type back to the real
+            // media type. Stripping the override is the effective fix (Tika promotes it onto Content-Type
+            // after this parse returns); Content-Type is normalised too as a defensive measure.
+            // This runs in a finally because a failed OCR parse (Tess4JOCRParser rethrows IOException /
+            // TikaException, e.g. on the OCR timeout) still leaves the embed indexed by EmbedSpawner, so
+            // the routing type would otherwise become the document's persisted content type.
+            restoreMediaType(metadata, CONTENT_TYPE_PARSER_OVERRIDE);
+            restoreMediaType(metadata, Metadata.CONTENT_TYPE);
+        }
     }
 
     private static void restoreMediaType(final Metadata metadata, final Property field) {
