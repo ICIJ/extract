@@ -37,6 +37,8 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
     private SealableLatch latch;
     private Notifiable notifiable;
     private long queued = 0;
+    private long lossyNames = 0;
+    private Path lossyAncestor = null;
 
     /**
      * Instantiate a new task for scanning the given path.
@@ -84,7 +86,11 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
             }
         }
 
-        logger.info(String.format("Completed scan of: \"%s\".", path));
+        if (lossyNames > 0) {
+            logger.info(String.format("Completed scan of: \"%s\". %d name(s) will not survive the queue.", path, lossyNames));
+        } else {
+            logger.info(String.format("Completed scan of: \"%s\".", path));
+        }
         return queued;
     }
 
@@ -181,6 +187,14 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
             return FileVisitResult.SKIP_SUBTREE;
         }
 
+        if (isLossy(directory)) {
+            lossyNames++;
+            if (null == lossyAncestor) {
+                lossyAncestor = directory;
+                logger.warn(String.format("Directory name will not survive the queue and its files will not be indexed: \"%s\".", directory.toUri()));
+            }
+        }
+
         logger.info(String.format("Entering directory: \"%s\".", directory));
         return FileVisitResult.CONTINUE;
     }
@@ -212,6 +226,13 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
             return FileVisitResult.CONTINUE;
         }
 
+        if (isLossy(file)) {
+            lossyNames++;
+            if (null == lossyAncestor) {
+                logger.warn(String.format("File name will not survive the queue and will not be indexed: \"%s\".", file.toUri()));
+            }
+        }
+
         try {
             queue(file, attributes);
         } catch (InterruptedException e) {
@@ -224,6 +245,24 @@ public class ScannerVisitor extends SimpleFileVisitor<Path> implements Callable<
         }
 
         return FileVisitResult.CONTINUE;
+    }
+
+    @Override
+    public FileVisitResult postVisitDirectory(final Path directory, final IOException e) throws IOException {
+        if (directory.equals(lossyAncestor)) {
+            lossyAncestor = null;
+        }
+
+        return super.postVisitDirectory(directory, e);
+    }
+
+    /**
+     * Whether the name of a path is lost when it round-trips through the queue codec, which encodes
+     * {@code toString()} with a charset. An undecodable byte has already become U+FFFD by then, so the
+     * dequeued path points at nothing and the file is silently never indexed.
+     */
+    private boolean isLossy(final Path path) {
+        return !Paths.get(path.toString()).equals(path);
     }
 
     @Override
