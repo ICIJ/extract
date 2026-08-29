@@ -85,7 +85,7 @@ public class EmbedParserMarkerTest {
     }
 
     @Test
-    public void testGenuineParseFailureLogsAtWarnWithoutStacktrace() throws Exception {
+    public void testGenuineParseFailureLogsAtWarnWithTheCauseButNoStacktrace() throws Exception {
         Logger embedLogger = (Logger) LoggerFactory.getLogger(EmbedParser.class);
         ListAppender<ILoggingEvent> appender = new ListAppender<>();
         appender.start();
@@ -105,5 +105,7 @@ public class EmbedParserMarkerTest {
         // keeps the ARTIFACT log from being dominated by tens of thousands of full stack traces.
         assertThat(events.get(0).getLevel()).isEqualTo(Level.WARN);
         assertThat(events.get(0).getThrowableProxy()).isNull();
+        assertThat(events.get(0).getFormattedMessage())
+                .contains("org.apache.tika.exception.TikaException: boom");
     }
 }
