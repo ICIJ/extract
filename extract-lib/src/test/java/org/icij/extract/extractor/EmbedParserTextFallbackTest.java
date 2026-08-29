@@ -10,6 +10,7 @@ import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.ToTextContentHandler;
+import org.apache.tika.sax.XHTMLContentHandler;
 import org.icij.extract.document.DigestIdentifier;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.TikaDocument;
@@ -54,6 +55,26 @@ public class EmbedParserTextFallbackTest {
                               final Metadata metadata, final ParseContext context)
                     throws TikaException, SAXException {
                 handler.characters(textBeforeFailure.toCharArray(), 0, textBeforeFailure.length());
+                throw new TikaException("malformed entry");
+            }
+        };
+    }
+
+    /** A delegate parser that emits Tika's XHTML preamble, which echoes the metadata title, then throws. */
+    private static Parser throwingAfterXhtmlPreamble() {
+        return new AbstractParser() {
+            @Override
+            public Set<MediaType> getSupportedTypes(final ParseContext context) {
+                return Collections.emptySet();
+            }
+
+            @Override
+            public void parse(final InputStream stream, final ContentHandler handler,
+                              final Metadata metadata, final ParseContext context)
+                    throws TikaException, SAXException {
+                final XHTMLContentHandler xhtml = new XHTMLContentHandler(handler, metadata);
+                xhtml.startDocument();
+                xhtml.startElement("p");
                 throw new TikaException("malformed entry");
             }
         };
@@ -120,5 +141,19 @@ public class EmbedParserTextFallbackTest {
         }
 
         assertThat(handler.toString()).isEqualTo("partial");
+    }
+
+    @Test
+    public void testEntryWhoseFailedParseOnlyEchoedTheMetadataTitleIsRecovered() throws Exception {
+        final Metadata metadata = named("titled.rs", "application/rls-services+xml");
+        metadata.set(TikaCoreProperties.TITLE, "a title supplied by the container");
+        final BodyContentHandler handler = new BodyContentHandler();
+
+        try (TikaInputStream entry = spooled("titled.rs", "fn main() { let answer = 42; }\n".getBytes())) {
+            new EmbedParser(root(), new ParseContext(), throwingAfterXhtmlPreamble())
+                    .delegateParsing(entry, handler, metadata);
+        }
+
+        assertThat(handler.toString()).contains("let answer = 42");
     }
 }
