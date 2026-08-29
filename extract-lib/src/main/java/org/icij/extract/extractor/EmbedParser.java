@@ -123,8 +123,8 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 			// failing entry is skipped. Log a single WARN line without the stack trace to keep the ARTIFACT
 			// log readable on large corpora; the full filtered trace is preserved on the document metadata
 			// below for anyone who needs to investigate a specific file.
-			logger.warn("Unable to parse embedded document: \"{}\" ({}) (in \"{}\").",
-					metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root);
+			logger.warn("Unable to parse embedded document: \"{}\" ({}) (in \"{}\"): {}",
+					metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root, e.toString());
 			metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM,
 					ExceptionUtils.getFilteredStackTrace(e));
 		}
