@@ -9,7 +9,9 @@ public class EmbeddedTikaDocument extends TikaDocument {
 	private final TikaDocument parent;
 
 	EmbeddedTikaDocument(final TikaDocument parent, final Metadata metadata) {
-		super(parent.getIdentifier(), parent.getPath(), metadata);
+		// Not the (identifier, path, metadata) constructor: it stamps the path's file name as resourceName,
+		// and the path here is the root's, so a nameless embed would be typed from the root's extension.
+		super(null, parent.getIdentifier(), parent.getPath(), metadata);
 		this.parent = parent;
 	}
 
