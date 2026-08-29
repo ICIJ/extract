@@ -22,6 +22,7 @@ import org.apache.tika.utils.ExceptionUtils;
 import org.icij.extract.document.TikaDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
@@ -199,15 +200,31 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 
 	private static final class TextTrackingContentHandler extends ContentHandlerDecorator {
 
+		private boolean inTitle;
 		private boolean wroteText;
 
 		TextTrackingContentHandler(final ContentHandler handler) {
 			super(handler);
 		}
 
+		// XHTMLContentHandler echoes the metadata title into <title> through characters(), so an entry
+		// whose container supplied one looks like it produced text even when the parse emitted nothing.
+		@Override
+		public void startElement(final String uri, final String localName, final String name,
+		                         final Attributes attributes) throws SAXException {
+			inTitle = "title".equals(name);
+			super.startElement(uri, localName, name, attributes);
+		}
+
+		@Override
+		public void endElement(final String uri, final String localName, final String name) throws SAXException {
+			inTitle = false;
+			super.endElement(uri, localName, name);
+		}
+
 		@Override
 		public void characters(final char[] ch, final int start, final int length) throws SAXException {
-			wroteText = wroteText || !new String(ch, start, length).isBlank();
+			wroteText = wroteText || (!inTitle && !new String(ch, start, length).isBlank());
 			super.characters(ch, start, length);
 		}
 
