@@ -1,6 +1,8 @@
 package org.icij.extract.extractor;
 
 import org.apache.commons.io.input.CloseShieldInputStream;
+import org.apache.tika.detect.DefaultDetector;
+import org.apache.tika.detect.Detector;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.exception.ZeroByteFileException;
@@ -8,10 +10,13 @@ import org.apache.tika.extractor.ParsingEmbeddedDocumentExtractor;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
+import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.DelegatingParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
+import org.apache.tika.parser.txt.TXTParser;
 import org.apache.tika.sax.BodyContentHandler;
+import org.apache.tika.sax.ContentHandlerDecorator;
 import org.apache.tika.sax.EmbeddedContentHandler;
 import org.apache.tika.utils.ExceptionUtils;
 import org.icij.extract.document.TikaDocument;
@@ -38,6 +43,8 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 
 	static final Logger logger = LoggerFactory.getLogger(EmbedParser.class);
     protected static final Parser DELEGATING_PARSER = new DelegatingParser();
+	private static final Detector DETECTOR = new DefaultDetector();
+	private static final Parser TEXT_PARSER = new TXTParser();
 
 	final TikaDocument root;
 	protected final ParseContext context;
@@ -98,6 +105,9 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 			throw new InterruptedIOException("embedded extraction cancelled (thread interrupted): "
 					+ metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY));
 		}
+
+		final TextTrackingContentHandler tracked = new TextTrackingContentHandler(handler);
+
 		try (final TikaInputStream tis = TikaInputStream.get(CloseShieldInputStream.wrap(input))) {
 			if (input instanceof TikaInputStream) {
 				final Object container = ((TikaInputStream) input).getOpenContainer();
@@ -108,7 +118,7 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 			}
 
 			// Use the delegate parser to parse this entry.
-			delegatingParser.parse(tis, handler, metadata, parseContext);
+			delegatingParser.parse(tis, tracked, metadata, parseContext);
 		} catch (final EncryptedDocumentException e) {
 			logger.info("Encrypted document not extracted: \"{}\" ({}) (in \"{}\").",
 					metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root);
@@ -127,6 +137,35 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 					metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY), metadata.get(Metadata.CONTENT_TYPE), root, e.toString());
 			metadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM,
 					ExceptionUtils.getFilteredStackTrace(e));
+
+			// Only an entry the failed parse left empty is retried: a parser that threw partway through
+			// already emitted everything it read, so re-reading the whole entry would index it twice.
+			if (!tracked.wroteText()) {
+				recoverText(input, handler, metadata, parseContext);
+			}
+		}
+	}
+
+	// The wrong parser was chosen for this entry (a filename glob beating content magic, a malformed-XML
+	// sniff) and its failed parse consumed the stream, so only an entry already spooled to a file can be
+	// re-read. Detecting with an empty Metadata (magic only, no filename hint) is what keeps binary out.
+	private void recoverText(final InputStream input, final ContentHandler handler, final Metadata metadata,
+	                         final ParseContext parseContext) throws IOException, SAXException {
+		final TikaInputStream spooled = TikaInputStream.cast(input);
+
+		if (spooled == null || !spooled.hasFile()) {
+			return;
+		}
+
+		try (final TikaInputStream bytes = TikaInputStream.get(spooled.getPath())) {
+			final MediaType type = DETECTOR.detect(bytes, new Metadata());
+
+			if ("text".equals(type.getType()) || MediaType.APPLICATION_XML.equals(type.getBaseType())) {
+				TEXT_PARSER.parse(bytes, handler, new Metadata(), parseContext);
+			}
+		} catch (final TikaException retryFailure) {
+			logger.debug("Unable to recover text from embedded document: \"{}\" (in \"{}\").",
+					metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY), root, retryFailure);
 		}
 	}
 
@@ -156,5 +195,24 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 
 	void writeEnd(final ContentHandler handler) throws SAXException {
 		handler.endElement(XHTML, "div", "div");
+	}
+
+	private static final class TextTrackingContentHandler extends ContentHandlerDecorator {
+
+		private boolean wroteText;
+
+		TextTrackingContentHandler(final ContentHandler handler) {
+			super(handler);
+		}
+
+		@Override
+		public void characters(final char[] ch, final int start, final int length) throws SAXException {
+			wroteText = wroteText || !new String(ch, start, length).isBlank();
+			super.characters(ch, start, length);
+		}
+
+		boolean wroteText() {
+			return wroteText;
+		}
 	}
 }
