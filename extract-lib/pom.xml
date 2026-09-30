@@ -37,6 +37,25 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
             </plugin>
+            <plugin>
+                <!-- scaffolds an <Class>Options record, never overwriting: not bound to any phase, run with
+                     mvn -pl extract-lib compile exec:java@generate-options -Doptions.class=<class name> -->
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>generate-options</id>
+                        <configuration>
+                            <mainClass>org.icij.task.OptionsRecordGenerator</mainClass>
+                            <arguments>
+                                <argument>${options.class}</argument>
+                                <argument>${project.basedir}/src/main/java</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
