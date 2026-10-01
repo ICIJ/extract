@@ -68,6 +68,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -186,6 +187,7 @@ public class Extractor implements AutoCloseable {
     }
 
     private static final Logger logger = LoggerFactory.getLogger(Extractor.class);
+    private static final Map<Class<?>, Set<String>> MISSING_OCR_MODELS = new ConcurrentHashMap<>();
 
     private boolean ocrDisabled = false;
     private DigestingParser.Digester digester = null;
@@ -401,10 +403,15 @@ public class Extractor implements AutoCloseable {
         if (!autoOcrLanguage) {
             return ocrParser;
         }
-        final Set<String> missing = AutoLanguageOCRParser.missingModels(ocrConfig.installedModels());
+        final Set<String> missing = MISSING_OCR_MODELS.computeIfAbsent(ocrConfig.getClass(), adapter -> {
+            final Set<String> models = AutoLanguageOCRParser.missingModels(ocrConfig.installedModels());
+            if (!models.isEmpty()) {
+                logger.warn("OCR language detection disabled, missing tesseract models {}; OCR uses \"{}\".",
+                        models, ocrConfig.getConfig().getLanguage());
+            }
+            return models;
+        });
         if (!missing.isEmpty()) {
-            logger.warn("OCR language detection disabled, missing tesseract models {}; OCR uses \"{}\".",
-                    missing, ocrConfig.getConfig().getLanguage());
             autoOcrLanguage = false;
             return ocrParser;
         }

@@ -20,6 +20,7 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.fest.assertions.Assertions.assertThat;
 import static org.icij.extract.extractor.AutoLanguageOCRTest.squash;
@@ -139,6 +140,33 @@ public class ExtractorAutoLanguageTest {
         List<ILoggingEvent> warnings = appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList();
         assertThat(warnings).hasSize(1);
         assertThat(warnings.get(0).getFormattedMessage()).contains("script/HanS");
+    }
+
+    @Test
+    public void test_missing_models_are_probed_and_warned_once_per_adapter_class() {
+        // Given
+        AtomicInteger probes = new AtomicInteger();
+        TesseractOCRConfigAdapter partial = new TesseractOCRConfigAdapter() {
+            @Override
+            public Set<String> installedModels() {
+                probes.incrementAndGet();
+                return Set.of("osd");
+            }
+        };
+        Logger log = (Logger) LoggerFactory.getLogger(Extractor.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        log.addAppender(appender);
+        // When
+        try {
+            new Extractor().withAutoLanguage(partial, EmptyParser.INSTANCE);
+            new Extractor().withAutoLanguage(partial, EmptyParser.INSTANCE);
+        } finally {
+            log.detachAppender(appender);
+        }
+        // Then
+        assertThat(probes.get()).isEqualTo(1);
+        assertThat(appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList()).hasSize(1);
     }
 
     private static java.nio.file.Path path(String resource) {
