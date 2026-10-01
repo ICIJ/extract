@@ -30,6 +30,7 @@ import org.apache.tika.utils.ServiceLoaderUtils;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
+import org.icij.extract.ocr.AutoLanguageOCRParser;
 import org.icij.extract.ocr.ImageIOTranscodingOCRParser;
 import org.icij.extract.ocr.OCRConfigAdapter;
 import org.icij.extract.ocr.OCRConfigRegistry;
@@ -66,6 +67,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -104,9 +106,13 @@ import static org.icij.extract.extractor.ArtifactUtils.getEmbeddedPath;
 @Option(name = "embedOutput", description = "Path to a directory for outputting attachments en masse.",
         parameter = "path")
 @Option(name = "ocrCache", description = "Output path for OCR cache files.", parameter = "path")
-@Option(name = "ocrLanguage", description = "Set the languages used by Tesseract. Multiple  languages may be " +
-        "specified, separated by plus characters. Tesseract uses 3-character ISO 639-2 language codes.", parameter =
-        "language")
+@Option(name = "ocrLanguage", description = "Set the languages used by Tesseract. Multiple languages may be " +
+        "specified, separated by plus characters. Tesseract uses 3-character ISO 639-2 language codes. " +
+        "When absent, the language is chosen per image from its detected script if the osd and script " +
+        "models are installed, otherwise English is used.", parameter = "language")
+@Option(name = "ocrRetryConfidence", description = "When the OCR language is chosen per image, read an image " +
+        "again with every supported script if the first read's mean word confidence is below this value, " +
+        "from 0 to 100. Defaults to 60.", parameter = "confidence")
 @Option(name = "ocrStrategy", description = "Set the PDF OCR strategy. One of \"NO_OCR\" " +
         "(default), \"AUTO\", \"OCR_AND_TEXT_EXTRACTION\" or \"OCR_ONLY\". Any rendering " +
         "strategy OCRs whole pages and disables inline-image extraction, which is required to " +
@@ -205,6 +211,8 @@ public class Extractor implements AutoCloseable {
     });
     private int ocrParallelism = Runtime.getRuntime().availableProcessors();
     private boolean ocrFanout = true;
+    private boolean autoOcrLanguage = true;
+    private int ocrRetryConfidence = 60;
     private long ocrMinImageBytes = 0L;
     private Duration progressHeartbeatInterval = Duration.ofSeconds(60);
     private boolean streamingSpew = true;
@@ -271,12 +279,20 @@ public class Extractor implements AutoCloseable {
     private void configure(final Options<String> options) {
         options.get("outputFormat", "TEXT").parse().asEnum(OutputFormat::parse).ifPresent(this::setOutputFormat);
         options.get("embedHandling", "SPAWN").parse().asEnum(EmbedHandling::parse).ifPresent(this::setEmbedHandling);
+        final Optional<String> ocrLanguage = options.valueIfPresent("ocrLanguage");
+        autoOcrLanguage = ocrLanguage.isEmpty() && !options.get("ocr", "true").parse().isOff();
+        options.get("ocrRetryConfidence", "60").parse().asInteger().ifPresent(n -> {
+            if (n < 0 || n > 100) {
+                logger.warn("ocrRetryConfidence {} is outside 0 to 100; clamping.", n);
+            }
+            this.ocrRetryConfidence = Math.max(0, Math.min(100, n));
+        });
         options.get("ocrType", String.valueOf(OCRConfigRegistry.TESSERACT))
             .parse()
             .asEnum(OCRConfigRegistry::parse)
             .map(OCRConfigRegistry::buildAdapter)
             .ifPresent(this::setOcrConfig);
-        options.get("ocrLanguage", "eng").value().ifPresent(this::setOcrLanguage);
+        ocrLanguage.ifPresent(this::setOcrLanguage);
         options.get("ocrStrategy", "NO_OCR").value().ifPresent(this::setOcrStrategy);
         options.get("ocrTimeout", "12h").parse().asDuration().ifPresent(this::setOcrTimeout);
         options.get("parseTimeout", "24h").parse().asDuration().ifPresent(this::setParseTimeout);
@@ -369,7 +385,7 @@ public class Extractor implements AutoCloseable {
 
     public void setOcrConfig(final OCRConfigAdapter<?> ocrConfig) {
         this.ocrConfig = ocrConfig;
-        Parser ocrParser = ocrConfig.buildParser();
+        Parser ocrParser = withAutoLanguage(ocrConfig, ocrConfig.buildParser());
         replaceParser(ocrConfig.getParserClass(), parser -> ocrParser);
         // this is a hack: we are mapping TesseractOCRParser.class to Tess4jOCRParser instance
         for (OCRConfigRegistry c: OCRConfigRegistry.values()) {
@@ -379,6 +395,21 @@ public class Extractor implements AutoCloseable {
         // through OCR by transcoding them to PNG. excludeParser keeps this idempotent across re-config.
         excludeParser(ImageIOTranscodingOCRParser.class);
         addParser(new ImageIOTranscodingOCRParser(ocrParser));
+    }
+
+    Parser withAutoLanguage(final OCRConfigAdapter<?> ocrConfig, final Parser ocrParser) {
+        if (!autoOcrLanguage) {
+            return ocrParser;
+        }
+        final Set<String> missing = AutoLanguageOCRParser.missingModels(ocrConfig.installedModels());
+        if (!missing.isEmpty()) {
+            logger.warn("OCR language detection disabled, missing tesseract models {}; OCR uses \"{}\".",
+                    missing, ocrConfig.getConfig().getLanguage());
+            autoOcrLanguage = false;
+            return ocrParser;
+        }
+        return new AutoLanguageOCRParser(ocrParser, ocrConfig instanceof TesseractOCRConfigAdapter,
+                ocrRetryConfidence, () -> autoOcrLanguage);
     }
 
     /**
@@ -417,6 +448,8 @@ public class Extractor implements AutoCloseable {
     public boolean isLegacyUntitledNaming() { return legacyUntitledNaming; }
     public int getMaxEmbedDepth() { return maxEmbedDepth; }
     public long getMaxEmbedSizeBytes() { return maxEmbedSizeBytes; }
+
+    public int getOcrRetryConfidence() { return ocrRetryConfidence; }
 
     ExecutorService pstParseExecutorOrNull() { return pstParseExecutor; }
 
@@ -518,6 +551,7 @@ public class Extractor implements AutoCloseable {
      * @param ocrLanguage the languages to use, for example "eng" or "ita+spa"
      */
     public void setOcrLanguage(final String ocrLanguage) {
+        autoOcrLanguage = false;
         ocrConfig.setLanguages(ocrLanguage.split("\\+"));
     }
 
@@ -600,6 +634,7 @@ public class Extractor implements AutoCloseable {
     public void disableOcr() {
         if (!ocrDisabled) {
             excludeParser(OCRParserAdapter.class);
+            excludeParser(AutoLanguageOCRParser.class);
             excludeParser(ImageIOTranscodingOCRParser.class);
             ocrDisabled = true;
             pdfConfig.setExtractInlineImages(false);
