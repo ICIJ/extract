@@ -98,9 +98,13 @@ public class AutoLanguageOCRParser implements Parser {
             String firstModel = script == null ? LATIN : FIRST_PASS_MODEL.getOrDefault(script, ALL_SCRIPTS);
             Pass best = read(image, firstModel, base, metadata, context);
             if (best.confidence() < retryConfidence && !firstModel.equals(ALL_SCRIPTS)) {
-                Pass retry = read(image, ALL_SCRIPTS, base, metadata, context);
-                if (retry.confidence() > best.confidence()) {
-                    best = retry;
+                try {
+                    Pass retry = read(image, ALL_SCRIPTS, base, metadata, context);
+                    if (retry.confidence() > best.confidence()) {
+                        best = retry;
+                    }
+                } catch (IOException | SAXException | TikaException e) {
+                    LOGGER.warn("retry with {} failed, keeping the first pass: {}", ALL_SCRIPTS, e.toString());
                 }
             }
             emit(best.text(), handler, metadata);

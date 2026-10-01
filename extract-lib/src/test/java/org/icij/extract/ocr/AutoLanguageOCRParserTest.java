@@ -133,6 +133,22 @@ public class AutoLanguageOCRParserTest {
     }
 
     @Test
+    public void test_a_failed_retry_keeps_the_first_pass() throws Exception {
+        // Given
+        StubOcr stub = new StubOcr();
+        stub.confidence.put("script/HanS+script/Latin", 0.3);
+        stub.failingModel = ALL;
+        Metadata metadata = new Metadata();
+        // When
+        String text = parse(router(stub, 60), metadata, new ParseContext());
+        // Then
+        assertThat(stub.calls).isEqualTo(List.of("osd", "script/HanS+script/Latin", ALL));
+        assertThat(text).isEqualTo("read with script/HanS+script/Latin");
+        assertThat(metadata.get(OCR_MODEL)).isEqualTo("script/HanS+script/Latin");
+        assertThat(Double.parseDouble(metadata.get(OCR_CONFIDENCE))).isEqualTo(0.3, Delta.delta(0.001));
+    }
+
+    @Test
     public void test_retry_confidence_zero_never_retries() throws Exception {
         // Given
         StubOcr stub = new StubOcr();
@@ -242,6 +258,7 @@ public class AutoLanguageOCRParserTest {
         String script = "Han";
         String text = null;
         boolean failOcr = false;
+        String failingModel = null;
 
         @Override
         public Set<MediaType> getSupportedTypes(ParseContext context) {
@@ -264,6 +281,9 @@ public class AutoLanguageOCRParserTest {
             }
             calls.add(config.getLanguage());
             if (failOcr) {
+                throw new TikaException("OCR timeout");
+            }
+            if (config.getLanguage().equals(failingModel)) {
                 throw new TikaException("OCR timeout");
             }
             metadata.set(OCR_CONFIDENCE, confidence.getOrDefault(config.getLanguage(), 0.9));
