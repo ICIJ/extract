@@ -2,7 +2,7 @@ package org.icij.extract.ocr;
 
 import com.recognition.software.jdeskew.ImageUtil;
 import com.sun.jna.Library;
-import com.sun.jna.NativeLibrary;
+import com.sun.jna.ptr.PointerByReference;
 import net.sourceforge.tess4j.ITessAPI;
 import net.sourceforge.tess4j.ITesseract;
 import net.sourceforge.tess4j.OCRResult;
@@ -125,9 +125,6 @@ public class Tess4JOCRParser extends ParserWithConfidence implements Parser, Aut
 
     public static final String SKIP_CONFIDENCE = "skipConfidence";
 
-
-    private volatile ITesseract tesseract;
-    private List<ITesseract.RenderedFormat> supportedFormats;
 
     public String getTesseractPath() {
         return this.tesseractPath;
@@ -334,34 +331,43 @@ public class Tess4JOCRParser extends ParserWithConfidence implements Parser, Aut
     }
 
 
-    private ITesseract getOrInit(TesseractOCRConfig config) throws TikaConfigException {
-        if (tesseract == null) {
-            synchronized (this) {
-                if (tesseract == null) {
-                    tesseract = new Tesseract();
-                    if (!getTessdataPath().isEmpty()) {
-                        // Ugly hack, we have to reload the lib... Sadly Tess4J doesn't let us override the lib
-                        // loading easily and it doesn't let
-                        Library.Handler handler = new Library.Handler(getTesseractLibName(), TessAPI.class, Map.of());
-                        NativeLibrary nativeLibrary = handler.getNativeLibrary();
-                        String dataPath = nativeLibrary.getFile().getPath();
-                        tesseract.setDatapath(dataPath);
-                    } else {
-                        tesseract.setDatapath(getTessdataPath());
-                    }
-                    tesseract.setVariable("debug_file", (isWindows()) ? "NUL" : "/dev/null");
-                    tesseract.setLanguage(config.getLanguage());
-                    tesseract.setPageSegMode(Integer.parseInt(config.getPageSegMode()));
-                    tesseract.setVariable("page_separator", config.getPageSeparator());
-                    if (config.isPreserveInterwordSpacing()) {
-                        tesseract.setVariable("preserve_interword_spaces", "1");
-                    } else {
-                        tesseract.setVariable("preserve_interword_spaces", "0");
-                    }
-                    supportedFormats = List.of(Objects.requireNonNull(getRenderedFormat(config)));
-                }
+    public Set<String> installedModels() {
+        TessAPI api = TessAPI.INSTANCE;
+        ITessAPI.TessBaseAPI handle = api.TessBaseAPICreate();
+        try {
+            if (api.TessBaseAPIInit3(handle, datapath(), "osd") != 0) {
+                return Set.of();
             }
+            PointerByReference models = api.TessBaseAPIGetAvailableLanguagesAsVector(handle);
+            try {
+                return Set.copyOf(Arrays.asList(models.getPointer().getStringArray(0)));
+            } finally {
+                api.TessDeleteTextArray(models);
+            }
+        } finally {
+            api.TessBaseAPIEnd(handle);
+            api.TessBaseAPIDelete(handle);
         }
+    }
+
+    private String datapath() {
+        if (getTessdataPath().isEmpty()) {
+            return getTessdataPath();
+        }
+        // Ugly hack, we have to reload the lib... Sadly Tess4J doesn't let us override the lib
+        // loading easily and it doesn't let
+        Library.Handler handler = new Library.Handler(getTesseractLibName(), TessAPI.class, Map.of());
+        return handler.getNativeLibrary().getFile().getPath();
+    }
+
+    private static ITesseract newTesseract(String datapath, TesseractOCRConfig config) {
+        Tesseract tesseract = new Tesseract();
+        tesseract.setDatapath(datapath);
+        tesseract.setVariable("debug_file", (isWindows()) ? "NUL" : "/dev/null");
+        tesseract.setLanguage(config.getLanguage());
+        tesseract.setPageSegMode(Integer.parseInt(config.getPageSegMode()));
+        tesseract.setVariable("page_separator", config.getPageSeparator());
+        tesseract.setVariable("preserve_interword_spaces", config.isPreserveInterwordSpacing() ? "1" : "0");
         return tesseract;
     }
 
@@ -393,11 +399,11 @@ public class Tess4JOCRParser extends ParserWithConfidence implements Parser, Aut
     ) throws TikaException, IOException, UnsatisfiedLinkError {
         File processedImageFile = null;
         try {
-            tesseract = getOrInit(config);
+            ITesseract tesseract = newTesseract(datapath(), config);
             BufferedImage bufferedImage = ImageIO.read(stream);
             processedImageFile = preprocessImage(stream, bufferedImage, config, metadata);
             Callable<?> ocrRunner = buildOCRRunner(
-                bufferedImage, stream.getFile(), processedImageFile, config, metadata, tmp, xhtml
+                tesseract, bufferedImage, stream.getFile(), processedImageFile, config, metadata, tmp, xhtml
             );
             int timeoutMillis = (int) TikaTaskTimeout.getTimeoutMillis(
                 parseContext, config.getTimeoutSeconds() * 1000L
@@ -451,26 +457,27 @@ public class Tess4JOCRParser extends ParserWithConfidence implements Parser, Aut
     }
 
     private Callable<?> buildOCRRunner(
-        BufferedImage bufferedImage, File rawImageFile, File processedImageFile, TesseractOCRConfig config,
-        Metadata metadata, TemporaryResources tmp, XHTMLContentHandler xhtml
+        ITesseract tesseract, BufferedImage bufferedImage, File rawImageFile, File processedImageFile,
+        TesseractOCRConfig config, Metadata metadata, TemporaryResources tmp, XHTMLContentHandler xhtml
     ) throws IOException {
         if (config.getPageSegMode().equals("0")) {
-            return new OSDRunner(bufferedImage, processedImageFile, metadata);
+            return new OSDRunner(tesseract, bufferedImage, processedImageFile, metadata);
         }
-        if (getSkipConfidence() && config.getOutputType().equals(TesseractOCRConfig.OUTPUT_TYPE.TXT)) {
-            return new TextOCRRunner(bufferedImage, processedImageFile, xhtml);
+        boolean skipConfidence = Boolean.parseBoolean(config.getOtherTesseractConfig().get(SKIP_CONFIDENCE));
+        if (skipConfidence && config.getOutputType().equals(TesseractOCRConfig.OUTPUT_TYPE.TXT)) {
+            return new TextOCRRunner(tesseract, bufferedImage, processedImageFile, xhtml);
         }
         if (processedImageFile != null) {
-            return new OCRRunner(null, processedImageFile, config, metadata, xhtml, tmp);
+            return new OCRRunner(tesseract, null, processedImageFile, config, metadata, xhtml, tmp);
         }
-        return new OCRRunner(bufferedImage, rawImageFile, config, metadata, xhtml, tmp);
+        return new OCRRunner(tesseract, bufferedImage, rawImageFile, config, metadata, xhtml, tmp);
     }
 
     private static void extractOSDOutput(OSDResult osd, Metadata metadata) {
         Optional.of(osd.getOrientDeg()).ifPresent(o -> metadata.set(PSM0_ORIENTATION, o));
         Optional.of(osd.getOrientConf()).ifPresent(c -> metadata.set(PSM0_ORIENTATION_CONFIDENCE, c));
         Optional.of(osd.getOrientDeg()).ifPresent(o -> metadata.set(PSM0_ROTATE, -o));
-        Optional.of(osd.getScriptName()).ifPresent(c -> metadata.set(PSM0_SCRIPT, c));
+        Optional.ofNullable(osd.getScriptName()).filter(s -> !s.isEmpty()).ifPresent(c -> metadata.set(PSM0_SCRIPT, c));
         Optional.of(osd.getScriptConf()).ifPresent(c -> metadata.set(PSM0_SCRIPT_CONFIDENCE, c));
     }
 
@@ -548,11 +555,13 @@ public class Tess4JOCRParser extends ParserWithConfidence implements Parser, Aut
     }
 
     private class OSDRunner implements Callable<Void> {
+        private final ITesseract tesseract;
         private final BufferedImage image;
         private final File imageFile;
         private final Metadata metadata;
 
-        public OSDRunner(BufferedImage image, File imageFile, Metadata metadata) {
+        public OSDRunner(ITesseract tesseract, BufferedImage image, File imageFile, Metadata metadata) {
+            this.tesseract = tesseract;
             this.image = image;
             this.imageFile = imageFile;
             this.metadata = metadata;
@@ -569,11 +578,13 @@ public class Tess4JOCRParser extends ParserWithConfidence implements Parser, Aut
     }
 
     private class TextOCRRunner implements Callable<Void> {
+        private final ITesseract tesseract;
         private final BufferedImage image;
         private final File imageFile;
         private final ContentHandler xhtml;
 
-        public TextOCRRunner(BufferedImage image, File imageFile, ContentHandler xhtml) {
+        public TextOCRRunner(ITesseract tesseract, BufferedImage image, File imageFile, ContentHandler xhtml) {
+            this.tesseract = tesseract;
             this.image = image;
             this.imageFile = imageFile;
             this.xhtml = xhtml;
@@ -590,6 +601,7 @@ public class Tess4JOCRParser extends ParserWithConfidence implements Parser, Aut
     }
 
     private class OCRRunner implements Callable<Void> {
+        private final ITesseract tesseract;
         private final BufferedImage image;
         private final File imageFile;
         private final TesseractOCRConfig config;
@@ -598,9 +610,10 @@ public class Tess4JOCRParser extends ParserWithConfidence implements Parser, Aut
         private final TemporaryResources tmp;
 
         public OCRRunner(
-            BufferedImage image, File imageFile, TesseractOCRConfig config, Metadata metadata, ContentHandler xhtml,
-            TemporaryResources tmp
+            ITesseract tesseract, BufferedImage image, File imageFile, TesseractOCRConfig config, Metadata metadata,
+            ContentHandler xhtml, TemporaryResources tmp
         ) {
+            this.tesseract = tesseract;
             this.image = image;
             this.imageFile = imageFile;
             this.metadata = metadata;
@@ -620,26 +633,26 @@ public class Tess4JOCRParser extends ParserWithConfidence implements Parser, Aut
                 } else {
                     tesseract.setVariable("tessedit_create_hocr", "0");
                 }
+                List<ITesseract.RenderedFormat> formats = List.of(Objects.requireNonNull(getRenderedFormat(config)));
                 if (image != null) {
                     res = tesseract.createDocumentsWithResults(
                         image,
                         imageFile.getAbsolutePath(),
                         outputFile.getAbsolutePath(),
-                        supportedFormats,
+                        formats,
                         ITessAPI.TessPageIteratorLevel.RIL_BLOCK
                     );
                 } else {
                     res = tesseract.createDocumentsWithResults(
                         imageFile.getAbsolutePath(),
                         outputFile.getAbsolutePath(),
-                        supportedFormats,
+                        formats,
                         ITessAPI.TessPageIteratorLevel.RIL_BLOCK
                     );
                 }
                 metadata.set(OCR_CONFIDENCE, 0.01 * res.getConfidence());
-                if (isHOCR) {
-                    outputFile = new File(outputFile.toPath().resolveSibling(outputFile.getName() + ".hocr").toUri());
-                }
+                String extension = isHOCR ? ".hocr" : ".txt";
+                outputFile = new File(outputFile.toPath().resolveSibling(outputFile.getName() + extension).toUri());
                 extractOCROutput(new FileInputStream(outputFile), xhtml);
             } finally {
                 if (outputFile.exists()) {
