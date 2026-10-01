@@ -5,6 +5,7 @@ import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.ocr.TesseractOCRParser;
 
 import java.util.HashMap;
+import java.util.Set;
 
 public class TesseractOCRConfigAdapter implements OCRConfigAdapter<TesseractOCRParser> {
     private final TesseractOCRConfig inner;
@@ -41,6 +42,18 @@ public class TesseractOCRConfigAdapter implements OCRConfigAdapter<TesseractOCRP
             return new OCRParserAdapter<>(tesseractOCRParser);
         } catch (TikaConfigException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public Set<String> installedModels() {
+        try {
+            TesseractOCRParser probe = new TesseractOCRParser();
+            probe.setPreloadLangs(true);
+            probe.initialize(new HashMap<>());
+            return probe.getLangs();
+        } catch (TikaConfigException e) {
+            return Set.of();
         }
     }
 }
