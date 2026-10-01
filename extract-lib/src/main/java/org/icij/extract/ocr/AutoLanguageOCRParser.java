@@ -97,7 +97,7 @@ public class AutoLanguageOCRParser implements Parser {
             String script = StringUtils.trimToNull(detection.get(TesseractOCRParser.PSM0_SCRIPT));
             String firstModel = script == null ? LATIN : FIRST_PASS_MODEL.getOrDefault(script, ALL_SCRIPTS);
             Pass best = read(image, firstModel, base, metadata, context);
-            if (best.confidence() < retryConfidence && !firstModel.equals(ALL_SCRIPTS)) {
+            if (best.confidence() < retryConfidence && !best.text().isEmpty() && !firstModel.equals(ALL_SCRIPTS)) {
                 try {
                     Pass retry = read(image, ALL_SCRIPTS, base, metadata, context);
                     if (retry.confidence() > best.confidence()) {
