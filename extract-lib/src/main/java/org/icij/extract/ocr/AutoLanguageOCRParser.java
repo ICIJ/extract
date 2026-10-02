@@ -126,6 +126,7 @@ public class AutoLanguageOCRParser implements Parser {
             metadata.set(OCR_CONFIDENCE, best.confidence() / 100);
         } finally {
             context.set(TesseractOCRConfig.class, callerConfig);
+            OCRParserAdapter.restoreMediaTypes(metadata);
         }
     }
 

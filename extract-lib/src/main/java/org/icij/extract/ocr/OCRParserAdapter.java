@@ -51,9 +51,13 @@ public class OCRParserAdapter<P extends Parser> implements Parser {
             // This runs in a finally because a failed OCR parse (Tess4JOCRParser rethrows IOException /
             // TikaException, e.g. on the OCR timeout) still leaves the embed indexed by EmbedSpawner, so
             // the routing type would otherwise become the document's persisted content type.
-            restoreMediaType(metadata, CONTENT_TYPE_PARSER_OVERRIDE);
-            restoreMediaType(metadata, Metadata.CONTENT_TYPE);
+            restoreMediaTypes(metadata);
         }
+    }
+
+    static void restoreMediaTypes(final Metadata metadata) {
+        restoreMediaType(metadata, CONTENT_TYPE_PARSER_OVERRIDE);
+        restoreMediaType(metadata, Metadata.CONTENT_TYPE);
     }
 
     private static void restoreMediaType(final Metadata metadata, final Property field) {
