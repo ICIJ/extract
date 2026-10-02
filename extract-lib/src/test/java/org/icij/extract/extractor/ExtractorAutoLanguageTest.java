@@ -211,6 +211,17 @@ public class ExtractorAutoLanguageTest {
         assertThat(appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList()).hasSize(1);
     }
 
+    @Test
+    public void test_cli_options_without_an_ocr_timeout_keep_the_12_hour_default() {
+        // Given
+        Options<String> options = new Options<>();
+        options.add("ocrTimeout", StringOptionParser::new);
+        // When
+        Extractor extractor = new Extractor(options);
+        // Then
+        assertThat(extractor.ocrConfig.getConfig().getTimeoutSeconds()).isEqualTo(12 * 60 * 60);
+    }
+
     private static long osdFiles() throws IOException {
         Path tmp = Path.of(System.getProperty("java.io.tmpdir"));
         try (DirectoryStream<Path> files = Files.newDirectoryStream(tmp, "apache-tika-*.osd")) {

@@ -49,6 +49,7 @@ import org.icij.spewer.SpewSink;
 import org.icij.spewer.StreamingSpewCoordinator;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
+import org.icij.time.HumanDuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
@@ -264,10 +265,6 @@ public class Extractor implements AutoCloseable {
         // In scanned documents under test from the Panama registry, different embedded images had the same ID, leading to incomplete OCRing when uniqueness detection was turned on.
         pdfConfig.setExtractUniqueInlineImagesOnly(false);
 
-        // English text recognition by default.
-        ocrConfig = new TesseractOCRConfigAdapter();
-        ocrConfig.setLanguages("eng");
-        ocrConfig.setOcrTimeout(Duration.ofDays(1));
         this.configure(Optional.ofNullable(options).orElse(Options.from(Map.of())));
         // Replace Tika's stock OutlookPSTParser, which silently aborts the rest
         // of a PST when one message fails, with the resilient parser.
@@ -298,7 +295,7 @@ public class Extractor implements AutoCloseable {
             .buildAdapter());
         fixedOcrLanguage.ifPresent(this::setOcrLanguage);
         options.get("ocrStrategy", "NO_OCR").value().ifPresent(this::setOcrStrategy);
-        options.get("ocrTimeout", "12h").parse().asDuration().ifPresent(this::setOcrTimeout);
+        setOcrTimeout(options.valueIfPresent("ocrTimeout").map(HumanDuration::parse).orElse(Duration.ofHours(12)));
         options.get("parseTimeout", "24h").parse().asDuration().ifPresent(this::setParseTimeout);
         options.valueIfPresent("embedOutput").ifPresent(embedOutput -> setEmbedOutputPath(Paths.get(embedOutput)));
         options.get("embedMemoryBudgetMb", "64").parse().asInteger()
