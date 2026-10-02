@@ -86,7 +86,10 @@ public class AutoLanguageOCRParser implements Parser {
                 throw new IllegalArgumentException("ocrLanguage entry \"" + entry.strip()
                         + "\" is not script:languages, for example Cyrillic:rus+ukr");
             }
-            scriptLanguages.put(scriptAndLanguages[0].strip(), scriptAndLanguages[1].strip());
+            String languages = scriptAndLanguages[1].strip();
+            // Throws on what tesseract cannot read, so a bad mapping fails here rather than on every image.
+            new TesseractOCRConfig().setLanguage(languages);
+            scriptLanguages.put(scriptAndLanguages[0].strip(), languages);
         }
         return Map.copyOf(scriptLanguages);
     }
