@@ -14,6 +14,7 @@ import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.ocr.TesseractOCRParser;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.XHTMLContentHandler;
+import org.apache.tika.utils.ParserUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
@@ -23,6 +24,7 @@ import org.xml.sax.helpers.DefaultHandler;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -43,10 +45,9 @@ public class AutoLanguageOCRParser implements Parser {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AutoLanguageOCRParser.class);
     private static final String LATIN = "script/Latin";
-    private static final String ALL_SCRIPTS = String.join("+",
+    private static final List<String> SCRIPTS = List.of(
             LATIN, "script/HanS", "script/Cyrillic", "script/Arabic", "script/Japanese", "script/Hangul");
-    private static final Set<String> REQUIRED_MODELS = Set.of(
-            "osd", LATIN, "script/HanS", "script/Cyrillic", "script/Arabic", "script/Japanese", "script/Hangul");
+    private static final String ALL_SCRIPTS = String.join("+", SCRIPTS);
     // OSD names Hangul text "Korean".
     private static final Map<String, String> FIRST_PASS_MODEL = Map.of(
             "Latin", LATIN,
@@ -72,7 +73,8 @@ public class AutoLanguageOCRParser implements Parser {
     }
 
     public static Set<String> missingModels(Set<String> installed) {
-        Set<String> missing = new TreeSet<>(REQUIRED_MODELS);
+        Set<String> missing = new TreeSet<>(SCRIPTS);
+        missing.add("osd");
         missing.removeAll(installed);
         return missing;
     }
@@ -123,7 +125,7 @@ public class AutoLanguageOCRParser implements Parser {
     private Metadata detect(Path image, TesseractOCRConfig base, Metadata metadata, ParseContext context) {
         TesseractOCRConfig config = SerializationUtils.clone(base);
         config.setPageSegMode("0");
-        Metadata scratch = copyOf(metadata);
+        Metadata scratch = ParserUtils.cloneMetadata(metadata);
         try {
             run(image, config, new DefaultHandler(), scratch, context);
             return scratch;
@@ -166,16 +168,6 @@ public class AutoLanguageOCRParser implements Parser {
         xhtml.characters(text);
         xhtml.endElement("div");
         xhtml.endDocument();
-    }
-
-    private static Metadata copyOf(Metadata metadata) {
-        Metadata copy = new Metadata();
-        for (String name : metadata.names()) {
-            for (String value : metadata.getValues(name)) {
-                copy.add(name, value);
-            }
-        }
-        return copy;
     }
 
     private record Pass(String model, String text, double confidence) {}
