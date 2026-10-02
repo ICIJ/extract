@@ -246,6 +246,16 @@ public class AutoLanguageOCRParserTest {
     }
 
     @Test
+    public void test_routing_metadata_reaches_the_html_head() throws Exception {
+        // Given
+        ToXMLContentHandler handler = new ToXMLContentHandler();
+        // When
+        router(new StubOcr(), 60).parse(image(), handler, new Metadata(), new ParseContext());
+        // Then
+        assertThat(handler.toString()).contains("<meta name=\"ocr:model\" content=\"script/HanS+script/Latin\"");
+    }
+
+    @Test
     public void test_skipped_ocr_passes_straight_through() throws Exception {
         // Given
         StubOcr stub = new StubOcr();
