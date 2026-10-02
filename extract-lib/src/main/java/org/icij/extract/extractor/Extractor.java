@@ -408,15 +408,30 @@ public class Extractor implements AutoCloseable {
         final Set<String> installed = INSTALLED_OCR_MODELS.computeIfAbsent(ocrConfig.getClass(),
                 adapterClass -> ocrConfig.installedModels());
         final Set<String> missing = AutoLanguageOCRParser.missingModels(installed, ocrScriptLanguages);
-        if (!missing.isEmpty() && WARNED_OCR_ADAPTERS.add(ocrConfig.getClass())) {
-            logger.warn("OCR language detection disabled, missing tesseract models {}; OCR uses \"{}\".",
-                    missing, ocrConfig.getConfig().getLanguage());
-        }
         if (!missing.isEmpty()) {
+            warnOnceAboutMissingModels(ocrConfig, installed, missing);
             return ocrParser;
         }
         return new AutoLanguageOCRParser(ocrParser, ocrConfig instanceof TesseractOCRConfigAdapter,
                 ocrRetryConfidence, ocrScriptLanguages);
+    }
+
+    private void warnOnceAboutMissingModels(final OCRConfigAdapter<?> ocrConfig, final Set<String> installed,
+                                            final Set<String> missing) {
+        if (!WARNED_OCR_ADAPTERS.add(ocrConfig.getClass())) {
+            return;
+        }
+        logger.warn("OCR language detection disabled, missing tesseract models {}; OCR uses \"{}\".{}",
+                missing, ocrConfig.getConfig().getLanguage(), misplacedScriptModelsHint(installed, missing));
+    }
+
+    // Debian and Ubuntu packages install script models at the tessdata root, where Tika cannot name them.
+    private static String misplacedScriptModelsHint(final Set<String> installed, final Set<String> missing) {
+        final Set<String> misplaced = AutoLanguageOCRParser.scriptModelsOutsideScriptDirectory(installed, missing);
+        if (misplaced.isEmpty()) {
+            return "";
+        }
+        return " Models " + misplaced + " are installed at the tessdata root: link each one into tessdata/script/.";
     }
 
     /**
