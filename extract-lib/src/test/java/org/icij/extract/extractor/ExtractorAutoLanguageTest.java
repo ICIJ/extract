@@ -123,34 +123,6 @@ public class ExtractorAutoLanguageTest {
     }
 
     @Test
-    public void test_missing_models_keep_plain_ocr_and_warn_once() {
-        // Given
-        TesseractOCRConfigAdapter partial = new TesseractOCRConfigAdapter() {
-            @Override
-            public Set<String> installedModels() {
-                return Set.of("osd", "script/Latin");
-            }
-        };
-        Extractor extractor = new Extractor();
-        Logger log = (Logger) LoggerFactory.getLogger(Extractor.class);
-        ListAppender<ILoggingEvent> appender = new ListAppender<>();
-        appender.start();
-        log.addAppender(appender);
-        // When
-        Parser installed;
-        try {
-            installed = extractor.withAutoLanguage(partial, EmptyParser.INSTANCE);
-        } finally {
-            log.detachAppender(appender);
-        }
-        // Then
-        assertThat(installed).isSameAs(EmptyParser.INSTANCE);
-        List<ILoggingEvent> warnings = appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList();
-        assertThat(warnings).hasSize(1);
-        assertThat(warnings.get(0).getFormattedMessage()).contains("script/HanS");
-    }
-
-    @Test
     public void test_missing_models_are_probed_and_warned_once_per_adapter_class() {
         // Given
         AtomicInteger probes = new AtomicInteger();
@@ -161,20 +133,26 @@ public class ExtractorAutoLanguageTest {
                 return Set.of("osd");
             }
         };
+        Extractor first = new Extractor();
+        Extractor second = new Extractor();
         Logger log = (Logger) LoggerFactory.getLogger(Extractor.class);
         ListAppender<ILoggingEvent> appender = new ListAppender<>();
         appender.start();
         log.addAppender(appender);
         // When
+        Parser installed;
         try {
-            new Extractor().withAutoLanguage(partial, EmptyParser.INSTANCE);
-            new Extractor().withAutoLanguage(partial, EmptyParser.INSTANCE);
+            installed = first.withAutoLanguage(partial, EmptyParser.INSTANCE);
+            second.withAutoLanguage(partial, EmptyParser.INSTANCE);
         } finally {
             log.detachAppender(appender);
         }
         // Then
+        assertThat(installed).isSameAs(EmptyParser.INSTANCE);
         assertThat(probes.get()).isEqualTo(1);
-        assertThat(appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList()).hasSize(1);
+        List<ILoggingEvent> warnings = appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList();
+        assertThat(warnings).hasSize(1);
+        assertThat(warnings.get(0).getFormattedMessage()).contains("script/HanS");
     }
 
     @Test
