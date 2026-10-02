@@ -569,10 +569,8 @@ public class Tess4JOCRParser extends ParserWithConfidence implements Parser, Aut
         }
 
         @Override
-        public Void call() {
-            OSDResult osdResult = Optional.ofNullable(imageFile)
-                .map(rethrowFunction(tesseract::getOSD))
-                .orElse(tesseract.getOSD(image));
+        public Void call() throws IOException {
+            OSDResult osdResult = imageFile != null ? tesseract.getOSD(imageFile) : tesseract.getOSD(image);
             extractOSDOutput(osdResult, metadata);
             return null;
         }
@@ -593,8 +591,7 @@ public class Tess4JOCRParser extends ParserWithConfidence implements Parser, Aut
 
         @Override
         public Void call() throws TesseractException, IOException, SAXException {
-            String ocrOutput = Optional.ofNullable(imageFile)
-                .map(rethrowFunction(tesseract::doOCR)).orElse(tesseract.doOCR(image));
+            String ocrOutput = imageFile != null ? tesseract.doOCR(imageFile) : tesseract.doOCR(image);
             extractOCROutput(new ByteArrayInputStream(ocrOutput.getBytes()), xhtml);
             return null;
         }
