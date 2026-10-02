@@ -23,6 +23,7 @@ import org.xml.sax.helpers.DefaultHandler;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.DirectoryIteratorException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,6 +34,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import static org.icij.extract.ocr.ParserWithConfidence.OCR_CONFIDENCE;
 
@@ -47,11 +49,12 @@ public class AutoLanguageOCRParser implements Parser {
     public static final Property OCR_MODEL = Property.externalText("ocr:model");
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AutoLanguageOCRParser.class);
+    private static final String SCRIPT_DIRECTORY = "script/";
     private static final String LATIN = "script/Latin";
     private static final List<String> SCRIPTS = List.of(
             LATIN, "script/HanS", "script/Cyrillic", "script/Arabic", "script/Japanese", "script/Hangul");
     private static final String ALL_SCRIPTS = String.join("+", SCRIPTS);
-    private static final String OSD_OUTPUT = ".osd";
+    private static final String TESSERACT_OUTPUTS = "apache-tika-*.tmp.{osd,hocr}";
     // OSD names Hangul text "Korean".
     private static final Map<String, String> FIRST_PASS_MODEL = Map.of(
             "Latin", LATIN,
@@ -86,7 +89,10 @@ public class AutoLanguageOCRParser implements Parser {
                 throw new IllegalArgumentException("ocrLanguage entry \"" + entry.strip()
                         + "\" is not script:languages, for example Cyrillic:rus+ukr");
             }
-            scriptLanguages.put(scriptAndLanguages[0].strip(), scriptAndLanguages[1].strip());
+            String languages = scriptAndLanguages[1].strip();
+            // Throws on what tesseract cannot read, so a bad mapping fails here rather than on every image.
+            new TesseractOCRConfig().setLanguage(languages);
+            scriptLanguages.put(scriptAndLanguages[0].strip(), languages);
         }
         return Map.copyOf(scriptLanguages);
     }
@@ -97,6 +103,14 @@ public class AutoLanguageOCRParser implements Parser {
         scriptLanguages.values().forEach(languages -> missing.addAll(List.of(languages.split("\\+"))));
         missing.removeAll(installed);
         return missing;
+    }
+
+    public static Set<String> scriptModelsOutsideScriptDirectory(Set<String> installed, Set<String> missing) {
+        return missing.stream()
+                .filter(model -> model.startsWith(SCRIPT_DIRECTORY))
+                .map(model -> model.substring(SCRIPT_DIRECTORY.length()))
+                .filter(installed::contains)
+                .collect(Collectors.toCollection(TreeSet::new));
     }
 
     @Override
@@ -158,25 +172,29 @@ public class AutoLanguageOCRParser implements Parser {
             return scratch;
         } catch (IOException | SAXException | TikaException | RuntimeException e) {
             LOGGER.debug("script detection failed, reading as {}: {}", LATIN, e.toString());
-            if (readsHocr) {
-                deleteOrphanOsdOutput();
-            }
             return new Metadata();
         }
     }
 
-    // When tesseract fails, Tika deletes its apache-tika-*.tmp base file but not the .osd output next to it.
-    private static void deleteOrphanOsdOutput() {
+    // When tesseract fails, Tika deletes its apache-tika-*.tmp base file but not the output next to it.
+    private static void deleteOrphanTesseractOutputs() {
         Path tmp = Path.of(System.getProperty("java.io.tmpdir"));
-        try (DirectoryStream<Path> outputs = Files.newDirectoryStream(tmp, "apache-tika-*.tmp" + OSD_OUTPUT)) {
-            for (Path output : outputs) {
-                String name = output.getFileName().toString();
-                if (Files.notExists(output.resolveSibling(name.substring(0, name.length() - OSD_OUTPUT.length())))) {
-                    Files.deleteIfExists(output);
-                }
+        try (DirectoryStream<Path> outputs = Files.newDirectoryStream(tmp, TESSERACT_OUTPUTS)) {
+            outputs.forEach(AutoLanguageOCRParser::deleteIfOrphan);
+        } catch (IOException | DirectoryIteratorException e) {
+            LOGGER.debug("could not list tesseract outputs: {}", e.toString());
+        }
+    }
+
+    private static void deleteIfOrphan(Path output) {
+        String name = output.getFileName().toString();
+        Path base = output.resolveSibling(name.substring(0, name.lastIndexOf('.')));
+        try {
+            if (Files.notExists(base)) {
+                Files.deleteIfExists(output);
             }
         } catch (IOException e) {
-            LOGGER.debug("could not delete tesseract OSD output: {}", e.toString());
+            LOGGER.debug("could not delete tesseract output {}: {}", output, e.toString());
         }
     }
 
@@ -208,6 +226,11 @@ public class AutoLanguageOCRParser implements Parser {
         context.set(TesseractOCRConfig.class, config);
         try (TikaInputStream input = TikaInputStream.get(image)) {
             delegate.parse(input, handler, metadata, context);
+        } catch (IOException | SAXException | TikaException | RuntimeException e) {
+            if (readsHocr) {
+                deleteOrphanTesseractOutputs();
+            }
+            throw e;
         }
     }
 

@@ -409,6 +409,22 @@ public class AutoLanguageOCRParserTest {
         assertThat(error.getMessage()).contains("eng+Cyrillic");
     }
 
+    @Test
+    public void test_languages_tesseract_cannot_read_are_rejected() {
+        IllegalArgumentException trailingPlus = assertThrows(IllegalArgumentException.class,
+                () -> AutoLanguageOCRParser.parseScriptLanguages("Cyrillic:rus+"));
+        IllegalArgumentException bareScriptName = assertThrows(IllegalArgumentException.class,
+                () -> AutoLanguageOCRParser.parseScriptLanguages("Latin:deu+Fraktur"));
+        assertThat(trailingPlus.getMessage()).contains("rus+");
+        assertThat(bareScriptName.getMessage()).contains("Fraktur");
+    }
+
+    @Test
+    public void test_lists_missing_script_models_installed_outside_the_script_directory() {
+        assertThat(AutoLanguageOCRParser.scriptModelsOutsideScriptDirectory(Set.of("osd", "eng", "Latin", "HanS"),
+                Set.of("script/Latin", "script/HanS", "script/Arabic"))).containsOnly("Latin", "HanS");
+    }
+
     private static AutoLanguageOCRParser router(StubOcr stub, int retryConfidence) {
         return router(stub, retryConfidence, Map.of());
     }

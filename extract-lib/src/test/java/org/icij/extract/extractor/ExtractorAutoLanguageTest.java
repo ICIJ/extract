@@ -14,12 +14,15 @@ import org.icij.task.StringOptionParser;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.Reader;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,8 +30,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.fest.assertions.Assertions.assertThat;
 import static org.icij.extract.extractor.AutoLanguageOCRTest.squash;
+import static org.icij.extract.extractor.ExtractorTest.tikaTempFiles;
 import static org.icij.extract.ocr.AutoLanguageOCRParser.OCR_MODEL;
 import static org.icij.extract.ocr.AutoLanguageOCRParser.OCR_SCRIPT;
+import static org.icij.extract.ocr.OCRParser.OCR_PARSER;
 
 public class ExtractorAutoLanguageTest {
     private static final String ALL = "script/Latin+script/HanS+script/Cyrillic+script/Arabic+script/Japanese+script/Hangul";
@@ -77,11 +82,34 @@ public class ExtractorAutoLanguageTest {
     public void test_failed_detection_leaves_no_osd_file_behind() throws Exception {
         // Given
         Extractor extractor = new Extractor();
-        long before = osdFiles();
+        Set<Path> before = tikaTempFiles();
         // When
         textOf(extractor.extract(path("/documents/ocr/simple.tiff")));
         // Then
-        assertThat(osdFiles()).isEqualTo(before);
+        Set<Path> leaked = tikaTempFiles();
+        leaked.removeAll(before);
+        assertThat(new ArrayList<>(leaked)).isEmpty();
+    }
+
+    @Test
+    public void test_a_truncated_image_leaves_no_ocr_output_behind() throws Exception {
+        // Given
+        Path truncated = Files.createTempFile("truncated-", ".png");
+        Files.write(truncated, Arrays.copyOf(Files.readAllBytes(path("/documents/ocr/auto/latin.png")), 100));
+        Extractor extractor = new Extractor();
+        Set<Path> before = tikaTempFiles();
+        // When
+        try {
+            textOf(extractor.extract(truncated));
+        } catch (IOException ignored) {
+            // The image cannot be read; only the files it leaves behind matter here.
+        } finally {
+            Files.deleteIfExists(truncated);
+        }
+        // Then
+        Set<Path> leaked = tikaTempFiles();
+        leaked.removeAll(before);
+        assertThat(new ArrayList<>(leaked)).isEmpty();
     }
 
     @Test
@@ -185,7 +213,7 @@ public class ExtractorAutoLanguageTest {
     }
 
     @Test
-    public void test_an_empty_probe_is_retried_but_warned_once() {
+    public void test_an_empty_probe_is_kept_and_warned_once() {
         // Given
         AtomicInteger probes = new AtomicInteger();
         TesseractOCRConfigAdapter failing = new TesseractOCRConfigAdapter() {
@@ -207,19 +235,91 @@ public class ExtractorAutoLanguageTest {
             log.detachAppender(appender);
         }
         // Then
-        assertThat(probes.get()).isEqualTo(2);
+        assertThat(probes.get()).isEqualTo(1);
         assertThat(appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList()).hasSize(1);
     }
 
-    private static long osdFiles() throws IOException {
-        Path tmp = Path.of(System.getProperty("java.io.tmpdir"));
-        try (DirectoryStream<Path> files = Files.newDirectoryStream(tmp, "apache-tika-*.osd")) {
-            long count = 0;
-            for (Path ignored : files) {
-                count++;
-            }
-            return count;
+    @Test
+    public void test_an_ocr_language_set_after_construction_is_used() throws Exception {
+        // Given
+        Extractor extractor = new Extractor();
+        extractor.setOcrLanguage("eng");
+        // When
+        TikaDocument document = extractor.extract(path("/documents/ocr/simple.tiff"));
+        String text = textOf(document);
+        // Then
+        assertThat(text.trim()).isEqualTo("HEAVY\nMETAL");
+        assertThat(document.getMetadata().get(OCR_MODEL)).isNull();
+    }
+
+    @Test
+    public void test_a_script_mapping_set_after_construction_reaches_the_router() throws Exception {
+        // Given
+        Extractor extractor = new Extractor();
+        extractor.setOcrLanguage("Latin:eng");
+        // When
+        TikaDocument document = extractor.extract(path("/documents/ocr/simple.tiff"));
+        String text = textOf(document);
+        // Then
+        assertThat(text.trim()).isEqualTo("HEAVY\nMETAL");
+        assertThat(document.getMetadata().get(OCR_MODEL)).isEqualTo("eng");
+    }
+
+    @Test
+    public void test_an_ocr_language_set_after_disabling_ocr_keeps_ocr_off() throws Exception {
+        // Given
+        Path wbmp = Files.createTempFile("blank-", ".wbmp");
+        ImageIO.write(new BufferedImage(8, 8, BufferedImage.TYPE_BYTE_BINARY), "wbmp", wbmp.toFile());
+        Extractor extractor = new Extractor();
+        extractor.disableOcr();
+        extractor.setOcrLanguage("eng");
+        // When
+        TikaDocument document;
+        try {
+            document = extractor.extract(wbmp);
+            textOf(document);
+        } finally {
+            Files.deleteIfExists(wbmp);
         }
+        // Then
+        assertThat(document.getMetadata().get(OCR_PARSER)).isNull();
+    }
+
+    @Test
+    public void test_cli_options_without_an_ocr_timeout_keep_the_12_hour_default() {
+        // Given
+        Options<String> options = new Options<>();
+        options.add("ocrTimeout", StringOptionParser::new);
+        // When
+        Extractor extractor = new Extractor(options);
+        // Then
+        assertThat(extractor.ocrConfig.getConfig().getTimeoutSeconds()).isEqualTo(12 * 60 * 60);
+    }
+
+    @Test
+    public void test_script_models_outside_the_script_directory_are_named_in_the_warning() {
+        // Given
+        TesseractOCRConfigAdapter debian = new TesseractOCRConfigAdapter() {
+            @Override
+            public Set<String> installedModels() {
+                return Set.of("osd", "eng", "Latin", "HanS", "Cyrillic", "Arabic", "Japanese", "Hangul");
+            }
+        };
+        Logger log = (Logger) LoggerFactory.getLogger(Extractor.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        log.addAppender(appender);
+        // When
+        try {
+            new Extractor().withAutoLanguage(debian, EmptyParser.INSTANCE);
+        } finally {
+            log.detachAppender(appender);
+        }
+        // Then
+        List<ILoggingEvent> warnings = appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList();
+        assertThat(warnings).hasSize(1);
+        assertThat(warnings.get(0).getFormattedMessage()).contains("tessdata/script/");
+        assertThat(warnings.get(0).getFormattedMessage()).contains("Latin");
     }
 
     private static Path path(String resource) {

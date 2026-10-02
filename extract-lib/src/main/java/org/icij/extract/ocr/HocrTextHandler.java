@@ -17,6 +17,7 @@ class HocrTextHandler extends DefaultHandler {
     private final StringBuilder text = new StringBuilder();
     private final StringBuilder word = new StringBuilder();
     private String separator = "";
+    private boolean isPageStart = false;
     private int depth = 0;
     private int wordDepth = -1;
     private long confidenceSum = 0;
@@ -26,8 +27,12 @@ class HocrTextHandler extends DefaultHandler {
     public void startElement(String uri, String localName, String qName, Attributes attributes) {
         depth++;
         String hocrClass = attributes.getValue("class");
-        if ("ocr_par".equals(hocrClass)) {
-            separator = PARAGRAPH_BREAK;
+        if ("ocr_page".equals(hocrClass)) {
+            isPageStart = true;
+        } else if ("ocr_par".equals(hocrClass)) {
+            // Tesseract's text output puts a single newline between pages, not a paragraph break.
+            separator = isPageStart ? "\n" : PARAGRAPH_BREAK;
+            isPageStart = false;
         } else if (hocrClass != null && LINES.contains(hocrClass) && !separator.equals(PARAGRAPH_BREAK)) {
             separator = "\n";
         } else if ("ocrx_word".equals(hocrClass)) {

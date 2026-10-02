@@ -49,6 +49,7 @@ import org.icij.spewer.SpewSink;
 import org.icij.spewer.StreamingSpewCoordinator;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
+import org.icij.time.HumanDuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
@@ -264,10 +265,6 @@ public class Extractor implements AutoCloseable {
         // In scanned documents under test from the Panama registry, different embedded images had the same ID, leading to incomplete OCRing when uniqueness detection was turned on.
         pdfConfig.setExtractUniqueInlineImagesOnly(false);
 
-        // English text recognition by default.
-        ocrConfig = new TesseractOCRConfigAdapter();
-        ocrConfig.setLanguages("eng");
-        ocrConfig.setOcrTimeout(Duration.ofDays(1));
         this.configure(Optional.ofNullable(options).orElse(Options.from(Map.of())));
         // Replace Tika's stock OutlookPSTParser, which silently aborts the rest
         // of a PST when one message fails, with the resilient parser.
@@ -298,7 +295,7 @@ public class Extractor implements AutoCloseable {
             .buildAdapter());
         fixedOcrLanguage.ifPresent(this::setOcrLanguage);
         options.get("ocrStrategy", "NO_OCR").value().ifPresent(this::setOcrStrategy);
-        options.get("ocrTimeout", "12h").parse().asDuration().ifPresent(this::setOcrTimeout);
+        setOcrTimeout(options.valueIfPresent("ocrTimeout").map(HumanDuration::parse).orElse(Duration.ofHours(12)));
         options.get("parseTimeout", "24h").parse().asDuration().ifPresent(this::setParseTimeout);
         options.valueIfPresent("embedOutput").ifPresent(embedOutput -> setEmbedOutputPath(Paths.get(embedOutput)));
         options.get("embedMemoryBudgetMb", "64").parse().asInteger()
@@ -390,6 +387,9 @@ public class Extractor implements AutoCloseable {
     public void setOcrConfig(final OCRConfigAdapter<?> ocrConfig) {
         this.ocrConfig = ocrConfig;
         Parser ocrParser = withAutoLanguage(ocrConfig, ocrConfig.buildParser());
+        // A previous call left its own OCR parser in place of Tika's, so that one is swapped too.
+        replaceParser(AutoLanguageOCRParser.class, parser -> ocrParser);
+        replaceParser(OCRParserAdapter.class, parser -> ocrParser);
         replaceParser(ocrConfig.getParserClass(), parser -> ocrParser);
         // this is a hack: we are mapping TesseractOCRParser.class to Tess4jOCRParser instance
         for (OCRConfigRegistry c: OCRConfigRegistry.values()) {
@@ -405,24 +405,33 @@ public class Extractor implements AutoCloseable {
         if (!autoOcrLanguage) {
             return ocrParser;
         }
-        Set<String> installed = INSTALLED_OCR_MODELS.get(ocrConfig.getClass());
-        if (installed == null) {
-            installed = ocrConfig.installedModels();
-            // A failed probe also lists nothing, so only a real listing is kept for the JVM.
-            if (!installed.isEmpty()) {
-                INSTALLED_OCR_MODELS.put(ocrConfig.getClass(), installed);
-            }
-        }
+        final Set<String> installed = INSTALLED_OCR_MODELS.computeIfAbsent(ocrConfig.getClass(),
+                adapterClass -> ocrConfig.installedModels());
         final Set<String> missing = AutoLanguageOCRParser.missingModels(installed, ocrScriptLanguages);
-        if (!missing.isEmpty() && WARNED_OCR_ADAPTERS.add(ocrConfig.getClass())) {
-            logger.warn("OCR language detection disabled, missing tesseract models {}; OCR uses \"{}\".",
-                    missing, ocrConfig.getConfig().getLanguage());
-        }
         if (!missing.isEmpty()) {
+            warnOnceAboutMissingModels(ocrConfig, installed, missing);
             return ocrParser;
         }
         return new AutoLanguageOCRParser(ocrParser, ocrConfig instanceof TesseractOCRConfigAdapter,
                 ocrRetryConfidence, ocrScriptLanguages);
+    }
+
+    private void warnOnceAboutMissingModels(final OCRConfigAdapter<?> ocrConfig, final Set<String> installed,
+                                            final Set<String> missing) {
+        if (!WARNED_OCR_ADAPTERS.add(ocrConfig.getClass())) {
+            return;
+        }
+        logger.warn("OCR language detection disabled, missing tesseract models {}; OCR uses \"{}\".{}",
+                missing, ocrConfig.getConfig().getLanguage(), misplacedScriptModelsHint(installed, missing));
+    }
+
+    // Debian and Ubuntu packages install script models at the tessdata root, where Tika cannot name them.
+    private static String misplacedScriptModelsHint(final Set<String> installed, final Set<String> missing) {
+        final Set<String> misplaced = AutoLanguageOCRParser.scriptModelsOutsideScriptDirectory(installed, missing);
+        if (misplaced.isEmpty()) {
+            return "";
+        }
+        return " Models " + misplaced + " are installed at the tessdata root: link each one into tessdata/script/.";
     }
 
     /**
@@ -563,12 +572,16 @@ public class Extractor implements AutoCloseable {
      *                    detected script with, for example "Cyrillic:rus+ukr,Latin:eng+fra"
      */
     public void setOcrLanguage(final String ocrLanguage) {
+        final boolean hadLanguageRouting = autoOcrLanguage && !ocrDisabled;
         if (isScriptMapping(ocrLanguage)) {
             ocrScriptLanguages = AutoLanguageOCRParser.parseScriptLanguages(ocrLanguage);
             autoOcrLanguage = true;
         } else {
-            autoOcrLanguage = false;
             ocrConfig.setLanguages(ocrLanguage.split("\\+"));
+            autoOcrLanguage = false;
+        }
+        if (!ocrDisabled && (hadLanguageRouting || autoOcrLanguage)) {
+            setOcrConfig(ocrConfig);
         }
     }
 

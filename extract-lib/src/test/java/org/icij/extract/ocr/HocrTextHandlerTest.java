@@ -46,6 +46,26 @@ public class HocrTextHandlerTest {
         assertThat(handler.meanConfidence()).isEqualTo(0.0);
     }
 
+    @Test
+    public void test_pages_are_separated_by_a_single_newline() throws Exception {
+        // Given
+        String hocr = """
+            <html xmlns="http://www.w3.org/1999/xhtml"><body>
+             <div class='ocr_page' title='bbox 0 0 100 100'>
+              <p class='ocr_par'><span class='ocr_line'><span class='ocrx_word' title='x_wconf 90'>Page</span> <span class='ocrx_word' title='x_wconf 90'>1</span></span></p>
+             </div>
+             <div class='ocr_page' title='bbox 0 0 100 100'>
+              <p class='ocr_par'><span class='ocr_line'><span class='ocrx_word' title='x_wconf 90'>Multipage</span></span></p>
+             </div>
+            </body></html>
+            """;
+        HocrTextHandler handler = new HocrTextHandler();
+        // When
+        parse(hocr, handler);
+        // Then
+        assertThat(handler.text()).isEqualTo("Page 1\nMultipage");
+    }
+
     private static void parse(String hocr, HocrTextHandler handler) throws Exception {
         SAXParserFactory factory = SAXParserFactory.newInstance();
         factory.setNamespaceAware(true);
