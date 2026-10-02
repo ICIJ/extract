@@ -197,6 +197,33 @@ public class ExtractorAutoLanguageTest {
         assertThat(appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList()).hasSize(1);
     }
 
+    @Test
+    public void test_an_empty_probe_is_retried_but_warned_once() {
+        // Given
+        AtomicInteger probes = new AtomicInteger();
+        TesseractOCRConfigAdapter failing = new TesseractOCRConfigAdapter() {
+            @Override
+            public Set<String> installedModels() {
+                probes.incrementAndGet();
+                return Set.of();
+            }
+        };
+        Logger log = (Logger) LoggerFactory.getLogger(Extractor.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        log.addAppender(appender);
+        // When
+        try {
+            new Extractor().withAutoLanguage(failing, EmptyParser.INSTANCE);
+            new Extractor().withAutoLanguage(failing, EmptyParser.INSTANCE);
+        } finally {
+            log.detachAppender(appender);
+        }
+        // Then
+        assertThat(probes.get()).isEqualTo(2);
+        assertThat(appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList()).hasSize(1);
+    }
+
     private static long osdFiles() throws IOException {
         Path tmp = Path.of(System.getProperty("java.io.tmpdir"));
         try (DirectoryStream<Path> files = Files.newDirectoryStream(tmp, "apache-tika-*.osd")) {
