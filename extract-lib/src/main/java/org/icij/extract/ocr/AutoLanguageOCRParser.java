@@ -116,7 +116,6 @@ public class AutoLanguageOCRParser implements Parser {
                     LOGGER.warn("retry with {} failed, keeping the first pass: {}", ALL_SCRIPTS, e.toString());
                 }
             }
-            emit(best.text(), handler, metadata);
             if (script != null) {
                 metadata.set(OCR_SCRIPT, script);
                 Optional.ofNullable(detection.get(TesseractOCRParser.PSM0_SCRIPT_CONFIDENCE))
@@ -124,6 +123,7 @@ public class AutoLanguageOCRParser implements Parser {
             }
             metadata.set(OCR_MODEL, best.model());
             metadata.set(OCR_CONFIDENCE, best.confidence() / 100);
+            emit(best.text(), handler, metadata);
         } finally {
             context.set(TesseractOCRConfig.class, callerConfig);
             OCRParserAdapter.restoreMediaTypes(metadata);
