@@ -33,6 +33,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import static org.icij.extract.ocr.ParserWithConfidence.OCR_CONFIDENCE;
 
@@ -47,6 +48,7 @@ public class AutoLanguageOCRParser implements Parser {
     public static final Property OCR_MODEL = Property.externalText("ocr:model");
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AutoLanguageOCRParser.class);
+    private static final String SCRIPT_DIRECTORY = "script/";
     private static final String LATIN = "script/Latin";
     private static final List<String> SCRIPTS = List.of(
             LATIN, "script/HanS", "script/Cyrillic", "script/Arabic", "script/Japanese", "script/Hangul");
@@ -100,6 +102,14 @@ public class AutoLanguageOCRParser implements Parser {
         scriptLanguages.values().forEach(languages -> missing.addAll(List.of(languages.split("\\+"))));
         missing.removeAll(installed);
         return missing;
+    }
+
+    public static Set<String> scriptModelsOutsideScriptDirectory(Set<String> installed, Set<String> missing) {
+        return missing.stream()
+                .filter(model -> model.startsWith(SCRIPT_DIRECTORY))
+                .map(model -> model.substring(SCRIPT_DIRECTORY.length()))
+                .filter(installed::contains)
+                .collect(Collectors.toCollection(TreeSet::new));
     }
 
     @Override

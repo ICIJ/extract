@@ -271,6 +271,32 @@ public class ExtractorAutoLanguageTest {
         assertThat(extractor.ocrConfig.getConfig().getTimeoutSeconds()).isEqualTo(12 * 60 * 60);
     }
 
+    @Test
+    public void test_script_models_outside_the_script_directory_are_named_in_the_warning() {
+        // Given
+        TesseractOCRConfigAdapter debian = new TesseractOCRConfigAdapter() {
+            @Override
+            public Set<String> installedModels() {
+                return Set.of("osd", "eng", "Latin", "HanS", "Cyrillic", "Arabic", "Japanese", "Hangul");
+            }
+        };
+        Logger log = (Logger) LoggerFactory.getLogger(Extractor.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        log.addAppender(appender);
+        // When
+        try {
+            new Extractor().withAutoLanguage(debian, EmptyParser.INSTANCE);
+        } finally {
+            log.detachAppender(appender);
+        }
+        // Then
+        List<ILoggingEvent> warnings = appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList();
+        assertThat(warnings).hasSize(1);
+        assertThat(warnings.get(0).getFormattedMessage()).contains("tessdata/script/");
+        assertThat(warnings.get(0).getFormattedMessage()).contains("Latin");
+    }
+
     private static long osdFiles() throws IOException {
         Path tmp = Path.of(System.getProperty("java.io.tmpdir"));
         try (DirectoryStream<Path> files = Files.newDirectoryStream(tmp, "apache-tika-*.osd")) {

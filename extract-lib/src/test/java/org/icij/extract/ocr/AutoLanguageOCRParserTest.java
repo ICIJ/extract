@@ -419,6 +419,12 @@ public class AutoLanguageOCRParserTest {
         assertThat(bareScriptName.getMessage()).contains("Fraktur");
     }
 
+    @Test
+    public void test_lists_missing_script_models_installed_outside_the_script_directory() {
+        assertThat(AutoLanguageOCRParser.scriptModelsOutsideScriptDirectory(Set.of("osd", "eng", "Latin", "HanS"),
+                Set.of("script/Latin", "script/HanS", "script/Arabic"))).containsOnly("Latin", "HanS");
+    }
+
     private static AutoLanguageOCRParser router(StubOcr stub, int retryConfidence) {
         return router(stub, retryConfidence, Map.of());
     }
