@@ -81,8 +81,9 @@ public class AutoLanguageOCRParser implements Parser {
         Map<String, String> scriptLanguages = new HashMap<>();
         for (String entry : value.split(",")) {
             String[] scriptAndLanguages = entry.split(":", 2);
-            if (scriptAndLanguages.length != 2 || scriptAndLanguages[0].isBlank() || scriptAndLanguages[1].isBlank()) {
-                throw new IllegalArgumentException("ocrScriptLanguages entry \"" + entry.strip()
+            if (scriptAndLanguages.length != 2 || !scriptAndLanguages[0].strip().matches("\\p{Alpha}+")
+                    || scriptAndLanguages[1].isBlank()) {
+                throw new IllegalArgumentException("ocrLanguage entry \"" + entry.strip()
                         + "\" is not script:languages, for example Cyrillic:rus+ukr");
             }
             scriptLanguages.put(scriptAndLanguages[0].strip(), scriptAndLanguages[1].strip());
