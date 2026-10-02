@@ -427,7 +427,7 @@ public class Extractor implements AutoCloseable {
             return ocrParser;
         }
         return new AutoLanguageOCRParser(ocrParser, ocrConfig instanceof TesseractOCRConfigAdapter,
-                ocrRetryConfidence, ocrScriptLanguages, () -> autoOcrLanguage);
+                ocrRetryConfidence, ocrScriptLanguages);
     }
 
     /**

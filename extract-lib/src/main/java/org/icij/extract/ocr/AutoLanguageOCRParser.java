@@ -33,7 +33,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.function.BooleanSupplier;
 
 import static org.icij.extract.ocr.ParserWithConfidence.OCR_CONFIDENCE;
 
@@ -69,15 +68,13 @@ public class AutoLanguageOCRParser implements Parser {
     private final boolean readsHocr;
     private final int retryConfidence;
     private final Map<String, String> scriptLanguages;
-    private final BooleanSupplier enabled;
 
     public AutoLanguageOCRParser(Parser delegate, boolean readsHocr, int retryConfidence,
-                                 Map<String, String> scriptLanguages, BooleanSupplier enabled) {
+                                 Map<String, String> scriptLanguages) {
         this.delegate = delegate;
         this.readsHocr = readsHocr;
         this.retryConfidence = retryConfidence;
         this.scriptLanguages = scriptLanguages;
-        this.enabled = enabled;
     }
 
     public static Map<String, String> parseScriptLanguages(String value) {
@@ -109,10 +106,6 @@ public class AutoLanguageOCRParser implements Parser {
     @Override
     public void parse(InputStream stream, ContentHandler handler, Metadata metadata, ParseContext context)
             throws IOException, SAXException, TikaException {
-        if (!enabled.getAsBoolean()) {
-            delegate.parse(stream, handler, metadata, context);
-            return;
-        }
         TesseractOCRConfig callerConfig = context.get(TesseractOCRConfig.class);
         TesseractOCRConfig base = callerConfig == null ? new TesseractOCRConfig() : callerConfig;
         try (TemporaryResources tmp = new TemporaryResources()) {
