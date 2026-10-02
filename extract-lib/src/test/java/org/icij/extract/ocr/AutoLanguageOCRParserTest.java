@@ -402,6 +402,13 @@ public class AutoLanguageOCRParserTest {
         assertThat(error.getMessage()).contains("Han");
     }
 
+    @Test
+    public void test_a_language_list_mixed_with_a_mapping_is_rejected() {
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> AutoLanguageOCRParser.parseScriptLanguages("eng+Cyrillic:rus"));
+        assertThat(error.getMessage()).contains("eng+Cyrillic");
+    }
+
     private static AutoLanguageOCRParser router(StubOcr stub, int retryConfidence) {
         return router(stub, retryConfidence, Map.of());
     }

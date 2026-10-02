@@ -110,13 +110,13 @@ import static org.icij.extract.extractor.ArtifactUtils.getEmbeddedPath;
 @Option(name = "ocrLanguage", description = "Set the languages used by Tesseract. Multiple languages may be " +
         "specified, separated by plus characters. Tesseract uses 3-character ISO 639-2 language codes. " +
         "When absent, the language is chosen per image from its detected script if the osd and script " +
-        "models are installed, otherwise English is used.", parameter = "language")
+        "models are installed, otherwise English is used. A mapping such as " +
+        "\"Cyrillic:rus+ukr,Han:chi_sim,Latin:eng+fra\" keeps that choice but reads each listed script " +
+        "with the given languages instead of its script model. Scripts use tesseract's OSD names.",
+        parameter = "language")
 @Option(name = "ocrRetryConfidence", description = "When the OCR language is chosen per image, read an image " +
         "again with every supported script if the first read's mean word confidence is below this value, " +
         "from 0 to 100. Defaults to 60.", parameter = "confidence")
-@Option(name = "ocrScriptLanguages", description = "When the OCR language is chosen per image, the languages to " +
-        "read each detected script with instead of its script model, for example " +
-        "\"Cyrillic:rus+ukr,Han:chi_sim,Latin:eng+fra\". Scripts use tesseract's OSD names.", parameter = "mapping")
 @Option(name = "ocrStrategy", description = "Set the PDF OCR strategy. One of \"NO_OCR\" " +
         "(default), \"AUTO\", \"OCR_AND_TEXT_EXTRACTION\" or \"OCR_ONLY\". Any rendering " +
         "strategy OCRs whole pages and disables inline-image extraction, which is required to " +
@@ -287,15 +287,16 @@ public class Extractor implements AutoCloseable {
         options.get("outputFormat", "TEXT").parse().asEnum(OutputFormat::parse).ifPresent(this::setOutputFormat);
         options.get("embedHandling", "SPAWN").parse().asEnum(EmbedHandling::parse).ifPresent(this::setEmbedHandling);
         final Optional<String> ocrLanguage = options.valueIfPresent("ocrLanguage");
-        autoOcrLanguage = ocrLanguage.isEmpty() && !options.get("ocr", "true").parse().isOff();
+        final Optional<String> fixedOcrLanguage = ocrLanguage.filter(language -> !isScriptMapping(language));
+        autoOcrLanguage = fixedOcrLanguage.isEmpty() && !options.get("ocr", "true").parse().isOff();
         options.get("ocrRetryConfidence", "60").parse().asInteger().ifPresent(n -> this.ocrRetryConfidence = n);
-        options.valueIfPresent("ocrScriptLanguages").map(AutoLanguageOCRParser::parseScriptLanguages)
+        ocrLanguage.filter(Extractor::isScriptMapping).map(AutoLanguageOCRParser::parseScriptLanguages)
             .ifPresent(scriptLanguages -> this.ocrScriptLanguages = scriptLanguages);
         setOcrConfig(options.valueIfPresent("ocrType")
             .map(OCRConfigRegistry::parse)
             .orElse(OCRConfigRegistry.TESSERACT)
             .buildAdapter());
-        ocrLanguage.ifPresent(this::setOcrLanguage);
+        fixedOcrLanguage.ifPresent(this::setOcrLanguage);
         options.get("ocrStrategy", "NO_OCR").value().ifPresent(this::setOcrStrategy);
         options.get("ocrTimeout", "12h").parse().asDuration().ifPresent(this::setOcrTimeout);
         options.get("parseTimeout", "24h").parse().asDuration().ifPresent(this::setParseTimeout);
@@ -558,11 +559,21 @@ public class Extractor implements AutoCloseable {
     /**
      * Set the languages used by Tesseract.
      *
-     * @param ocrLanguage the languages to use, for example "eng" or "ita+spa"
+     * @param ocrLanguage the languages to use, for example "eng" or "ita+spa", or the languages to read each
+     *                    detected script with, for example "Cyrillic:rus+ukr,Latin:eng+fra"
      */
     public void setOcrLanguage(final String ocrLanguage) {
-        autoOcrLanguage = false;
-        ocrConfig.setLanguages(ocrLanguage.split("\\+"));
+        if (isScriptMapping(ocrLanguage)) {
+            ocrScriptLanguages = AutoLanguageOCRParser.parseScriptLanguages(ocrLanguage);
+            autoOcrLanguage = true;
+        } else {
+            autoOcrLanguage = false;
+            ocrConfig.setLanguages(ocrLanguage.split("\\+"));
+        }
+    }
+
+    private static boolean isScriptMapping(final String ocrLanguage) {
+        return ocrLanguage.contains(":");
     }
 
     /**

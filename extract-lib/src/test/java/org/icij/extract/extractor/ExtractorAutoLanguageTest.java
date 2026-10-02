@@ -156,9 +156,9 @@ public class ExtractorAutoLanguageTest {
     }
 
     @Test
-    public void test_script_languages_option_reaches_the_router() throws Exception {
+    public void test_a_script_mapping_in_ocr_language_reaches_the_router() throws Exception {
         // Given
-        Extractor extractor = new Extractor(Options.from(Map.of("ocrScriptLanguages", "Latin:eng")));
+        Extractor extractor = new Extractor(Options.from(Map.of("ocrLanguage", "Latin:eng")));
         // When
         TikaDocument document = extractor.extract(path("/documents/ocr/simple.tiff"));
         String text = textOf(document);
@@ -177,7 +177,7 @@ public class ExtractorAutoLanguageTest {
                         "script/Japanese", "script/Hangul");
             }
         };
-        Extractor extractor = new Extractor(Options.from(Map.of("ocrScriptLanguages", "Cyrillic:rus")));
+        Extractor extractor = new Extractor(Options.from(Map.of("ocrLanguage", "Cyrillic:rus")));
         // When
         Parser installed = extractor.withAutoLanguage(complete, EmptyParser.INSTANCE);
         // Then
