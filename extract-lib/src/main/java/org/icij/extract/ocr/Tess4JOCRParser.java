@@ -434,7 +434,9 @@ public class Tess4JOCRParser extends ParserWithConfidence implements Parser, Aut
             .orElse("");
         Path tmpImPath = stream.getPath();
         String imFileName = tmpImPath.getFileName().toString();
-        Path pathWithExt = tmpImPath.resolveSibling(imFileName.substring(0, imFileName.lastIndexOf('.')) + imageExt);
+        // A distinct name, so writing and deleting the processed image never touches the input image.
+        Path pathWithExt = tmpImPath.resolveSibling(
+            imFileName.substring(0, imFileName.lastIndexOf('.')) + "-processed" + imageExt);
         // TIFF might be multipage, they are only properly handled by Tess4j as file and not as streams
         boolean isTiff = Arrays.stream(
                 Optional.ofNullable(metadata.getValues(CONTENT_TYPE_PARSER_OVERRIDE)).orElse(new String[] {}))
