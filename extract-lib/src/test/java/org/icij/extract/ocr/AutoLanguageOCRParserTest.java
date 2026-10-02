@@ -8,6 +8,7 @@ import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.ocr.TesseractOCRParser;
 import org.apache.tika.sax.BodyContentHandler;
+import org.apache.tika.sax.ToXMLContentHandler;
 import org.apache.tika.sax.XHTMLContentHandler;
 import org.fest.assertions.Delta;
 import org.junit.Test;
@@ -234,6 +235,16 @@ public class AutoLanguageOCRParserTest {
     }
 
     @Test
+    public void test_text_ends_with_a_newline_like_tesseract_text_output() throws Exception {
+        // Given
+        ToXMLContentHandler handler = new ToXMLContentHandler();
+        // When
+        router(new StubOcr(), 60).parse(image(), handler, new Metadata(), new ParseContext());
+        // Then
+        assertThat(handler.toString()).contains("<div class=\"ocr\">read with script/HanS+script/Latin\n</div>");
+    }
+
+    @Test
     public void test_missing_models_lists_what_is_not_installed() {
         assertThat(AutoLanguageOCRParser.missingModels(Set.of("eng", "osd", "script/Latin")))
                 .containsOnly("script/HanS", "script/Cyrillic", "script/Arabic", "script/Japanese", "script/Hangul");
@@ -247,8 +258,12 @@ public class AutoLanguageOCRParserTest {
 
     private static String parse(Parser parser, Metadata metadata, ParseContext context) throws Exception {
         BodyContentHandler handler = new BodyContentHandler(-1);
-        parser.parse(new ByteArrayInputStream(new byte[] {1, 2, 3}), handler, metadata, context);
+        parser.parse(image(), handler, metadata, context);
         return handler.toString().strip();
+    }
+
+    private static InputStream image() {
+        return new ByteArrayInputStream(new byte[] {1, 2, 3});
     }
 
     private static class StubOcr implements Parser {
