@@ -418,7 +418,6 @@ public class Extractor implements AutoCloseable {
                     missing, ocrConfig.getConfig().getLanguage());
         }
         if (!missing.isEmpty()) {
-            autoOcrLanguage = false;
             return ocrParser;
         }
         return new AutoLanguageOCRParser(ocrParser, ocrConfig instanceof TesseractOCRConfigAdapter,
