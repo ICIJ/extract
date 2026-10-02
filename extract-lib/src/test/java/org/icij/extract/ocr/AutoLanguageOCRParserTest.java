@@ -222,20 +222,6 @@ public class AutoLanguageOCRParserTest {
     }
 
     @Test
-    public void test_a_disabled_router_passes_straight_through() throws Exception {
-        // Given
-        StubOcr stub = new StubOcr();
-        Metadata metadata = new Metadata();
-        AutoLanguageOCRParser router = new AutoLanguageOCRParser(stub, false, 60, Map.of(), () -> false);
-        // When
-        String text = parse(router, metadata, new ParseContext());
-        // Then
-        assertThat(stub.calls).isEqualTo(List.of("eng"));
-        assertThat(text).isEqualTo("read with eng");
-        assertThat(metadata.get(OCR_MODEL)).isNull();
-    }
-
-    @Test
     public void test_text_ends_with_a_newline_like_tesseract_text_output() throws Exception {
         // Given
         ToXMLContentHandler handler = new ToXMLContentHandler();
@@ -421,7 +407,7 @@ public class AutoLanguageOCRParserTest {
     }
 
     private static AutoLanguageOCRParser router(StubOcr stub, int retryConfidence, Map<String, String> scriptLanguages) {
-        return new AutoLanguageOCRParser(stub, false, retryConfidence, scriptLanguages, () -> true);
+        return new AutoLanguageOCRParser(stub, false, retryConfidence, scriptLanguages);
     }
 
     private static String parse(Parser parser, Metadata metadata, ParseContext context) throws Exception {

@@ -123,19 +123,6 @@ public class ExtractorAutoLanguageTest {
     }
 
     @Test
-    public void test_setting_a_language_after_construction_skips_routing() throws Exception {
-        // Given
-        Extractor extractor = new Extractor();
-        extractor.setOcrLanguage("eng");
-        // When
-        TikaDocument document = extractor.extract(path("/documents/ocr/simple.tiff"));
-        String text = textOf(document);
-        // Then
-        assertThat(text.trim()).isEqualTo("HEAVY\nMETAL");
-        assertThat(document.getMetadata().get(OCR_MODEL)).isNull();
-    }
-
-    @Test
     public void test_retry_confidence_is_clamped_to_0_100() {
         assertThat(new Extractor(Options.from(Map.of("ocrRetryConfidence", "150"))).getOcrRetryConfidence()).isEqualTo(100);
         assertThat(new Extractor(Options.from(Map.of("ocrRetryConfidence", "-5"))).getOcrRetryConfidence()).isEqualTo(0);
