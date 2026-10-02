@@ -18,10 +18,11 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.Reader;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,6 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.fest.assertions.Assertions.assertThat;
 import static org.icij.extract.extractor.AutoLanguageOCRTest.squash;
+import static org.icij.extract.extractor.ExtractorTest.tikaTempFiles;
 import static org.icij.extract.ocr.AutoLanguageOCRParser.OCR_MODEL;
 import static org.icij.extract.ocr.AutoLanguageOCRParser.OCR_SCRIPT;
 import static org.icij.extract.ocr.OCRParser.OCR_PARSER;
@@ -80,11 +82,34 @@ public class ExtractorAutoLanguageTest {
     public void test_failed_detection_leaves_no_osd_file_behind() throws Exception {
         // Given
         Extractor extractor = new Extractor();
-        long before = osdFiles();
+        Set<Path> before = tikaTempFiles();
         // When
         textOf(extractor.extract(path("/documents/ocr/simple.tiff")));
         // Then
-        assertThat(osdFiles()).isEqualTo(before);
+        Set<Path> leaked = tikaTempFiles();
+        leaked.removeAll(before);
+        assertThat(new ArrayList<>(leaked)).isEmpty();
+    }
+
+    @Test
+    public void test_a_truncated_image_leaves_no_ocr_output_behind() throws Exception {
+        // Given
+        Path truncated = Files.createTempFile("truncated-", ".png");
+        Files.write(truncated, Arrays.copyOf(Files.readAllBytes(path("/documents/ocr/auto/latin.png")), 100));
+        Extractor extractor = new Extractor();
+        Set<Path> before = tikaTempFiles();
+        // When
+        try {
+            textOf(extractor.extract(truncated));
+        } catch (IOException ignored) {
+            // The image cannot be read; only the files it leaves behind matter here.
+        } finally {
+            Files.deleteIfExists(truncated);
+        }
+        // Then
+        Set<Path> leaked = tikaTempFiles();
+        leaked.removeAll(before);
+        assertThat(new ArrayList<>(leaked)).isEmpty();
     }
 
     @Test
@@ -295,17 +320,6 @@ public class ExtractorAutoLanguageTest {
         assertThat(warnings).hasSize(1);
         assertThat(warnings.get(0).getFormattedMessage()).contains("tessdata/script/");
         assertThat(warnings.get(0).getFormattedMessage()).contains("Latin");
-    }
-
-    private static long osdFiles() throws IOException {
-        Path tmp = Path.of(System.getProperty("java.io.tmpdir"));
-        try (DirectoryStream<Path> files = Files.newDirectoryStream(tmp, "apache-tika-*.osd")) {
-            long count = 0;
-            for (Path ignored : files) {
-                count++;
-            }
-            return count;
-        }
     }
 
     private static Path path(String resource) {
