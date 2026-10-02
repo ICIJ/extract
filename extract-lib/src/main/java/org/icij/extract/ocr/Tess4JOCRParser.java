@@ -464,8 +464,7 @@ public class Tess4JOCRParser extends ParserWithConfidence implements Parser, Aut
         if (config.getPageSegMode().equals("0")) {
             return new OSDRunner(tesseract, bufferedImage, processedImageFile, metadata);
         }
-        boolean skipConfidence = Boolean.parseBoolean(config.getOtherTesseractConfig().get(SKIP_CONFIDENCE));
-        if (skipConfidence && config.getOutputType().equals(TesseractOCRConfig.OUTPUT_TYPE.TXT)) {
+        if (getSkipConfidence() && config.getOutputType().equals(TesseractOCRConfig.OUTPUT_TYPE.TXT)) {
             return new TextOCRRunner(tesseract, bufferedImage, processedImageFile, xhtml);
         }
         if (processedImageFile != null) {

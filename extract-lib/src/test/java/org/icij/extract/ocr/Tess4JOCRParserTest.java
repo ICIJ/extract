@@ -341,20 +341,6 @@ public class Tess4JOCRParserTest {
     }
 
     @Test
-    public void test_per_call_config_turns_confidence_back_on() throws Exception {
-        // Given
-        Tess4JOCRParser parser = new Tess4JOCRParser();
-        parser.setSkipConfidence(true);
-        TesseractOCRConfig config = new TesseractOCRConfig();
-        config.addOtherTesseractConfig(Tess4JOCRParser.SKIP_CONFIDENCE, "false");
-        Metadata metadata = getMetadata(MediaType.image("png"));
-        // When
-        parseWith(parser, "test.png", config, metadata);
-        // Then
-        assertThat(metadata.get(OCR_CONFIDENCE)).isNotNull();
-    }
-
-    @Test
     public void test_osd_on_an_image_without_text_is_quiet() throws Exception {
         // Given
         Logger log = (Logger) LoggerFactory.getLogger(Tess4JOCRParser.class);
