@@ -47,13 +47,13 @@ public class TesseractOCRConfigAdapter implements OCRConfigAdapter<TesseractOCRP
 
     @Override
     public Set<String> installedModels() {
+        TesseractOCRParser probe = new TesseractOCRParser();
+        probe.setPreloadLangs(true);
         try {
-            TesseractOCRParser probe = new TesseractOCRParser();
-            probe.setPreloadLangs(true);
             probe.initialize(new HashMap<>());
-            return probe.getLangs();
         } catch (TikaConfigException e) {
-            return Set.of();
+            // Thrown after the listing when eng is not installed: the listed models are still right.
         }
+        return probe.getLangs();
     }
 }
