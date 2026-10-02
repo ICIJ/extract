@@ -210,7 +210,7 @@ public class AutoLanguageOCRParserTest {
     public void test_caller_config_is_restored_after_a_failed_read() {
         // Given
         StubOcr stub = new StubOcr();
-        stub.failOcr = true;
+        stub.failingModel = "script/HanS+script/Latin";
         TesseractOCRConfig caller = new TesseractOCRConfig();
         ParseContext context = new ParseContext();
         context.set(TesseractOCRConfig.class, caller);
@@ -426,7 +426,6 @@ public class AutoLanguageOCRParserTest {
         final Map<String, Double> confidence = new HashMap<>();
         String script = "Han";
         String text = null;
-        boolean failOcr = false;
         String failingModel = null;
         RuntimeException osdFailure = null;
 
@@ -453,9 +452,6 @@ public class AutoLanguageOCRParserTest {
                 return;
             }
             calls.add(config.getLanguage());
-            if (failOcr) {
-                throw new TikaException("OCR timeout");
-            }
             if (config.getLanguage().equals(failingModel)) {
                 throw new TikaException("OCR timeout");
             }
