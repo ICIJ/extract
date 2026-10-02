@@ -198,6 +198,35 @@ public class ExtractorAutoLanguageTest {
     }
 
     @Test
+    public void test_script_languages_option_reaches_the_router() throws Exception {
+        // Given
+        Extractor extractor = new Extractor(Options.from(Map.of("ocrScriptLanguages", "Latin:eng")));
+        // When
+        TikaDocument document = extractor.extract(path("/documents/ocr/simple.tiff"));
+        String text = textOf(document);
+        // Then
+        assertThat(text.trim()).isEqualTo("HEAVY\nMETAL");
+        assertThat(document.getMetadata().get(OCR_MODEL)).isEqualTo("eng");
+    }
+
+    @Test
+    public void test_a_missing_script_language_keeps_plain_ocr() {
+        // Given
+        TesseractOCRConfigAdapter complete = new TesseractOCRConfigAdapter() {
+            @Override
+            public Set<String> installedModels() {
+                return Set.of("osd", "script/Latin", "script/HanS", "script/Cyrillic", "script/Arabic",
+                        "script/Japanese", "script/Hangul");
+            }
+        };
+        Extractor extractor = new Extractor(Options.from(Map.of("ocrScriptLanguages", "Cyrillic:rus")));
+        // When
+        Parser installed = extractor.withAutoLanguage(complete, EmptyParser.INSTANCE);
+        // Then
+        assertThat(installed).isSameAs(EmptyParser.INSTANCE);
+    }
+
+    @Test
     public void test_an_empty_probe_is_retried_but_warned_once() {
         // Given
         AtomicInteger probes = new AtomicInteger();
