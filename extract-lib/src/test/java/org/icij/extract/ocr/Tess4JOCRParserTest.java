@@ -11,11 +11,23 @@ import static org.icij.extract.ocr.Tess4JOCRParser.PSM0_SCRIPT;
 import static org.icij.extract.ocr.Tess4JOCRParser.PSM0_SCRIPT_CONFIDENCE;
 import static org.junit.Assert.assertThrows;
 
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.imageio.ImageIO;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.config.TikaTaskTimeout;
 import org.apache.tika.exception.TikaConfigException;
@@ -33,6 +45,7 @@ import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.ToXMLContentHandler;
 import org.fest.assertions.Delta;
 import org.junit.Test;
+import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
 
 public class Tess4JOCRParserTest {
@@ -299,6 +312,92 @@ public class Tess4JOCRParserTest {
         // Then
         String expectedOutput = "The (quick) [brown] {fox} jumps!\nOver the $43,456.78 <lazy> #90 dog";
         assertThat(ocr.substring(0, expectedOutput.length())).isEqualTo(expectedOutput);
+    }
+
+    @Test
+    public void test_text_output_with_confidence() throws Exception {
+        // Given
+        Metadata metadata = getMetadata(MediaType.image("png"));
+        // When
+        String text = parseWith(new Tess4JOCRParser(), "test.png", new TesseractOCRConfig(), metadata);
+        // Then
+        assertThat(text).contains("The (quick) [brown] {fox} jumps!");
+        assertThat(metadata.get(OCR_CONFIDENCE)).isNotNull();
+    }
+
+    @Test
+    public void test_each_parse_uses_its_own_language() throws Exception {
+        // Given
+        Tess4JOCRParser parser = new Tess4JOCRParser();
+        TesseractOCRConfig english = new TesseractOCRConfig();
+        english.setLanguage("eng");
+        TesseractOCRConfig chinese = new TesseractOCRConfig();
+        chinese.setLanguage("script/HanS+script/Latin");
+        parseWith(parser, "auto/hans.png", english, getMetadata(MediaType.image("png")));
+        // When
+        String text = parseWith(parser, "auto/hans.png", chinese, getMetadata(MediaType.image("png")));
+        // Then
+        assertThat(text.replaceAll("\\s+", "")).contains("预算报告");
+    }
+
+    @Test
+    public void test_per_call_config_turns_confidence_back_on() throws Exception {
+        // Given
+        Tess4JOCRParser parser = new Tess4JOCRParser();
+        parser.setSkipConfidence(true);
+        TesseractOCRConfig config = new TesseractOCRConfig();
+        config.addOtherTesseractConfig(Tess4JOCRParser.SKIP_CONFIDENCE, "false");
+        Metadata metadata = getMetadata(MediaType.image("png"));
+        // When
+        parseWith(parser, "test.png", config, metadata);
+        // Then
+        assertThat(metadata.get(OCR_CONFIDENCE)).isNotNull();
+    }
+
+    @Test
+    public void test_osd_on_an_image_without_text_is_quiet() throws Exception {
+        // Given
+        Logger log = (Logger) LoggerFactory.getLogger(Tess4JOCRParser.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        log.addAppender(appender);
+        TesseractOCRConfig config = new TesseractOCRConfig();
+        config.setPageSegMode("0");
+        Metadata metadata = getMetadata(MediaType.image("png"));
+        // When
+        try {
+            parseWith(new Tess4JOCRParser(), blankPng(), config, metadata);
+        } finally {
+            log.detachAppender(appender);
+        }
+        // Then
+        assertThat(metadata.get(PSM0_SCRIPT)).isNull();
+        assertThat(appender.list.stream().filter(e -> e.getLevel().isGreaterOrEqual(Level.WARN)).toList()).isEmpty();
+    }
+
+    private static String parseWith(Parser parser, String path, TesseractOCRConfig config, Metadata metadata) throws Exception {
+        return parseWith(parser, Tess4JOCRParserTest.class.getResourceAsStream(SAMPLE_DOCS_PATH_PREFIX + "/" + path), config, metadata);
+    }
+
+    private static String parseWith(Parser parser, InputStream image, TesseractOCRConfig config, Metadata metadata) throws Exception {
+        ParseContext context = new ParseContext();
+        context.set(TesseractOCRConfig.class, config);
+        BodyContentHandler handler = new BodyContentHandler(-1);
+        try (image) {
+            parser.parse(image, handler, metadata, context);
+        }
+        return handler.toString();
+    }
+
+    private static InputStream blankPng() throws IOException {
+        BufferedImage image = new BufferedImage(300, 100, BufferedImage.TYPE_BYTE_GRAY);
+        Graphics2D graphics = image.createGraphics();
+        graphics.setColor(Color.WHITE);
+        graphics.fillRect(0, 0, 300, 100);
+        graphics.dispose();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ImageIO.write(image, "png", out);
+        return new ByteArrayInputStream(out.toByteArray());
     }
 
     private String getText(String filePath, ParseContext parseContext) throws Exception {

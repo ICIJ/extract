@@ -4,6 +4,7 @@ import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 
 import java.time.Duration;
+import java.util.Set;
 
 public interface OCRConfigAdapter<P extends Parser> {
     void setLanguages(final String... languages);
@@ -19,4 +20,6 @@ public interface OCRConfigAdapter<P extends Parser> {
     Class<P> getParserClass();
 
     OCRParserAdapter<P> buildParser();
+
+    Set<String> installedModels();
 }
