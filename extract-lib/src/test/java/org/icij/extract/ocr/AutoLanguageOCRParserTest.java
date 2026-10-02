@@ -245,6 +245,55 @@ public class AutoLanguageOCRParserTest {
     }
 
     @Test
+    public void test_skipped_ocr_passes_straight_through() throws Exception {
+        // Given
+        StubOcr stub = new StubOcr();
+        TesseractOCRConfig caller = new TesseractOCRConfig();
+        caller.setSkipOcr(true);
+        ParseContext context = new ParseContext();
+        context.set(TesseractOCRConfig.class, caller);
+        Metadata metadata = new Metadata();
+        // When
+        parse(router(stub, 60), metadata, context);
+        // Then
+        assertThat(stub.calls).isEqualTo(List.of("eng"));
+        assertThat(metadata.get(OCR_MODEL)).isNull();
+    }
+
+    @Test
+    public void test_an_image_above_the_ocr_size_limit_passes_straight_through() throws Exception {
+        // Given
+        StubOcr stub = new StubOcr();
+        TesseractOCRConfig caller = new TesseractOCRConfig();
+        caller.setMaxFileSizeToOcr(2);
+        ParseContext context = new ParseContext();
+        context.set(TesseractOCRConfig.class, caller);
+        Metadata metadata = new Metadata();
+        // When
+        parse(router(stub, 60), metadata, context);
+        // Then
+        assertThat(stub.calls).isEqualTo(List.of("eng"));
+        assertThat(metadata.get(OCR_MODEL)).isNull();
+    }
+
+    @Test
+    public void test_a_caller_asking_for_osd_passes_straight_through() throws Exception {
+        // Given
+        StubOcr stub = new StubOcr();
+        TesseractOCRConfig caller = new TesseractOCRConfig();
+        caller.setPageSegMode("0");
+        ParseContext context = new ParseContext();
+        context.set(TesseractOCRConfig.class, caller);
+        Metadata metadata = new Metadata();
+        // When
+        parse(router(stub, 60), metadata, context);
+        // Then
+        assertThat(stub.calls).isEqualTo(List.of("osd"));
+        assertThat(metadata.get(TesseractOCRParser.PSM0_SCRIPT)).isEqualTo("Han");
+        assertThat(metadata.get(OCR_MODEL)).isNull();
+    }
+
+    @Test
     public void test_missing_models_lists_what_is_not_installed() {
         assertThat(AutoLanguageOCRParser.missingModels(Set.of("eng", "osd", "script/Latin")))
                 .containsOnly("script/HanS", "script/Cyrillic", "script/Arabic", "script/Japanese", "script/Hangul");

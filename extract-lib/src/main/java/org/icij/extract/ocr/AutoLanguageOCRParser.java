@@ -98,6 +98,10 @@ public class AutoLanguageOCRParser implements Parser {
         TesseractOCRConfig base = callerConfig == null ? new TesseractOCRConfig() : callerConfig;
         try (TemporaryResources tmp = new TemporaryResources()) {
             Path image = TikaInputStream.get(stream, tmp, metadata).getPath();
+            if (readsAsIs(base, Files.size(image))) {
+                run(image, base, handler, metadata, context);
+                return;
+            }
             Metadata detection = detect(image, base, metadata, context);
             String script = StringUtils.trimToNull(detection.get(TesseractOCRParser.PSM0_SCRIPT));
             String firstModel = script == null ? LATIN : FIRST_PASS_MODEL.getOrDefault(script, ALL_SCRIPTS);
@@ -123,6 +127,11 @@ public class AutoLanguageOCRParser implements Parser {
         } finally {
             context.set(TesseractOCRConfig.class, callerConfig);
         }
+    }
+
+    private static boolean readsAsIs(TesseractOCRConfig config, long size) {
+        return config.isSkipOcr() || "0".equals(config.getPageSegMode())
+                || size < config.getMinFileSizeToOcr() || size > config.getMaxFileSizeToOcr();
     }
 
     private Metadata detect(Path image, TesseractOCRConfig base, Metadata metadata, ParseContext context) {
