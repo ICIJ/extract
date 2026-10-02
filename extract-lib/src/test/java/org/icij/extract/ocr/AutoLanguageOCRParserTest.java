@@ -172,7 +172,7 @@ public class AutoLanguageOCRParserTest {
         String text = parse(router(stub, 60), metadata, new ParseContext());
         // Then
         assertThat(text).isEmpty();
-        assertThat(stub.calls).isEqualTo(List.of("osd", "script/Latin", ALL));
+        assertThat(stub.calls).isEqualTo(List.of("osd", "script/Latin"));
         assertThat(metadata.get(OCR_MODEL)).isEqualTo("script/Latin");
         assertThat(Double.parseDouble(metadata.get(OCR_CONFIDENCE))).isEqualTo(0.0);
     }
