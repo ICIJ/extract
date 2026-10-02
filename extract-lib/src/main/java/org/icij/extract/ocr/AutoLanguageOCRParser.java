@@ -23,6 +23,8 @@ import org.xml.sax.helpers.DefaultHandler;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +50,7 @@ public class AutoLanguageOCRParser implements Parser {
     private static final List<String> SCRIPTS = List.of(
             LATIN, "script/HanS", "script/Cyrillic", "script/Arabic", "script/Japanese", "script/Hangul");
     private static final String ALL_SCRIPTS = String.join("+", SCRIPTS);
+    private static final String OSD_OUTPUT = ".osd";
     // OSD names Hangul text "Korean".
     private static final Map<String, String> FIRST_PASS_MODEL = Map.of(
             "Latin", LATIN,
@@ -131,7 +134,25 @@ public class AutoLanguageOCRParser implements Parser {
             return scratch;
         } catch (IOException | SAXException | TikaException e) {
             LOGGER.debug("script detection failed, reading as {}: {}", LATIN, e.toString());
+            if (readsHocr) {
+                deleteOrphanOsdOutput();
+            }
             return new Metadata();
+        }
+    }
+
+    // When tesseract fails, Tika deletes its apache-tika-*.tmp base file but not the .osd output next to it.
+    private static void deleteOrphanOsdOutput() {
+        Path tmp = Path.of(System.getProperty("java.io.tmpdir"));
+        try (DirectoryStream<Path> outputs = Files.newDirectoryStream(tmp, "apache-tika-*.tmp" + OSD_OUTPUT)) {
+            for (Path output : outputs) {
+                String name = output.getFileName().toString();
+                if (Files.notExists(output.resolveSibling(name.substring(0, name.length() - OSD_OUTPUT.length())))) {
+                    Files.deleteIfExists(output);
+                }
+            }
+        } catch (IOException e) {
+            LOGGER.debug("could not delete tesseract OSD output: {}", e.toString());
         }
     }
 

@@ -15,6 +15,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
@@ -67,6 +70,17 @@ public class ExtractorAutoLanguageTest {
         assertThat(text).contains("METAL");
         assertThat(document.getMetadata().get(OCR_SCRIPT)).isNull();
         assertThat(document.getMetadata().get(OCR_MODEL)).isEqualTo("script/Latin");
+    }
+
+    @Test
+    public void test_failed_detection_leaves_no_osd_file_behind() throws Exception {
+        // Given
+        Extractor extractor = new Extractor();
+        long before = osdFiles();
+        // When
+        textOf(extractor.extract(path("/documents/ocr/simple.tiff")));
+        // Then
+        assertThat(osdFiles()).isEqualTo(before);
     }
 
     @Test
@@ -168,7 +182,18 @@ public class ExtractorAutoLanguageTest {
         assertThat(appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList()).hasSize(1);
     }
 
-    private static java.nio.file.Path path(String resource) {
+    private static long osdFiles() throws IOException {
+        Path tmp = Path.of(System.getProperty("java.io.tmpdir"));
+        try (DirectoryStream<Path> files = Files.newDirectoryStream(tmp, "apache-tika-*.osd")) {
+            long count = 0;
+            for (Path ignored : files) {
+                count++;
+            }
+            return count;
+        }
+    }
+
+    private static Path path(String resource) {
         return Paths.get(ExtractorAutoLanguageTest.class.getResource(resource).getPath());
     }
 
