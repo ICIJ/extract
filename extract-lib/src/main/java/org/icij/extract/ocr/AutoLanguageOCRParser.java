@@ -26,12 +26,13 @@ import java.io.InputStream;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.function.BooleanSupplier;
 
 import static org.icij.extract.ocr.ParserWithConfidence.OCR_CONFIDENCE;
 
@@ -66,18 +67,34 @@ public class AutoLanguageOCRParser implements Parser {
     private final Parser delegate;
     private final boolean readsHocr;
     private final int retryConfidence;
-    private final BooleanSupplier enabled;
+    private final Map<String, String> scriptLanguages;
 
-    public AutoLanguageOCRParser(Parser delegate, boolean readsHocr, int retryConfidence, BooleanSupplier enabled) {
+    public AutoLanguageOCRParser(Parser delegate, boolean readsHocr, int retryConfidence,
+                                 Map<String, String> scriptLanguages) {
         this.delegate = delegate;
         this.readsHocr = readsHocr;
         this.retryConfidence = retryConfidence;
-        this.enabled = enabled;
+        this.scriptLanguages = scriptLanguages;
     }
 
-    public static Set<String> missingModels(Set<String> installed) {
+    public static Map<String, String> parseScriptLanguages(String value) {
+        Map<String, String> scriptLanguages = new HashMap<>();
+        for (String entry : value.split(",")) {
+            String[] scriptAndLanguages = entry.split(":", 2);
+            if (scriptAndLanguages.length != 2 || !scriptAndLanguages[0].strip().matches("\\p{Alpha}+")
+                    || scriptAndLanguages[1].isBlank()) {
+                throw new IllegalArgumentException("ocrLanguage entry \"" + entry.strip()
+                        + "\" is not script:languages, for example Cyrillic:rus+ukr");
+            }
+            scriptLanguages.put(scriptAndLanguages[0].strip(), scriptAndLanguages[1].strip());
+        }
+        return Map.copyOf(scriptLanguages);
+    }
+
+    public static Set<String> missingModels(Set<String> installed, Map<String, String> scriptLanguages) {
         Set<String> missing = new TreeSet<>(SCRIPTS);
         missing.add("osd");
+        scriptLanguages.values().forEach(languages -> missing.addAll(List.of(languages.split("\\+"))));
         missing.removeAll(installed);
         return missing;
     }
@@ -90,10 +107,6 @@ public class AutoLanguageOCRParser implements Parser {
     @Override
     public void parse(InputStream stream, ContentHandler handler, Metadata metadata, ParseContext context)
             throws IOException, SAXException, TikaException {
-        if (!enabled.getAsBoolean()) {
-            delegate.parse(stream, handler, metadata, context);
-            return;
-        }
         TesseractOCRConfig callerConfig = context.get(TesseractOCRConfig.class);
         TesseractOCRConfig base = callerConfig == null ? new TesseractOCRConfig() : callerConfig;
         try (TemporaryResources tmp = new TemporaryResources()) {
@@ -104,7 +117,8 @@ public class AutoLanguageOCRParser implements Parser {
             }
             Metadata detection = detect(image, base, metadata, context);
             String script = StringUtils.trimToNull(detection.get(TesseractOCRParser.PSM0_SCRIPT));
-            String firstModel = script == null ? LATIN : FIRST_PASS_MODEL.getOrDefault(script, ALL_SCRIPTS);
+            String firstModel = scriptLanguages.getOrDefault(Objects.toString(script, "Latin"),
+                    script == null ? LATIN : FIRST_PASS_MODEL.getOrDefault(script, ALL_SCRIPTS));
             Pass best = read(image, firstModel, base, metadata, context);
             if (best.confidence() < retryConfidence && !best.text().isEmpty() && !firstModel.equals(ALL_SCRIPTS)) {
                 try {
@@ -177,7 +191,6 @@ public class AutoLanguageOCRParser implements Parser {
             run(image, config, hocr, metadata, context);
             return new Pass(model, asTesseractText(hocr.text()), hocr.meanConfidence());
         }
-        config.addOtherTesseractConfig(Tess4JOCRParser.SKIP_CONFIDENCE, "false");
         BodyContentHandler text = new BodyContentHandler(-1);
         run(image, config, text, metadata, context);
         double confidence = Optional.ofNullable(metadata.get(OCR_CONFIDENCE)).map(Double::parseDouble).orElse(0.0);

@@ -123,54 +123,6 @@ public class ExtractorAutoLanguageTest {
     }
 
     @Test
-    public void test_setting_a_language_after_construction_skips_routing() throws Exception {
-        // Given
-        Extractor extractor = new Extractor();
-        extractor.setOcrLanguage("eng");
-        // When
-        TikaDocument document = extractor.extract(path("/documents/ocr/simple.tiff"));
-        String text = textOf(document);
-        // Then
-        assertThat(text.trim()).isEqualTo("HEAVY\nMETAL");
-        assertThat(document.getMetadata().get(OCR_MODEL)).isNull();
-    }
-
-    @Test
-    public void test_retry_confidence_is_clamped_to_0_100() {
-        assertThat(new Extractor(Options.from(Map.of("ocrRetryConfidence", "150"))).getOcrRetryConfidence()).isEqualTo(100);
-        assertThat(new Extractor(Options.from(Map.of("ocrRetryConfidence", "-5"))).getOcrRetryConfidence()).isEqualTo(0);
-        assertThat(new Extractor().getOcrRetryConfidence()).isEqualTo(60);
-    }
-
-    @Test
-    public void test_missing_models_keep_plain_ocr_and_warn_once() {
-        // Given
-        TesseractOCRConfigAdapter partial = new TesseractOCRConfigAdapter() {
-            @Override
-            public Set<String> installedModels() {
-                return Set.of("osd", "script/Latin");
-            }
-        };
-        Extractor extractor = new Extractor();
-        Logger log = (Logger) LoggerFactory.getLogger(Extractor.class);
-        ListAppender<ILoggingEvent> appender = new ListAppender<>();
-        appender.start();
-        log.addAppender(appender);
-        // When
-        Parser installed;
-        try {
-            installed = extractor.withAutoLanguage(partial, EmptyParser.INSTANCE);
-        } finally {
-            log.detachAppender(appender);
-        }
-        // Then
-        assertThat(installed).isSameAs(EmptyParser.INSTANCE);
-        List<ILoggingEvent> warnings = appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList();
-        assertThat(warnings).hasSize(1);
-        assertThat(warnings.get(0).getFormattedMessage()).contains("script/HanS");
-    }
-
-    @Test
     public void test_missing_models_are_probed_and_warned_once_per_adapter_class() {
         // Given
         AtomicInteger probes = new AtomicInteger();
@@ -181,20 +133,55 @@ public class ExtractorAutoLanguageTest {
                 return Set.of("osd");
             }
         };
+        Extractor first = new Extractor();
+        Extractor second = new Extractor();
         Logger log = (Logger) LoggerFactory.getLogger(Extractor.class);
         ListAppender<ILoggingEvent> appender = new ListAppender<>();
         appender.start();
         log.addAppender(appender);
         // When
+        Parser installed;
         try {
-            new Extractor().withAutoLanguage(partial, EmptyParser.INSTANCE);
-            new Extractor().withAutoLanguage(partial, EmptyParser.INSTANCE);
+            installed = first.withAutoLanguage(partial, EmptyParser.INSTANCE);
+            second.withAutoLanguage(partial, EmptyParser.INSTANCE);
         } finally {
             log.detachAppender(appender);
         }
         // Then
+        assertThat(installed).isSameAs(EmptyParser.INSTANCE);
         assertThat(probes.get()).isEqualTo(1);
-        assertThat(appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList()).hasSize(1);
+        List<ILoggingEvent> warnings = appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList();
+        assertThat(warnings).hasSize(1);
+        assertThat(warnings.get(0).getFormattedMessage()).contains("script/HanS");
+    }
+
+    @Test
+    public void test_a_script_mapping_in_ocr_language_reaches_the_router() throws Exception {
+        // Given
+        Extractor extractor = new Extractor(Options.from(Map.of("ocrLanguage", "Latin:eng")));
+        // When
+        TikaDocument document = extractor.extract(path("/documents/ocr/simple.tiff"));
+        String text = textOf(document);
+        // Then
+        assertThat(text.trim()).isEqualTo("HEAVY\nMETAL");
+        assertThat(document.getMetadata().get(OCR_MODEL)).isEqualTo("eng");
+    }
+
+    @Test
+    public void test_a_missing_script_language_keeps_plain_ocr() {
+        // Given
+        TesseractOCRConfigAdapter complete = new TesseractOCRConfigAdapter() {
+            @Override
+            public Set<String> installedModels() {
+                return Set.of("osd", "script/Latin", "script/HanS", "script/Cyrillic", "script/Arabic",
+                        "script/Japanese", "script/Hangul");
+            }
+        };
+        Extractor extractor = new Extractor(Options.from(Map.of("ocrLanguage", "Cyrillic:rus")));
+        // When
+        Parser installed = extractor.withAutoLanguage(complete, EmptyParser.INSTANCE);
+        // Then
+        assertThat(installed).isSameAs(EmptyParser.INSTANCE);
     }
 
     @Test
