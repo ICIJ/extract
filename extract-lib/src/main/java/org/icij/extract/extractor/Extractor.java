@@ -114,6 +114,9 @@ import static org.icij.extract.extractor.ArtifactUtils.getEmbeddedPath;
 @Option(name = "ocrRetryConfidence", description = "When the OCR language is chosen per image, read an image " +
         "again with every supported script if the first read's mean word confidence is below this value, " +
         "from 0 to 100. Defaults to 60.", parameter = "confidence")
+@Option(name = "ocrScriptLanguages", description = "When the OCR language is chosen per image, the languages to " +
+        "read each detected script with instead of its script model, for example " +
+        "\"Cyrillic:rus+ukr,Han:chi_sim,Latin:eng+fra\". Scripts use tesseract's OSD names.", parameter = "mapping")
 @Option(name = "ocrStrategy", description = "Set the PDF OCR strategy. One of \"NO_OCR\" " +
         "(default), \"AUTO\", \"OCR_AND_TEXT_EXTRACTION\" or \"OCR_ONLY\". Any rendering " +
         "strategy OCRs whole pages and disables inline-image extraction, which is required to " +
@@ -187,7 +190,7 @@ public class Extractor implements AutoCloseable {
     }
 
     private static final Logger logger = LoggerFactory.getLogger(Extractor.class);
-    private static final Map<Class<?>, Set<String>> MISSING_OCR_MODELS = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Set<String>> INSTALLED_OCR_MODELS = new ConcurrentHashMap<>();
     private static final Set<Class<?>> WARNED_OCR_ADAPTERS = ConcurrentHashMap.newKeySet();
 
     private boolean ocrDisabled = false;
@@ -216,6 +219,7 @@ public class Extractor implements AutoCloseable {
     private boolean ocrFanout = true;
     private boolean autoOcrLanguage = true;
     private int ocrRetryConfidence = 60;
+    private Map<String, String> ocrScriptLanguages = Map.of();
     private long ocrMinImageBytes = 0L;
     private Duration progressHeartbeatInterval = Duration.ofSeconds(60);
     private boolean streamingSpew = true;
@@ -290,6 +294,8 @@ public class Extractor implements AutoCloseable {
             }
             this.ocrRetryConfidence = Math.max(0, Math.min(100, n));
         });
+        options.valueIfPresent("ocrScriptLanguages").map(AutoLanguageOCRParser::parseScriptLanguages)
+            .ifPresent(scriptLanguages -> this.ocrScriptLanguages = scriptLanguages);
         setOcrConfig(options.valueIfPresent("ocrType")
             .map(OCRConfigRegistry::parse)
             .orElse(OCRConfigRegistry.TESSERACT)
@@ -403,25 +409,25 @@ public class Extractor implements AutoCloseable {
         if (!autoOcrLanguage) {
             return ocrParser;
         }
-        Set<String> missing = MISSING_OCR_MODELS.get(ocrConfig.getClass());
-        if (missing == null) {
-            final Set<String> installed = ocrConfig.installedModels();
-            missing = AutoLanguageOCRParser.missingModels(installed);
+        Set<String> installed = INSTALLED_OCR_MODELS.get(ocrConfig.getClass());
+        if (installed == null) {
+            installed = ocrConfig.installedModels();
             // A failed probe also lists nothing, so only a real listing is kept for the JVM.
             if (!installed.isEmpty()) {
-                MISSING_OCR_MODELS.put(ocrConfig.getClass(), missing);
+                INSTALLED_OCR_MODELS.put(ocrConfig.getClass(), installed);
             }
-            if (!missing.isEmpty() && WARNED_OCR_ADAPTERS.add(ocrConfig.getClass())) {
-                logger.warn("OCR language detection disabled, missing tesseract models {}; OCR uses \"{}\".",
-                        missing, ocrConfig.getConfig().getLanguage());
-            }
+        }
+        final Set<String> missing = AutoLanguageOCRParser.missingModels(installed, ocrScriptLanguages);
+        if (!missing.isEmpty() && WARNED_OCR_ADAPTERS.add(ocrConfig.getClass())) {
+            logger.warn("OCR language detection disabled, missing tesseract models {}; OCR uses \"{}\".",
+                    missing, ocrConfig.getConfig().getLanguage());
         }
         if (!missing.isEmpty()) {
             autoOcrLanguage = false;
             return ocrParser;
         }
         return new AutoLanguageOCRParser(ocrParser, ocrConfig instanceof TesseractOCRConfigAdapter,
-                ocrRetryConfidence, () -> autoOcrLanguage);
+                ocrRetryConfidence, ocrScriptLanguages, () -> autoOcrLanguage);
     }
 
     /**

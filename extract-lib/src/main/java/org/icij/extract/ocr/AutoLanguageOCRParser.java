@@ -26,8 +26,10 @@ import java.io.InputStream;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
@@ -66,18 +68,35 @@ public class AutoLanguageOCRParser implements Parser {
     private final Parser delegate;
     private final boolean readsHocr;
     private final int retryConfidence;
+    private final Map<String, String> scriptLanguages;
     private final BooleanSupplier enabled;
 
-    public AutoLanguageOCRParser(Parser delegate, boolean readsHocr, int retryConfidence, BooleanSupplier enabled) {
+    public AutoLanguageOCRParser(Parser delegate, boolean readsHocr, int retryConfidence,
+                                 Map<String, String> scriptLanguages, BooleanSupplier enabled) {
         this.delegate = delegate;
         this.readsHocr = readsHocr;
         this.retryConfidence = retryConfidence;
+        this.scriptLanguages = scriptLanguages;
         this.enabled = enabled;
     }
 
-    public static Set<String> missingModels(Set<String> installed) {
+    public static Map<String, String> parseScriptLanguages(String value) {
+        Map<String, String> scriptLanguages = new HashMap<>();
+        for (String entry : value.split(",")) {
+            String[] scriptAndLanguages = entry.split(":", 2);
+            if (scriptAndLanguages.length != 2 || scriptAndLanguages[0].isBlank() || scriptAndLanguages[1].isBlank()) {
+                throw new IllegalArgumentException("ocrScriptLanguages entry \"" + entry.strip()
+                        + "\" is not script:languages, for example Cyrillic:rus+ukr");
+            }
+            scriptLanguages.put(scriptAndLanguages[0].strip(), scriptAndLanguages[1].strip());
+        }
+        return Map.copyOf(scriptLanguages);
+    }
+
+    public static Set<String> missingModels(Set<String> installed, Map<String, String> scriptLanguages) {
         Set<String> missing = new TreeSet<>(SCRIPTS);
         missing.add("osd");
+        scriptLanguages.values().forEach(languages -> missing.addAll(List.of(languages.split("\\+"))));
         missing.removeAll(installed);
         return missing;
     }
@@ -104,7 +123,8 @@ public class AutoLanguageOCRParser implements Parser {
             }
             Metadata detection = detect(image, base, metadata, context);
             String script = StringUtils.trimToNull(detection.get(TesseractOCRParser.PSM0_SCRIPT));
-            String firstModel = script == null ? LATIN : FIRST_PASS_MODEL.getOrDefault(script, ALL_SCRIPTS);
+            String firstModel = scriptLanguages.getOrDefault(Objects.toString(script, "Latin"),
+                    script == null ? LATIN : FIRST_PASS_MODEL.getOrDefault(script, ALL_SCRIPTS));
             Pass best = read(image, firstModel, base, metadata, context);
             if (best.confidence() < retryConfidence && !best.text().isEmpty() && !firstModel.equals(ALL_SCRIPTS)) {
                 try {

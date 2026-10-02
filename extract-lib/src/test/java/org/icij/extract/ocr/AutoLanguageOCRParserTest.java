@@ -226,7 +226,7 @@ public class AutoLanguageOCRParserTest {
         // Given
         StubOcr stub = new StubOcr();
         Metadata metadata = new Metadata();
-        AutoLanguageOCRParser router = new AutoLanguageOCRParser(stub, false, 60, () -> false);
+        AutoLanguageOCRParser router = new AutoLanguageOCRParser(stub, false, 60, Map.of(), () -> false);
         // When
         String text = parse(router, metadata, new ParseContext());
         // Then
@@ -351,14 +351,77 @@ public class AutoLanguageOCRParserTest {
 
     @Test
     public void test_missing_models_lists_what_is_not_installed() {
-        assertThat(AutoLanguageOCRParser.missingModels(Set.of("eng", "osd", "script/Latin")))
+        assertThat(AutoLanguageOCRParser.missingModels(Set.of("eng", "osd", "script/Latin"), Map.of()))
                 .containsOnly("script/HanS", "script/Cyrillic", "script/Arabic", "script/Japanese", "script/Hangul");
         assertThat(AutoLanguageOCRParser.missingModels(Set.of("osd", "script/Latin", "script/HanS",
-                "script/Cyrillic", "script/Arabic", "script/Japanese", "script/Hangul"))).isEmpty();
+                "script/Cyrillic", "script/Arabic", "script/Japanese", "script/Hangul"), Map.of())).isEmpty();
+    }
+
+    @Test
+    public void test_missing_models_include_the_languages_of_each_script() {
+        assertThat(AutoLanguageOCRParser.missingModels(Set.of("osd", "script/Latin", "script/HanS",
+                "script/Cyrillic", "script/Arabic", "script/Japanese", "script/Hangul", "rus"),
+                Map.of("Cyrillic", "rus+ukr"))).containsOnly("ukr");
+    }
+
+    @Test
+    public void test_a_script_with_languages_reads_with_those_languages() throws Exception {
+        // Given
+        StubOcr stub = new StubOcr();
+        stub.script = "Cyrillic";
+        Metadata metadata = new Metadata();
+        // When
+        String text = parse(router(stub, 60, Map.of("Cyrillic", "rus+ukr")), metadata, new ParseContext());
+        // Then
+        assertThat(stub.calls).isEqualTo(List.of("osd", "rus+ukr"));
+        assertThat(text).isEqualTo("read with rus+ukr");
+        assertThat(metadata.get(OCR_SCRIPT)).isEqualTo("Cyrillic");
+        assertThat(metadata.get(OCR_MODEL)).isEqualTo("rus+ukr");
+    }
+
+    @Test
+    public void test_a_script_without_languages_keeps_its_script_model() throws Exception {
+        // Given
+        StubOcr stub = new StubOcr();
+        Metadata metadata = new Metadata();
+        // When
+        parse(router(stub, 60, Map.of("Cyrillic", "rus+ukr")), metadata, new ParseContext());
+        // Then
+        assertThat(metadata.get(OCR_MODEL)).isEqualTo("script/HanS+script/Latin");
+    }
+
+    @Test
+    public void test_a_failed_detection_reads_with_the_latin_languages() throws Exception {
+        // Given
+        StubOcr stub = new StubOcr();
+        stub.script = null;
+        Metadata metadata = new Metadata();
+        // When
+        parse(router(stub, 60, Map.of("Latin", "eng+fra")), metadata, new ParseContext());
+        // Then
+        assertThat(stub.calls).isEqualTo(List.of("osd", "eng+fra"));
+        assertThat(metadata.get(OCR_MODEL)).isEqualTo("eng+fra");
+    }
+
+    @Test
+    public void test_parses_script_languages() {
+        assertThat(AutoLanguageOCRParser.parseScriptLanguages(" Cyrillic:rus+ukr , Han:chi_sim "))
+                .isEqualTo(Map.of("Cyrillic", "rus+ukr", "Han", "chi_sim"));
+    }
+
+    @Test
+    public void test_a_script_without_languages_is_rejected() {
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> AutoLanguageOCRParser.parseScriptLanguages("Cyrillic:rus,Han"));
+        assertThat(error.getMessage()).contains("Han");
     }
 
     private static AutoLanguageOCRParser router(StubOcr stub, int retryConfidence) {
-        return new AutoLanguageOCRParser(stub, false, retryConfidence, () -> true);
+        return router(stub, retryConfidence, Map.of());
+    }
+
+    private static AutoLanguageOCRParser router(StubOcr stub, int retryConfidence, Map<String, String> scriptLanguages) {
+        return new AutoLanguageOCRParser(stub, false, retryConfidence, scriptLanguages, () -> true);
     }
 
     private static String parse(Parser parser, Metadata metadata, ParseContext context) throws Exception {
