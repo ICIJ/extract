@@ -190,7 +190,6 @@ public class AutoLanguageOCRParser implements Parser {
             run(image, config, hocr, metadata, context);
             return new Pass(model, asTesseractText(hocr.text()), hocr.meanConfidence());
         }
-        config.addOtherTesseractConfig(Tess4JOCRParser.SKIP_CONFIDENCE, "false");
         BodyContentHandler text = new BodyContentHandler(-1);
         run(image, config, text, metadata, context);
         double confidence = Optional.ofNullable(metadata.get(OCR_CONFIDENCE)).map(Double::parseDouble).orElse(0.0);
