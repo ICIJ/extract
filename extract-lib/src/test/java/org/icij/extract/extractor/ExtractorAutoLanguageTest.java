@@ -10,6 +10,7 @@ import org.icij.extract.document.TikaDocument;
 import org.icij.extract.ocr.TesseractOCRConfigAdapter;
 import org.icij.spewer.Spewer;
 import org.icij.task.Options;
+import org.icij.task.StringOptionParser;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
@@ -81,6 +82,20 @@ public class ExtractorAutoLanguageTest {
         textOf(extractor.extract(path("/documents/ocr/simple.tiff")));
         // Then
         assertThat(osdFiles()).isEqualTo(before);
+    }
+
+    @Test
+    public void test_cli_options_without_an_ocr_type_still_route_ocr() throws Exception {
+        // Given
+        Options<String> options = new Options<>();
+        options.add("ocrType", StringOptionParser::new);
+        options.add("ocrLanguage", StringOptionParser::new);
+        Extractor extractor = new Extractor(options);
+        // When
+        TikaDocument document = extractor.extract(path("/documents/ocr/simple.tiff"));
+        textOf(document);
+        // Then
+        assertThat(document.getMetadata().get(OCR_MODEL)).isEqualTo("script/Latin");
     }
 
     @Test
