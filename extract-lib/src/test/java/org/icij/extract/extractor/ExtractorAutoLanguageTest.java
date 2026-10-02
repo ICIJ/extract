@@ -123,13 +123,6 @@ public class ExtractorAutoLanguageTest {
     }
 
     @Test
-    public void test_retry_confidence_is_clamped_to_0_100() {
-        assertThat(new Extractor(Options.from(Map.of("ocrRetryConfidence", "150"))).getOcrRetryConfidence()).isEqualTo(100);
-        assertThat(new Extractor(Options.from(Map.of("ocrRetryConfidence", "-5"))).getOcrRetryConfidence()).isEqualTo(0);
-        assertThat(new Extractor().getOcrRetryConfidence()).isEqualTo(60);
-    }
-
-    @Test
     public void test_missing_models_keep_plain_ocr_and_warn_once() {
         // Given
         TesseractOCRConfigAdapter partial = new TesseractOCRConfigAdapter() {

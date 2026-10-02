@@ -288,12 +288,7 @@ public class Extractor implements AutoCloseable {
         options.get("embedHandling", "SPAWN").parse().asEnum(EmbedHandling::parse).ifPresent(this::setEmbedHandling);
         final Optional<String> ocrLanguage = options.valueIfPresent("ocrLanguage");
         autoOcrLanguage = ocrLanguage.isEmpty() && !options.get("ocr", "true").parse().isOff();
-        options.get("ocrRetryConfidence", "60").parse().asInteger().ifPresent(n -> {
-            if (n < 0 || n > 100) {
-                logger.warn("ocrRetryConfidence {} is outside 0 to 100; clamping.", n);
-            }
-            this.ocrRetryConfidence = Math.max(0, Math.min(100, n));
-        });
+        options.get("ocrRetryConfidence", "60").parse().asInteger().ifPresent(n -> this.ocrRetryConfidence = n);
         options.valueIfPresent("ocrScriptLanguages").map(AutoLanguageOCRParser::parseScriptLanguages)
             .ifPresent(scriptLanguages -> this.ocrScriptLanguages = scriptLanguages);
         setOcrConfig(options.valueIfPresent("ocrType")
@@ -466,8 +461,6 @@ public class Extractor implements AutoCloseable {
     public boolean isLegacyUntitledNaming() { return legacyUntitledNaming; }
     public int getMaxEmbedDepth() { return maxEmbedDepth; }
     public long getMaxEmbedSizeBytes() { return maxEmbedSizeBytes; }
-
-    public int getOcrRetryConfidence() { return ocrRetryConfidence; }
 
     ExecutorService pstParseExecutorOrNull() { return pstParseExecutor; }
 
