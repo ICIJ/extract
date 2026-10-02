@@ -16,6 +16,7 @@ import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -291,6 +292,24 @@ public class AutoLanguageOCRParserTest {
         assertThat(stub.calls).isEqualTo(List.of("osd"));
         assertThat(metadata.get(TesseractOCRParser.PSM0_SCRIPT)).isEqualTo("Han");
         assertThat(metadata.get(OCR_MODEL)).isNull();
+    }
+
+    @Test
+    public void test_content_type_is_restored_when_the_image_cannot_be_read() {
+        // Given
+        Metadata metadata = new Metadata();
+        metadata.set(Metadata.CONTENT_TYPE, "image/ocr-png");
+        InputStream broken = new InputStream() {
+            @Override
+            public int read() throws IOException {
+                throw new IOException("disk full");
+            }
+        };
+        // When
+        assertThrows(IOException.class, () -> router(new StubOcr(), 60)
+                .parse(broken, new BodyContentHandler(-1), metadata, new ParseContext()));
+        // Then
+        assertThat(metadata.get(Metadata.CONTENT_TYPE)).isEqualTo("image/png");
     }
 
     @Test
