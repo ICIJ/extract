@@ -14,6 +14,7 @@ import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.ocr.TesseractOCRParser;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.XHTMLContentHandler;
+import org.apache.tika.utils.ParserUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
@@ -22,7 +23,10 @@ import org.xml.sax.helpers.DefaultHandler;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -43,10 +47,10 @@ public class AutoLanguageOCRParser implements Parser {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AutoLanguageOCRParser.class);
     private static final String LATIN = "script/Latin";
-    private static final String ALL_SCRIPTS = String.join("+",
+    private static final List<String> SCRIPTS = List.of(
             LATIN, "script/HanS", "script/Cyrillic", "script/Arabic", "script/Japanese", "script/Hangul");
-    private static final Set<String> REQUIRED_MODELS = Set.of(
-            "osd", LATIN, "script/HanS", "script/Cyrillic", "script/Arabic", "script/Japanese", "script/Hangul");
+    private static final String ALL_SCRIPTS = String.join("+", SCRIPTS);
+    private static final String OSD_OUTPUT = ".osd";
     // OSD names Hangul text "Korean".
     private static final Map<String, String> FIRST_PASS_MODEL = Map.of(
             "Latin", LATIN,
@@ -72,7 +76,8 @@ public class AutoLanguageOCRParser implements Parser {
     }
 
     public static Set<String> missingModels(Set<String> installed) {
-        Set<String> missing = new TreeSet<>(REQUIRED_MODELS);
+        Set<String> missing = new TreeSet<>(SCRIPTS);
+        missing.add("osd");
         missing.removeAll(installed);
         return missing;
     }
@@ -93,13 +98,17 @@ public class AutoLanguageOCRParser implements Parser {
         TesseractOCRConfig base = callerConfig == null ? new TesseractOCRConfig() : callerConfig;
         try (TemporaryResources tmp = new TemporaryResources()) {
             Path image = TikaInputStream.get(stream, tmp, metadata).getPath();
+            if (readsAsIs(base, Files.size(image))) {
+                run(image, base, handler, metadata, context);
+                return;
+            }
             Metadata detection = detect(image, base, metadata, context);
             String script = StringUtils.trimToNull(detection.get(TesseractOCRParser.PSM0_SCRIPT));
             String firstModel = script == null ? LATIN : FIRST_PASS_MODEL.getOrDefault(script, ALL_SCRIPTS);
             Pass best = read(image, firstModel, base, metadata, context);
             if (best.confidence() < retryConfidence && !best.text().isEmpty() && !firstModel.equals(ALL_SCRIPTS)) {
                 try {
-                    Pass retry = read(image, ALL_SCRIPTS, base, metadata, context);
+                    Pass retry = read(image, ALL_SCRIPTS, base, ParserUtils.cloneMetadata(metadata), context);
                     if (retry.confidence() > best.confidence()) {
                         best = retry;
                     }
@@ -107,7 +116,6 @@ public class AutoLanguageOCRParser implements Parser {
                     LOGGER.warn("retry with {} failed, keeping the first pass: {}", ALL_SCRIPTS, e.toString());
                 }
             }
-            emit(best.text(), handler, metadata);
             if (script != null) {
                 metadata.set(OCR_SCRIPT, script);
                 Optional.ofNullable(detection.get(TesseractOCRParser.PSM0_SCRIPT_CONFIDENCE))
@@ -115,21 +123,46 @@ public class AutoLanguageOCRParser implements Parser {
             }
             metadata.set(OCR_MODEL, best.model());
             metadata.set(OCR_CONFIDENCE, best.confidence() / 100);
+            emit(best.text(), handler, metadata);
         } finally {
             context.set(TesseractOCRConfig.class, callerConfig);
+            OCRParserAdapter.restoreMediaTypes(metadata);
         }
+    }
+
+    private static boolean readsAsIs(TesseractOCRConfig config, long size) {
+        return config.isSkipOcr() || "0".equals(config.getPageSegMode())
+                || size < config.getMinFileSizeToOcr() || size > config.getMaxFileSizeToOcr();
     }
 
     private Metadata detect(Path image, TesseractOCRConfig base, Metadata metadata, ParseContext context) {
         TesseractOCRConfig config = SerializationUtils.clone(base);
         config.setPageSegMode("0");
-        Metadata scratch = copyOf(metadata);
+        Metadata scratch = ParserUtils.cloneMetadata(metadata);
         try {
             run(image, config, new DefaultHandler(), scratch, context);
             return scratch;
-        } catch (IOException | SAXException | TikaException e) {
+        } catch (IOException | SAXException | TikaException | RuntimeException e) {
             LOGGER.debug("script detection failed, reading as {}: {}", LATIN, e.toString());
+            if (readsHocr) {
+                deleteOrphanOsdOutput();
+            }
             return new Metadata();
+        }
+    }
+
+    // When tesseract fails, Tika deletes its apache-tika-*.tmp base file but not the .osd output next to it.
+    private static void deleteOrphanOsdOutput() {
+        Path tmp = Path.of(System.getProperty("java.io.tmpdir"));
+        try (DirectoryStream<Path> outputs = Files.newDirectoryStream(tmp, "apache-tika-*.tmp" + OSD_OUTPUT)) {
+            for (Path output : outputs) {
+                String name = output.getFileName().toString();
+                if (Files.notExists(output.resolveSibling(name.substring(0, name.length() - OSD_OUTPUT.length())))) {
+                    Files.deleteIfExists(output);
+                }
+            }
+        } catch (IOException e) {
+            LOGGER.debug("could not delete tesseract OSD output: {}", e.toString());
         }
     }
 
@@ -142,13 +175,19 @@ public class AutoLanguageOCRParser implements Parser {
             config.setOutputType(TesseractOCRConfig.OUTPUT_TYPE.HOCR);
             HocrTextHandler hocr = new HocrTextHandler();
             run(image, config, hocr, metadata, context);
-            return new Pass(model, hocr.text(), hocr.meanConfidence());
+            return new Pass(model, asTesseractText(hocr.text()), hocr.meanConfidence());
         }
         config.addOtherTesseractConfig(Tess4JOCRParser.SKIP_CONFIDENCE, "false");
         BodyContentHandler text = new BodyContentHandler(-1);
         run(image, config, text, metadata, context);
         double confidence = Optional.ofNullable(metadata.get(OCR_CONFIDENCE)).map(Double::parseDouble).orElse(0.0);
-        return new Pass(model, text.toString().strip(), 100 * confidence);
+        return new Pass(model, asTesseractText(text.toString()), 100 * confidence);
+    }
+
+    // Tesseract's text output ends its last line with a newline, and stored page offsets count it.
+    private static String asTesseractText(String text) {
+        String stripped = text.strip();
+        return stripped.isEmpty() ? "" : stripped + "\n";
     }
 
     private void run(Path image, TesseractOCRConfig config, ContentHandler handler, Metadata metadata,
@@ -166,16 +205,6 @@ public class AutoLanguageOCRParser implements Parser {
         xhtml.characters(text);
         xhtml.endElement("div");
         xhtml.endDocument();
-    }
-
-    private static Metadata copyOf(Metadata metadata) {
-        Metadata copy = new Metadata();
-        for (String name : metadata.names()) {
-            for (String value : metadata.getValues(name)) {
-                copy.add(name, value);
-            }
-        }
-        return copy;
     }
 
     private record Pass(String model, String text, double confidence) {}

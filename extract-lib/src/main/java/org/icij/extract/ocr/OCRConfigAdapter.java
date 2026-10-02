@@ -21,5 +21,7 @@ public interface OCRConfigAdapter<P extends Parser> {
 
     OCRParserAdapter<P> buildParser();
 
-    Set<String> installedModels();
+    default Set<String> installedModels() {
+        return Set.of();
+    }
 }

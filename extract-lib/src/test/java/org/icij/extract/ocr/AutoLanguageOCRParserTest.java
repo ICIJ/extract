@@ -8,6 +8,7 @@ import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.ocr.TesseractOCRParser;
 import org.apache.tika.sax.BodyContentHandler;
+import org.apache.tika.sax.ToXMLContentHandler;
 import org.apache.tika.sax.XHTMLContentHandler;
 import org.fest.assertions.Delta;
 import org.junit.Test;
@@ -15,6 +16,7 @@ import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -234,6 +236,120 @@ public class AutoLanguageOCRParserTest {
     }
 
     @Test
+    public void test_text_ends_with_a_newline_like_tesseract_text_output() throws Exception {
+        // Given
+        ToXMLContentHandler handler = new ToXMLContentHandler();
+        // When
+        router(new StubOcr(), 60).parse(image(), handler, new Metadata(), new ParseContext());
+        // Then
+        assertThat(handler.toString()).contains("<div class=\"ocr\">read with script/HanS+script/Latin\n</div>");
+    }
+
+    @Test
+    public void test_routing_metadata_reaches_the_html_head() throws Exception {
+        // Given
+        ToXMLContentHandler handler = new ToXMLContentHandler();
+        // When
+        router(new StubOcr(), 60).parse(image(), handler, new Metadata(), new ParseContext());
+        // Then
+        assertThat(handler.toString()).contains("<meta name=\"ocr:model\" content=\"script/HanS+script/Latin\"");
+    }
+
+    @Test
+    public void test_skipped_ocr_passes_straight_through() throws Exception {
+        // Given
+        StubOcr stub = new StubOcr();
+        TesseractOCRConfig caller = new TesseractOCRConfig();
+        caller.setSkipOcr(true);
+        ParseContext context = new ParseContext();
+        context.set(TesseractOCRConfig.class, caller);
+        Metadata metadata = new Metadata();
+        // When
+        parse(router(stub, 60), metadata, context);
+        // Then
+        assertThat(stub.calls).isEqualTo(List.of("eng"));
+        assertThat(metadata.get(OCR_MODEL)).isNull();
+    }
+
+    @Test
+    public void test_an_image_above_the_ocr_size_limit_passes_straight_through() throws Exception {
+        // Given
+        StubOcr stub = new StubOcr();
+        TesseractOCRConfig caller = new TesseractOCRConfig();
+        caller.setMaxFileSizeToOcr(2);
+        ParseContext context = new ParseContext();
+        context.set(TesseractOCRConfig.class, caller);
+        Metadata metadata = new Metadata();
+        // When
+        parse(router(stub, 60), metadata, context);
+        // Then
+        assertThat(stub.calls).isEqualTo(List.of("eng"));
+        assertThat(metadata.get(OCR_MODEL)).isNull();
+    }
+
+    @Test
+    public void test_a_caller_asking_for_osd_passes_straight_through() throws Exception {
+        // Given
+        StubOcr stub = new StubOcr();
+        TesseractOCRConfig caller = new TesseractOCRConfig();
+        caller.setPageSegMode("0");
+        ParseContext context = new ParseContext();
+        context.set(TesseractOCRConfig.class, caller);
+        Metadata metadata = new Metadata();
+        // When
+        parse(router(stub, 60), metadata, context);
+        // Then
+        assertThat(stub.calls).isEqualTo(List.of("osd"));
+        assertThat(metadata.get(TesseractOCRParser.PSM0_SCRIPT)).isEqualTo("Han");
+        assertThat(metadata.get(OCR_MODEL)).isNull();
+    }
+
+    @Test
+    public void test_content_type_is_restored_when_the_image_cannot_be_read() {
+        // Given
+        Metadata metadata = new Metadata();
+        metadata.set(Metadata.CONTENT_TYPE, "image/ocr-png");
+        InputStream broken = new InputStream() {
+            @Override
+            public int read() throws IOException {
+                throw new IOException("disk full");
+            }
+        };
+        // When
+        assertThrows(IOException.class, () -> router(new StubOcr(), 60)
+                .parse(broken, new BodyContentHandler(-1), metadata, new ParseContext()));
+        // Then
+        assertThat(metadata.get(Metadata.CONTENT_TYPE)).isEqualTo("image/png");
+    }
+
+    @Test
+    public void test_retry_metadata_does_not_reach_the_document() throws Exception {
+        // Given
+        StubOcr stub = new StubOcr();
+        stub.confidence.put("script/HanS+script/Latin", 0.3);
+        stub.confidence.put(ALL, 0.2);
+        Metadata metadata = new Metadata();
+        // When
+        parse(router(stub, 60), metadata, new ParseContext());
+        // Then
+        assertThat(stub.calls).isEqualTo(List.of("osd", "script/HanS+script/Latin", ALL));
+        assertThat(metadata.getValues("stub:read")).isEqualTo(new String[] {"script/HanS+script/Latin"});
+    }
+
+    @Test
+    public void test_a_runtime_failure_in_detection_reads_as_latin() throws Exception {
+        // Given
+        StubOcr stub = new StubOcr();
+        stub.osdFailure = new NumberFormatException("For input string: \"nan\"");
+        Metadata metadata = new Metadata();
+        // When
+        parse(router(stub, 60), metadata, new ParseContext());
+        // Then
+        assertThat(stub.calls).isEqualTo(List.of("osd", "script/Latin"));
+        assertThat(metadata.get(OCR_MODEL)).isEqualTo("script/Latin");
+    }
+
+    @Test
     public void test_missing_models_lists_what_is_not_installed() {
         assertThat(AutoLanguageOCRParser.missingModels(Set.of("eng", "osd", "script/Latin")))
                 .containsOnly("script/HanS", "script/Cyrillic", "script/Arabic", "script/Japanese", "script/Hangul");
@@ -247,8 +363,12 @@ public class AutoLanguageOCRParserTest {
 
     private static String parse(Parser parser, Metadata metadata, ParseContext context) throws Exception {
         BodyContentHandler handler = new BodyContentHandler(-1);
-        parser.parse(new ByteArrayInputStream(new byte[] {1, 2, 3}), handler, metadata, context);
+        parser.parse(image(), handler, metadata, context);
         return handler.toString().strip();
+    }
+
+    private static InputStream image() {
+        return new ByteArrayInputStream(new byte[] {1, 2, 3});
     }
 
     private static class StubOcr implements Parser {
@@ -259,6 +379,7 @@ public class AutoLanguageOCRParserTest {
         String text = null;
         boolean failOcr = false;
         String failingModel = null;
+        RuntimeException osdFailure = null;
 
         @Override
         public Set<MediaType> getSupportedTypes(ParseContext context) {
@@ -272,6 +393,9 @@ public class AutoLanguageOCRParserTest {
             timeouts.add(config.getTimeoutSeconds());
             if ("0".equals(config.getPageSegMode())) {
                 calls.add("osd");
+                if (osdFailure != null) {
+                    throw osdFailure;
+                }
                 if (script == null) {
                     throw new TikaException("Too few characters. Skipping this page");
                 }
@@ -287,6 +411,7 @@ public class AutoLanguageOCRParserTest {
                 throw new TikaException("OCR timeout");
             }
             metadata.set(OCR_CONFIDENCE, confidence.getOrDefault(config.getLanguage(), 0.9));
+            metadata.add("stub:read", config.getLanguage());
             XHTMLContentHandler xhtml = new XHTMLContentHandler(handler, metadata);
             xhtml.startDocument();
             xhtml.element("div", text == null ? "read with " + config.getLanguage() : text);

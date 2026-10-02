@@ -4,18 +4,21 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.EmptyParser;
 import org.apache.tika.parser.Parser;
 import org.icij.extract.document.TikaDocument;
 import org.icij.extract.ocr.TesseractOCRConfigAdapter;
 import org.icij.spewer.Spewer;
 import org.icij.task.Options;
+import org.icij.task.StringOptionParser;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
@@ -67,6 +70,31 @@ public class ExtractorAutoLanguageTest {
         assertThat(text).contains("HEAVY");
         assertThat(text).contains("METAL");
         assertThat(document.getMetadata().get(OCR_SCRIPT)).isNull();
+        assertThat(document.getMetadata().get(OCR_MODEL)).isEqualTo("script/Latin");
+    }
+
+    @Test
+    public void test_failed_detection_leaves_no_osd_file_behind() throws Exception {
+        // Given
+        Extractor extractor = new Extractor();
+        long before = osdFiles();
+        // When
+        textOf(extractor.extract(path("/documents/ocr/simple.tiff")));
+        // Then
+        assertThat(osdFiles()).isEqualTo(before);
+    }
+
+    @Test
+    public void test_cli_options_without_an_ocr_type_still_route_ocr() throws Exception {
+        // Given
+        Options<String> options = new Options<>();
+        options.add("ocrType", StringOptionParser::new);
+        options.add("ocrLanguage", StringOptionParser::new);
+        Extractor extractor = new Extractor(options);
+        // When
+        TikaDocument document = extractor.extract(path("/documents/ocr/simple.tiff"));
+        textOf(document);
+        // Then
         assertThat(document.getMetadata().get(OCR_MODEL)).isEqualTo("script/Latin");
     }
 
@@ -169,7 +197,45 @@ public class ExtractorAutoLanguageTest {
         assertThat(appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList()).hasSize(1);
     }
 
-    private static java.nio.file.Path path(String resource) {
+    @Test
+    public void test_an_empty_probe_is_retried_but_warned_once() {
+        // Given
+        AtomicInteger probes = new AtomicInteger();
+        TesseractOCRConfigAdapter failing = new TesseractOCRConfigAdapter() {
+            @Override
+            public Set<String> installedModels() {
+                probes.incrementAndGet();
+                return Set.of();
+            }
+        };
+        Logger log = (Logger) LoggerFactory.getLogger(Extractor.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        log.addAppender(appender);
+        // When
+        try {
+            new Extractor().withAutoLanguage(failing, EmptyParser.INSTANCE);
+            new Extractor().withAutoLanguage(failing, EmptyParser.INSTANCE);
+        } finally {
+            log.detachAppender(appender);
+        }
+        // Then
+        assertThat(probes.get()).isEqualTo(2);
+        assertThat(appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList()).hasSize(1);
+    }
+
+    private static long osdFiles() throws IOException {
+        Path tmp = Path.of(System.getProperty("java.io.tmpdir"));
+        try (DirectoryStream<Path> files = Files.newDirectoryStream(tmp, "apache-tika-*.osd")) {
+            long count = 0;
+            for (Path ignored : files) {
+                count++;
+            }
+            return count;
+        }
+    }
+
+    private static Path path(String resource) {
         return Paths.get(ExtractorAutoLanguageTest.class.getResource(resource).getPath());
     }
 

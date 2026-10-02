@@ -29,6 +29,7 @@ import org.apache.tika.mime.MimeTypes;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
+import org.apache.tika.parser.ocr.TesseractOCRParser;
 import org.apache.tika.parser.ocr.tess4j.ImageDeskew;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.EmbeddedContentHandler;
@@ -120,8 +121,8 @@ public class Tess4JOCRParser extends ParserWithConfidence implements Parser, Aut
     public static final Property PSM0_ROTATE = Property.externalInteger("tess:rotate");
     public static final Property PSM0_ORIENTATION = Property.externalInteger("tess:orientation");
     public static final Property PSM0_ORIENTATION_CONFIDENCE = Property.externalReal("tess:orientation_confidence");
-    public static final Property PSM0_SCRIPT = Property.externalText("tess:script");
-    public static final Property PSM0_SCRIPT_CONFIDENCE = Property.externalReal("tess:script_confidence");
+    public static final Property PSM0_SCRIPT = TesseractOCRParser.PSM0_SCRIPT;
+    public static final Property PSM0_SCRIPT_CONFIDENCE = TesseractOCRParser.PSM0_SCRIPT_CONFIDENCE;
 
     public static final String SKIP_CONFIDENCE = "skipConfidence";
 
@@ -568,10 +569,8 @@ public class Tess4JOCRParser extends ParserWithConfidence implements Parser, Aut
         }
 
         @Override
-        public Void call() {
-            OSDResult osdResult = Optional.ofNullable(imageFile)
-                .map(rethrowFunction(tesseract::getOSD))
-                .orElse(tesseract.getOSD(image));
+        public Void call() throws IOException {
+            OSDResult osdResult = imageFile != null ? tesseract.getOSD(imageFile) : tesseract.getOSD(image);
             extractOSDOutput(osdResult, metadata);
             return null;
         }
@@ -592,8 +591,7 @@ public class Tess4JOCRParser extends ParserWithConfidence implements Parser, Aut
 
         @Override
         public Void call() throws TesseractException, IOException, SAXException {
-            String ocrOutput = Optional.ofNullable(imageFile)
-                .map(rethrowFunction(tesseract::doOCR)).orElse(tesseract.doOCR(image));
+            String ocrOutput = imageFile != null ? tesseract.doOCR(imageFile) : tesseract.doOCR(image);
             extractOCROutput(new ByteArrayInputStream(ocrOutput.getBytes()), xhtml);
             return null;
         }

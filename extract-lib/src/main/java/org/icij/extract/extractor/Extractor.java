@@ -188,6 +188,7 @@ public class Extractor implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(Extractor.class);
     private static final Map<Class<?>, Set<String>> MISSING_OCR_MODELS = new ConcurrentHashMap<>();
+    private static final Set<Class<?>> WARNED_OCR_ADAPTERS = ConcurrentHashMap.newKeySet();
 
     private boolean ocrDisabled = false;
     private DigestingParser.Digester digester = null;
@@ -289,11 +290,10 @@ public class Extractor implements AutoCloseable {
             }
             this.ocrRetryConfidence = Math.max(0, Math.min(100, n));
         });
-        options.get("ocrType", String.valueOf(OCRConfigRegistry.TESSERACT))
-            .parse()
-            .asEnum(OCRConfigRegistry::parse)
-            .map(OCRConfigRegistry::buildAdapter)
-            .ifPresent(this::setOcrConfig);
+        setOcrConfig(options.valueIfPresent("ocrType")
+            .map(OCRConfigRegistry::parse)
+            .orElse(OCRConfigRegistry.TESSERACT)
+            .buildAdapter());
         ocrLanguage.ifPresent(this::setOcrLanguage);
         options.get("ocrStrategy", "NO_OCR").value().ifPresent(this::setOcrStrategy);
         options.get("ocrTimeout", "12h").parse().asDuration().ifPresent(this::setOcrTimeout);
@@ -403,14 +403,19 @@ public class Extractor implements AutoCloseable {
         if (!autoOcrLanguage) {
             return ocrParser;
         }
-        final Set<String> missing = MISSING_OCR_MODELS.computeIfAbsent(ocrConfig.getClass(), adapter -> {
-            final Set<String> models = AutoLanguageOCRParser.missingModels(ocrConfig.installedModels());
-            if (!models.isEmpty()) {
-                logger.warn("OCR language detection disabled, missing tesseract models {}; OCR uses \"{}\".",
-                        models, ocrConfig.getConfig().getLanguage());
+        Set<String> missing = MISSING_OCR_MODELS.get(ocrConfig.getClass());
+        if (missing == null) {
+            final Set<String> installed = ocrConfig.installedModels();
+            missing = AutoLanguageOCRParser.missingModels(installed);
+            // A failed probe also lists nothing, so only a real listing is kept for the JVM.
+            if (!installed.isEmpty()) {
+                MISSING_OCR_MODELS.put(ocrConfig.getClass(), missing);
             }
-            return models;
-        });
+            if (!missing.isEmpty() && WARNED_OCR_ADAPTERS.add(ocrConfig.getClass())) {
+                logger.warn("OCR language detection disabled, missing tesseract models {}; OCR uses \"{}\".",
+                        missing, ocrConfig.getConfig().getLanguage());
+            }
+        }
         if (!missing.isEmpty()) {
             autoOcrLanguage = false;
             return ocrParser;
