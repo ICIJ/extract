@@ -188,7 +188,7 @@ public class ExtractorAutoLanguageTest {
     }
 
     @Test
-    public void test_an_empty_probe_is_retried_but_warned_once() {
+    public void test_an_empty_probe_is_kept_and_warned_once() {
         // Given
         AtomicInteger probes = new AtomicInteger();
         TesseractOCRConfigAdapter failing = new TesseractOCRConfigAdapter() {
@@ -210,7 +210,7 @@ public class ExtractorAutoLanguageTest {
             log.detachAppender(appender);
         }
         // Then
-        assertThat(probes.get()).isEqualTo(2);
+        assertThat(probes.get()).isEqualTo(1);
         assertThat(appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList()).hasSize(1);
     }
 
