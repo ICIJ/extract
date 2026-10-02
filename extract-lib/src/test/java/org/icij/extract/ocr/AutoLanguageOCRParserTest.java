@@ -337,6 +337,19 @@ public class AutoLanguageOCRParserTest {
     }
 
     @Test
+    public void test_a_runtime_failure_in_detection_reads_as_latin() throws Exception {
+        // Given
+        StubOcr stub = new StubOcr();
+        stub.osdFailure = new NumberFormatException("For input string: \"nan\"");
+        Metadata metadata = new Metadata();
+        // When
+        parse(router(stub, 60), metadata, new ParseContext());
+        // Then
+        assertThat(stub.calls).isEqualTo(List.of("osd", "script/Latin"));
+        assertThat(metadata.get(OCR_MODEL)).isEqualTo("script/Latin");
+    }
+
+    @Test
     public void test_missing_models_lists_what_is_not_installed() {
         assertThat(AutoLanguageOCRParser.missingModels(Set.of("eng", "osd", "script/Latin")))
                 .containsOnly("script/HanS", "script/Cyrillic", "script/Arabic", "script/Japanese", "script/Hangul");
@@ -366,6 +379,7 @@ public class AutoLanguageOCRParserTest {
         String text = null;
         boolean failOcr = false;
         String failingModel = null;
+        RuntimeException osdFailure = null;
 
         @Override
         public Set<MediaType> getSupportedTypes(ParseContext context) {
@@ -379,6 +393,9 @@ public class AutoLanguageOCRParserTest {
             timeouts.add(config.getTimeoutSeconds());
             if ("0".equals(config.getPageSegMode())) {
                 calls.add("osd");
+                if (osdFailure != null) {
+                    throw osdFailure;
+                }
                 if (script == null) {
                     throw new TikaException("Too few characters. Skipping this page");
                 }

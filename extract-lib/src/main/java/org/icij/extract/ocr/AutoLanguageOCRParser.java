@@ -142,7 +142,7 @@ public class AutoLanguageOCRParser implements Parser {
         try {
             run(image, config, new DefaultHandler(), scratch, context);
             return scratch;
-        } catch (IOException | SAXException | TikaException e) {
+        } catch (IOException | SAXException | TikaException | RuntimeException e) {
             LOGGER.debug("script detection failed, reading as {}: {}", LATIN, e.toString());
             if (readsHocr) {
                 deleteOrphanOsdOutput();
