@@ -387,6 +387,9 @@ public class Extractor implements AutoCloseable {
     public void setOcrConfig(final OCRConfigAdapter<?> ocrConfig) {
         this.ocrConfig = ocrConfig;
         Parser ocrParser = withAutoLanguage(ocrConfig, ocrConfig.buildParser());
+        // A previous call left its own OCR parser in place of Tika's, so that one is swapped too.
+        replaceParser(AutoLanguageOCRParser.class, parser -> ocrParser);
+        replaceParser(OCRParserAdapter.class, parser -> ocrParser);
         replaceParser(ocrConfig.getParserClass(), parser -> ocrParser);
         // this is a hack: we are mapping TesseractOCRParser.class to Tess4jOCRParser instance
         for (OCRConfigRegistry c: OCRConfigRegistry.values()) {
@@ -560,12 +563,16 @@ public class Extractor implements AutoCloseable {
      *                    detected script with, for example "Cyrillic:rus+ukr,Latin:eng+fra"
      */
     public void setOcrLanguage(final String ocrLanguage) {
+        final boolean hadLanguageRouting = autoOcrLanguage && !ocrDisabled;
         if (isScriptMapping(ocrLanguage)) {
             ocrScriptLanguages = AutoLanguageOCRParser.parseScriptLanguages(ocrLanguage);
             autoOcrLanguage = true;
         } else {
-            autoOcrLanguage = false;
             ocrConfig.setLanguages(ocrLanguage.split("\\+"));
+            autoOcrLanguage = false;
+        }
+        if (!ocrDisabled && (hadLanguageRouting || autoOcrLanguage)) {
+            setOcrConfig(ocrConfig);
         }
     }
 
