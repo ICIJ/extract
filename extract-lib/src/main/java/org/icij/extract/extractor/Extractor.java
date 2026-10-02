@@ -289,11 +289,10 @@ public class Extractor implements AutoCloseable {
             }
             this.ocrRetryConfidence = Math.max(0, Math.min(100, n));
         });
-        options.get("ocrType", String.valueOf(OCRConfigRegistry.TESSERACT))
-            .parse()
-            .asEnum(OCRConfigRegistry::parse)
-            .map(OCRConfigRegistry::buildAdapter)
-            .ifPresent(this::setOcrConfig);
+        setOcrConfig(options.valueIfPresent("ocrType")
+            .map(OCRConfigRegistry::parse)
+            .orElse(OCRConfigRegistry.TESSERACT)
+            .buildAdapter());
         ocrLanguage.ifPresent(this::setOcrLanguage);
         options.get("ocrStrategy", "NO_OCR").value().ifPresent(this::setOcrStrategy);
         options.get("ocrTimeout", "12h").parse().asDuration().ifPresent(this::setOcrTimeout);
