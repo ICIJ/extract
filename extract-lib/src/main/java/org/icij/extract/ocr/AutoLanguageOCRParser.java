@@ -144,13 +144,19 @@ public class AutoLanguageOCRParser implements Parser {
             config.setOutputType(TesseractOCRConfig.OUTPUT_TYPE.HOCR);
             HocrTextHandler hocr = new HocrTextHandler();
             run(image, config, hocr, metadata, context);
-            return new Pass(model, hocr.text(), hocr.meanConfidence());
+            return new Pass(model, asTesseractText(hocr.text()), hocr.meanConfidence());
         }
         config.addOtherTesseractConfig(Tess4JOCRParser.SKIP_CONFIDENCE, "false");
         BodyContentHandler text = new BodyContentHandler(-1);
         run(image, config, text, metadata, context);
         double confidence = Optional.ofNullable(metadata.get(OCR_CONFIDENCE)).map(Double::parseDouble).orElse(0.0);
-        return new Pass(model, text.toString().strip(), 100 * confidence);
+        return new Pass(model, asTesseractText(text.toString()), 100 * confidence);
+    }
+
+    // Tesseract's text output ends its last line with a newline, and stored page offsets count it.
+    private static String asTesseractText(String text) {
+        String stripped = text.strip();
+        return stripped.isEmpty() ? "" : stripped + "\n";
     }
 
     private void run(Path image, TesseractOCRConfig config, ContentHandler handler, Metadata metadata,

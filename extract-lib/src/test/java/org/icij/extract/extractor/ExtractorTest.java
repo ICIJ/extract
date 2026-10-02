@@ -570,34 +570,9 @@ public class ExtractorTest {
 		PageIndices pageIndices = extractor.extractPageIndices(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
         //THEN
 		assertThat(pageIndices).isNotNull();
-		assertThat(pageIndices.pages()).isEqualTo(List.of(Pair.of(0L, 15L), Pair.of(16L,31L)));
-		assertThat(text).hasSize(31 + 1);
-
-		String expectedPage = """
-		
-		HEAVY
-		METAL
-		
-		
-		""";
-		assertThat(getPage(pageIndices.pages().get(0), text)).isEqualTo(expectedPage);
-		assertThat(getPage(pageIndices.pages().get(1), text)).isEqualTo(expectedPage);
-	}
-
-	@Test
-	public void test_page_indices_of_a_pdf_read_with_eng() throws Exception {
-		// Given
-		String text;
-		Extractor extractor = new Extractor(Options.from(Map.of("ocrLanguage", "eng")));
-		// When
-		TikaDocument doc = extractDocument(extractor, "/documents/ocr/embedded.pdf");
-		try (final Reader reader = doc.getReader()) {
-			text = Spewer.toString(reader);
-		}
-		PageIndices pageIndices = extractor.extractPageIndices(Paths.get(getClass().getResource("/documents/ocr/embedded.pdf").getPath()));
-		// Then
-		assertThat(pageIndices.pages()).isEqualTo(List.of(Pair.of(0L, 16L), Pair.of(17L, 33L)));
+		assertThat(pageIndices.pages()).isEqualTo(List.of(Pair.of(0L, 16L), Pair.of(17L,33L)));
 		assertThat(text).hasSize(33 + 1);
+
 		String expectedPage = """
 		
 		HEAVY
@@ -622,6 +597,7 @@ public class ExtractorTest {
 		
 		HEAVY
 		METAL
+		
 		
 		
 		""";
@@ -652,7 +628,7 @@ public class ExtractorTest {
         assertThat(doc.getMetadata().get(OCR_PARSER)).isNull(); // no OCR_used on the eml root.
         assertThat(embeddedTikaDocument.getMetadata().get(OCR_PARSER)).isNotNull(); // but the pdf children has been OCRed
 		assertThat(pageIndices).isNotNull();
-		assertThat(pageIndices.pages()).isEqualTo(List.of(Pair.of(0L, 15L), Pair.of(16L,31L)));
+		assertThat(pageIndices.pages()).isEqualTo(List.of(Pair.of(0L, 16L), Pair.of(17L,33L)));
 	}
 
 	@Test
@@ -666,7 +642,7 @@ public class ExtractorTest {
 				Paths.get(getClass().getResource("/documents/ocr/embedded_doc.eml").getPath()));
         //THEN
 		assertThat(pageIndices).isNotNull();
-		assertThat(pageIndices.pages()).isEqualTo(List.of(Pair.of(0L, 107L)));
+		assertThat(pageIndices.pages()).isEqualTo(List.of(Pair.of(0L, 109L)));
 	}
 
 	@Test
@@ -681,7 +657,7 @@ public class ExtractorTest {
 				metadata -> "embedded.pdf".equals(metadata.get("resourceName")) || "INLINE".equals(metadata.get("embeddedResourceType")));
         //THEN
 		assertThat(pageIndices).isNotNull();
-		assertThat(pageIndices.pages()).isEqualTo(List.of(Pair.of(0L, 15L), Pair.of(16L,31L)));
+		assertThat(pageIndices.pages()).isEqualTo(List.of(Pair.of(0L, 16L), Pair.of(17L,33L)));
 	}
 
 	@Test
