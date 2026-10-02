@@ -405,14 +405,8 @@ public class Extractor implements AutoCloseable {
         if (!autoOcrLanguage) {
             return ocrParser;
         }
-        Set<String> installed = INSTALLED_OCR_MODELS.get(ocrConfig.getClass());
-        if (installed == null) {
-            installed = ocrConfig.installedModels();
-            // A failed probe also lists nothing, so only a real listing is kept for the JVM.
-            if (!installed.isEmpty()) {
-                INSTALLED_OCR_MODELS.put(ocrConfig.getClass(), installed);
-            }
-        }
+        final Set<String> installed = INSTALLED_OCR_MODELS.computeIfAbsent(ocrConfig.getClass(),
+                adapterClass -> ocrConfig.installedModels());
         final Set<String> missing = AutoLanguageOCRParser.missingModels(installed, ocrScriptLanguages);
         if (!missing.isEmpty() && WARNED_OCR_ADAPTERS.add(ocrConfig.getClass())) {
             logger.warn("OCR language detection disabled, missing tesseract models {}; OCR uses \"{}\".",
