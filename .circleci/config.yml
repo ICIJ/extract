@@ -37,7 +37,12 @@ jobs:
             echo "deb https://notesalexp.org/tesseract-ocr5/$(lsb_release -cs)/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/notesalexp.list > /dev/null
             wget -O - https://notesalexp.org/debian/alexp_key.asc | sudo apt-key add -
             sudo apt-get update
-            sudo apt-get install -y libtesseract5 tesseract-ocr tesseract-ocr-eng libpng-dev libjpeg-dev libtiff5-dev libwebp-dev libopenjp2-7-dev libgif-dev
+            sudo apt-get install -y libtesseract5 tesseract-ocr tesseract-ocr-eng tesseract-ocr-osd tesseract-ocr-script-latn tesseract-ocr-script-hans tesseract-ocr-script-cyrl tesseract-ocr-script-arab tesseract-ocr-script-jpan tesseract-ocr-script-hang libpng-dev libjpeg-dev libtiff5-dev libwebp-dev libopenjp2-7-dev libgif-dev
+            TESSDATA=$(tesseract --list-langs 2>&1 | sed -n 's/.*"\(.*\)".*/\1/p')
+            sudo mkdir -p "$TESSDATA/script"
+            for model in Latin HanS Cyrillic Arabic Japanese Hangul; do [ -e "$TESSDATA/script/$model.traineddata" ] || sudo ln -s "$(find /usr/share/tesseract-ocr -name "$model.traineddata" -not -path '*/script/*' | head -1)" "$TESSDATA/script/$model.traineddata"; done
+            [ -e "${TESSDATA}osd.traineddata" ] || sudo ln -s "$(find /usr/share/tesseract-ocr -name osd.traineddata | head -1)" "${TESSDATA}osd.traineddata"
+            tesseract --list-langs 2>&1 | grep -E '^(osd|script/)'
 
       - save_cache:
           paths:
