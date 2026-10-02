@@ -409,7 +409,7 @@ public class ExtractorTest {
 		assertThat(new ArrayList<>(leaked)).isEmpty();
 	}
 
-	private static Set<Path> tikaTempFiles() throws IOException {
+	static Set<Path> tikaTempFiles() throws IOException {
 		Path tmp = Paths.get(System.getProperty("java.io.tmpdir"));
 		try (Stream<Path> files = Files.list(tmp)) {
 			return files.filter(p -> p.getFileName().toString().startsWith("apache-tika-"))
