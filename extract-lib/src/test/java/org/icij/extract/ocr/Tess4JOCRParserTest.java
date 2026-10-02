@@ -18,6 +18,9 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -32,6 +35,7 @@ import org.apache.tika.config.TikaConfig;
 import org.apache.tika.config.TikaTaskTimeout;
 import org.apache.tika.exception.TikaConfigException;
 import org.apache.tika.exception.TikaException;
+import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.mime.MediaType;
@@ -359,6 +363,25 @@ public class Tess4JOCRParserTest {
         // Then
         assertThat(metadata.get(PSM0_SCRIPT)).isNull();
         assertThat(appender.list.stream().filter(e -> e.getLevel().isGreaterOrEqual(Level.WARN)).toList()).isEmpty();
+    }
+
+    @Test
+    public void test_preprocessing_keeps_the_input_image() throws Exception {
+        // Given
+        Path image = Files.createTempFile("apache-tika-", ".png");
+        try (InputStream png = Tess4JOCRParserTest.class.getResourceAsStream(SAMPLE_DOCS_PATH_PREFIX + "/test.png")) {
+            Files.copy(png, image, StandardCopyOption.REPLACE_EXISTING);
+        }
+        TesseractOCRConfig config = new TesseractOCRConfig();
+        config.setApplyRotation(true);
+        // When
+        try {
+            parseWith(new Tess4JOCRParser(), TikaInputStream.get(image), config, getMetadata(MediaType.image("png")));
+            // Then
+            assertThat(Files.exists(image)).isTrue();
+        } finally {
+            Files.deleteIfExists(image);
+        }
     }
 
     private static String parseWith(Parser parser, String path, TesseractOCRConfig config, Metadata metadata) throws Exception {
