@@ -14,6 +14,8 @@ import org.icij.task.StringOptionParser;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.DirectoryStream;
@@ -29,6 +31,7 @@ import static org.fest.assertions.Assertions.assertThat;
 import static org.icij.extract.extractor.AutoLanguageOCRTest.squash;
 import static org.icij.extract.ocr.AutoLanguageOCRParser.OCR_MODEL;
 import static org.icij.extract.ocr.AutoLanguageOCRParser.OCR_SCRIPT;
+import static org.icij.extract.ocr.OCRParser.OCR_PARSER;
 
 public class ExtractorAutoLanguageTest {
     private static final String ALL = "script/Latin+script/HanS+script/Cyrillic+script/Arabic+script/Japanese+script/Hangul";
@@ -209,6 +212,52 @@ public class ExtractorAutoLanguageTest {
         // Then
         assertThat(probes.get()).isEqualTo(2);
         assertThat(appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList()).hasSize(1);
+    }
+
+    @Test
+    public void test_an_ocr_language_set_after_construction_is_used() throws Exception {
+        // Given
+        Extractor extractor = new Extractor();
+        extractor.setOcrLanguage("eng");
+        // When
+        TikaDocument document = extractor.extract(path("/documents/ocr/simple.tiff"));
+        String text = textOf(document);
+        // Then
+        assertThat(text.trim()).isEqualTo("HEAVY\nMETAL");
+        assertThat(document.getMetadata().get(OCR_MODEL)).isNull();
+    }
+
+    @Test
+    public void test_a_script_mapping_set_after_construction_reaches_the_router() throws Exception {
+        // Given
+        Extractor extractor = new Extractor();
+        extractor.setOcrLanguage("Latin:eng");
+        // When
+        TikaDocument document = extractor.extract(path("/documents/ocr/simple.tiff"));
+        String text = textOf(document);
+        // Then
+        assertThat(text.trim()).isEqualTo("HEAVY\nMETAL");
+        assertThat(document.getMetadata().get(OCR_MODEL)).isEqualTo("eng");
+    }
+
+    @Test
+    public void test_an_ocr_language_set_after_disabling_ocr_keeps_ocr_off() throws Exception {
+        // Given
+        Path wbmp = Files.createTempFile("blank-", ".wbmp");
+        ImageIO.write(new BufferedImage(8, 8, BufferedImage.TYPE_BYTE_BINARY), "wbmp", wbmp.toFile());
+        Extractor extractor = new Extractor();
+        extractor.disableOcr();
+        extractor.setOcrLanguage("eng");
+        // When
+        TikaDocument document;
+        try {
+            document = extractor.extract(wbmp);
+            textOf(document);
+        } finally {
+            Files.deleteIfExists(wbmp);
+        }
+        // Then
+        assertThat(document.getMetadata().get(OCR_PARSER)).isNull();
     }
 
     @Test
