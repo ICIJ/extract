@@ -313,6 +313,20 @@ public class AutoLanguageOCRParserTest {
     }
 
     @Test
+    public void test_retry_metadata_does_not_reach_the_document() throws Exception {
+        // Given
+        StubOcr stub = new StubOcr();
+        stub.confidence.put("script/HanS+script/Latin", 0.3);
+        stub.confidence.put(ALL, 0.2);
+        Metadata metadata = new Metadata();
+        // When
+        parse(router(stub, 60), metadata, new ParseContext());
+        // Then
+        assertThat(stub.calls).isEqualTo(List.of("osd", "script/HanS+script/Latin", ALL));
+        assertThat(metadata.getValues("stub:read")).isEqualTo(new String[] {"script/HanS+script/Latin"});
+    }
+
+    @Test
     public void test_missing_models_lists_what_is_not_installed() {
         assertThat(AutoLanguageOCRParser.missingModels(Set.of("eng", "osd", "script/Latin")))
                 .containsOnly("script/HanS", "script/Cyrillic", "script/Arabic", "script/Japanese", "script/Hangul");
@@ -370,6 +384,7 @@ public class AutoLanguageOCRParserTest {
                 throw new TikaException("OCR timeout");
             }
             metadata.set(OCR_CONFIDENCE, confidence.getOrDefault(config.getLanguage(), 0.9));
+            metadata.add("stub:read", config.getLanguage());
             XHTMLContentHandler xhtml = new XHTMLContentHandler(handler, metadata);
             xhtml.startDocument();
             xhtml.element("div", text == null ? "read with " + config.getLanguage() : text);
