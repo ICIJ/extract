@@ -108,7 +108,7 @@ public class AutoLanguageOCRParser implements Parser {
             Pass best = read(image, firstModel, base, metadata, context);
             if (best.confidence() < retryConfidence && !best.text().isEmpty() && !firstModel.equals(ALL_SCRIPTS)) {
                 try {
-                    Pass retry = read(image, ALL_SCRIPTS, base, metadata, context);
+                    Pass retry = read(image, ALL_SCRIPTS, base, ParserUtils.cloneMetadata(metadata), context);
                     if (retry.confidence() > best.confidence()) {
                         best = retry;
                     }
