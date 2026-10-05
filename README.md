@@ -82,6 +82,20 @@ mvn -pl extract-lib test
 mvn -pl extract-lib -Dtest=org.icij.extract.ExtractorTest test
 ```
 
+### Generate Options Records for classes
+
+[OptionsRecordGenerator.java](extract-lib/src/main/java/org/icij/task/OptionsRecordGenerator.java) has been added to generate records from `@Option` java annotations.
+
+It can be used from maven with the command:
+
+```shell
+mvn -pl extract-lib compile exec:java@generate-options -Doptions.class=org.icij.extract.extractor.Extractor
+```
+
+This is a "one shot" utility (we didn't generate source files in generated-sources folder), because the options files could be improved by hand.
+
+If the options record class already exists it will fail with `java.nio.file.FileAlreadyExistsException` to avoid overriding handwritten code.
+
 ### Release
 
 `extract-lib` is published to Maven Central. To cut a new release:
