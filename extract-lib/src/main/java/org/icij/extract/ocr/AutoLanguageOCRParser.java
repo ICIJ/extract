@@ -158,7 +158,7 @@ public class AutoLanguageOCRParser implements Parser {
         }
     }
 
-    private static boolean readsAsIs(TesseractOCRConfig config, long size) {
+    static boolean readsAsIs(TesseractOCRConfig config, long size) {
         return config.isSkipOcr() || "0".equals(config.getPageSegMode())
                 || size < config.getMinFileSizeToOcr() || size > config.getMaxFileSizeToOcr();
     }
