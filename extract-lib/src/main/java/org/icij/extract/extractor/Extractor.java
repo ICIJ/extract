@@ -35,6 +35,7 @@ import org.icij.extract.ocr.ImageIOTranscodingOCRParser;
 import org.icij.extract.ocr.OCRConfigAdapter;
 import org.icij.extract.ocr.OCRConfigRegistry;
 import org.icij.extract.ocr.OCRParserAdapter;
+import org.icij.extract.ocr.PageSegModeOCRParser;
 import org.icij.extract.ocr.TesseractOCRConfigAdapter;
 import org.icij.extract.parser.CacheParserDecorator;
 import org.icij.extract.parser.FallbackParser;
@@ -118,6 +119,9 @@ import static org.icij.extract.extractor.ArtifactUtils.getEmbeddedPath;
 @Option(name = "ocrRetryConfidence", description = "When the OCR language is chosen per image, read an image " +
         "again with every supported script if the first read's mean word confidence is below this value, " +
         "from 0 to 100. Defaults to 60.", parameter = "confidence")
+@Option(name = "ocrPageSegMode", description = "Tesseract page segmentation mode. AUTO reads with mode 1, " +
+        "then 6 when the read is blank, then 11. An integer from 1 to 13 (except 2) forces that mode. " +
+        "Defaults to AUTO.", parameter = "mode")
 @Option(name = "ocrStrategy", description = "Set the PDF OCR strategy. One of \"NO_OCR\" " +
         "(default), \"AUTO\", \"OCR_AND_TEXT_EXTRACTION\" or \"OCR_ONLY\". Any rendering " +
         "strategy OCRs whole pages and disables inline-image extraction, which is required to " +
@@ -220,6 +224,7 @@ public class Extractor implements AutoCloseable {
     private boolean ocrFanout = true;
     private boolean autoOcrLanguage = true;
     private int ocrRetryConfidence = 60;
+    private List<String> ocrPageSegModes = PageSegModeOCRParser.parseModes("AUTO");
     private Map<String, String> ocrScriptLanguages = Map.of();
     private long ocrMinImageBytes = 0L;
     private Duration progressHeartbeatInterval = Duration.ofSeconds(60);
@@ -287,6 +292,7 @@ public class Extractor implements AutoCloseable {
         final Optional<String> fixedOcrLanguage = ocrLanguage.filter(language -> !isScriptMapping(language));
         autoOcrLanguage = fixedOcrLanguage.isEmpty() && !options.get("ocr", "true").parse().isOff();
         options.get("ocrRetryConfidence", "60").parse().asInteger().ifPresent(n -> this.ocrRetryConfidence = n);
+        ocrPageSegModes = PageSegModeOCRParser.parseModes(options.valueIfPresent("ocrPageSegMode").orElse("AUTO"));
         ocrLanguage.filter(Extractor::isScriptMapping).map(AutoLanguageOCRParser::parseScriptLanguages)
             .ifPresent(scriptLanguages -> this.ocrScriptLanguages = scriptLanguages);
         setOcrConfig(options.valueIfPresent("ocrType")
@@ -386,9 +392,10 @@ public class Extractor implements AutoCloseable {
 
     public void setOcrConfig(final OCRConfigAdapter<?> ocrConfig) {
         this.ocrConfig = ocrConfig;
-        Parser ocrParser = withAutoLanguage(ocrConfig, ocrConfig.buildParser());
+        Parser ocrParser = withAutoLanguage(ocrConfig, new PageSegModeOCRParser(ocrConfig.buildParser(), ocrPageSegModes));
         // A previous call left its own OCR parser in place of Tika's, so that one is swapped too.
         replaceParser(AutoLanguageOCRParser.class, parser -> ocrParser);
+        replaceParser(PageSegModeOCRParser.class, parser -> ocrParser);
         replaceParser(OCRParserAdapter.class, parser -> ocrParser);
         replaceParser(ocrConfig.getParserClass(), parser -> ocrParser);
         // this is a hack: we are mapping TesseractOCRParser.class to Tess4jOCRParser instance
