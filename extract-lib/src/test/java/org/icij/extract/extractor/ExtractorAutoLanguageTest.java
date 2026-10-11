@@ -93,23 +93,25 @@ public class ExtractorAutoLanguageTest {
 
     @Test
     public void test_a_truncated_image_leaves_no_ocr_output_behind() throws Exception {
-        // Given
-        Path truncated = Files.createTempFile("truncated-", ".png");
-        Files.write(truncated, Arrays.copyOf(Files.readAllBytes(path("/documents/ocr/auto/latin.png")), 100));
-        Extractor extractor = new Extractor();
-        Set<Path> before = tikaTempFiles();
-        // When
-        try {
-            textOf(extractor.extract(truncated));
-        } catch (IOException ignored) {
-            // The image cannot be read; only the files it leaves behind matter here.
-        } finally {
-            Files.deleteIfExists(truncated);
+        for (Map<String, Object> options : List.of(Map.<String, Object>of(), Map.<String, Object>of("ocrLanguage", "eng"))) {
+            // Given
+            Path truncated = Files.createTempFile("truncated-", ".png");
+            Files.write(truncated, Arrays.copyOf(Files.readAllBytes(path("/documents/ocr/auto/latin.png")), 100));
+            Extractor extractor = new Extractor(Options.from(options));
+            Set<Path> before = tikaTempFiles();
+            // When
+            try {
+                textOf(extractor.extract(truncated));
+            } catch (IOException ignored) {
+                // The image cannot be read; only the files it leaves behind matter here.
+            } finally {
+                Files.deleteIfExists(truncated);
+            }
+            // Then
+            Set<Path> leaked = tikaTempFiles();
+            leaked.removeAll(before);
+            assertThat(new ArrayList<>(leaked)).as(options.toString()).isEmpty();
         }
-        // Then
-        Set<Path> leaked = tikaTempFiles();
-        leaked.removeAll(before);
-        assertThat(new ArrayList<>(leaked)).isEmpty();
     }
 
     @Test
