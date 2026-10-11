@@ -23,8 +23,6 @@ import org.xml.sax.helpers.DefaultHandler;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.DirectoryIteratorException;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -54,7 +52,6 @@ public class AutoLanguageOCRParser implements Parser {
     private static final List<String> SCRIPTS = List.of(
             LATIN, "script/HanS", "script/Cyrillic", "script/Arabic", "script/Japanese", "script/Hangul");
     private static final String ALL_SCRIPTS = String.join("+", SCRIPTS);
-    private static final String TESSERACT_OUTPUTS = "apache-tika-*.tmp.{osd,hocr}";
     // OSD names Hangul text "Korean".
     private static final Map<String, String> FIRST_PASS_MODEL = Map.of(
             "Latin", LATIN,
@@ -176,28 +173,6 @@ public class AutoLanguageOCRParser implements Parser {
         }
     }
 
-    // When tesseract fails, Tika deletes its apache-tika-*.tmp base file but not the output next to it.
-    private static void deleteOrphanTesseractOutputs() {
-        Path tmp = Path.of(System.getProperty("java.io.tmpdir"));
-        try (DirectoryStream<Path> outputs = Files.newDirectoryStream(tmp, TESSERACT_OUTPUTS)) {
-            outputs.forEach(AutoLanguageOCRParser::deleteIfOrphan);
-        } catch (IOException | DirectoryIteratorException e) {
-            LOGGER.debug("could not list tesseract outputs: {}", e.toString());
-        }
-    }
-
-    private static void deleteIfOrphan(Path output) {
-        String name = output.getFileName().toString();
-        Path base = output.resolveSibling(name.substring(0, name.lastIndexOf('.')));
-        try {
-            if (Files.notExists(base)) {
-                Files.deleteIfExists(output);
-            }
-        } catch (IOException e) {
-            LOGGER.debug("could not delete tesseract output {}: {}", output, e.toString());
-        }
-    }
-
     private Pass read(Path image, String model, TesseractOCRConfig base, Metadata metadata, ParseContext context)
             throws IOException, SAXException, TikaException {
         TesseractOCRConfig config = SerializationUtils.clone(base);
@@ -226,11 +201,6 @@ public class AutoLanguageOCRParser implements Parser {
         context.set(TesseractOCRConfig.class, config);
         try (TikaInputStream input = TikaInputStream.get(image)) {
             delegate.parse(input, handler, metadata, context);
-        } catch (IOException | SAXException | TikaException | RuntimeException e) {
-            if (readsHocr) {
-                deleteOrphanTesseractOutputs();
-            }
-            throw e;
         }
     }
 

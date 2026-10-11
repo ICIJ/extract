@@ -6,16 +6,25 @@ import org.apache.tika.metadata.Property;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
+import org.apache.tika.parser.ocr.TesseractOCRParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.DirectoryIteratorException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Set;
 
 import static org.apache.tika.metadata.TikaCoreProperties.CONTENT_TYPE_PARSER_OVERRIDE;
 
 public class OCRParserAdapter<P extends Parser> implements Parser {
+    private static final Logger LOGGER = LoggerFactory.getLogger(OCRParserAdapter.class);
+    private static final String TESSERACT_OUTPUTS = "apache-tika-*.tmp.{txt,osd,hocr}";
     // Tika's AbstractImageParser routes images through OCR by rewriting their media type to a
     // synthetic "image/ocr-<fmt>" form (see AbstractImageParser#convertToOCRMediaType /
     // OCR_MEDIATYPE_PREFIX) and stashing it in CONTENT_TYPE_PARSER_OVERRIDE, which Tika later promotes
@@ -43,6 +52,11 @@ public class OCRParserAdapter<P extends Parser> implements Parser {
         metadata.set(OCRParser.OCR_PARSER, delegatedParser.getClass().getName());
         try {
             delegatedParser.parse(stream, handler, metadata, parseContext);
+        } catch (IOException | SAXException | TikaException | RuntimeException e) {
+            if (delegatedParser instanceof TesseractOCRParser) {
+                deleteOrphanTesseractOutputs();
+            }
+            throw e;
         } finally {
             // The delegated OCR parser has already resolved its input format from
             // CONTENT_TYPE_PARSER_OVERRIDE, so it is now safe to rewrite the routing type back to the real
@@ -52,6 +66,28 @@ public class OCRParserAdapter<P extends Parser> implements Parser {
             // TikaException, e.g. on the OCR timeout) still leaves the embed indexed by EmbedSpawner, so
             // the routing type would otherwise become the document's persisted content type.
             restoreMediaTypes(metadata);
+        }
+    }
+
+    // When tesseract fails, Tika deletes its apache-tika-*.tmp base file but not the output next to it.
+    private static void deleteOrphanTesseractOutputs() {
+        Path tmp = Path.of(System.getProperty("java.io.tmpdir"));
+        try (DirectoryStream<Path> outputs = Files.newDirectoryStream(tmp, TESSERACT_OUTPUTS)) {
+            outputs.forEach(OCRParserAdapter::deleteIfOrphan);
+        } catch (IOException | DirectoryIteratorException e) {
+            LOGGER.debug("could not list tesseract outputs: {}", e.toString());
+        }
+    }
+
+    private static void deleteIfOrphan(Path output) {
+        String name = output.getFileName().toString();
+        Path base = output.resolveSibling(name.substring(0, name.lastIndexOf('.')));
+        try {
+            if (Files.notExists(base)) {
+                Files.deleteIfExists(output);
+            }
+        } catch (IOException e) {
+            LOGGER.debug("could not delete tesseract output {}: {}", output, e.toString());
         }
     }
 
