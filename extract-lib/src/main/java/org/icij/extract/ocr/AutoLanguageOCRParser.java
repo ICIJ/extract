@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
+import static org.icij.extract.ocr.PageSegModeOCRParser.OCR_PAGE_SEG_MODE;
 import static org.icij.extract.ocr.ParserWithConfidence.OCR_CONFIDENCE;
 
 /**
@@ -148,6 +149,7 @@ public class AutoLanguageOCRParser implements Parser {
             }
             metadata.set(OCR_MODEL, best.model());
             metadata.set(OCR_CONFIDENCE, best.confidence() / 100);
+            Optional.ofNullable(best.pageSegMode()).ifPresent(mode -> metadata.set(OCR_PAGE_SEG_MODE, mode));
             emit(best.text(), handler, metadata);
         } finally {
             context.set(TesseractOCRConfig.class, callerConfig);
@@ -182,12 +184,13 @@ public class AutoLanguageOCRParser implements Parser {
             config.setOutputType(TesseractOCRConfig.OUTPUT_TYPE.HOCR);
             HocrTextHandler hocr = new HocrTextHandler();
             run(image, config, hocr, metadata, context);
-            return new Pass(model, asTesseractText(hocr.text()), hocr.meanConfidence());
+            return new Pass(model, asTesseractText(hocr.text()), hocr.meanConfidence(),
+                    metadata.get(OCR_PAGE_SEG_MODE));
         }
         BodyContentHandler text = new BodyContentHandler(-1);
         run(image, config, text, metadata, context);
         double confidence = Optional.ofNullable(metadata.get(OCR_CONFIDENCE)).map(Double::parseDouble).orElse(0.0);
-        return new Pass(model, asTesseractText(text.toString()), 100 * confidence);
+        return new Pass(model, asTesseractText(text.toString()), 100 * confidence, metadata.get(OCR_PAGE_SEG_MODE));
     }
 
     // Tesseract's text output ends its last line with a newline, and stored page offsets count it.
@@ -213,5 +216,5 @@ public class AutoLanguageOCRParser implements Parser {
         xhtml.endDocument();
     }
 
-    private record Pass(String model, String text, double confidence) {}
+    private record Pass(String model, String text, double confidence, String pageSegMode) {}
 }

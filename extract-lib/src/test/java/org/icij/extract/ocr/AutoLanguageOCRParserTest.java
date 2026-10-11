@@ -22,12 +22,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.fest.assertions.Assertions.assertThat;
 import static org.icij.extract.ocr.AutoLanguageOCRParser.OCR_MODEL;
 import static org.icij.extract.ocr.AutoLanguageOCRParser.OCR_SCRIPT;
 import static org.icij.extract.ocr.AutoLanguageOCRParser.OCR_SCRIPT_CONFIDENCE;
+import static org.icij.extract.ocr.PageSegModeOCRParser.OCR_PAGE_SEG_MODE;
 import static org.icij.extract.ocr.ParserWithConfidence.OCR_CONFIDENCE;
 import static org.junit.Assert.assertThrows;
 
@@ -117,6 +119,21 @@ public class AutoLanguageOCRParserTest {
         assertThat(text).isEqualTo("read with " + ALL);
         assertThat(metadata.get(OCR_MODEL)).isEqualTo(ALL);
         assertThat(Double.parseDouble(metadata.get(OCR_CONFIDENCE))).isEqualTo(0.8, Delta.delta(0.001));
+    }
+
+    @Test
+    public void test_a_winning_retry_records_its_page_segmentation_mode() throws Exception {
+        // Given
+        StubOcr stub = new StubOcr();
+        stub.confidence.put("script/HanS+script/Latin", 0.3);
+        stub.confidence.put(ALL, 0.8);
+        stub.pageSegMode.put("script/HanS+script/Latin", 6);
+        stub.pageSegMode.put(ALL, 11);
+        Metadata metadata = new Metadata();
+        // When
+        parse(router(stub, 60), metadata, new ParseContext());
+        // Then
+        assertThat(metadata.get(OCR_PAGE_SEG_MODE)).isEqualTo("11");
     }
 
     @Test
@@ -447,6 +464,7 @@ public class AutoLanguageOCRParserTest {
         final List<String> calls = new ArrayList<>();
         final List<Integer> timeouts = new ArrayList<>();
         final Map<String, Double> confidence = new HashMap<>();
+        final Map<String, Integer> pageSegMode = new HashMap<>();
         String script = "Han";
         String text = null;
         String failingModel = null;
@@ -479,6 +497,8 @@ public class AutoLanguageOCRParserTest {
                 throw new TikaException("OCR timeout");
             }
             metadata.set(OCR_CONFIDENCE, confidence.getOrDefault(config.getLanguage(), 0.9));
+            Optional.ofNullable(pageSegMode.get(config.getLanguage()))
+                    .ifPresent(mode -> metadata.set(OCR_PAGE_SEG_MODE, mode));
             metadata.add("stub:read", config.getLanguage());
             XHTMLContentHandler xhtml = new XHTMLContentHandler(handler, metadata);
             xhtml.startDocument();
