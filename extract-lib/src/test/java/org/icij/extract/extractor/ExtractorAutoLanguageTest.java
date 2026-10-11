@@ -34,6 +34,8 @@ import static org.icij.extract.extractor.ExtractorTest.tikaTempFiles;
 import static org.icij.extract.ocr.AutoLanguageOCRParser.OCR_MODEL;
 import static org.icij.extract.ocr.AutoLanguageOCRParser.OCR_SCRIPT;
 import static org.icij.extract.ocr.OCRParser.OCR_PARSER;
+import static org.icij.extract.ocr.PageSegModeOCRParser.OCR_PAGE_SEG_MODE;
+import static org.junit.Assert.assertThrows;
 
 public class ExtractorAutoLanguageTest {
     private static final String ALL = "script/Latin+script/HanS+script/Cyrillic+script/Arabic+script/Japanese+script/Hangul";
@@ -320,6 +322,47 @@ public class ExtractorAutoLanguageTest {
         assertThat(warnings).hasSize(1);
         assertThat(warnings.get(0).getFormattedMessage()).contains("tessdata/script/");
         assertThat(warnings.get(0).getFormattedMessage()).contains("Latin");
+    }
+
+    @Test
+    public void test_language_routing_records_the_page_segmentation_mode() throws Exception {
+        // Given
+        Extractor extractor = new Extractor();
+        // When
+        TikaDocument document = extractor.extract(path("/documents/ocr/simple.tiff"));
+        textOf(document);
+        // Then
+        assertThat(document.getMetadata().get(OCR_MODEL)).isEqualTo("script/Latin");
+        assertThat(document.getMetadata().get(OCR_PAGE_SEG_MODE)).isEqualTo("1");
+    }
+
+    @Test
+    public void test_a_fixed_language_records_the_page_segmentation_mode() throws Exception {
+        // Given
+        Extractor extractor = new Extractor(Options.from(Map.of("ocrLanguage", "eng")));
+        // When
+        TikaDocument document = extractor.extract(path("/documents/ocr/simple.tiff"));
+        textOf(document);
+        // Then
+        assertThat(document.getMetadata().get(OCR_MODEL)).isNull();
+        assertThat(document.getMetadata().get(OCR_PAGE_SEG_MODE)).isEqualTo("1");
+    }
+
+    @Test
+    public void test_a_forced_page_segmentation_mode_reaches_tesseract() throws Exception {
+        // Given
+        Extractor extractor = new Extractor(Options.from(Map.of("ocrPageSegMode", "6")));
+        // When
+        TikaDocument document = extractor.extract(path("/documents/ocr/simple.tiff"));
+        textOf(document);
+        // Then
+        assertThat(document.getMetadata().get(OCR_PAGE_SEG_MODE)).isEqualTo("6");
+    }
+
+    @Test
+    public void test_an_invalid_page_segmentation_mode_is_rejected() {
+        assertThrows(IllegalArgumentException.class,
+                () -> new Extractor(Options.from(Map.of("ocrPageSegMode", "2"))));
     }
 
     private static Path path(String resource) {
