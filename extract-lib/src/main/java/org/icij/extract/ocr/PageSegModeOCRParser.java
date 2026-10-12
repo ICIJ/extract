@@ -10,17 +10,13 @@ import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
-import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
-import org.xml.sax.helpers.AttributesImpl;
-import org.xml.sax.helpers.DefaultHandler;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -29,8 +25,8 @@ import java.util.Set;
  * text, so an image without a page layout is not left blank by mode 1.
  */
 public class PageSegModeOCRParser implements Parser {
+    /** Page segmentation mode of the kept read. Set by this parser, then by {@link AutoLanguageOCRParser} on retry. */
     public static final Property OCR_PAGE_SEG_MODE = Property.externalInteger("ocr:page_seg_mode");
-    private static final List<String> AUTO = List.of("1", "6", "11");
 
     private final Parser delegate;
     private final List<String> modes;
@@ -38,19 +34,6 @@ public class PageSegModeOCRParser implements Parser {
     public PageSegModeOCRParser(Parser delegate, List<String> modes) {
         this.delegate = delegate;
         this.modes = modes;
-    }
-
-    public static List<String> parseModes(String value) {
-        String mode = value.strip();
-        if (mode.equalsIgnoreCase("AUTO")) {
-            return AUTO;
-        }
-        // 0 only detects orientation and script, 2 is not implemented in tesseract.
-        if (mode.matches("1|[3-9]|1[0-3]")) {
-            return List.of(mode);
-        }
-        throw new IllegalArgumentException("ocrPageSegMode \"" + value
-                + "\" is not AUTO or a tesseract page segmentation mode from 1 to 13 except 2");
     }
 
     @Override
@@ -62,97 +45,82 @@ public class PageSegModeOCRParser implements Parser {
     public void parse(InputStream stream, ContentHandler handler, Metadata metadata, ParseContext context)
             throws IOException, SAXException, TikaException {
         TesseractOCRConfig callerConfig = context.get(TesseractOCRConfig.class);
-        TesseractOCRConfig base = callerConfig == null ? new TesseractOCRConfig() : callerConfig;
-        try (TemporaryResources tmp = new TemporaryResources()) {
-            Path image = TikaInputStream.get(stream, tmp, metadata).getPath();
-            if (AutoLanguageOCRParser.readsAsIs(base, Files.size(image))) {
-                run(image, base, handler, metadata, context);
-                return;
-            }
-            for (String mode : modes) {
-                TesseractOCRConfig config = SerializationUtils.clone(base);
-                config.setPageSegMode(mode);
-                SaxRecorder read = new SaxRecorder();
-                run(image, config, read, metadata, context);
-                if (read.hasText || mode.equals(modes.get(modes.size() - 1))) {
-                    read.replayTo(handler);
-                    metadata.set(OCR_PAGE_SEG_MODE, Integer.parseInt(mode));
-                    return;
-                }
-            }
+        restoringCallerConfig(context, callerConfig, () -> readStream(stream, handler, metadata, context));
+    }
+
+    // Every read swaps its own config into the shared context, so the caller's is put back even when a read fails.
+    private static void restoringCallerConfig(ParseContext context, TesseractOCRConfig callerConfig, OcrStep step)
+            throws IOException, SAXException, TikaException {
+        try {
+            step.run();
         } finally {
             context.set(TesseractOCRConfig.class, callerConfig);
         }
     }
 
-    private void run(Path image, TesseractOCRConfig config, ContentHandler handler, Metadata metadata,
-                     ParseContext context) throws IOException, SAXException, TikaException {
-        context.set(TesseractOCRConfig.class, config);
-        try (TikaInputStream input = TikaInputStream.get(image)) {
-            delegate.parse(input, handler, metadata, context);
+    private void readStream(InputStream stream, ContentHandler handler, Metadata metadata, ParseContext context)
+            throws IOException, SAXException, TikaException {
+        TesseractOCRConfig baseConfig = context.get(TesseractOCRConfig.class, new TesseractOCRConfig());
+        try (TemporaryResources temporaryResources = new TemporaryResources()) {
+            Path image = TikaInputStream.get(stream, temporaryResources, metadata).getPath();
+            readImage(new ImageRead(delegate, image, metadata, context), baseConfig, handler);
         }
     }
 
-    // Only body text counts: the head holds the document title, which is not what tesseract read.
-    private static class SaxRecorder extends DefaultHandler {
-        private final List<SaxEvent> events = new ArrayList<>();
-        private boolean inBody;
-        private boolean hasText;
-
-        @Override
-        public void startDocument() {
-            events.add(ContentHandler::startDocument);
+    private void readImage(ImageRead read, TesseractOCRConfig baseConfig, ContentHandler handler)
+            throws IOException, SAXException, TikaException {
+        if (AutoLanguageOCRParser.readsAsIs(baseConfig, Files.size(read.image()))) {
+            read.run(baseConfig, handler);
+            return;
         }
+        readWithFirstModeFindingText(read, baseConfig, handler);
+    }
 
-        @Override
-        public void endDocument() {
-            events.add(ContentHandler::endDocument);
-        }
-
-        @Override
-        public void startPrefixMapping(String prefix, String uri) {
-            events.add(handler -> handler.startPrefixMapping(prefix, uri));
-        }
-
-        @Override
-        public void endPrefixMapping(String prefix) {
-            events.add(handler -> handler.endPrefixMapping(prefix));
-        }
-
-        @Override
-        public void startElement(String uri, String localName, String qName, Attributes attributes) {
-            Attributes copy = new AttributesImpl(attributes);
-            inBody |= "body".equals(localName);
-            events.add(handler -> handler.startElement(uri, localName, qName, copy));
-        }
-
-        @Override
-        public void endElement(String uri, String localName, String qName) {
-            inBody &= !"body".equals(localName);
-            events.add(handler -> handler.endElement(uri, localName, qName));
-        }
-
-        @Override
-        public void characters(char[] ch, int start, int length) {
-            String text = new String(ch, start, length);
-            hasText |= inBody && !text.isBlank();
-            events.add(handler -> handler.characters(text.toCharArray(), 0, text.length()));
-        }
-
-        @Override
-        public void ignorableWhitespace(char[] ch, int start, int length) {
-            String text = new String(ch, start, length);
-            events.add(handler -> handler.ignorableWhitespace(text.toCharArray(), 0, text.length()));
-        }
-
-        void replayTo(ContentHandler handler) throws SAXException {
-            for (SaxEvent event : events) {
-                event.replay(handler);
+    private void readWithFirstModeFindingText(ImageRead read, TesseractOCRConfig baseConfig, ContentHandler handler)
+            throws IOException, SAXException, TikaException {
+        for (String mode : modes) {
+            if (readAndKeepIfFinal(read, baseConfig, mode, handler)) {
+                return;
             }
         }
     }
 
-    private interface SaxEvent {
-        void replay(ContentHandler handler) throws SAXException;
+    private boolean readAndKeepIfFinal(ImageRead read, TesseractOCRConfig baseConfig, String mode,
+                                       ContentHandler handler) throws IOException, SAXException, TikaException {
+        SaxRecorder recorder = readWithMode(read, baseConfig, mode);
+        return keepReadIfFinal(mode, recorder, handler, read.metadata());
+    }
+
+    private static SaxRecorder readWithMode(ImageRead read, TesseractOCRConfig baseConfig, String mode)
+            throws IOException, SAXException, TikaException {
+        TesseractOCRConfig config = SerializationUtils.clone(baseConfig);
+        config.setPageSegMode(mode);
+        SaxRecorder recorder = new SaxRecorder();
+        read.run(config, recorder);
+        return recorder;
+    }
+
+    private boolean isLastMode(String mode) {
+        return mode.equals(modes.get(modes.size() - 1));
+    }
+
+    // The last mode is kept even when blank, so a blank image still produces a document.
+    private boolean keepReadIfFinal(String mode, SaxRecorder recorder, ContentHandler handler, Metadata metadata)
+            throws SAXException {
+        if (!recorder.hasText() && !isLastMode(mode)) {
+            return false;
+        }
+        keepRead(mode, recorder, handler, metadata);
+        return true;
+    }
+
+    private static void keepRead(String mode, SaxRecorder recorder, ContentHandler handler, Metadata metadata)
+            throws SAXException {
+        recorder.replayTo(handler);
+        metadata.set(OCR_PAGE_SEG_MODE, Integer.parseInt(mode));
+    }
+
+    private interface OcrStep {
+        void run() throws IOException, SAXException, TikaException;
     }
 }

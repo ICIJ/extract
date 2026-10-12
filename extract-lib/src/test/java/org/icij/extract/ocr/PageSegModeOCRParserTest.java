@@ -25,6 +25,10 @@ import static org.fest.assertions.Assertions.assertThat;
 import static org.icij.extract.ocr.PageSegModeOCRParser.OCR_PAGE_SEG_MODE;
 import static org.junit.Assert.assertThrows;
 
+/**
+ * An image is read with each page segmentation mode in turn until one finds body text, and the caller's
+ * tesseract config is restored afterwards.
+ */
 public class PageSegModeOCRParserTest {
     private static final List<String> AUTO = List.of("1", "6", "11");
 
@@ -185,17 +189,18 @@ public class PageSegModeOCRParserTest {
 
     @Test
     public void test_parses_auto_in_any_case_and_forced_modes() {
-        assertThat(PageSegModeOCRParser.parseModes("AUTO")).isEqualTo(AUTO);
-        assertThat(PageSegModeOCRParser.parseModes("auto")).isEqualTo(AUTO);
-        assertThat(PageSegModeOCRParser.parseModes("6")).isEqualTo(List.of("6"));
-        assertThat(PageSegModeOCRParser.parseModes(" 13 ")).isEqualTo(List.of("13"));
+        assertThat(PageSegModes.parse("AUTO")).isEqualTo(AUTO);
+        assertThat(PageSegModes.parse("auto")).isEqualTo(AUTO);
+        assertThat(PageSegModes.parse("6")).isEqualTo(List.of("6"));
+        assertThat(PageSegModes.parse(" 13 ")).isEqualTo(List.of("13"));
     }
 
     @Test
     public void test_rejects_modes_without_text_and_unknown_values() {
         for (String value : List.of("0", "2", "14", "abc", "")) {
-            IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
-                    () -> PageSegModeOCRParser.parseModes(value));
+            InvalidPageSegMode error = assertThrows(InvalidPageSegMode.class,
+                    () -> PageSegModes.parse(value));
+            assertThat(error.value).as(value).isEqualTo(value);
             assertThat(error.getMessage()).as(value).contains("AUTO");
         }
     }
