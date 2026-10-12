@@ -7,6 +7,7 @@ import ch.qos.logback.core.read.ListAppender;
 import org.apache.tika.parser.EmptyParser;
 import org.apache.tika.parser.Parser;
 import org.icij.extract.document.TikaDocument;
+import org.icij.extract.ocr.InvalidPageSegMode;
 import org.icij.extract.ocr.TesseractOCRConfigAdapter;
 import org.icij.spewer.Spewer;
 import org.icij.task.Options;
@@ -363,8 +364,7 @@ public class ExtractorAutoLanguageTest {
 
     @Test
     public void test_an_invalid_page_segmentation_mode_is_rejected() {
-        assertThrows(IllegalArgumentException.class,
-                () -> new Extractor(Options.from(Map.of("ocrPageSegMode", "2"))));
+        assertThrows(InvalidPageSegMode.class, () -> new Extractor(Options.from(Map.of("ocrPageSegMode", "2"))));
     }
 
     private static Path path(String resource) {

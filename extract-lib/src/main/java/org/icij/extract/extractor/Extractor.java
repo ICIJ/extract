@@ -36,6 +36,7 @@ import org.icij.extract.ocr.OCRConfigAdapter;
 import org.icij.extract.ocr.OCRConfigRegistry;
 import org.icij.extract.ocr.OCRParserAdapter;
 import org.icij.extract.ocr.PageSegModeOCRParser;
+import org.icij.extract.ocr.PageSegModes;
 import org.icij.extract.ocr.TesseractOCRConfigAdapter;
 import org.icij.extract.parser.CacheParserDecorator;
 import org.icij.extract.parser.FallbackParser;
@@ -224,7 +225,7 @@ public class Extractor implements AutoCloseable {
     private boolean ocrFanout = true;
     private boolean autoOcrLanguage = true;
     private int ocrRetryConfidence = 60;
-    private List<String> ocrPageSegModes = PageSegModeOCRParser.parseModes("AUTO");
+    private List<String> ocrPageSegModes = PageSegModes.AUTO;
     private Map<String, String> ocrScriptLanguages = Map.of();
     private long ocrMinImageBytes = 0L;
     private Duration progressHeartbeatInterval = Duration.ofSeconds(60);
@@ -292,7 +293,8 @@ public class Extractor implements AutoCloseable {
         final Optional<String> fixedOcrLanguage = ocrLanguage.filter(language -> !isScriptMapping(language));
         autoOcrLanguage = fixedOcrLanguage.isEmpty() && !options.get("ocr", "true").parse().isOff();
         options.get("ocrRetryConfidence", "60").parse().asInteger().ifPresent(n -> this.ocrRetryConfidence = n);
-        ocrPageSegModes = PageSegModeOCRParser.parseModes(options.valueIfPresent("ocrPageSegMode").orElse("AUTO"));
+        options.valueIfPresent("ocrPageSegMode").map(PageSegModes::parse)
+            .ifPresent(modes -> this.ocrPageSegModes = modes);
         ocrLanguage.filter(Extractor::isScriptMapping).map(AutoLanguageOCRParser::parseScriptLanguages)
             .ifPresent(scriptLanguages -> this.ocrScriptLanguages = scriptLanguages);
         setOcrConfig(options.valueIfPresent("ocrType")
@@ -392,7 +394,8 @@ public class Extractor implements AutoCloseable {
 
     public void setOcrConfig(final OCRConfigAdapter<?> ocrConfig) {
         this.ocrConfig = ocrConfig;
-        Parser ocrParser = withAutoLanguage(ocrConfig, new PageSegModeOCRParser(ocrConfig.buildParser(), ocrPageSegModes));
+        Parser pageSegModeParser = new PageSegModeOCRParser(ocrConfig.buildParser(), ocrPageSegModes);
+        Parser ocrParser = withAutoLanguage(ocrConfig, pageSegModeParser);
         // A previous call left its own OCR parser in place of Tika's, so that one is swapped too.
         replaceParser(AutoLanguageOCRParser.class, parser -> ocrParser);
         replaceParser(PageSegModeOCRParser.class, parser -> ocrParser);
