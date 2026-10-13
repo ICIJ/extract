@@ -7,7 +7,6 @@ target
 .DS_Store
 
 # Coding agent files
-docs/superpowers/
 
 # Local kc-swarm orchestration (scripts + worktrees)
 scripts/kc-swarm/
