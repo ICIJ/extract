@@ -48,9 +48,15 @@ public record ExtractorOptions(
         String ocrLanguage,
         // Image embeds smaller than this many bytes OCR inline instead of via the pool. Defaults to 0 (always fan out).
         String ocrMinImageBytes,
+        // Tesseract page segmentation mode. AUTO reads with mode 1, then 6 when the read is blank, then 11. An
+        // integer from 1 to 13 (except 2) forces that mode. Defaults to AUTO.
+        String ocrPageSegMode,
         // Number of OCR tasks run in parallel across all extraction threads. Defaults to the number of available
         // processors. Set to 1 for serial OCR.
         String ocrParallelism,
+        // When the OCR language is chosen per image, read an image again with every supported script if the first
+        // read's mean word confidence is below this value, from 0 to 100. Defaults to 60.
+        String ocrRetryConfidence,
         // Set the PDF OCR strategy. One of "NO_OCR" (default), "AUTO", "OCR_AND_TEXT_EXTRACTION" or "OCR_ONLY". Any
         // rendering strategy OCRs whole pages and disables inline-image extraction, which is required to correctly
         // extract scanned/MRC PDFs. Defaults to NO_OCR.
@@ -93,7 +99,9 @@ public record ExtractorOptions(
                                     options.valueIfPresent("ocrFanout").orElse(null),
                                     options.valueIfPresent("ocrLanguage").orElse(null),
                                     options.valueIfPresent("ocrMinImageBytes").orElse(null),
+                                    options.valueIfPresent("ocrPageSegMode").orElse(null),
                                     options.valueIfPresent("ocrParallelism").orElse(null),
+                                    options.valueIfPresent("ocrRetryConfidence").orElse(null),
                                     options.valueIfPresent("ocrStrategy").orElse(null),
                                     options.ifPresent("ocrTimeout", o -> o.parse().asDuration()).orElse(null),
                                     options.valueIfPresent("ocrType").orElse(null),
@@ -124,7 +132,9 @@ public record ExtractorOptions(
         if (ocrFanout != null) {map.put("ocrFanout", String.valueOf(ocrFanout));}
         if (ocrLanguage != null) {map.put("ocrLanguage", String.valueOf(ocrLanguage));}
         if (ocrMinImageBytes != null) {map.put("ocrMinImageBytes", String.valueOf(ocrMinImageBytes));}
+        if (ocrPageSegMode != null) {map.put("ocrPageSegMode", String.valueOf(ocrPageSegMode));}
         if (ocrParallelism != null) {map.put("ocrParallelism", String.valueOf(ocrParallelism));}
+        if (ocrRetryConfidence != null) {map.put("ocrRetryConfidence", String.valueOf(ocrRetryConfidence));}
         if (ocrStrategy != null) {map.put("ocrStrategy", String.valueOf(ocrStrategy));}
         if (ocrTimeout != null) {map.put("ocrTimeout", ocrTimeout.toMillis() + "ms");}
         if (ocrType != null) {map.put("ocrType", String.valueOf(ocrType));}
