@@ -86,7 +86,7 @@ public class ExtractorParseTimeoutTest {
         extractor.setParseTimeout(Duration.ofMillis(200));
 
         // Must return (slot freed), not throw, not hang.
-        extractor.extract(path, nullSpewer(), reporter);
+        assertThat(extractor.extract(path, nullSpewer(), reporter)).isEqualTo(ExtractionStatus.FAILURE_TIMEOUT);
 
         final Report report = reportMap.get(path);
         assertThat(report).isNotNull();
@@ -104,7 +104,7 @@ public class ExtractorParseTimeoutTest {
         final Extractor extractor = new Extractor();
         extractor.setParseTimeout(Duration.ZERO);   // disabled -> runs doExtract directly
 
-        extractor.extract(file, nullSpewer(), reporter);
+        assertThat(extractor.extract(file, nullSpewer(), reporter)).isEqualTo(ExtractionStatus.SUCCESS);
 
         final Report report = reportMap.get(file);
         assertThat(report).isNotNull();
@@ -200,7 +200,7 @@ public class ExtractorParseTimeoutTest {
         final CountingExtractor extractor = new CountingExtractor();
         extractor.setParseTimeout(Duration.ofMinutes(5));
 
-        extractor.extract(path, nullSpewer(), reporter);
+        assertThat(extractor.extract(path, nullSpewer(), reporter)).isEqualTo(ExtractionStatus.SKIPPED);
 
         // Resume must not re-parse a terminal-timeout path: extract(Path) is never reached.
         assertThat(extractor.extractCount).isEqualTo(0);

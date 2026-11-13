@@ -28,7 +28,7 @@ public class DocumentConsumerErrorTest {
 		}
 
 		@Override
-		public void extract(final Path path, final Spewer spewer) throws IOException {
+		public ExtractionStatus extract(final Path path, final Spewer spewer) throws IOException {
 			if (toThrow instanceof Error) {
 				throw (Error) toThrow;
 			}

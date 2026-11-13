@@ -27,7 +27,7 @@ public class ExtractorErrorBoundaryTest {
 		}
 
 		@Override
-		public void extract(final Path path, final Spewer spewer) throws IOException {
+		public ExtractionStatus extract(final Path path, final Spewer spewer) throws IOException {
 			if (toThrow instanceof IOException) {
 				throw (IOException) toThrow;
 			}
@@ -52,7 +52,9 @@ public class ExtractorErrorBoundaryTest {
 		final Reporter reporter = new Reporter(reportMap);
 		final Path path = Paths.get("recoverable");
 
-		new ThrowingExtractor(new StackOverflowError()).extract(path, nullSpewer(), reporter);
+		final ExtractionStatus returned =
+				new ThrowingExtractor(new StackOverflowError()).extract(path, nullSpewer(), reporter);
+		assertThat(returned).isEqualTo(ExtractionStatus.FAILURE_FATAL);
 
 		final Report report = reportMap.get(path);
 		assertThat(report).isNotNull();
@@ -106,7 +108,9 @@ public class ExtractorErrorBoundaryTest {
 		final Reporter reporter = new Reporter(reportMap);
 		final Path path = Paths.get("checked");
 
-		new ThrowingExtractor(new IOException("boom")).extract(path, nullSpewer(), reporter);
+		final ExtractionStatus returned =
+				new ThrowingExtractor(new IOException("boom")).extract(path, nullSpewer(), reporter);
+		assertThat(returned).isEqualTo(ExtractionStatus.FAILURE_UNREADABLE);
 
 		final Report report = reportMap.get(path);
 		assertThat(report).isNotNull();

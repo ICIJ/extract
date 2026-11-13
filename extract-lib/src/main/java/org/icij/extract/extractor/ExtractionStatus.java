@@ -17,7 +17,8 @@ public enum ExtractionStatus {
 	FAILURE_UNKNOWN(8),
 	FAILURE_NOT_SAVED(9),
 	FAILURE_FATAL(10),
-	FAILURE_TIMEOUT(11);
+	FAILURE_TIMEOUT(11),
+	SKIPPED(20);
 
 	private final int code;
 

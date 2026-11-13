@@ -1,8 +1,36 @@
 package org.icij.extract.extractor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.io.Reader;
+import java.io.Writer;
+import static java.lang.System.currentTimeMillis;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import static java.util.Optional.ofNullable;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import java.util.stream.Stream;
 import org.apache.commons.io.TaggedIOException;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.EncryptedDocumentException;
@@ -30,6 +58,7 @@ import org.apache.tika.utils.ServiceLoaderUtils;
 import org.icij.extract.document.DocumentFactory;
 import org.icij.extract.document.PathIdentifier;
 import org.icij.extract.document.TikaDocument;
+import static org.icij.extract.extractor.ArtifactUtils.getEmbeddedPath;
 import org.icij.extract.ocr.AutoLanguageOCRParser;
 import org.icij.extract.ocr.ImageIOTranscodingOCRParser;
 import org.icij.extract.ocr.OCRConfigAdapter;
@@ -42,12 +71,12 @@ import org.icij.extract.parser.CacheParserDecorator;
 import org.icij.extract.parser.FallbackParser;
 import org.icij.extract.parser.HTML5Serializer;
 import org.icij.extract.parser.ParsingReaderWithContentHandler;
-import org.icij.extract.parser.ResourceClosingReader;
 import org.icij.extract.parser.ResilientOutlookPSTParser;
+import org.icij.extract.parser.ResourceClosingReader;
 import org.icij.extract.report.Reporter;
 import org.icij.spewer.MetadataTransformer;
-import org.icij.spewer.Spewer;
 import org.icij.spewer.SpewSink;
+import org.icij.spewer.Spewer;
 import org.icij.spewer.StreamingSpewCoordinator;
 import org.icij.task.Options;
 import org.icij.task.annotation.Option;
@@ -55,38 +84,6 @@ import org.icij.time.HumanDuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
-
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InterruptedIOException;
-import java.io.Reader;
-import java.io.Writer;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
-import java.util.function.Supplier;
-import java.util.stream.Stream;
-
-import static java.lang.System.currentTimeMillis;
-import static java.util.Optional.ofNullable;
-import static org.icij.extract.extractor.ArtifactUtils.getEmbeddedPath;
 
 /**
  * A reusable class that sets up Tika parsers based on runtime options.
@@ -696,19 +693,19 @@ public class Extractor implements AutoCloseable {
      * @param spewer endpoint to write to
      * @throws IOException if there was an error reading or writing the document
      */
-    public void extract(final Path path, final Spewer spewer) throws IOException {
+    public ExtractionStatus extract(final Path path, final Spewer spewer) throws IOException {
         if (parseTimeout == null || parseTimeout.isZero() || parseTimeout.isNegative()) {
             doExtract(path, spewer);
-            return;
+            return ExtractionStatus.SUCCESS;
         }
 
-        final Future<?> future = parseExecutor.submit(() -> {
+        final Future<ExtractionStatus> future = parseExecutor.submit(() -> {
             doExtract(path, spewer);
-            return null;
+            return ExtractionStatus.SUCCESS;
         });
 
         try {
-            future.get(parseTimeout.toMillis(), TimeUnit.MILLISECONDS);
+            return future.get(parseTimeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (final TimeoutException e) {
             // Interrupt the worker: it unblocks any pipe read, Spewer.write's finally closes the
             // reader, and the background parse thread stops on its next write. A parser in a tight
@@ -719,10 +716,11 @@ public class Extractor implements AutoCloseable {
             // Propagate the worker's original throwable verbatim so the existing recoverable-vs-fatal
             // classification (and the fatal -> process-exit path) is unchanged.
             sneakyThrow(e.getCause());
+            return null;
         } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
             future.cancel(true);
-            throw new IOException("Extraction interrupted: " + path, e);
+            throw new RuntimeException("Extraction interrupted: " + path, e);
         }
     }
 
@@ -767,12 +765,12 @@ public class Extractor implements AutoCloseable {
      * @param spewer   endpoint to write to
      * @param reporter used to check whether the document should be skipped and save extraction status
      */
-    public void extract(final Path path, final Spewer spewer, final Reporter reporter) {
+    public ExtractionStatus extract(final Path path, final Spewer spewer, final Reporter reporter) {
         Objects.requireNonNull(reporter);
 
         if (reporter.skip(path)) {
-            logger.info(String.format("File already extracted; skipping: \"%s\".", path));
-            return;
+            logger.info("File already extracted; skipping: \"{}\".", path);
+            return ExtractionStatus.SKIPPED;
         }
 
         ExtractionStatus status = ExtractionStatus.SUCCESS;
@@ -816,6 +814,7 @@ public class Extractor implements AutoCloseable {
             // Propagate so the worker thread's uncaught-exception handler can exit the process for a clean restart.
             sneakyThrow(fatal);
         }
+        return status;
     }
 
     @SuppressWarnings("unchecked")
