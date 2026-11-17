@@ -188,6 +188,12 @@
             </exclusions>
         </dependency>
 
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+            <version>3.5.4</version>
+        </dependency>
+
         <!-- provided: PdfBoxNoiseFilter extends logback's Filter and is referenced from consumers'
              logback config at runtime. Consumers (datashare, extract-cli) already ship logback, so
              it is not exported transitively. Also covers logback use in extract-lib's own tests. -->
