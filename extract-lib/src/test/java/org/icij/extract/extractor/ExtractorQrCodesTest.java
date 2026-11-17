@@ -10,16 +10,14 @@ import static org.icij.extract.qrcode.QRCodeImages.write;
 import com.google.zxing.BarcodeFormat;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
 import org.icij.spewer.FieldNames;
@@ -123,6 +121,17 @@ public class ExtractorQrCodesTest {
     }
 
     @Test
+    public void test_pdf_inline_image_values_reach_the_pdf_metadata() throws Exception {
+        Extractor extractor = new Extractor(Options.from(Map.of("ocr", "false", "qrCodes", "true")));
+
+        TikaDocument root = extractor.extract(qrPdf());
+        spew(root);
+
+        assertThat(root.getEmbeds()).isEmpty();
+        assertThat(root.getMetadata().getValues(QR_CODES)).containsOnly(VALUE);
+    }
+
+    @Test
     public void test_pdf_inline_image_ocr_on() throws Exception {
         Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true")));
 
@@ -137,19 +146,34 @@ public class ExtractorQrCodesTest {
     }
 
     @Test
-    public void test_zip_child_on_deferred_ocr_path() throws Exception {
-        Path zip = folder.newFile("qr.zip").toPath();
-        byte[] png = Files.readAllBytes(qrImage("png"));
-        try (OutputStream output = Files.newOutputStream(zip); ZipOutputStream entries = new ZipOutputStream(output)) {
-            entries.putNextEntry(new ZipEntry("qr.png"));
-            entries.write(png);
-            entries.closeEntry();
-        }
+    public void test_email_attachment_on_deferred_ocr_path() throws Exception {
+        String png = Base64.getMimeEncoder().encodeToString(Files.readAllBytes(qrImage("png")));
+        String email = String.join("\r\n",
+                "From: a@example.org",
+                "To: b@example.org",
+                "Subject: qr",
+                "MIME-Version: 1.0",
+                "Content-Type: multipart/mixed; boundary=\"b\"",
+                "",
+                "--b",
+                "Content-Type: text/plain",
+                "",
+                "see attachment",
+                "--b",
+                "Content-Type: image/png; name=\"qr.png\"",
+                "Content-Disposition: attachment; filename=\"qr.png\"",
+                "Content-Transfer-Encoding: base64",
+                "",
+                png,
+                "--b--",
+                "");
+        Path eml = Files.writeString(folder.newFile("qr.eml").toPath(), email);
         Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true")));
 
-        TikaDocument root = extractor.extract(zip);
+        TikaDocument root = extractor.extract(eml);
         String text = spew(root);
 
+        assertThat(extractor.ocrExecutorOrNull()).isNotNull();
         assertThat(text).contains(LINE);
         EmbeddedTikaDocument child = root.getEmbeds().get(0);
         assertThat(child.getMetadata().getValues(QR_CODES)).containsOnly(VALUE);
