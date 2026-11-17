@@ -11,8 +11,6 @@ import com.google.zxing.Result;
 import com.google.zxing.ResultPoint;
 import com.google.zxing.common.HybridBinarizer;
 import com.google.zxing.multi.GenericMultipleBarcodeReader;
-import java.awt.Color;
-import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.IOException;
@@ -110,16 +108,33 @@ public final class QRCodeDecoder {
         }
     }
 
+    // Pixel by pixel rather than Graphics2D: drawing starts AWT, which throws AWTError (not caught as
+    // a RuntimeException) when DISPLAY points at an unreachable X server.
     private static BufferedImage toGrayOnWhite(BufferedImage image) {
         int width = image.getWidth();
         int height = image.getHeight();
         BufferedImage gray = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
-        Graphics2D graphics = gray.createGraphics();
-        graphics.setColor(Color.WHITE);
-        graphics.fillRect(0, 0, width, height);
-        graphics.drawImage(image, 0, 0, null);
-        graphics.dispose();
+        byte[] pixels = ((DataBufferByte) gray.getRaster().getDataBuffer()).getData();
+        int[] row = new int[width];
+        for (int y = 0; y < height; y++) {
+            image.getRGB(0, y, width, 1, row, 0, width);
+            for (int x = 0; x < width; x++) {
+                pixels[y * width + x] = (byte) luminanceOnWhite(row[x]);
+            }
+        }
         return gray;
+    }
+
+    private static int luminanceOnWhite(int argb) {
+        int alpha = (argb >>> 24) & 0xFF;
+        int red = onWhite((argb >> 16) & 0xFF, alpha);
+        int green = onWhite((argb >> 8) & 0xFF, alpha);
+        int blue = onWhite(argb & 0xFF, alpha);
+        return (299 * red + 587 * green + 114 * blue) / 1000;
+    }
+
+    private static int onWhite(int channel, int alpha) {
+        return (channel * alpha + 255 * (255 - alpha)) / 255;
     }
 
     private static double minY(Result result) {

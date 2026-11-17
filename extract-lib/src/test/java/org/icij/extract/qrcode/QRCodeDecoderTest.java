@@ -135,4 +135,23 @@ public class QRCodeDecoderTest {
 
         assertThat(QRCodeDecoder.decode(truncated)).isEmpty();
     }
+
+    // Built with setRGB only, so the test itself never touches AWT graphics: run with an unreachable
+    // DISPLAY it proves decoding does not either.
+    @Test
+    public void test_decodes_without_awt_graphics() throws Exception {
+        String value = "https://example.org/qr/headless";
+        com.google.zxing.common.BitMatrix matrix = new com.google.zxing.MultiFormatWriter()
+                .encode(value, BarcodeFormat.QR_CODE, 300, 300);
+        BufferedImage image = new BufferedImage(matrix.getWidth(), matrix.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < matrix.getHeight(); y++) {
+            for (int x = 0; x < matrix.getWidth(); x++) {
+                int pixel = matrix.get(x, y) ? 0xFF000000 : 0x00000000;
+                image.setRGB(x, y, pixel);
+            }
+        }
+        Path file = write(image, "png", folder.newFile("headless.png").toPath());
+
+        assertThat(QRCodeDecoder.decode(file)).containsExactly(value);
+    }
 }
