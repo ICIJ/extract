@@ -1,22 +1,21 @@
 package org.icij.extract.ocr;
 
 import org.apache.tika.exception.TikaException;
+import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TIFF;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
+import org.icij.extract.image.ImageIOReaders;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
 import javax.imageio.ImageIO;
-import javax.imageio.ImageReader;
-import javax.imageio.stream.ImageInputStream;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -25,7 +24,6 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -126,35 +124,9 @@ public class ImageIOTranscodingOCRParser implements Parser {
     }
 
     private static BufferedImage decode(final InputStream stream, final String contentType) throws IOException {
-        final byte[] bytes = stream.readAllBytes();
-        // Drive readers explicitly: ImageIO.read() relies on SPI format-sniffing that fails on the
-        // headerless (PDF-ready) JBIG2 streams Tika emits for embedded images, so select by MIME first.
-        BufferedImage image = null;
-        if (contentType != null) {
-            image = tryReaders(bytes, ImageIO.getImageReadersByMIMEType(contentType));
+        try (TemporaryResources tmp = new TemporaryResources()) {
+            final Path image = TikaInputStream.get(stream, tmp, new Metadata()).getPath();
+            return ImageIOReaders.read(image, contentType, reader -> reader.read(0));
         }
-        // Fall back to format-sniffing when the content type is missing, maps to no reader, or its
-        // readers fail to decode — so a claimed type with an unexpected/absent MIME still has a chance.
-        if (image == null) {
-            try (ImageInputStream iis = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
-                image = tryReaders(bytes, ImageIO.getImageReaders(iis));
-            }
-        }
-        return image;
-    }
-
-    private static BufferedImage tryReaders(final byte[] bytes, final Iterator<ImageReader> readers) {
-        while (readers.hasNext()) {
-            final ImageReader reader = readers.next();
-            try (ImageInputStream iis = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
-                reader.setInput(iis);
-                return reader.read(0);
-            } catch (final Exception e) {
-                LOGGER.debug("reader {} failed to decode image: {}", reader.getClass().getName(), e.toString());
-            } finally {
-                reader.dispose();
-            }
-        }
-        return null;
     }
 }
