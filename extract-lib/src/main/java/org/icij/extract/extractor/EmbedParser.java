@@ -20,6 +20,7 @@ import org.apache.tika.sax.ContentHandlerDecorator;
 import org.apache.tika.sax.EmbeddedContentHandler;
 import org.apache.tika.utils.ExceptionUtils;
 import org.icij.extract.document.TikaDocument;
+import org.icij.extract.parser.QRCodeParserDecorator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.Attributes;
@@ -76,6 +77,8 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 		// never reached the handler, so a matching endElement would be unmatched.
 		try {
 			delegateParsing(input, new EmbeddedContentHandler(new BodyContentHandler(handler)), metadata);
+			// Concatenated embeds have no document of their own, so their QR code values belong to the root.
+			QRCodeParserDecorator.addQrCodes(metadata, root.getMetadata());
 		} finally {
 			if (outputHtml) {
 				writeEnd(handler);

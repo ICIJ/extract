@@ -42,18 +42,30 @@ public final class QRCodeImages {
         return image;
     }
 
+    public static BufferedImage binary(BufferedImage image) {
+        BufferedImage binary = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_BYTE_BINARY);
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                binary.setRGB(x, y, image.getRGB(x, y));
+            }
+        }
+        return binary;
+    }
+
     public static Path write(BufferedImage image, String format, Path file) throws IOException {
         ImageIO.write(image, format, file.toFile());
         return file;
     }
 
-    public static Path pdfWithImage(BufferedImage image, Path file) throws IOException {
+    public static Path pdfWithImage(BufferedImage image, int pages, Path file) throws IOException {
         try (PDDocument document = new PDDocument()) {
-            PDPage page = new PDPage();
-            document.addPage(page);
             PDImageXObject pdImage = LosslessFactory.createFromImage(document, image);
-            try (PDPageContentStream content = new PDPageContentStream(document, page)) {
-                content.drawImage(pdImage, 50, 300, 300, 300);
+            for (int i = 0; i < pages; i++) {
+                PDPage page = new PDPage();
+                document.addPage(page);
+                try (PDPageContentStream content = new PDPageContentStream(document, page)) {
+                    content.drawImage(pdImage, 50, 300, 300, 300);
+                }
             }
             document.save(file.toFile());
         }

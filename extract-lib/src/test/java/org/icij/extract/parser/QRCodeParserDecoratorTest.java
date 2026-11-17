@@ -1,6 +1,7 @@
 package org.icij.extract.parser;
 
 import static org.fest.assertions.Assertions.assertThat;
+import static org.junit.Assert.fail;
 import static org.icij.extract.qrcode.QRCodeImages.canvas;
 import static org.icij.extract.qrcode.QRCodeImages.code;
 import static org.icij.extract.qrcode.QRCodeImages.write;
@@ -11,7 +12,11 @@ import java.awt.image.BufferedImage;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Set;
+import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.mime.MediaType;
+import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.image.ImageParser;
 import org.apache.tika.sax.BodyContentHandler;
@@ -76,9 +81,49 @@ public class QRCodeParserDecoratorTest {
         assertThat(new FieldNames().forMetadata(QRCodeParserDecorator.QR_CODES.getName())).isEqualTo("tika_metadata_qr_codes");
     }
 
+    @Test
+    public void test_values_kept_in_metadata_when_the_wrapped_parser_fails() throws Exception {
+        Path file = write(code(BarcodeFormat.QR_CODE, ONE, 300), "png", folder.newFile("one.png").toPath());
+        Metadata metadata = new Metadata();
+        Parser failing = new Parser() {
+            @Override
+            public Set<MediaType> getSupportedTypes(ParseContext context) {
+                return Set.of(MediaType.image("png"));
+            }
+
+            @Override
+            public void parse(InputStream stream, ContentHandler handler, Metadata metadata, ParseContext context) throws TikaException {
+                throw new TikaException("cannot read metadata");
+            }
+        };
+
+        try {
+            parse(new QRCodeParserDecorator(failing), file, new BodyContentHandler(-1), metadata);
+            fail("expected a TikaException");
+        } catch (TikaException expected) {
+            assertThat(metadata.getValues(QRCodeParserDecorator.QR_CODES)).containsOnly(ONE);
+        }
+    }
+
+    @Test
+    public void test_nested_decorators_decode_once() throws Exception {
+        Path file = write(code(BarcodeFormat.QR_CODE, ONE, 300), "png", folder.newFile("one.png").toPath());
+        BodyContentHandler handler = new BodyContentHandler(-1);
+        Metadata metadata = new Metadata();
+        Parser nested = new QRCodeParserDecorator(new QRCodeParserDecorator(new ImageParser()));
+
+        parse(nested, file, handler, metadata);
+
+        assertThat(handler.toString().split("QR code: ", -1)).hasSize(2);
+        assertThat(metadata.getValues(QRCodeParserDecorator.QR_CODES)).isEqualTo(new String[] {ONE});
+    }
+
     private static void parse(Path file, ContentHandler handler, Metadata metadata) throws Exception {
+        parse(new QRCodeParserDecorator(new ImageParser()), file, handler, metadata);
+    }
+
+    private static void parse(Parser parser, Path file, ContentHandler handler, Metadata metadata) throws Exception {
         metadata.set(Metadata.CONTENT_TYPE, "image/png");
-        QRCodeParserDecorator parser = new QRCodeParserDecorator(new ImageParser());
         try (InputStream input = Files.newInputStream(file)) {
             parser.parse(input, handler, metadata, new ParseContext());
         }

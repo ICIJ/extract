@@ -2,6 +2,7 @@ package org.icij.extract.extractor;
 
 import static org.fest.assertions.Assertions.assertThat;
 import static org.icij.extract.parser.QRCodeParserDecorator.QR_CODES;
+import static org.icij.extract.qrcode.QRCodeImages.binary;
 import static org.icij.extract.qrcode.QRCodeImages.canvas;
 import static org.icij.extract.qrcode.QRCodeImages.code;
 import static org.icij.extract.qrcode.QRCodeImages.pdfWithImage;
@@ -147,6 +148,65 @@ public class ExtractorQrCodesTest {
 
     @Test
     public void test_email_attachment_on_deferred_ocr_path() throws Exception {
+        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true")));
+
+        TikaDocument root = extractor.extract(qrEmail());
+        String text = spew(root);
+
+        assertThat(extractor.ocrExecutorOrNull()).isNotNull();
+        assertThat(text).contains(LINE);
+        EmbeddedTikaDocument child = root.getEmbeds().get(0);
+        assertThat(child.getMetadata().getValues(QR_CODES)).containsOnly(VALUE);
+    }
+
+    @Test
+    public void test_concatenated_attachment_values_reach_the_root_metadata() throws Exception {
+        Map<String, Object> options = Map.of("ocr", "false", "qrCodes", "true", "embedHandling", "concatenate");
+        Extractor extractor = new Extractor(Options.from(options));
+
+        TikaDocument root = extractor.extract(qrEmail());
+        String text = spew(root);
+
+        assertThat(text).contains(LINE);
+        assertThat(root.getMetadata().getValues(QR_CODES)).containsOnly(VALUE);
+    }
+
+    @Test
+    public void test_pdf_image_repeated_on_every_page_adds_its_value_once() throws Exception {
+        BufferedImage image = code(BarcodeFormat.QR_CODE, VALUE, 300);
+        Path pdf = pdfWithImage(image, 3, folder.newFile("pages.pdf").toPath());
+        Extractor extractor = new Extractor(Options.from(Map.of("ocr", "false", "qrCodes", "true")));
+
+        TikaDocument root = extractor.extract(pdf);
+        spew(root);
+
+        assertThat(root.getMetadata().getValues(QR_CODES)).isEqualTo(new String[] {VALUE});
+    }
+
+    @Test
+    public void test_pdf_page_render_ocr_strategy() throws Exception {
+        Map<String, Object> options = Map.of("qrCodes", "true", "ocrStrategy", "OCR_AND_TEXT_EXTRACTION");
+        Extractor extractor = new Extractor(Options.from(options));
+
+        assertThat(treeText(extractor, qrPdf())).contains(LINE);
+    }
+
+    @Test
+    public void test_image_type_only_imageio_reads() throws Exception {
+        BufferedImage image = binary(code(BarcodeFormat.QR_CODE, VALUE, 300));
+        Path file = write(image, "wbmp", folder.newFile("qr.wbmp").toPath());
+        for (String ocr : List.of("true", "false")) {
+            Extractor extractor = new Extractor(Options.from(Map.of("ocr", ocr, "qrCodes", "true")));
+
+            TikaDocument document = extractor.extract(file);
+            String text = read(document);
+
+            assertThat(text).as("ocr=" + ocr).contains(LINE);
+            assertThat(document.getMetadata().getValues(QR_CODES)).as("ocr=" + ocr).containsOnly(VALUE);
+        }
+    }
+
+    private Path qrEmail() throws Exception {
         String png = Base64.getMimeEncoder().encodeToString(Files.readAllBytes(qrImage("png")));
         String email = String.join("\r\n",
                 "From: a@example.org",
@@ -167,16 +227,7 @@ public class ExtractorQrCodesTest {
                 png,
                 "--b--",
                 "");
-        Path eml = Files.writeString(folder.newFile("qr.eml").toPath(), email);
-        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true")));
-
-        TikaDocument root = extractor.extract(eml);
-        String text = spew(root);
-
-        assertThat(extractor.ocrExecutorOrNull()).isNotNull();
-        assertThat(text).contains(LINE);
-        EmbeddedTikaDocument child = root.getEmbeds().get(0);
-        assertThat(child.getMetadata().getValues(QR_CODES)).containsOnly(VALUE);
+        return Files.writeString(folder.newFile("qr.eml").toPath(), email);
     }
 
     private Path qrImage(String format) throws Exception {
@@ -186,7 +237,7 @@ public class ExtractorQrCodesTest {
 
     private Path qrPdf() throws Exception {
         BufferedImage image = code(BarcodeFormat.QR_CODE, VALUE, 300);
-        return pdfWithImage(image, folder.newFile("qr.pdf").toPath());
+        return pdfWithImage(image, 1, folder.newFile("qr.pdf").toPath());
     }
 
     private static String read(TikaDocument document) throws Exception {

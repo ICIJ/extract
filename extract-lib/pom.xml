@@ -193,6 +193,21 @@
             <artifactId>core</artifactId>
             <version>3.5.4</version>
         </dependency>
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>javase</artifactId>
+            <version>3.5.4</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.jcommander</groupId>
+                    <artifactId>jcommander</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.github.jai-imageio</groupId>
+                    <artifactId>jai-imageio-core</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
 
         <!-- provided: PdfBoxNoiseFilter extends logback's Filter and is referenced from consumers'
              logback config at runtime. Consumers (datashare, extract-cli) already ship logback, so

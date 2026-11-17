@@ -6,6 +6,8 @@ import static org.icij.extract.qrcode.QRCodeImages.code;
 import static org.icij.extract.qrcode.QRCodeImages.write;
 
 import com.google.zxing.BarcodeFormat;
+import com.google.zxing.Result;
+import com.google.zxing.ResultPoint;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
@@ -13,7 +15,13 @@ import java.awt.image.BufferedImage;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -29,14 +37,14 @@ public class QRCodeDecoderTest {
     public void test_image_without_code_returns_empty() throws Exception {
         Path file = write(canvas(400, 400), "png", folder.newFile("blank.png").toPath());
 
-        assertThat(QRCodeDecoder.decode(file)).isEmpty();
+        assertThat(QRCodeDecoder.decode(file, null)).isEmpty();
     }
 
     @Test
     public void test_one_qr_code() throws Exception {
         Path file = write(code(BarcodeFormat.QR_CODE, ONE, 300), "png", folder.newFile("one.png").toPath());
 
-        assertThat(QRCodeDecoder.decode(file)).containsExactly(ONE);
+        assertThat(QRCodeDecoder.decode(file, null)).containsExactly(ONE);
     }
 
     @Test
@@ -49,7 +57,7 @@ public class QRCodeDecoderTest {
         graphics.dispose();
         Path file = write(image, "png", folder.newFile("several.png").toPath());
 
-        assertThat(QRCodeDecoder.decode(file)).containsExactly(ONE, TWO, THREE);
+        assertThat(QRCodeDecoder.decode(file, null)).containsExactly(ONE, TWO, THREE);
     }
 
     @Test
@@ -62,7 +70,7 @@ public class QRCodeDecoderTest {
         graphics.dispose();
         Path file = write(image, "png", folder.newFile("twice.png").toPath());
 
-        assertThat(QRCodeDecoder.decode(file)).containsExactly(ONE);
+        assertThat(QRCodeDecoder.decode(file, null)).containsExactly(ONE);
     }
 
     @Test
@@ -71,9 +79,9 @@ public class QRCodeDecoderTest {
         Path aztec = write(code(BarcodeFormat.AZTEC, "AZTEC-42", 300), "png", folder.newFile("aztec.png").toPath());
         Path pdf417 = write(code(BarcodeFormat.PDF_417, "PDF417-7", 600), "png", folder.newFile("pdf417.png").toPath());
 
-        assertThat(QRCodeDecoder.decode(dataMatrix)).containsExactly("DM-12345");
-        assertThat(QRCodeDecoder.decode(aztec)).containsExactly("AZTEC-42");
-        assertThat(QRCodeDecoder.decode(pdf417)).containsExactly("PDF417-7");
+        assertThat(QRCodeDecoder.decode(dataMatrix, null)).containsExactly("DM-12345");
+        assertThat(QRCodeDecoder.decode(aztec, null)).containsExactly("AZTEC-42");
+        assertThat(QRCodeDecoder.decode(pdf417, null)).containsExactly("PDF417-7");
     }
 
     @Test
@@ -86,7 +94,7 @@ public class QRCodeDecoderTest {
         graphics.dispose();
         Path file = write(rotated, "png", folder.newFile("rotated.png").toPath());
 
-        assertThat(QRCodeDecoder.decode(file)).containsExactly(ONE);
+        assertThat(QRCodeDecoder.decode(file, null)).containsExactly(ONE);
     }
 
     @Test
@@ -103,7 +111,7 @@ public class QRCodeDecoderTest {
         }
         Path file = write(transparent, "png", folder.newFile("transparent.png").toPath());
 
-        assertThat(QRCodeDecoder.decode(file)).containsExactly(ONE);
+        assertThat(QRCodeDecoder.decode(file, null)).containsExactly(ONE);
     }
 
     @Test
@@ -114,7 +122,7 @@ public class QRCodeDecoderTest {
         graphics.dispose();
         Path file = write(image, "png", folder.newFile("large.png").toPath());
 
-        assertThat(QRCodeDecoder.decode(file)).containsExactly(ONE);
+        assertThat(QRCodeDecoder.decode(file, null)).containsExactly(ONE);
     }
 
     @Test
@@ -122,7 +130,7 @@ public class QRCodeDecoderTest {
         Path file = folder.newFile("hello.txt").toPath();
         Files.writeString(file, "hello", StandardCharsets.UTF_8);
 
-        assertThat(QRCodeDecoder.decode(file)).isEmpty();
+        assertThat(QRCodeDecoder.decode(file, null)).isEmpty();
     }
 
     @Test
@@ -133,7 +141,7 @@ public class QRCodeDecoderTest {
         Path truncated = folder.newFile("truncated.png").toPath();
         Files.write(truncated, head);
 
-        assertThat(QRCodeDecoder.decode(truncated)).isEmpty();
+        assertThat(QRCodeDecoder.decode(truncated, null)).isEmpty();
     }
 
     // Built with setRGB only, so the test itself never touches AWT graphics: run with an unreachable
@@ -152,6 +160,35 @@ public class QRCodeDecoderTest {
         }
         Path file = write(image, "png", folder.newFile("headless.png").toPath());
 
-        assertThat(QRCodeDecoder.decode(file)).containsExactly(value);
+        assertThat(QRCodeDecoder.decode(file, null)).containsExactly(value);
+    }
+
+    @Test
+    public void test_codes_on_every_page_of_a_tiff() throws Exception {
+        Path file = folder.newFile("pages.tif").toPath();
+        ImageWriter writer = ImageIO.getImageWritersByFormatName("tiff").next();
+        try (ImageOutputStream output = ImageIO.createImageOutputStream(file.toFile())) {
+            writer.setOutput(output);
+            writer.prepareWriteSequence(null);
+            writer.writeToSequence(new IIOImage(canvas(400, 400), null, null), null);
+            writer.writeToSequence(new IIOImage(code(BarcodeFormat.QR_CODE, ONE, 300), null, null), null);
+            writer.endWriteSequence();
+        } finally {
+            writer.dispose();
+        }
+
+        assertThat(QRCodeDecoder.decode(file, "image/tiff")).containsExactly(ONE);
+    }
+
+    @Test
+    public void test_reading_order_ignores_missing_result_points() {
+        ResultPoint[] partialPoints = {null, new ResultPoint(5, 5), null};
+        Result partial = new Result("partial", null, partialPoints, BarcodeFormat.PDF_417);
+        Result first = new Result("first", null, new ResultPoint[] {new ResultPoint(1, 1)}, BarcodeFormat.QR_CODE);
+        List<Result> results = new ArrayList<>(List.of(partial, first));
+
+        results.sort(QRCodeDecoder.READING_ORDER);
+
+        assertThat(results).containsExactly(first, partial);
     }
 }

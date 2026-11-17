@@ -379,10 +379,7 @@ public class EmbedSpawner extends EmbedParser {
 					tikaDocumentStack.getLast().getMetadata().set(OCRParser.OCR_PARSER, ocrParser);
 				}
 				// Inline embeds have no document of their own, so their QR code values belong to the parent.
-				Metadata parentMetadata = tikaDocumentStack.getLast().getMetadata();
-				for (String value : metadata.getValues(QRCodeParserDecorator.QR_CODES)) {
-					parentMetadata.add(QRCodeParserDecorator.QR_CODES, value);
-				}
+				QRCodeParserDecorator.addQrCodes(metadata, tikaDocumentStack.getLast().getMetadata());
 			} finally {
 				if (outputHtml) {
 					writeEnd(handler);

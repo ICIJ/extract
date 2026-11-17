@@ -6,63 +6,86 @@ import com.google.zxing.DecodeHintType;
 import com.google.zxing.LuminanceSource;
 import com.google.zxing.MultiFormatReader;
 import com.google.zxing.NotFoundException;
-import com.google.zxing.PlanarYUVLuminanceSource;
 import com.google.zxing.Result;
 import com.google.zxing.ResultPoint;
+import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
 import com.google.zxing.common.HybridBinarizer;
 import com.google.zxing.multi.GenericMultipleBarcodeReader;
+import org.icij.extract.image.ImageIOReaders;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.imageio.ImageReadParam;
+import javax.imageio.ImageReader;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.EnumMap;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
-import javax.imageio.ImageIO;
-import javax.imageio.ImageReadParam;
-import javax.imageio.ImageReader;
-import javax.imageio.stream.ImageInputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.stream.Stream;
 
 /**
- * Decodes the 2D codes (QR code, Data Matrix, Aztec, PDF417) found in an image file.
+ * Decodes the 2D codes (QR code, Data Matrix, Aztec, PDF417) found on every page of an image file.
  */
 public final class QRCodeDecoder {
     private static final Logger logger = LoggerFactory.getLogger(QRCodeDecoder.class);
     private static final int MAX_PIXELS = 16_000_000;
     private static final Map<DecodeHintType, Object> HINTS = hints();
 
+    static final Comparator<Result> READING_ORDER = Comparator.comparingDouble(QRCodeDecoder::minY)
+            .thenComparingDouble(QRCodeDecoder::minX);
+
     private QRCodeDecoder() {}
 
     /**
-     * @return the decoded values in reading order, deduplicated, or an empty list when the file
-     * holds no code or cannot be read as an image
+     * @param contentType selects the ImageIO readers to try first, may be null
+     * @return the decoded values in reading order, page after page, deduplicated, or an empty list when the
+     * file holds no code or cannot be read as an image
      */
-    public static List<String> decode(Path image) {
+    public static List<String> decode(Path image, String contentType) {
         try {
-            BufferedImage gray = readGray(image);
-            if (gray == null) {
+            Set<String> values = ImageIOReaders.read(image, contentType, QRCodeDecoder::decodePages);
+            if (values == null) {
                 return List.of();
             }
-            return decode(gray);
+            return List.copyOf(values);
         } catch (IOException | RuntimeException e) {
             logger.debug("cannot decode codes in {}", image, e);
             return List.of();
         }
     }
 
-    private static List<String> decode(BufferedImage gray) {
-        int width = gray.getWidth();
-        int height = gray.getHeight();
-        byte[] pixels = ((DataBufferByte) gray.getRaster().getDataBuffer()).getData();
-        LuminanceSource source = new PlanarYUVLuminanceSource(pixels, width, height, 0, 0, width, height, false);
+    private static Set<String> decodePages(ImageReader reader) throws IOException {
+        Set<String> values = new LinkedHashSet<>();
+        int pages = reader.getNumImages(true);
+        for (int page = 0; page < pages; page++) {
+            BufferedImage image = readSubsampled(reader, page);
+            values.addAll(decode(image));
+        }
+        return values;
+    }
+
+    private static BufferedImage readSubsampled(ImageReader reader, int page) throws IOException {
+        long pixels = (long) reader.getWidth(page) * reader.getHeight(page);
+        double ratio = pixels / (double) MAX_PIXELS;
+        double side = Math.ceil(Math.sqrt(ratio));
+        int factor = Math.max(1, (int) side);
+        ImageReadParam param = reader.getDefaultReadParam();
+        param.setSourceSubsampling(factor, factor, 0, 0);
+        return reader.read(page, param);
+    }
+
+    // BufferedImageLuminanceSource converts pixel by pixel, never through Graphics2D: drawing starts AWT,
+    // which throws AWTError (not caught as a RuntimeException) when DISPLAY points at an unreachable X server.
+    private static List<String> decode(BufferedImage image) {
+        LuminanceSource source = new BufferedImageLuminanceSource(image);
         BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
         GenericMultipleBarcodeReader reader = new GenericMultipleBarcodeReader(new MultiFormatReader());
         Result[] results;
@@ -71,78 +94,33 @@ public final class QRCodeDecoder {
         } catch (NotFoundException e) {
             return List.of();
         }
-        List<Result> sorted = new ArrayList<>(Arrays.asList(results));
-        Comparator<Result> byTop = Comparator.comparingDouble(QRCodeDecoder::minY);
-        sorted.sort(byTop.thenComparingDouble(QRCodeDecoder::minX));
-        Set<String> values = new LinkedHashSet<>();
+        List<Result> sorted = Arrays.asList(results);
+        sorted.sort(READING_ORDER);
+        List<String> values = new ArrayList<>();
         for (Result result : sorted) {
             String text = result.getText();
             if (text != null && !text.isBlank()) {
                 values.add(text);
             }
         }
-        return List.copyOf(values);
-    }
-
-    private static BufferedImage readGray(Path image) throws IOException {
-        try (ImageInputStream input = ImageIO.createImageInputStream(image.toFile())) {
-            if (input == null) {
-                return null;
-            }
-            Iterator<ImageReader> readers = ImageIO.getImageReaders(input);
-            if (!readers.hasNext()) {
-                return null;
-            }
-            ImageReader reader = readers.next();
-            try {
-                reader.setInput(input, true, true);
-                long pixels = (long) reader.getWidth(0) * reader.getHeight(0);
-                int factor = (int) Math.max(1, Math.ceil(Math.sqrt(pixels / (double) MAX_PIXELS)));
-                ImageReadParam param = reader.getDefaultReadParam();
-                param.setSourceSubsampling(factor, factor, 0, 0);
-                BufferedImage read = reader.read(0, param);
-                return toGrayOnWhite(read);
-            } finally {
-                reader.dispose();
-            }
-        }
-    }
-
-    // Pixel by pixel rather than Graphics2D: drawing starts AWT, which throws AWTError (not caught as
-    // a RuntimeException) when DISPLAY points at an unreachable X server.
-    private static BufferedImage toGrayOnWhite(BufferedImage image) {
-        int width = image.getWidth();
-        int height = image.getHeight();
-        BufferedImage gray = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
-        byte[] pixels = ((DataBufferByte) gray.getRaster().getDataBuffer()).getData();
-        int[] row = new int[width];
-        for (int y = 0; y < height; y++) {
-            image.getRGB(0, y, width, 1, row, 0, width);
-            for (int x = 0; x < width; x++) {
-                pixels[y * width + x] = (byte) luminanceOnWhite(row[x]);
-            }
-        }
-        return gray;
-    }
-
-    private static int luminanceOnWhite(int argb) {
-        int alpha = (argb >>> 24) & 0xFF;
-        int red = onWhite((argb >> 16) & 0xFF, alpha);
-        int green = onWhite((argb >> 8) & 0xFF, alpha);
-        int blue = onWhite(argb & 0xFF, alpha);
-        return (299 * red + 587 * green + 114 * blue) / 1000;
-    }
-
-    private static int onWhite(int channel, int alpha) {
-        return (channel * alpha + 255 * (255 - alpha)) / 255;
+        return values;
     }
 
     private static double minY(Result result) {
-        return Arrays.stream(result.getResultPoints()).mapToDouble(ResultPoint::getY).min().orElse(0);
+        return points(result).mapToDouble(ResultPoint::getY).min().orElse(0);
     }
 
     private static double minX(Result result) {
-        return Arrays.stream(result.getResultPoints()).mapToDouble(ResultPoint::getX).min().orElse(0);
+        return points(result).mapToDouble(ResultPoint::getX).min().orElse(0);
+    }
+
+    // PDF417 results can hold null points when the detector found only part of the code.
+    private static Stream<ResultPoint> points(Result result) {
+        ResultPoint[] points = result.getResultPoints();
+        if (points == null) {
+            return Stream.empty();
+        }
+        return Arrays.stream(points).filter(Objects::nonNull);
     }
 
     private static Map<DecodeHintType, Object> hints() {

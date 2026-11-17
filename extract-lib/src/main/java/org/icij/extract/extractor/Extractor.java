@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import org.apache.commons.io.TaggedIOException;
 import org.apache.tika.config.TikaConfig;
@@ -39,12 +40,14 @@ import org.apache.tika.extractor.DocumentSelector;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
+import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.CompositeParser;
 import org.apache.tika.parser.DigestingParser;
 import org.apache.tika.parser.EmptyParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
+import org.apache.tika.parser.ParserDecorator;
 import org.apache.tika.parser.digestutils.CommonsDigester;
 import org.apache.tika.parser.digestutils.CommonsDigester.DigestAlgorithm;
 import org.apache.tika.parser.html.DefaultHtmlMapper;
@@ -161,7 +164,9 @@ import org.xml.sax.ContentHandler;
         "parallel across all in-flight mailboxes. Separate from ocrParallelism.")
 @Option(name = "qrCodes", description = "Decode QR codes, Data Matrix, Aztec and PDF417 codes found in " +
         "images and add their values to the document text. Off by default. Images inside PDFs are " +
-        "read even with OCR off, and their values land in the PDF's own text.")
+        "read even with OCR off, and their values land in the PDF's own text. Pages OCR'd by a " +
+        "rendering ocrStrategy are read too. Slower: every image, PDF images included, is decoded " +
+        "once more.")
 @Option(name = "legacyUntitledNaming", description = "Name nameless non-inline embeds with the " +
         "pre-9.x global untitled_N counter instead of the per-parent scheme, for on-demand " +
         "resolution of corpora indexed before the per-parent change. Serial mode only.")
@@ -698,13 +703,50 @@ public class Extractor implements AutoCloseable {
      * Decode 2D codes (QR code, Data Matrix, Aztec, PDF417) in images and add their values to the
      * document text and to the {@link QRCodeParserDecorator#QR_CODES} metadata. Works with OCR on
      * or off: with OCR off, PDF inline images are then extracted so their codes are decoded too.
+     * With a rendering OCR strategy, rendered pages are decoded: their values reach the text only.
      */
     public void enableQrCodes() {
+        qrCodes = true;
+        updateExtractInlineImages();
+    }
+
+    // Decorated per extraction, not in place, so later OCR (re)configuration and the ocrCache
+    // decorator still find the OCR parsers by class.
+    private Parser withQrCodes(final Parser parser) {
         if (!qrCodes) {
-            replaceParser(AbstractImageParser.class, QRCodeParserDecorator::new);
-            qrCodes = true;
-            updateExtractInlineImages();
+            return parser;
         }
+        final CompositeParser decorated = replaceParser(parser, Extractor::readsImages, QRCodeParserDecorator::new);
+        if (!ocrDisabled) {
+            return decorated;
+        }
+        return addParser(decorated, imageIOOnlyQrCodeParser());
+    }
+
+    private static boolean readsImages(final Parser parser) {
+        final Parser leaf = unwrap(parser);
+        if (leaf instanceof AbstractImageParser || leaf instanceof ImageIOTranscodingOCRParser) {
+            return true;
+        }
+        final Set<MediaType> types = leaf.getSupportedTypes(new ParseContext());
+        return types.stream().anyMatch(type -> type.getSubtype().startsWith("ocr-"));
+    }
+
+    private static Parser unwrap(final Parser parser) {
+        Parser leaf = parser;
+        while (leaf instanceof ParserDecorator decorator) {
+            leaf = decorator.getWrappedParser();
+        }
+        return leaf;
+    }
+
+    // With OCR off, ImageIOTranscodingOCRParser is excluded and nothing parses the types only ImageIO
+    // reads (JBIG2, WBMP, PCX, PNM): this parser emits no text but their codes.
+    private static Parser imageIOOnlyQrCodeParser() {
+        final Parser transcoding = new ImageIOTranscodingOCRParser(EmptyParser.INSTANCE);
+        final Set<MediaType> types = transcoding.getSupportedTypes(new ParseContext());
+        final Parser empty = ParserDecorator.withTypes(EmptyParser.INSTANCE, types);
+        return new QRCodeParserDecorator(empty);
     }
 
     private void updateExtractInlineImages() {
@@ -1040,7 +1082,7 @@ public class Extractor implements AutoCloseable {
         final TikaDocument rootDocument = documentFactory.create(path);
         TikaInputStream tikaInputStream = TikaInputStream.get(path, rootDocument.getMetadata());
         final ParseContext context = new ParseContext();
-        final AutoDetectParser autoDetectParser = new AutoDetectParser(defaultParser);
+        final AutoDetectParser autoDetectParser = new AutoDetectParser(withQrCodes(defaultParser));
 
         // Set a fallback parser that outputs an empty tikaDocument for empty files,
         // otherwise throws an exception.
@@ -1132,10 +1174,14 @@ public class Extractor implements AutoCloseable {
     }
 
     public static CompositeParser replaceParser(Parser parser, final Class<? extends Parser> exclude, final Function<Parser, Parser> parserFn) {
+        return replaceParser(parser, p -> exclude.isAssignableFrom(p.getClass()), parserFn);
+    }
+
+    public static CompositeParser replaceParser(Parser parser, final Predicate<Parser> exclude, final Function<Parser, Parser> parserFn) {
         if (parser instanceof CompositeParser composite) {
             final List<Parser> parsers = new ArrayList<>();
             getAllSubParsers(composite).forEach(p -> {
-                if (p.getClass().equals(exclude) || exclude.isAssignableFrom(p.getClass())) {
+                if (exclude.test(p)) {
                     if (parserFn != null) {
                         parsers.add(parserFn.apply(p));
                     }
