@@ -9,23 +9,28 @@ import static org.icij.extract.qrcode.QRCodeImages.write;
 import com.google.zxing.BarcodeFormat;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.ParserDecorator;
 import org.apache.tika.parser.image.ImageParser;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.ToXMLContentHandler;
+import org.apache.tika.sax.XHTMLContentHandler;
 import org.icij.spewer.FieldNames;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.xml.sax.ContentHandler;
+import org.xml.sax.SAXException;
 
 public class QRCodeParserDecoratorTest {
     private static final String ONE = "https://example.org/qr/one";
@@ -106,16 +111,100 @@ public class QRCodeParserDecoratorTest {
     }
 
     @Test
-    public void test_nested_decorators_decode_once() throws Exception {
+    public void test_ocr_handoff_decodes_once() throws Exception {
         Path file = write(code(BarcodeFormat.QR_CODE, ONE, 300), "png", folder.newFile("one.png").toPath());
         BodyContentHandler handler = new BodyContentHandler(-1);
         Metadata metadata = new Metadata();
-        Parser nested = new QRCodeParserDecorator(new QRCodeParserDecorator(new ImageParser()));
+        Parser handoff = new ParserDecorator(new QRCodeParserDecorator(new ImageParser())) {
+            @Override
+            public void parse(InputStream stream, ContentHandler handler, Metadata metadata, ParseContext context) throws IOException, SAXException, TikaException {
+                metadata.set(TikaCoreProperties.CONTENT_TYPE_PARSER_OVERRIDE, "image/ocr-png");
+                super.parse(stream, handler, metadata, context);
+            }
+        };
 
-        parse(nested, file, handler, metadata);
+        parse(new QRCodeParserDecorator(handoff), file, handler, metadata);
 
         assertThat(handler.toString().split("QR code: ", -1)).hasSize(2);
         assertThat(metadata.getValues(QRCodeParserDecorator.QR_CODES)).isEqualTo(new String[] {ONE});
+    }
+
+    @Test
+    public void test_image_embedded_in_an_image_is_decoded() throws Exception {
+        Path file = write(code(BarcodeFormat.QR_CODE, ONE, 300), "png", folder.newFile("one.png").toPath());
+        Metadata embedded = new Metadata();
+        Parser withEmbed = new ParserDecorator(new ImageParser()) {
+            @Override
+            public void parse(InputStream stream, ContentHandler handler, Metadata metadata, ParseContext context) throws IOException, SAXException, TikaException {
+                super.parse(stream, handler, metadata, context);
+                QRCodeParserDecorator inner = new QRCodeParserDecorator(new ImageParser());
+                embedded.set(Metadata.CONTENT_TYPE, "image/png");
+                try (InputStream input = Files.newInputStream(file)) {
+                    inner.parse(input, new BodyContentHandler(-1), embedded, context);
+                }
+            }
+        };
+
+        parse(new QRCodeParserDecorator(withEmbed), file, new BodyContentHandler(-1), new Metadata());
+
+        assertThat(embedded.getValues(QRCodeParserDecorator.QR_CODES)).containsOnly(ONE);
+    }
+
+    @Test
+    public void test_line_written_when_the_wrapped_parser_never_closes_the_body() throws Exception {
+        Path file = write(code(BarcodeFormat.QR_CODE, ONE, 300), "png", folder.newFile("one.png").toPath());
+        BodyContentHandler handler = new BodyContentHandler(-1);
+        Parser cached = new Parser() {
+            @Override
+            public Set<MediaType> getSupportedTypes(ParseContext context) {
+                return Set.of(MediaType.image("png"));
+            }
+
+            @Override
+            public void parse(InputStream stream, ContentHandler handler, Metadata metadata, ParseContext context) throws SAXException {
+                XHTMLContentHandler xhtml = new XHTMLContentHandler(handler, metadata);
+                xhtml.element("div", "cached text");
+            }
+        };
+
+        parse(new QRCodeParserDecorator(cached), file, handler, new Metadata());
+
+        assertThat(handler.toString()).contains("cached text");
+        assertThat(handler.toString()).contains("QR code: " + ONE);
+    }
+
+    @Test
+    public void test_line_written_when_the_wrapped_parser_writes_nothing() throws Exception {
+        Path file = write(code(BarcodeFormat.QR_CODE, ONE, 300), "png", folder.newFile("one.png").toPath());
+        BodyContentHandler handler = new BodyContentHandler(-1);
+        Parser silent = new Parser() {
+            @Override
+            public Set<MediaType> getSupportedTypes(ParseContext context) {
+                return Set.of(MediaType.image("png"));
+            }
+
+            @Override
+            public void parse(InputStream stream, ContentHandler handler, Metadata metadata, ParseContext context) {
+            }
+        };
+
+        parse(new QRCodeParserDecorator(silent), file, handler, new Metadata());
+
+        assertThat(handler.toString()).contains("QR code: " + ONE);
+    }
+
+    @Test
+    public void test_add_qr_codes_skips_duplicates_on_both_sides() {
+        Metadata from = new Metadata();
+        from.add(QRCodeParserDecorator.QR_CODES, ONE);
+        from.add(QRCodeParserDecorator.QR_CODES, ONE);
+        Metadata to = new Metadata();
+        to.add(QRCodeParserDecorator.QR_CODES, TWO);
+        to.add(QRCodeParserDecorator.QR_CODES, TWO);
+
+        QRCodeParserDecorator.addQrCodes(from, to);
+
+        assertThat(to.getValues(QRCodeParserDecorator.QR_CODES)).isEqualTo(new String[] {TWO, TWO, ONE});
     }
 
     private static void parse(Path file, ContentHandler handler, Metadata metadata) throws Exception {

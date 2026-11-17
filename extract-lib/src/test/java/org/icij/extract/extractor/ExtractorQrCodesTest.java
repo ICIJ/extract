@@ -19,8 +19,12 @@ import java.nio.file.Path;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import org.apache.tika.metadata.TIFF;
+import org.apache.tika.metadata.TikaCoreProperties;
+import org.apache.tika.parser.image.ImageParser;
 import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
+import org.icij.extract.ocr.ImageIOTranscodingOCRParser;
 import org.icij.spewer.FieldNames;
 import org.icij.spewer.PrintStreamSpewer;
 import org.icij.spewer.Spewer;
@@ -72,8 +76,8 @@ public class ExtractorQrCodesTest {
         TikaDocument document = extractor.extract(file);
         String text = read(document);
 
-        assertThat(text).contains(LINE);
-        assertThat(document.getMetadata().getValues(QR_CODES)).containsOnly(VALUE);
+        assertThat(text.split(LINE, -1)).hasSize(2);
+        assertThat(document.getMetadata().getValues(QR_CODES)).isEqualTo(new String[] {VALUE});
     }
 
     @Test
@@ -204,6 +208,36 @@ public class ExtractorQrCodesTest {
             assertThat(text).as("ocr=" + ocr).contains(LINE);
             assertThat(document.getMetadata().getValues(QR_CODES)).as("ocr=" + ocr).containsOnly(VALUE);
         }
+    }
+
+    @Test
+    public void test_ocr_on_keeps_the_transcoder_for_types_only_imageio_reads() throws Exception {
+        Path file = qrWbmp();
+        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true")));
+
+        TikaDocument document = extractor.extract(file);
+        read(document);
+
+        String[] parsers = document.getMetadata().getValues(TikaCoreProperties.TIKA_PARSED_BY);
+        assertThat(parsers).contains(ImageIOTranscodingOCRParser.class.getName());
+    }
+
+    @Test
+    public void test_ocr_off_keeps_the_image_parser_for_types_only_imageio_reads() throws Exception {
+        Path file = qrWbmp();
+        Extractor extractor = new Extractor(Options.from(Map.of("ocr", "false", "qrCodes", "true")));
+
+        TikaDocument document = extractor.extract(file);
+        read(document);
+
+        String[] parsers = document.getMetadata().getValues(TikaCoreProperties.TIKA_PARSED_BY);
+        assertThat(parsers).contains(ImageParser.class.getName());
+        assertThat(document.getMetadata().get(TIFF.IMAGE_WIDTH)).isNotNull();
+    }
+
+    private Path qrWbmp() throws Exception {
+        BufferedImage image = binary(code(BarcodeFormat.QR_CODE, VALUE, 300));
+        return write(image, "wbmp", folder.newFile("parser.wbmp").toPath());
     }
 
     private Path qrEmail() throws Exception {
