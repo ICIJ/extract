@@ -160,8 +160,8 @@ import org.xml.sax.ContentHandler;
 @Option(name = "pstParseParallelism", description = "Number of PST/OST folder-walk tasks run in " +
         "parallel across all in-flight mailboxes. Separate from ocrParallelism.")
 @Option(name = "qrCodes", description = "Decode QR codes, Data Matrix, Aztec and PDF417 codes found in " +
-        "images and add their values to the document text. Off by default. With OCR off, PDF inline " +
-        "images are then extracted as child documents.")
+        "images and add their values to the document text. Off by default. Images inside PDFs are " +
+        "read even with OCR off, and their values land in the PDF's own text.")
 @Option(name = "legacyUntitledNaming", description = "Name nameless non-inline embeds with the " +
         "pre-9.x global untitled_N counter instead of the per-parent scheme, for on-demand " +
         "resolution of corpora indexed before the per-parent change. Serial mode only.")
