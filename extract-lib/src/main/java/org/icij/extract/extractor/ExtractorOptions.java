@@ -78,6 +78,9 @@ public record ExtractorOptions(
         // Number of PST/OST folder-walk tasks run in parallel across all in-flight mailboxes. Separate from
         // ocrParallelism.
         String pstParseParallelism,
+        // Decode QR codes, Data Matrix, Aztec and PDF417 codes found in images and add their values to the document
+        // text. Off by default. With OCR off, PDF inline images are then extracted as child documents.
+        String qrCodes,
         // Maximum number of parsed-but-not-yet-written embedded documents held in the streaming-spew queue before
         // the parse thread blocks (backpressure). Defaults to 1000.
         String spewQueueCapacity,
@@ -110,6 +113,7 @@ public record ExtractorOptions(
                                     options.ifPresent("progressHeartbeatInterval", o -> o.parse().asDuration())
                                            .orElse(null), options.valueIfPresent("pstFolderFanout").orElse(null),
                                     options.valueIfPresent("pstParseParallelism").orElse(null),
+                                    options.valueIfPresent("qrCodes").orElse(null),
                                     options.valueIfPresent("spewQueueCapacity").orElse(null),
                                     options.valueIfPresent("streamingSpew").orElse(null));
     }
@@ -145,6 +149,7 @@ public record ExtractorOptions(
         }
         if (pstFolderFanout != null) {map.put("pstFolderFanout", String.valueOf(pstFolderFanout));}
         if (pstParseParallelism != null) {map.put("pstParseParallelism", String.valueOf(pstParseParallelism));}
+        if (qrCodes != null) {map.put("qrCodes", String.valueOf(qrCodes));}
         if (spewQueueCapacity != null) {map.put("spewQueueCapacity", String.valueOf(spewQueueCapacity));}
         if (streamingSpew != null) {map.put("streamingSpew", String.valueOf(streamingSpew));}
         return Options.from(map);
