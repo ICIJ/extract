@@ -18,9 +18,16 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import com.github.jaiimageio.impl.plugins.tiff.TIFFImageReader;
+import com.github.jaiimageio.impl.plugins.tiff.TIFFImageReaderSpi;
+import java.io.IOException;
+import javax.imageio.IIOException;
 import javax.imageio.IIOImage;
+import javax.imageio.ImageReadParam;
+import javax.imageio.ImageReader;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageInputStream;
 import javax.imageio.stream.ImageOutputStream;
 import org.junit.Rule;
 import org.junit.Test;
@@ -178,6 +185,36 @@ public class QRCodeDecoderTest {
         }
 
         assertThat(QRCodeDecoder.decode(file, "image/tiff")).containsExactly(ONE);
+    }
+
+    @Test
+    public void test_codes_kept_when_a_later_page_is_corrupt() throws Exception {
+        Path file = folder.newFile("corrupt.tif").toPath();
+        ImageWriter writer = ImageIO.getImageWritersByFormatName("tiff").next();
+        try (ImageOutputStream output = ImageIO.createImageOutputStream(file.toFile())) {
+            writer.setOutput(output);
+            writer.prepareWriteSequence(null);
+            writer.writeToSequence(new IIOImage(code(BarcodeFormat.QR_CODE, ONE, 300), null, null), null);
+            writer.writeToSequence(new IIOImage(canvas(400, 400), null, null), null);
+            writer.endWriteSequence();
+        } finally {
+            writer.dispose();
+        }
+        ImageReader reader = new TIFFImageReader(new TIFFImageReaderSpi()) {
+            @Override
+            public BufferedImage read(int page, ImageReadParam param) throws IOException {
+                if (page == 1) {
+                    throw new IIOException("corrupt page");
+                }
+                return super.read(page, param);
+            }
+        };
+
+        try (ImageInputStream input = ImageIO.createImageInputStream(file.toFile())) {
+            reader.setInput(input);
+
+            assertThat(QRCodeDecoder.decodePages(reader)).containsOnly(ONE);
+        }
     }
 
     @Test

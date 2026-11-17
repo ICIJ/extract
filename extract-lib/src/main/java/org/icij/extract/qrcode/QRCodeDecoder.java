@@ -62,12 +62,24 @@ public final class QRCodeDecoder {
         }
     }
 
-    private static Set<String> decodePages(ImageReader reader) throws IOException {
+    static Set<String> decodePages(ImageReader reader) throws IOException {
         Set<String> values = new LinkedHashSet<>();
         int pages = reader.getNumImages(true);
+        Exception failure = null;
+        int read = 0;
         for (int page = 0; page < pages; page++) {
-            BufferedImage image = readSubsampled(reader, page);
-            values.addAll(decode(image));
+            try {
+                BufferedImage image = readSubsampled(reader, page);
+                values.addAll(decode(image));
+                read++;
+            } catch (IOException | RuntimeException e) {
+                logger.debug("cannot read page {}", page, e);
+                failure = e;
+            }
+        }
+        // No page read at all: throw so the next reader gets a chance (a CMYK JPEG fails one reader only).
+        if (read == 0 && failure != null) {
+            throw new IOException(failure);
         }
         return values;
     }
