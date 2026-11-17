@@ -50,6 +50,7 @@ import org.apache.tika.parser.digestutils.CommonsDigester.DigestAlgorithm;
 import org.apache.tika.parser.html.DefaultHtmlMapper;
 import org.apache.tika.parser.html.HtmlMapper;
 import org.apache.tika.parser.microsoft.pst.OutlookPSTParser;
+import org.apache.tika.parser.image.AbstractImageParser;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.sax.BodyContentHandler;
@@ -71,6 +72,7 @@ import org.icij.extract.parser.CacheParserDecorator;
 import org.icij.extract.parser.FallbackParser;
 import org.icij.extract.parser.HTML5Serializer;
 import org.icij.extract.parser.ParsingReaderWithContentHandler;
+import org.icij.extract.parser.QRCodeParserDecorator;
 import org.icij.extract.parser.ResilientOutlookPSTParser;
 import org.icij.extract.parser.ResourceClosingReader;
 import org.icij.extract.report.Reporter;
@@ -157,6 +159,9 @@ import org.xml.sax.ContentHandler;
         "digests and artifact filenames are byte-identical to the serial walk.")
 @Option(name = "pstParseParallelism", description = "Number of PST/OST folder-walk tasks run in " +
         "parallel across all in-flight mailboxes. Separate from ocrParallelism.")
+@Option(name = "qrCodes", description = "Decode QR codes, Data Matrix, Aztec and PDF417 codes found in " +
+        "images and add their values to the document text. Off by default. With OCR off, PDF inline " +
+        "images are then extracted as child documents.")
 @Option(name = "legacyUntitledNaming", description = "Name nameless non-inline embeds with the " +
         "pre-9.x global untitled_N counter instead of the per-parent scheme, for on-demand " +
         "resolution of corpora indexed before the per-parent change. Serial mode only.")
@@ -197,6 +202,7 @@ public class Extractor implements AutoCloseable {
     private static final Set<Class<?>> WARNED_OCR_ADAPTERS = ConcurrentHashMap.newKeySet();
 
     private boolean ocrDisabled = false;
+    private boolean qrCodes = false;
     private DigestingParser.Digester digester = null;
 
     private Parser defaultParser = TikaConfig.getDefaultConfig().getParser();
@@ -316,6 +322,9 @@ public class Extractor implements AutoCloseable {
 
         if (options.get("ocr", String.valueOf(!this.ocrDisabled)).parse().isOff()) {
             disableOcr();
+        }
+        if (options.get("qrCodes", "false").parse().isOn()) {
+            enableQrCodes();
         }
         options.valueIfPresent("ocrCache").ifPresent(path -> {
             replaceParser(ocrConfig.getParserClass(), parser -> new CacheParserDecorator(parser, Paths.get(path)));
@@ -644,7 +653,7 @@ public class Extractor implements AutoCloseable {
             parsed = PDFParserConfig.OCR_STRATEGY.NO_OCR;
         }
         pdfConfig.setOcrStrategy(parsed);
-        pdfConfig.setExtractInlineImages(!ocrDisabled && parsed == PDFParserConfig.OCR_STRATEGY.NO_OCR);
+        updateExtractInlineImages();
     }
 
     /**
@@ -678,11 +687,30 @@ public class Extractor implements AutoCloseable {
             excludeParser(AutoLanguageOCRParser.class);
             excludeParser(ImageIOTranscodingOCRParser.class);
             ocrDisabled = true;
-            pdfConfig.setExtractInlineImages(false);
             // Drop any rendering strategy: with the OCR parsers excluded it would only make Tika
             // render pages and discard their text, silently losing content on born-digital PDFs.
             pdfConfig.setOcrStrategy(PDFParserConfig.OCR_STRATEGY.NO_OCR);
+            updateExtractInlineImages();
         }
+    }
+
+    /**
+     * Decode 2D codes (QR code, Data Matrix, Aztec, PDF417) in images and add their values to the
+     * document text and to the {@link QRCodeParserDecorator#QR_CODES} metadata. Works with OCR on
+     * or off: with OCR off, PDF inline images are then extracted so their codes are decoded too.
+     */
+    public void enableQrCodes() {
+        if (!qrCodes) {
+            replaceParser(AbstractImageParser.class, QRCodeParserDecorator::new);
+            qrCodes = true;
+            updateExtractInlineImages();
+        }
+    }
+
+    private void updateExtractInlineImages() {
+        boolean noOcrStrategy = pdfConfig.getOcrStrategy() == PDFParserConfig.OCR_STRATEGY.NO_OCR;
+        boolean imagesRead = !ocrDisabled || qrCodes;
+        pdfConfig.setExtractInlineImages(imagesRead && noOcrStrategy);
     }
 
     /**

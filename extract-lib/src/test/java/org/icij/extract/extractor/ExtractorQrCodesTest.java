@@ -1,0 +1,188 @@
+package org.icij.extract.extractor;
+
+import static org.fest.assertions.Assertions.assertThat;
+import static org.icij.extract.parser.QRCodeParserDecorator.QR_CODES;
+import static org.icij.extract.qrcode.QRCodeImages.canvas;
+import static org.icij.extract.qrcode.QRCodeImages.code;
+import static org.icij.extract.qrcode.QRCodeImages.pdfWithImage;
+import static org.icij.extract.qrcode.QRCodeImages.write;
+
+import com.google.zxing.BarcodeFormat;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+import org.icij.extract.document.EmbeddedTikaDocument;
+import org.icij.extract.document.TikaDocument;
+import org.icij.spewer.FieldNames;
+import org.icij.spewer.PrintStreamSpewer;
+import org.icij.spewer.Spewer;
+import org.icij.task.Options;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
+public class ExtractorQrCodesTest {
+    private static final String VALUE = "https://example.org/qr/one";
+    private static final String LINE = "QR code: " + VALUE;
+
+    @Rule public TemporaryFolder folder = new TemporaryFolder();
+
+    @Test
+    public void test_inline_images_kept_when_ocr_off_and_qr_codes_on() {
+        Extractor extractor = new Extractor(Options.from(Map.of("ocr", "false", "qrCodes", "true")));
+
+        assertThat(extractor.isExtractInlineImages()).isTrue();
+    }
+
+    @Test
+    public void test_inline_images_off_when_ocr_off_and_qr_codes_off() {
+        Extractor extractor = new Extractor(Options.from(Map.of("ocr", "false")));
+
+        assertThat(extractor.isExtractInlineImages()).isFalse();
+    }
+
+    @Test
+    public void test_rendering_strategy_still_disables_inline_images() {
+        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true", "ocrStrategy", "AUTO")));
+
+        assertThat(extractor.isExtractInlineImages()).isFalse();
+    }
+
+    @Test
+    public void test_ocr_off_forces_no_ocr_so_qr_codes_keep_inline_images() {
+        Options<String> options = Options.from(Map.of("ocr", "false", "qrCodes", "true", "ocrStrategy", "AUTO"));
+        Extractor extractor = new Extractor(options);
+
+        assertThat(extractor.isExtractInlineImages()).isTrue();
+    }
+
+    @Test
+    public void test_standalone_png_ocr_on() throws Exception {
+        Path file = qrImage("png");
+        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true")));
+
+        TikaDocument document = extractor.extract(file);
+        String text = read(document);
+
+        assertThat(text).contains(LINE);
+        assertThat(document.getMetadata().getValues(QR_CODES)).containsOnly(VALUE);
+    }
+
+    @Test
+    public void test_every_covered_format() throws Exception {
+        for (String format : List.of("png", "jpg", "gif", "bmp", "tif")) {
+            Path file = qrImage(format);
+            Extractor extractor = new Extractor(Options.from(Map.of("ocr", "false", "qrCodes", "true")));
+
+            TikaDocument document = extractor.extract(file);
+            String text = read(document);
+
+            assertThat(text).as(format).contains(LINE);
+            assertThat(document.getMetadata().getValues(QR_CODES)).as(format).containsOnly(VALUE);
+        }
+    }
+
+    @Test
+    public void test_image_without_code() throws Exception {
+        Path file = write(canvas(400, 400), "png", folder.newFile("blank.png").toPath());
+        Extractor extractor = new Extractor(Options.from(Map.of("ocr", "false", "qrCodes", "true")));
+
+        TikaDocument document = extractor.extract(file);
+        String text = read(document);
+
+        assertThat(text).doesNotContain("QR code");
+        assertThat(document.getMetadata().get(QR_CODES)).isNull();
+    }
+
+    @Test
+    public void test_option_off_by_default() throws Exception {
+        Path file = qrImage("png");
+        Extractor extractor = new Extractor(Options.from(Map.of("ocr", "false")));
+
+        TikaDocument document = extractor.extract(file);
+        String text = read(document);
+
+        assertThat(text).doesNotContain("QR code");
+        assertThat(document.getMetadata().get(QR_CODES)).isNull();
+    }
+
+    @Test
+    public void test_pdf_inline_image_ocr_off() throws Exception {
+        Extractor extractor = new Extractor(Options.from(Map.of("ocr", "false", "qrCodes", "true")));
+
+        assertThat(treeText(extractor, qrPdf())).contains(LINE);
+    }
+
+    @Test
+    public void test_pdf_inline_image_ocr_on() throws Exception {
+        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true")));
+
+        assertThat(treeText(extractor, qrPdf())).contains(LINE);
+    }
+
+    @Test
+    public void test_pdf_inline_image_option_off() throws Exception {
+        Extractor extractor = new Extractor(Options.from(Map.of("ocr", "false")));
+
+        assertThat(treeText(extractor, qrPdf())).doesNotContain("QR code");
+    }
+
+    @Test
+    public void test_zip_child_on_deferred_ocr_path() throws Exception {
+        Path zip = folder.newFile("qr.zip").toPath();
+        byte[] png = Files.readAllBytes(qrImage("png"));
+        try (OutputStream output = Files.newOutputStream(zip); ZipOutputStream entries = new ZipOutputStream(output)) {
+            entries.putNextEntry(new ZipEntry("qr.png"));
+            entries.write(png);
+            entries.closeEntry();
+        }
+        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true")));
+
+        TikaDocument root = extractor.extract(zip);
+        String text = spew(root);
+
+        assertThat(text).contains(LINE);
+        EmbeddedTikaDocument child = root.getEmbeds().get(0);
+        assertThat(child.getMetadata().getValues(QR_CODES)).containsOnly(VALUE);
+    }
+
+    private Path qrImage(String format) throws Exception {
+        BufferedImage image = code(BarcodeFormat.QR_CODE, VALUE, 300);
+        return write(image, format, folder.newFile("qr." + format).toPath());
+    }
+
+    private Path qrPdf() throws Exception {
+        BufferedImage image = code(BarcodeFormat.QR_CODE, VALUE, 300);
+        return pdfWithImage(image, folder.newFile("qr.pdf").toPath());
+    }
+
+    private static String read(TikaDocument document) throws Exception {
+        try (Reader reader = document.getReader()) {
+            return Spewer.toString(reader);
+        }
+    }
+
+    private static String treeText(Extractor extractor, Path file) throws Exception {
+        TikaDocument root = extractor.extract(file);
+        return spew(root);
+    }
+
+    private static String spew(TikaDocument root) throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        PrintStream print = new PrintStream(out, true, StandardCharsets.UTF_8);
+        PrintStreamSpewer spewer = new PrintStreamSpewer(print, new FieldNames());
+        spewer.outputMetadata(false);
+        spewer.write(root);
+        root.getReader().close();
+        return out.toString(StandardCharsets.UTF_8);
+    }
+}
