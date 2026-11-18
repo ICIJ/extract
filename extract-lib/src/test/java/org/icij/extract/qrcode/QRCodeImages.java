@@ -48,12 +48,18 @@ public final class QRCodeImages {
     }
 
     public static Path pdfWithImage(BufferedImage image, Path file) throws IOException {
+        return pdfWithImageOnEveryPage(image, 1, file);
+    }
+
+    public static Path pdfWithImageOnEveryPage(BufferedImage image, int pageCount, Path file) throws IOException {
         try (PDDocument document = new PDDocument()) {
-            PDPage page = new PDPage();
-            document.addPage(page);
             PDImageXObject pdImage = LosslessFactory.createFromImage(document, image);
-            try (PDPageContentStream content = new PDPageContentStream(document, page)) {
-                content.drawImage(pdImage, 50, 300, 300, 300);
+            for (int pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+                PDPage page = new PDPage();
+                document.addPage(page);
+                try (PDPageContentStream content = new PDPageContentStream(document, page)) {
+                    content.drawImage(pdImage, 50, 300, 300, 300);
+                }
             }
             document.save(file.toFile());
         }

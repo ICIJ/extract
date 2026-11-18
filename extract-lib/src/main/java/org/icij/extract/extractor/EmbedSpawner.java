@@ -18,7 +18,6 @@ import org.apache.tika.utils.ExceptionUtils;
 import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
 import org.icij.extract.ocr.OCRParser;
-import org.icij.extract.parser.QRCodeParserDecorator;
 import org.icij.spewer.SpewItem;
 import org.icij.spewer.SpewSink;
 import org.slf4j.Logger;
@@ -378,11 +377,7 @@ public class EmbedSpawner extends EmbedParser {
 				if (ocrParser != null) {
 					tikaDocumentStack.getLast().getMetadata().set(OCRParser.OCR_PARSER, ocrParser);
 				}
-				// Inline embeds have no document of their own, so their QR code values belong to the parent.
-				Metadata parentMetadata = tikaDocumentStack.getLast().getMetadata();
-				for (String value : metadata.getValues(QRCodeParserDecorator.QR_CODES)) {
-					parentMetadata.add(QRCodeParserDecorator.QR_CODES, value);
-				}
+				copyQrCodes(metadata, tikaDocumentStack.getLast().getMetadata());
 			} finally {
 				if (outputHtml) {
 					writeEnd(handler);
