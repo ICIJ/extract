@@ -146,7 +146,7 @@ public class StreamingSpewCoordinator implements SpewSink, AutoCloseable {
                 try {
                     // Skip children of a duplicate root, matching the legacy tree walk's gating.
                     if (!item.root().isDuplicate()) {
-                        spewer.writeDocument(item.embed(), item.parent(), item.root(), item.level());
+                        spewer.writeEmbed(item.embed(), item.parent(), item.root(), item.level());
                         writtenEmbeds.incrementAndGet();
                         // Only after the first child is durably indexed: a stub must never outlive a
                         // parse that wrote zero children (that would leave a contentless PARTIAL ghost

@@ -147,6 +147,30 @@ public class ExtractorQrCodesTest {
 
     @Test
     public void test_email_attachment_on_deferred_ocr_path() throws Exception {
+        Path eml = emailWithQrAttachment();
+        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true")));
+
+        TikaDocument root = extractor.extract(eml);
+        String text = spew(root);
+
+        assertThat(extractor.ocrExecutorOrNull()).isNotNull();
+        assertThat(text).contains(LINE);
+        EmbeddedTikaDocument child = root.getEmbeds().get(0);
+        assertThat(child.getMetadata().getValues(QR_CODES)).containsOnly(VALUE);
+    }
+
+    @Test
+    public void test_deferred_ocr_values_reach_metadata_written_before_the_text() throws Exception {
+        Path eml = emailWithQrAttachment();
+        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true")));
+
+        TikaDocument root = extractor.extract(eml);
+        String output = spew(root, true);
+
+        assertThat(output).contains("tika_metadata_qr_codes: " + VALUE);
+    }
+
+    private Path emailWithQrAttachment() throws Exception {
         String png = Base64.getMimeEncoder().encodeToString(Files.readAllBytes(qrImage("png")));
         String email = String.join("\r\n",
                 "From: a@example.org",
@@ -167,16 +191,7 @@ public class ExtractorQrCodesTest {
                 png,
                 "--b--",
                 "");
-        Path eml = Files.writeString(folder.newFile("qr.eml").toPath(), email);
-        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true")));
-
-        TikaDocument root = extractor.extract(eml);
-        String text = spew(root);
-
-        assertThat(extractor.ocrExecutorOrNull()).isNotNull();
-        assertThat(text).contains(LINE);
-        EmbeddedTikaDocument child = root.getEmbeds().get(0);
-        assertThat(child.getMetadata().getValues(QR_CODES)).containsOnly(VALUE);
+        return Files.writeString(folder.newFile("qr.eml").toPath(), email);
     }
 
     private Path qrImage(String format) throws Exception {
@@ -201,10 +216,14 @@ public class ExtractorQrCodesTest {
     }
 
     private static String spew(TikaDocument root) throws Exception {
+        return spew(root, false);
+    }
+
+    private static String spew(TikaDocument root, boolean outputMetadata) throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         PrintStream print = new PrintStream(out, true, StandardCharsets.UTF_8);
         PrintStreamSpewer spewer = new PrintStreamSpewer(print, new FieldNames());
-        spewer.outputMetadata(false);
+        spewer.outputMetadata(outputMetadata);
         spewer.write(root);
         root.getReader().close();
         return out.toString(StandardCharsets.UTF_8);

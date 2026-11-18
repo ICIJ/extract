@@ -123,7 +123,7 @@ public abstract class Spewer implements AutoCloseable, Serializable {
     private void writeTree(final TikaDocument doc, final TikaDocument parent, TikaDocument root, final int level)
             throws IOException {
         try {
-            writeDocument(doc, parent, root, level);
+            writeEmbed(doc, parent, root, level);
 
             for (EmbeddedTikaDocument child : doc.getEmbeds()) {
                 writeTree(child, doc, root, level + 1);
@@ -135,6 +135,15 @@ public abstract class Spewer implements AutoCloseable, Serializable {
             // the process file-descriptor limit.
             closeReaderQuietly(doc);
         }
+    }
+
+    // A deferred-OCR embed merges its parse-derived metadata (QR codes, image size) when its reader is
+    // generated, after the OCR is done. Generating the reader first lets spewers that write metadata
+    // before the text see those fields.
+    void writeEmbed(final TikaDocument embed, final TikaDocument parent, final TikaDocument root, final int level)
+            throws IOException {
+        embed.getReader();
+        writeDocument(embed, parent, root, level);
     }
 
     protected static void closeReaderQuietly(final TikaDocument document) {
