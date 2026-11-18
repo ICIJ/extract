@@ -39,6 +39,8 @@ import org.slf4j.LoggerFactory;
 public final class QRCodeDecoder {
     private static final Logger logger = LoggerFactory.getLogger(QRCodeDecoder.class);
     private static final int MAX_PIXELS = 16_000_000;
+    // The smallest QR code is 21 modules wide, so a smaller image cannot hold a readable one.
+    private static final int MIN_SIDE_PIXELS = 21;
     private static final Pattern CONTROL_CHARACTER = Pattern.compile("\\p{Cntrl}");
     private static final Map<DecodeHintType, Object> HINTS = hints();
 
@@ -111,6 +113,9 @@ public final class QRCodeDecoder {
             ImageReader reader = readers.next();
             try {
                 reader.setInput(input, true, true);
+                if (isTooSmallForACode(reader.getWidth(0), reader.getHeight(0))) {
+                    return null;
+                }
                 long pixels = (long) reader.getWidth(0) * reader.getHeight(0);
                 int factor = (int) Math.max(1, Math.ceil(Math.sqrt(pixels / (double) MAX_PIXELS)));
                 ImageReadParam param = reader.getDefaultReadParam();
@@ -121,6 +126,12 @@ public final class QRCodeDecoder {
                 reader.dispose();
             }
         }
+    }
+
+    // Skips logos and bullets before the costly full decode: PDF inline-image extraction can yield
+    // thousands of them per document.
+    private static boolean isTooSmallForACode(int width, int height) {
+        return width < MIN_SIDE_PIXELS || height < MIN_SIDE_PIXELS;
     }
 
     // Pixel by pixel rather than Graphics2D: drawing starts AWT, which throws AWTError (not caught as
