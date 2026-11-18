@@ -163,7 +163,8 @@ import org.xml.sax.ContentHandler;
         "parallel across all in-flight mailboxes. Separate from ocrParallelism.")
 @Option(name = "qrCodes", description = "Decode QR codes, Data Matrix, Aztec and PDF417 codes found in " +
         "images and add their values to the document text. Off by default. Images inside PDFs are " +
-        "read even with OCR off, and their values land in the PDF's own text.")
+        "read even with OCR off, and their values land in the PDF's own text, except with a page-rendering " +
+        "ocrStrategy (AUTO, OCR_AND_TEXT_EXTRACTION, OCR_ONLY), where PDF codes are not read.")
 @Option(name = "legacyUntitledNaming", description = "Name nameless non-inline embeds with the " +
         "pre-9.x global untitled_N counter instead of the per-parent scheme, for on-demand " +
         "resolution of corpora indexed before the per-parent change. Serial mode only.")
@@ -652,7 +653,7 @@ public class Extractor implements AutoCloseable {
             parsed = PDFParserConfig.OCR_STRATEGY.NO_OCR;
         }
         // A rendering strategy needs an OCR parser to do anything useful; if OCR is disabled it
-        // would only strip text, so force NO_OCR and leave inline-image extraction off.
+        // would only strip text, so force NO_OCR.
         if (ocrDisabled) {
             parsed = PDFParserConfig.OCR_STRATEGY.NO_OCR;
         }
@@ -701,7 +702,8 @@ public class Extractor implements AutoCloseable {
     /**
      * Decode 2D codes (QR code, Data Matrix, Aztec, PDF417) in images and add their values to the
      * document text and to the {@link QRCodeParserDecorator#QR_CODES} metadata. Works with OCR on
-     * or off: with OCR off, PDF inline images are then extracted so their codes are decoded too.
+     * or off: with OCR off, PDF inline images are then extracted so their codes are decoded too. A
+     * page-rendering OCR strategy leaves PDF images unread, since rendered pages go to the OCR parser.
      */
     public void enableQrCodes() {
         if (!qrCodes) {
@@ -731,6 +733,11 @@ public class Extractor implements AutoCloseable {
 
     private void updateExtractInlineImages() {
         boolean noOcrStrategy = pdfConfig.getOcrStrategy() == PDFParserConfig.OCR_STRATEGY.NO_OCR;
+        // Rendered pages go straight to the OCR parser, which does not decode codes.
+        if (qrCodes && !noOcrStrategy) {
+            logger.warn("qrCodes cannot read PDF images with ocrStrategy {}; use NO_OCR to decode them",
+                    pdfConfig.getOcrStrategy());
+        }
         boolean imagesRead = !ocrDisabled || qrCodes;
         pdfConfig.setExtractInlineImages(imagesRead && noOcrStrategy);
     }
