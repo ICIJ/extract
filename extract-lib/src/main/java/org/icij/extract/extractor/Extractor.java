@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import org.apache.commons.io.TaggedIOException;
 import org.apache.tika.config.TikaConfig;
@@ -45,6 +46,7 @@ import org.apache.tika.parser.DigestingParser;
 import org.apache.tika.parser.EmptyParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
+import org.apache.tika.parser.ParserDecorator;
 import org.apache.tika.parser.digestutils.CommonsDigester;
 import org.apache.tika.parser.digestutils.CommonsDigester.DigestAlgorithm;
 import org.apache.tika.parser.html.DefaultHtmlMapper;
@@ -323,15 +325,17 @@ public class Extractor implements AutoCloseable {
         if (options.get("ocr", String.valueOf(!this.ocrDisabled)).parse().isOff()) {
             disableOcr();
         }
-        if (options.get("qrCodes", "false").parse().isOn()) {
-            enableQrCodes();
-        }
         options.valueIfPresent("ocrCache").ifPresent(path -> {
             replaceParser(ocrConfig.getParserClass(), parser -> new CacheParserDecorator(parser, Paths.get(path)));
             // Cache the transcoding fallback too; otherwise JBIG2 (and other transcoded) images
             // re-run OCR on every extraction because the fallback holds its own OCR-parser reference.
             replaceParser(ImageIOTranscodingOCRParser.class, parser -> new CacheParserDecorator(parser, Paths.get(path)));
         });
+        // After the OCR cache, so the QR codes decorator wraps the cache: a cache hit restores the
+        // OCR text but not the qr_codes metadata.
+        if (options.get("qrCodes", "false").parse().isOn()) {
+            enableQrCodes();
+        }
         options.get("ocrParallelism", String.valueOf(Runtime.getRuntime().availableProcessors()))
                 .parse().asInteger().ifPresent(n -> this.ocrParallelism = Math.max(1, n));
         options.get("ocrFanout", "true").parse().asBoolean().ifPresent(b -> this.ocrFanout = b);
@@ -413,8 +417,8 @@ public class Extractor implements AutoCloseable {
         }
         // Route images ImageIO can decode but Tesseract cannot OCR directly (e.g. JBIG2 scans)
         // through OCR by transcoding them to PNG. excludeParser keeps this idempotent across re-config.
-        excludeParser(ImageIOTranscodingOCRParser.class);
-        addParser(new ImageIOTranscodingOCRParser(ocrParser));
+        replaceParser(Extractor::isTranscodingParser, null);
+        addParser(withQrCodes(new ImageIOTranscodingOCRParser(ocrParser)));
     }
 
     Parser withAutoLanguage(final OCRConfigAdapter<?> ocrConfig, final Parser ocrParser) {
@@ -685,7 +689,7 @@ public class Extractor implements AutoCloseable {
         if (!ocrDisabled) {
             excludeParser(OCRParserAdapter.class);
             excludeParser(AutoLanguageOCRParser.class);
-            excludeParser(ImageIOTranscodingOCRParser.class);
+            replaceParser(Extractor::isTranscodingParser, null);
             ocrDisabled = true;
             // Drop any rendering strategy: with the OCR parsers excluded it would only make Tika
             // render pages and discard their text, silently losing content on born-digital PDFs.
@@ -702,9 +706,27 @@ public class Extractor implements AutoCloseable {
     public void enableQrCodes() {
         if (!qrCodes) {
             replaceParser(AbstractImageParser.class, QRCodeParserDecorator::new);
+            replaceParser(Extractor::isTranscodingParser, QRCodeParserDecorator::new);
             qrCodes = true;
             updateExtractInlineImages();
         }
+    }
+
+    private Parser withQrCodes(final Parser parser) {
+        if (!qrCodes) {
+            return parser;
+        }
+        return new QRCodeParserDecorator(parser);
+    }
+
+    // The transcoding fallback can sit under the OCR cache and QR codes decorators, which a lookup by
+    // class would miss, leaving a stale copy behind on OCR re-config or disable.
+    private static boolean isTranscodingParser(final Parser parser) {
+        Parser unwrapped = parser;
+        while (unwrapped instanceof ParserDecorator decorator) {
+            unwrapped = decorator.getWrappedParser();
+        }
+        return unwrapped instanceof ImageIOTranscodingOCRParser;
     }
 
     private void updateExtractInlineImages() {
@@ -1132,10 +1154,14 @@ public class Extractor implements AutoCloseable {
     }
 
     public static CompositeParser replaceParser(Parser parser, final Class<? extends Parser> exclude, final Function<Parser, Parser> parserFn) {
+        return replaceParser(parser, (Predicate<Parser>) p -> exclude.isAssignableFrom(p.getClass()), parserFn);
+    }
+
+    private static CompositeParser replaceParser(Parser parser, final Predicate<Parser> exclude, final Function<Parser, Parser> parserFn) {
         if (parser instanceof CompositeParser composite) {
             final List<Parser> parsers = new ArrayList<>();
             getAllSubParsers(composite).forEach(p -> {
-                if (p.getClass().equals(exclude) || exclude.isAssignableFrom(p.getClass())) {
+                if (exclude.test(p)) {
                     if (parserFn != null) {
                         parsers.add(parserFn.apply(p));
                     }
@@ -1180,6 +1206,10 @@ public class Extractor implements AutoCloseable {
     }
 
     private void replaceParser(final Class<? extends Parser> exclude, final Function<Parser, Parser> parserFn) {
+        defaultParser = replaceParser(defaultParser, exclude, parserFn);
+    }
+
+    private void replaceParser(final Predicate<Parser> exclude, final Function<Parser, Parser> parserFn) {
         defaultParser = replaceParser(defaultParser, exclude, parserFn);
     }
 }
