@@ -8,6 +8,10 @@ import static org.icij.extract.qrcode.QRCodeImages.pdfWithImage;
 import static org.icij.extract.qrcode.QRCodeImages.pdfWithImageOnEveryPage;
 import static org.icij.extract.qrcode.QRCodeImages.write;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.google.zxing.BarcodeFormat;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
@@ -28,6 +32,7 @@ import org.icij.task.Options;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.slf4j.LoggerFactory;
 
 public class ExtractorQrCodesTest {
     private static final String VALUE = "https://example.org/qr/one";
@@ -54,6 +59,26 @@ public class ExtractorQrCodesTest {
         Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true", "ocrStrategy", "AUTO")));
 
         assertThat(extractor.isExtractInlineImages()).isFalse();
+    }
+
+    @Test
+    public void test_rendering_strategy_warns_that_pdf_codes_are_not_read() {
+        Logger extractorLogger = (Logger) LoggerFactory.getLogger(Extractor.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        extractorLogger.addAppender(appender);
+        try {
+            new Extractor(Options.from(Map.of("qrCodes", "true", "ocrStrategy", "AUTO")));
+        } finally {
+            extractorLogger.detachAppender(appender);
+        }
+
+        List<String> warnings = appender.list.stream()
+                .filter(event -> event.getLevel() == Level.WARN)
+                .map(ILoggingEvent::getFormattedMessage)
+                .filter(message -> message.contains("qrCodes"))
+                .toList();
+        assertThat(warnings).isNotEmpty();
     }
 
     @Test
