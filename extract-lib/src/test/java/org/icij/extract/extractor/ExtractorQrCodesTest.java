@@ -90,6 +90,29 @@ public class ExtractorQrCodesTest {
         }
     }
 
+    // WBMP takes the same transcoding route as JBIG2 scans when OCR is on, and is easier to write.
+    @Test
+    public void test_transcoded_image_ocr_on() throws Exception {
+        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true")));
+
+        TikaDocument document = extractor.extract(qrWbmp());
+        String text = read(document);
+
+        assertThat(text).contains(LINE);
+        assertThat(document.getMetadata().getValues(QR_CODES)).containsOnly(VALUE);
+    }
+
+    @Test
+    public void test_transcoded_image_ocr_on_with_ocr_cache() throws Exception {
+        String cache = folder.newFolder("ocr-cache").toString();
+        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true", "ocrCache", cache)));
+
+        TikaDocument document = extractor.extract(qrWbmp());
+        read(document);
+
+        assertThat(document.getMetadata().getValues(QR_CODES)).containsOnly(VALUE);
+    }
+
     @Test
     public void test_image_without_code() throws Exception {
         Path file = write(canvas(400, 400), "png", folder.newFile("blank.png").toPath());
@@ -221,6 +244,17 @@ public class ExtractorQrCodesTest {
     private Path qrImage(String format) throws Exception {
         BufferedImage image = code(BarcodeFormat.QR_CODE, VALUE, 300);
         return write(image, format, folder.newFile("qr." + format).toPath());
+    }
+
+    private Path qrWbmp() throws Exception {
+        BufferedImage gray = code(BarcodeFormat.QR_CODE, VALUE, 300);
+        BufferedImage binary = new BufferedImage(gray.getWidth(), gray.getHeight(), BufferedImage.TYPE_BYTE_BINARY);
+        for (int y = 0; y < gray.getHeight(); y++) {
+            for (int x = 0; x < gray.getWidth(); x++) {
+                binary.setRGB(x, y, gray.getRGB(x, y));
+            }
+        }
+        return write(binary, "wbmp", folder.newFile("qr.wbmp").toPath());
     }
 
     private Path qrPdf() throws Exception {
