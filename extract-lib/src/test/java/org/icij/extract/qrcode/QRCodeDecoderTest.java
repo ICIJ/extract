@@ -167,6 +167,14 @@ public class QRCodeDecoderTest {
     }
 
     @Test
+    public void test_control_characters_become_spaces() throws Exception {
+        String gs1 = "(01)123\u001d(10)ABC\nDEF";
+        Path file = write(code(BarcodeFormat.QR_CODE, gs1, 300), "png", folder.newFile("gs1.png").toPath());
+
+        assertThat(QRCodeDecoder.decode(file)).containsExactly("(01)123 (10)ABC DEF");
+    }
+
+    @Test
     public void test_error_from_an_image_reader_returns_empty() throws Exception {
         Path file = folder.newFile("broken.boom").toPath();
         Files.write(file, BrokenReaderSpi.MAGIC);
