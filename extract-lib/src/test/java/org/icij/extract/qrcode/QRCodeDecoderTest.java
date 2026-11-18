@@ -10,10 +10,21 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.Locale;
+import javax.imageio.ImageReadParam;
+import javax.imageio.ImageReader;
+import javax.imageio.ImageTypeSpecifier;
+import javax.imageio.metadata.IIOMetadata;
+import javax.imageio.spi.IIORegistry;
+import javax.imageio.spi.ImageReaderSpi;
+import javax.imageio.stream.ImageInputStream;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -153,5 +164,90 @@ public class QRCodeDecoderTest {
         Path file = write(image, "png", folder.newFile("headless.png").toPath());
 
         assertThat(QRCodeDecoder.decode(file)).containsExactly(value);
+    }
+
+    @Test
+    public void test_error_from_an_image_reader_returns_empty() throws Exception {
+        Path file = folder.newFile("broken.boom").toPath();
+        Files.write(file, BrokenReaderSpi.MAGIC);
+        BrokenReaderSpi spi = new BrokenReaderSpi();
+        IIORegistry.getDefaultInstance().registerServiceProvider(spi);
+        try {
+            assertThat(QRCodeDecoder.decode(file)).isEmpty();
+        } finally {
+            IIORegistry.getDefaultInstance().deregisterServiceProvider(spi);
+        }
+    }
+
+    // Stands in for a jai-imageio or levigo plugin that fails with an Error rather than an exception.
+    private static class BrokenReaderSpi extends ImageReaderSpi {
+        static final byte[] MAGIC = "BOOM".getBytes(StandardCharsets.US_ASCII);
+
+        BrokenReaderSpi() {
+            super("test", "1", new String[] {"boom"}, new String[] {"boom"}, new String[] {"image/x-boom"},
+                    BrokenReader.class.getName(), new Class<?>[] {ImageInputStream.class}, null,
+                    false, null, null, null, null, false, null, null, null, null);
+        }
+
+        @Override
+        public boolean canDecodeInput(Object source) throws IOException {
+            ImageInputStream input = (ImageInputStream) source;
+            byte[] head = new byte[MAGIC.length];
+            input.mark();
+            input.readFully(head);
+            input.reset();
+            return Arrays.equals(head, MAGIC);
+        }
+
+        @Override
+        public ImageReader createReaderInstance(Object extension) {
+            return new BrokenReader(this);
+        }
+
+        @Override
+        public String getDescription(Locale locale) {
+            return "reader failing with a LinkageError";
+        }
+    }
+
+    private static class BrokenReader extends ImageReader {
+        BrokenReader(ImageReaderSpi spi) {
+            super(spi);
+        }
+
+        @Override
+        public int getNumImages(boolean allowSearch) {
+            return 1;
+        }
+
+        @Override
+        public int getWidth(int imageIndex) {
+            throw new LinkageError("native codec missing");
+        }
+
+        @Override
+        public int getHeight(int imageIndex) {
+            throw new LinkageError("native codec missing");
+        }
+
+        @Override
+        public Iterator<ImageTypeSpecifier> getImageTypes(int imageIndex) {
+            return Collections.emptyIterator();
+        }
+
+        @Override
+        public IIOMetadata getStreamMetadata() {
+            return null;
+        }
+
+        @Override
+        public IIOMetadata getImageMetadata(int imageIndex) {
+            return null;
+        }
+
+        @Override
+        public BufferedImage read(int imageIndex, ImageReadParam param) {
+            throw new LinkageError("native codec missing");
+        }
     }
 }

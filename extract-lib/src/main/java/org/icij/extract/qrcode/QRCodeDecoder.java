@@ -11,6 +11,7 @@ import com.google.zxing.Result;
 import com.google.zxing.ResultPoint;
 import com.google.zxing.common.HybridBinarizer;
 import com.google.zxing.multi.GenericMultipleBarcodeReader;
+import java.awt.AWTError;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.IOException;
@@ -52,7 +53,9 @@ public final class QRCodeDecoder {
                 return List.of();
             }
             return decode(gray);
-        } catch (IOException | RuntimeException e) {
+        } catch (IOException | RuntimeException | LinkageError | StackOverflowError | AWTError e) {
+            // Optional step: an ImageIO plugin failing with an Error (jai-imageio, levigo, a malformed
+            // JPX or JBIG2) must not abort the image parse and lose its OCR text.
             logger.debug("cannot decode codes in {}", image, e);
             return List.of();
         }
