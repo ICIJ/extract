@@ -5,6 +5,7 @@ import static org.icij.extract.parser.QRCodeParserDecorator.QR_CODES;
 import static org.icij.extract.qrcode.QRCodeImages.canvas;
 import static org.icij.extract.qrcode.QRCodeImages.code;
 import static org.icij.extract.qrcode.QRCodeImages.pdfWithImage;
+import static org.icij.extract.qrcode.QRCodeImages.pdfWithImageOnEveryPage;
 import static org.icij.extract.qrcode.QRCodeImages.write;
 
 import com.google.zxing.BarcodeFormat;
@@ -129,6 +130,29 @@ public class ExtractorQrCodesTest {
 
         assertThat(root.getEmbeds()).isEmpty();
         assertThat(root.getMetadata().getValues(QR_CODES)).containsOnly(VALUE);
+    }
+
+    @Test
+    public void test_pdf_inline_image_values_reach_the_pdf_metadata_in_concatenate_mode() throws Exception {
+        Options<String> options = Options.from(Map.of("ocr", "false", "qrCodes", "true", "embedHandling", "concatenate"));
+        Extractor extractor = new Extractor(options);
+
+        TikaDocument root = extractor.extract(qrPdf());
+        spew(root);
+
+        assertThat(root.getMetadata().getValues(QR_CODES)).containsOnly(VALUE);
+    }
+
+    @Test
+    public void test_code_repeated_on_every_page_is_kept_once() throws Exception {
+        BufferedImage image = code(BarcodeFormat.QR_CODE, VALUE, 300);
+        Path pdf = pdfWithImageOnEveryPage(image, 3, folder.newFile("footer.pdf").toPath());
+        Extractor extractor = new Extractor(Options.from(Map.of("ocr", "false", "qrCodes", "true")));
+
+        TikaDocument root = extractor.extract(pdf);
+        spew(root);
+
+        assertThat(List.of(root.getMetadata().getValues(QR_CODES))).isEqualTo(List.of(VALUE));
     }
 
     @Test
