@@ -25,6 +25,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReadParam;
 import javax.imageio.ImageReader;
@@ -38,6 +39,7 @@ import org.slf4j.LoggerFactory;
 public final class QRCodeDecoder {
     private static final Logger logger = LoggerFactory.getLogger(QRCodeDecoder.class);
     private static final int MAX_PIXELS = 16_000_000;
+    private static final Pattern CONTROL_CHARACTER = Pattern.compile("\\p{Cntrl}");
     private static final Map<DecodeHintType, Object> HINTS = hints();
 
     private QRCodeDecoder() {}
@@ -79,12 +81,22 @@ public final class QRCodeDecoder {
         sorted.sort(byTop.thenComparingDouble(QRCodeDecoder::minX));
         Set<String> values = new LinkedHashSet<>();
         for (Result result : sorted) {
-            String text = result.getText();
-            if (text != null && !text.isBlank()) {
+            String text = withoutControlCharacters(result.getText());
+            if (!text.isEmpty()) {
                 values.add(text);
             }
         }
         return List.copyOf(values);
+    }
+
+    // GS1 separators and byte-mode codes carry control characters that are invalid in the XHTML output
+    // and in the index, and a newline would break the one-line-per-code layout.
+    private static String withoutControlCharacters(String text) {
+        if (text == null) {
+            return "";
+        }
+        String spaced = CONTROL_CHARACTER.matcher(text).replaceAll(" ");
+        return spaced.strip();
     }
 
     private static BufferedImage readGray(Path image) throws IOException {
