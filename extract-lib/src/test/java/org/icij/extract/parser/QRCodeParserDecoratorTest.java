@@ -4,6 +4,7 @@ import static org.fest.assertions.Assertions.assertThat;
 import static org.icij.extract.qrcode.QRCodeImages.canvas;
 import static org.icij.extract.qrcode.QRCodeImages.code;
 import static org.icij.extract.qrcode.QRCodeImages.write;
+import static org.junit.Assert.fail;
 
 import com.google.zxing.BarcodeFormat;
 import java.awt.Graphics2D;
@@ -11,16 +12,22 @@ import java.awt.image.BufferedImage;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Set;
+import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.mime.MediaType;
+import org.apache.tika.parser.AbstractParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.image.ImageParser;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.ToXMLContentHandler;
+import org.apache.tika.sax.XHTMLContentHandler;
 import org.icij.spewer.FieldNames;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.xml.sax.ContentHandler;
+import org.xml.sax.SAXException;
 
 public class QRCodeParserDecoratorTest {
     private static final String ONE = "https://example.org/qr/one";
@@ -72,6 +79,24 @@ public class QRCodeParserDecoratorTest {
     }
 
     @Test
+    public void test_values_survive_a_wrapped_parser_that_throws() throws Exception {
+        Path file = write(code(BarcodeFormat.QR_CODE, ONE, 300), "png", folder.newFile("one.png").toPath());
+        BodyContentHandler handler = new BodyContentHandler(-1);
+        Metadata metadata = new Metadata();
+        QRCodeParserDecorator parser = new QRCodeParserDecorator(new ThrowingParser());
+
+        try (InputStream input = Files.newInputStream(file)) {
+            parser.parse(input, handler, metadata, new ParseContext());
+            fail("the wrapped parser failure must still reach the caller");
+        } catch (TikaException expected) {
+            // the decoded values must outlive the failed parse
+        }
+
+        assertThat(metadata.getValues(QRCodeParserDecorator.QR_CODES)).containsOnly(ONE);
+        assertThat(handler.toString()).contains("QR code: " + ONE);
+    }
+
+    @Test
     public void test_spewed_field_name() {
         assertThat(new FieldNames().forMetadata(QRCodeParserDecorator.QR_CODES.getName())).isEqualTo("tika_metadata_qr_codes");
     }
@@ -81,6 +106,22 @@ public class QRCodeParserDecoratorTest {
         QRCodeParserDecorator parser = new QRCodeParserDecorator(new ImageParser());
         try (InputStream input = Files.newInputStream(file)) {
             parser.parse(input, handler, metadata, new ParseContext());
+        }
+    }
+
+    private static class ThrowingParser extends AbstractParser {
+        @Override
+        public Set<MediaType> getSupportedTypes(ParseContext context) {
+            return Set.of(MediaType.image("png"));
+        }
+
+        @Override
+        public void parse(InputStream stream, ContentHandler handler, Metadata metadata, ParseContext context)
+                throws SAXException, TikaException {
+            XHTMLContentHandler xhtml = new XHTMLContentHandler(handler, metadata);
+            xhtml.startDocument();
+            xhtml.element("p", "partial text");
+            throw new TikaException("corrupt image data in the middle of the body");
         }
     }
 }
