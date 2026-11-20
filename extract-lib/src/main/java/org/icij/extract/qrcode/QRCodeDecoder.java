@@ -110,8 +110,12 @@ public final class QRCodeDecoder {
             try {
                 reader.setInput(input, true, true);
                 Set<String> values = new LinkedHashSet<>();
-                for (int index = 0; hasFrame(reader, index); index++) {
-                    values.addAll(decodeFrame(reader, index));
+                try {
+                    for (int index = 0; hasFrame(reader, index); index++) {
+                        values.addAll(decodeFrame(reader, index));
+                    }
+                } catch (IOException | RuntimeException | LinkageError | StackOverflowError | AWTError e) {
+                    logger.debug("stopped decoding codes in {}", image, e);
                 }
                 return List.copyOf(values);
             } finally {

@@ -221,14 +221,34 @@ public class QRCodeDecoderTest {
         }
     }
 
+    @Test
+    public void test_error_on_a_later_page_keeps_codes_from_earlier_pages() throws Exception {
+        Path file = folder.newFile("half-broken.boom").toPath();
+        Files.write(file, BrokenReaderSpi.MAGIC);
+        BrokenReaderSpi spi = new BrokenReaderSpi(code(BarcodeFormat.QR_CODE, ONE, 300));
+        IIORegistry.getDefaultInstance().registerServiceProvider(spi);
+        try {
+            assertThat(QRCodeDecoder.decode(file)).containsExactly(ONE);
+        } finally {
+            IIORegistry.getDefaultInstance().deregisterServiceProvider(spi);
+        }
+    }
+
     // Stands in for a jai-imageio or levigo plugin that fails with an Error rather than an exception.
     private static class BrokenReaderSpi extends ImageReaderSpi {
         static final byte[] MAGIC = "BOOM".getBytes(StandardCharsets.US_ASCII);
 
+        private final BufferedImage firstFrame;
+
         BrokenReaderSpi() {
+            this(null);
+        }
+
+        BrokenReaderSpi(BufferedImage firstFrame) {
             super("test", "1", new String[] {"boom"}, new String[] {"boom"}, new String[] {"image/x-boom"},
                     BrokenReader.class.getName(), new Class<?>[] {ImageInputStream.class}, null,
                     false, null, null, null, null, false, null, null, null, null);
+            this.firstFrame = firstFrame;
         }
 
         @Override
@@ -243,7 +263,7 @@ public class QRCodeDecoderTest {
 
         @Override
         public ImageReader createReaderInstance(Object extension) {
-            return new BrokenReader(this);
+            return new BrokenReader(this, firstFrame);
         }
 
         @Override
@@ -253,8 +273,15 @@ public class QRCodeDecoderTest {
     }
 
     private static class BrokenReader extends ImageReader {
-        BrokenReader(ImageReaderSpi spi) {
+        private final BufferedImage firstFrame;
+
+        BrokenReader(ImageReaderSpi spi, BufferedImage firstFrame) {
             super(spi);
+            this.firstFrame = firstFrame;
+        }
+
+        private boolean isReadable(int imageIndex) {
+            return imageIndex == 0 && firstFrame != null;
         }
 
         @Override
@@ -264,11 +291,17 @@ public class QRCodeDecoderTest {
 
         @Override
         public int getWidth(int imageIndex) {
+            if (isReadable(imageIndex)) {
+                return firstFrame.getWidth();
+            }
             throw new LinkageError("native codec missing");
         }
 
         @Override
         public int getHeight(int imageIndex) {
+            if (isReadable(imageIndex)) {
+                return firstFrame.getHeight();
+            }
             throw new LinkageError("native codec missing");
         }
 
@@ -289,6 +322,9 @@ public class QRCodeDecoderTest {
 
         @Override
         public BufferedImage read(int imageIndex, ImageReadParam param) {
+            if (isReadable(imageIndex)) {
+                return firstFrame;
+            }
             throw new LinkageError("native codec missing");
         }
     }
