@@ -97,6 +97,22 @@ public class QRCodeParserDecoratorTest {
     }
 
     @Test
+    public void test_lines_survive_a_wrapped_parser_that_throws_an_error() throws Exception {
+        Path file = write(code(BarcodeFormat.QR_CODE, ONE, 300), "png", folder.newFile("one.png").toPath());
+        BodyContentHandler handler = new BodyContentHandler(-1);
+        QRCodeParserDecorator parser = new QRCodeParserDecorator(new CrashingParser());
+
+        try (InputStream input = Files.newInputStream(file)) {
+            parser.parse(input, handler, new Metadata(), new ParseContext());
+            fail("the wrapped parser error must still reach the caller");
+        } catch (ParserCrash expected) {
+            // the lines must be written before the error goes up
+        }
+
+        assertThat(handler.toString()).contains("QR code: " + ONE);
+    }
+
+    @Test
     public void test_spewed_field_name() {
         assertThat(new FieldNames().forMetadata(QRCodeParserDecorator.QR_CODES.getName())).isEqualTo("tika_metadata_qr_codes");
     }
@@ -123,5 +139,24 @@ public class QRCodeParserDecoratorTest {
             xhtml.element("p", "partial text");
             throw new TikaException("corrupt image data in the middle of the body");
         }
+    }
+
+    private static class CrashingParser extends AbstractParser {
+        @Override
+        public Set<MediaType> getSupportedTypes(ParseContext context) {
+            return Set.of(MediaType.image("png"));
+        }
+
+        @Override
+        public void parse(InputStream stream, ContentHandler handler, Metadata metadata, ParseContext context)
+                throws SAXException {
+            XHTMLContentHandler xhtml = new XHTMLContentHandler(handler, metadata);
+            xhtml.startDocument();
+            xhtml.element("p", "partial text");
+            throw new ParserCrash();
+        }
+    }
+
+    private static class ParserCrash extends Error {
     }
 }

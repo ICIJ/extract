@@ -80,8 +80,8 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 		// never reached the handler, so a matching endElement would be unmatched.
 		try {
 			delegateParsing(input, new EmbeddedContentHandler(new BodyContentHandler(handler)), metadata);
-			copyQrCodes(metadata, root.getMetadata());
 		} finally {
+			copyQrCodes(metadata, root.getMetadata());
 			if (outputHtml) {
 				writeEnd(handler);
 			}

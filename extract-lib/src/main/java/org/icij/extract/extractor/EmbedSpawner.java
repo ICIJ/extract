@@ -377,8 +377,8 @@ public class EmbedSpawner extends EmbedParser {
 				if (ocrParser != null) {
 					tikaDocumentStack.getLast().getMetadata().set(OCRParser.OCR_PARSER, ocrParser);
 				}
-				copyQrCodes(metadata, tikaDocumentStack.getLast().getMetadata());
 			} finally {
+				copyQrCodes(metadata, tikaDocumentStack.getLast().getMetadata());
 				if (outputHtml) {
 					writeEnd(handler);
 				}
