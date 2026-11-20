@@ -17,6 +17,8 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.io.Reader;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -149,6 +151,29 @@ public class ExtractorQrCodesTest {
         try (Stream<Path> entries = Files.list(cache)) {
             assertThat(entries.toList()).isNotEmpty();
         }
+    }
+
+    @Test
+    public void test_transcoded_image_ocr_off() throws Exception {
+        Extractor extractor = new Extractor(Options.from(Map.of("ocr", "false", "qrCodes", "true")));
+
+        TikaDocument document = extractor.extract(qrPcx());
+        String text = read(document);
+
+        assertThat(text).contains(LINE);
+        assertThat(document.getMetadata().getValues(QR_CODES)).containsOnly(VALUE);
+    }
+
+    @Test
+    public void test_transcoded_image_ocr_disabled_after_qr_codes_enabled() throws Exception {
+        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true")));
+        extractor.disableOcr();
+
+        TikaDocument document = extractor.extract(qrPcx());
+        String text = read(document);
+
+        assertThat(text).contains(LINE);
+        assertThat(document.getMetadata().getValues(QR_CODES)).containsOnly(VALUE);
     }
 
     @Test
@@ -293,6 +318,37 @@ public class ExtractorQrCodesTest {
             }
         }
         return write(binary, "wbmp", folder.newFile("qr.wbmp").toPath());
+    }
+
+    // Tika's ImageParser takes WBMP when OCR is off, so a 1-bit PCX stands in for JBIG2 scans there.
+    private Path qrPcx() throws Exception {
+        BufferedImage image = code(BarcodeFormat.QR_CODE, VALUE, 300);
+        int width = image.getWidth();
+        int height = image.getHeight();
+        int bytesPerLine = ((width + 15) / 16) * 2;
+        ByteBuffer header = ByteBuffer.allocate(128).order(ByteOrder.LITTLE_ENDIAN);
+        header.put((byte) 10).put((byte) 5).put((byte) 1).put((byte) 1);
+        header.putShort((short) 0).putShort((short) 0).putShort((short) (width - 1)).putShort((short) (height - 1));
+        header.putShort((short) 72).putShort((short) 72);
+        header.put(new byte[] {0, 0, 0, (byte) 255, (byte) 255, (byte) 255});
+        header.position(65);
+        header.put((byte) 1).putShort((short) bytesPerLine).putShort((short) 1);
+        ByteArrayOutputStream pcx = new ByteArrayOutputStream();
+        pcx.write(header.array());
+        for (int y = 0; y < height; y++) {
+            byte[] line = new byte[bytesPerLine];
+            for (int x = 0; x < width; x++) {
+                boolean white = (image.getRGB(x, y) & 0xff) > 127;
+                if (white) {
+                    line[x / 8] |= (byte) (0x80 >> (x % 8));
+                }
+            }
+            for (byte packed : line) {
+                pcx.write(0xC1);
+                pcx.write(packed);
+            }
+        }
+        return Files.write(folder.newFile("qr.pcx").toPath(), pcx.toByteArray());
     }
 
     private Path qrPdf() throws Exception {
