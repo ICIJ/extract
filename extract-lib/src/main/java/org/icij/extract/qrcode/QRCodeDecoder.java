@@ -52,11 +52,7 @@ public final class QRCodeDecoder {
      */
     public static List<String> decode(Path image) {
         try {
-            BufferedImage gray = readGray(image);
-            if (gray == null) {
-                return List.of();
-            }
-            return decode(gray);
+            return decodeFrames(image);
         } catch (IOException | RuntimeException | LinkageError | StackOverflowError | AWTError e) {
             // Optional step: an ImageIO plugin failing with an Error (jai-imageio, levigo, a malformed
             // JPX or JBIG2) must not abort the image parse and lose its OCR text.
@@ -101,31 +97,50 @@ public final class QRCodeDecoder {
         return spaced.strip();
     }
 
-    private static BufferedImage readGray(Path image) throws IOException {
+    private static List<String> decodeFrames(Path image) throws IOException {
         try (ImageInputStream input = ImageIO.createImageInputStream(image.toFile())) {
             if (input == null) {
-                return null;
+                return List.of();
             }
             Iterator<ImageReader> readers = ImageIO.getImageReaders(input);
             if (!readers.hasNext()) {
-                return null;
+                return List.of();
             }
             ImageReader reader = readers.next();
             try {
                 reader.setInput(input, true, true);
-                if (isTooSmallForACode(reader.getWidth(0), reader.getHeight(0))) {
-                    return null;
+                Set<String> values = new LinkedHashSet<>();
+                for (int index = 0; hasFrame(reader, index); index++) {
+                    values.addAll(decodeFrame(reader, index));
                 }
-                long pixels = (long) reader.getWidth(0) * reader.getHeight(0);
-                int factor = (int) Math.max(1, Math.ceil(Math.sqrt(pixels / (double) MAX_PIXELS)));
-                ImageReadParam param = reader.getDefaultReadParam();
-                param.setSourceSubsampling(factor, factor, 0, 0);
-                BufferedImage read = reader.read(0, param);
-                return toGrayOnWhite(read);
+                return List.copyOf(values);
             } finally {
                 reader.dispose();
             }
         }
+    }
+
+    private static boolean hasFrame(ImageReader reader, int index) throws IOException {
+        try {
+            reader.getWidth(index);
+            return true;
+        } catch (IndexOutOfBoundsException e) {
+            return false;
+        }
+    }
+
+    private static List<String> decodeFrame(ImageReader reader, int index) throws IOException {
+        int width = reader.getWidth(index);
+        int height = reader.getHeight(index);
+        if (isTooSmallForACode(width, height)) {
+            return List.of();
+        }
+        long pixels = (long) width * height;
+        int factor = (int) Math.max(1, Math.ceil(Math.sqrt(pixels / (double) MAX_PIXELS)));
+        ImageReadParam param = reader.getDefaultReadParam();
+        param.setSourceSubsampling(factor, factor, 0, 0);
+        BufferedImage read = reader.read(index, param);
+        return decode(toGrayOnWhite(read));
     }
 
     // Skips logos and bullets before the costly full decode: PDF inline-image extraction can yield

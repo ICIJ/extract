@@ -4,6 +4,7 @@ import static org.fest.assertions.Assertions.assertThat;
 import static org.icij.extract.qrcode.QRCodeImages.canvas;
 import static org.icij.extract.qrcode.QRCodeImages.code;
 import static org.icij.extract.qrcode.QRCodeImages.write;
+import static org.icij.extract.qrcode.QRCodeImages.writeSequence;
 
 import com.google.zxing.BarcodeFormat;
 import java.awt.Color;
@@ -17,6 +18,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import javax.imageio.ImageReadParam;
 import javax.imageio.ImageReader;
@@ -35,6 +37,38 @@ public class QRCodeDecoderTest {
     private static final String THREE = "https://example.org/qr/three";
 
     @Rule public TemporaryFolder folder = new TemporaryFolder();
+
+    @Test
+    public void test_code_on_last_page_of_multi_page_tiff() throws Exception {
+        List<BufferedImage> pages = List.of(canvas(400, 400), canvas(400, 400), code(BarcodeFormat.QR_CODE, ONE, 300));
+        Path file = writeSequence(pages, "tiff", folder.newFile("fax.tif").toPath());
+
+        assertThat(QRCodeDecoder.decode(file)).containsExactly(ONE);
+    }
+
+    @Test
+    public void test_codes_across_pages_are_in_page_order_and_deduplicated() throws Exception {
+        List<BufferedImage> pages = List.of(code(BarcodeFormat.QR_CODE, THREE, 300), code(BarcodeFormat.QR_CODE, ONE, 300), code(BarcodeFormat.QR_CODE, THREE, 300));
+        Path file = writeSequence(pages, "tiff", folder.newFile("bundle.tif").toPath());
+
+        assertThat(QRCodeDecoder.decode(file)).containsExactly(THREE, ONE);
+    }
+
+    @Test
+    public void test_too_small_page_is_skipped() throws Exception {
+        List<BufferedImage> pages = List.of(canvas(10, 10), code(BarcodeFormat.QR_CODE, ONE, 300));
+        Path file = writeSequence(pages, "tiff", folder.newFile("thumbnail.tif").toPath());
+
+        assertThat(QRCodeDecoder.decode(file)).containsExactly(ONE);
+    }
+
+    @Test
+    public void test_code_on_later_frame_of_animated_gif() throws Exception {
+        List<BufferedImage> frames = List.of(canvas(400, 400), code(BarcodeFormat.QR_CODE, ONE, 300));
+        Path file = writeSequence(frames, "gif", folder.newFile("animated.gif").toPath());
+
+        assertThat(QRCodeDecoder.decode(file)).containsExactly(ONE);
+    }
 
     @Test
     public void test_image_without_code_returns_empty() throws Exception {
