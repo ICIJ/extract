@@ -31,9 +31,6 @@ import org.xml.sax.helpers.AttributesImpl;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
 
 import static org.apache.tika.sax.XHTMLContentHandler.XHTML;
 
@@ -81,20 +78,9 @@ public class EmbedParser extends ParsingEmbeddedDocumentExtractor {
 		try {
 			delegateParsing(input, new EmbeddedContentHandler(new BodyContentHandler(handler)), metadata);
 		} finally {
-			copyQrCodes(metadata, root.getMetadata());
+			QRCodeParserDecorator.copyQrCodes(metadata, root.getMetadata());
 			if (outputHtml) {
 				writeEnd(handler);
-			}
-		}
-	}
-
-	// A concatenated or inline embed has no document of its own, so its QR code values belong to the
-	// document holding its text. A code repeated on every page (a footer) is kept once.
-	static void copyQrCodes(final Metadata embed, final Metadata holder) {
-		final Set<String> known = new HashSet<>(Arrays.asList(holder.getValues(QRCodeParserDecorator.QR_CODES)));
-		for (final String value : embed.getValues(QRCodeParserDecorator.QR_CODES)) {
-			if (known.add(value)) {
-				holder.add(QRCodeParserDecorator.QR_CODES, value);
 			}
 		}
 	}

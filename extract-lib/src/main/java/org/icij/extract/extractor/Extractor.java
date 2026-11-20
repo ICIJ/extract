@@ -55,6 +55,7 @@ import org.apache.tika.parser.html.HtmlMapper;
 import org.apache.tika.parser.microsoft.pst.OutlookPSTParser;
 import org.apache.tika.parser.image.AbstractImageParser;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
+import org.apache.tika.parser.pdf.PDFParser;
 import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
@@ -76,6 +77,7 @@ import org.icij.extract.parser.FallbackParser;
 import org.icij.extract.parser.HTML5Serializer;
 import org.icij.extract.parser.ParsingReaderWithContentHandler;
 import org.icij.extract.parser.QRCodeParserDecorator;
+import org.icij.extract.parser.RenderedPagesQRCodeDecorator;
 import org.icij.extract.parser.ResilientOutlookPSTParser;
 import org.icij.extract.parser.ResourceClosingReader;
 import org.icij.extract.report.Reporter;
@@ -714,7 +716,7 @@ public class Extractor implements AutoCloseable {
     public void enableQrCodes() {
         if (!qrCodes) {
             replaceParser(AbstractImageParser.class, QRCodeParserDecorator::new);
-            replaceParser(Extractor::isTranscodingOrOcrParser, QRCodeParserDecorator::new);
+            replaceParser(Extractor::isPdfOrTranscodingOrOcrParser, Extractor::qrCodesDecorator);
             qrCodes = true;
             addQrCodesOnlyParser();
             updateExtractInlineImages();
@@ -751,10 +753,17 @@ public class Extractor implements AutoCloseable {
         return unwrap(parser) instanceof ImageIOTranscodingOCRParser;
     }
 
-    // One replacement pass, not two: every pass reverses the parser order, which decides whether the
-    // transcoding fallback or Tika's ImageParser wins the WBMP/PCX types.
-    private static boolean isTranscodingOrOcrParser(final Parser parser) {
-        return isTranscodingParser(parser) || isOcrParser(parser);
+    // One replacement pass, not several: every pass reverses the order of parsers that tie on class name,
+    // which decides whether the transcoding fallback or Tika's ImageParser wins the WBMP/PCX types.
+    private static boolean isPdfOrTranscodingOrOcrParser(final Parser parser) {
+        return parser instanceof PDFParser || isTranscodingParser(parser) || isOcrParser(parser);
+    }
+
+    private static Parser qrCodesDecorator(final Parser parser) {
+        if (parser instanceof PDFParser) {
+            return new RenderedPagesQRCodeDecorator(parser);
+        }
+        return new QRCodeParserDecorator(parser);
     }
 
     private static boolean isOcrParser(final Parser parser) {

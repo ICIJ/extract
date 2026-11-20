@@ -3,12 +3,16 @@ package org.icij.extract.parser;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serial;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.Property;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.ParserDecorator;
@@ -46,6 +50,7 @@ public class QRCodeParserDecorator extends ParserDecorator {
                 return;
             }
             addToMetadata(values, metadata);
+            addToRenderedPagesTarget(metadata, context);
             parseWithLines(tis, new QRCodeLines(handler, values), metadata, context);
         } finally {
             tmp.dispose();
@@ -56,6 +61,26 @@ public class QRCodeParserDecorator extends ParserDecorator {
     private static void addToMetadata(List<String> values, Metadata metadata) {
         for (String value : values) {
             metadata.add(QR_CODES, value);
+        }
+    }
+
+    private static void addToRenderedPagesTarget(Metadata metadata, ParseContext context) {
+        String resourceType = metadata.get(TikaCoreProperties.EMBEDDED_RESOURCE_TYPE);
+        boolean isRenderedPage = TikaCoreProperties.EmbeddedResourceType.RENDERING.name().equals(resourceType);
+        RenderedPagesQRCodeDecorator.Target target = context.get(RenderedPagesQRCodeDecorator.Target.class);
+        if (isRenderedPage && target != null) {
+            copyQrCodes(metadata, target.metadata());
+        }
+    }
+
+    // A concatenated or inline embed has no document of its own, so its QR code values belong to the
+    // document holding its text. A code repeated on every page (a footer) is kept once.
+    public static void copyQrCodes(final Metadata embed, final Metadata holder) {
+        final Set<String> known = new HashSet<>(Arrays.asList(holder.getValues(QR_CODES)));
+        for (final String value : embed.getValues(QR_CODES)) {
+            if (known.add(value)) {
+                holder.add(QR_CODES, value);
+            }
         }
     }
 

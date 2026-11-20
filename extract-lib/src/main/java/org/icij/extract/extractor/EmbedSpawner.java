@@ -18,6 +18,7 @@ import org.apache.tika.utils.ExceptionUtils;
 import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
 import org.icij.extract.ocr.OCRParser;
+import org.icij.extract.parser.QRCodeParserDecorator;
 import org.icij.spewer.SpewItem;
 import org.icij.spewer.SpewSink;
 import org.slf4j.Logger;
@@ -378,7 +379,7 @@ public class EmbedSpawner extends EmbedParser {
 					tikaDocumentStack.getLast().getMetadata().set(OCRParser.OCR_PARSER, ocrParser);
 				}
 			} finally {
-				copyQrCodes(metadata, tikaDocumentStack.getLast().getMetadata());
+				QRCodeParserDecorator.copyQrCodes(metadata, tikaDocumentStack.getLast().getMetadata());
 				if (outputHtml) {
 					writeEnd(handler);
 				}

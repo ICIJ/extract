@@ -5,6 +5,7 @@ import static org.icij.extract.parser.QRCodeParserDecorator.QR_CODES;
 import static org.icij.extract.qrcode.QRCodeImages.canvas;
 import static org.icij.extract.qrcode.QRCodeImages.code;
 import static org.icij.extract.qrcode.QRCodeImages.pdfWithImage;
+import static org.icij.extract.qrcode.QRCodeImages.pdfWithImageAndAttachment;
 import static org.icij.extract.qrcode.QRCodeImages.pdfWithImageOnEveryPage;
 import static org.icij.extract.ocr.OCRParser.OCR_PARSER;
 import static org.icij.extract.qrcode.QRCodeImages.write;
@@ -419,6 +420,43 @@ public class ExtractorQrCodesTest {
             }
         }
         return Files.write(folder.newFile("qr.pcx").toPath(), pcx.toByteArray());
+    }
+
+    @Test
+    public void test_rendered_page_values_reach_the_pdf_metadata() throws Exception {
+        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true", "ocrStrategy", "OCR_ONLY")));
+
+        TikaDocument root = extractor.extract(qrPdf());
+        spew(root);
+
+        assertThat(List.of(root.getMetadata().getValues(QR_CODES))).isEqualTo(List.of(VALUE));
+    }
+
+    @Test
+    public void test_code_repeated_on_every_rendered_page_is_kept_once() throws Exception {
+        BufferedImage image = code(BarcodeFormat.QR_CODE, VALUE, 300);
+        Path pdf = pdfWithImageOnEveryPage(image, 3, folder.newFile("footer.pdf").toPath());
+        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true", "ocrStrategy", "OCR_ONLY")));
+
+        TikaDocument root = extractor.extract(pdf);
+        spew(root);
+
+        assertThat(List.of(root.getMetadata().getValues(QR_CODES))).isEqualTo(List.of(VALUE));
+    }
+
+    @Test
+    public void test_rendered_page_values_skip_pdf_attachments() throws Exception {
+        String other = "https://example.org/qr/attachment";
+        Path attachment = write(code(BarcodeFormat.QR_CODE, other, 300), "png", folder.newFile("attached.png").toPath());
+        BufferedImage page = code(BarcodeFormat.QR_CODE, VALUE, 300);
+        Path pdf = pdfWithImageAndAttachment(page, attachment, folder.newFile("attached.pdf").toPath());
+        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true", "ocrStrategy", "OCR_ONLY")));
+
+        TikaDocument root = extractor.extract(pdf);
+        spew(root);
+
+        assertThat(List.of(root.getMetadata().getValues(QR_CODES))).isEqualTo(List.of(VALUE));
+        assertThat(root.getEmbeds().get(0).getMetadata().getValues(QR_CODES)).containsOnly(other);
     }
 
     private Path qrPdf() throws Exception {

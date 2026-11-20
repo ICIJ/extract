@@ -7,6 +7,7 @@ import com.google.zxing.common.BitMatrix;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -14,13 +15,19 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDDocumentCatalog;
+import org.apache.pdfbox.pdmodel.PDDocumentNameDictionary;
+import org.apache.pdfbox.pdmodel.PDEmbeddedFilesNameTreeNode;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.filespecification.PDComplexFileSpecification;
+import org.apache.pdfbox.pdmodel.common.filespecification.PDEmbeddedFile;
 import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 
@@ -108,6 +115,35 @@ public final class QRCodeImages {
                     content.drawImage(pdImage, 50, 300, 300, 300);
                 }
             }
+            document.save(file.toFile());
+        }
+        return file;
+    }
+
+    public static Path pdfWithImageAndAttachment(BufferedImage pageImage, Path attachment, Path file) throws IOException {
+        try (PDDocument document = new PDDocument()) {
+            PDImageXObject pdImage = LosslessFactory.createFromImage(document, pageImage);
+            PDPage page = new PDPage();
+            document.addPage(page);
+            try (PDPageContentStream content = new PDPageContentStream(document, page)) {
+                content.drawImage(pdImage, 50, 300, 300, 300);
+            }
+            Path fileName = attachment.getFileName();
+            String name = fileName.toString();
+            byte[] bytes = Files.readAllBytes(attachment);
+            ByteArrayInputStream attachmentStream = new ByteArrayInputStream(bytes);
+            PDEmbeddedFile embedded = new PDEmbeddedFile(document, attachmentStream);
+            embedded.setSubtype("image/png");
+            PDComplexFileSpecification spec = new PDComplexFileSpecification();
+            spec.setFile(name);
+            spec.setEmbeddedFile(embedded);
+            PDEmbeddedFilesNameTreeNode tree = new PDEmbeddedFilesNameTreeNode();
+            Map<String, PDComplexFileSpecification> entries = Map.of(name, spec);
+            tree.setNames(entries);
+            PDDocumentCatalog catalog = document.getDocumentCatalog();
+            PDDocumentNameDictionary names = new PDDocumentNameDictionary(catalog);
+            names.setEmbeddedFiles(tree);
+            catalog.setNames(names);
             document.save(file.toFile());
         }
         return file;
