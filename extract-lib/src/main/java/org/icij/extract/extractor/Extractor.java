@@ -40,6 +40,7 @@ import org.apache.tika.extractor.DocumentSelector;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
+import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.CompositeParser;
 import org.apache.tika.parser.DigestingParser;
@@ -206,6 +207,7 @@ public class Extractor implements AutoCloseable {
 
     private boolean ocrDisabled = false;
     private boolean qrCodes = false;
+    private Parser qrCodesOnlyParser;
     private DigestingParser.Digester digester = null;
 
     private Parser defaultParser = TikaConfig.getDefaultConfig().getParser();
@@ -417,7 +419,13 @@ public class Extractor implements AutoCloseable {
         // Route images ImageIO can decode but Tesseract cannot OCR directly (e.g. JBIG2 scans)
         // through OCR by transcoding them to PNG. Removing the previous one keeps this idempotent across re-config.
         replaceParser(Extractor::isTranscodingParser, null);
-        addParser(withQrCodes(new ImageIOTranscodingOCRParser(ocrParser)));
+        final Parser previousQrCodesOnlyParser = qrCodesOnlyParser;
+        replaceParser(parser -> parser == previousQrCodesOnlyParser, null);
+        final Parser transcodingParser = new ImageIOTranscodingOCRParser(ocrParser);
+        final Set<MediaType> transcodedTypes = transcodingParser.getSupportedTypes(new ParseContext());
+        final Parser transcodedTypesParser = ParserDecorator.withTypes(EmptyParser.INSTANCE, transcodedTypes);
+        qrCodesOnlyParser = new QRCodeParserDecorator(transcodedTypesParser);
+        addParser(withQrCodes(transcodingParser));
     }
 
     Parser withAutoLanguage(final OCRConfigAdapter<?> ocrConfig, final Parser ocrParser) {
@@ -690,6 +698,7 @@ public class Extractor implements AutoCloseable {
             excludeParser(AutoLanguageOCRParser.class);
             replaceParser(Extractor::isTranscodingParser, null);
             ocrDisabled = true;
+            addQrCodesOnlyParser();
             // Drop any rendering strategy: with the OCR parsers excluded it would only make Tika
             // render pages and discard their text, silently losing content on born-digital PDFs.
             pdfConfig.setOcrStrategy(PDFParserConfig.OCR_STRATEGY.NO_OCR);
@@ -708,6 +717,7 @@ public class Extractor implements AutoCloseable {
             replaceParser(AbstractImageParser.class, QRCodeParserDecorator::new);
             replaceParser(Extractor::isTranscodingParser, QRCodeParserDecorator::new);
             qrCodes = true;
+            addQrCodesOnlyParser();
             updateExtractInlineImages();
         }
     }
@@ -719,6 +729,14 @@ public class Extractor implements AutoCloseable {
             return new QRCodeParserDecorator(cached);
         }
         return new CacheParserDecorator(parser, cachePath);
+    }
+
+    // With OCR off the transcoding parser is gone, so its image types (JBIG2, PCX, ...) get a parser
+    // that only decodes their codes.
+    private void addQrCodesOnlyParser() {
+        if (ocrDisabled && qrCodes) {
+            addParser(qrCodesOnlyParser);
+        }
     }
 
     private Parser withQrCodes(final Parser parser) {
