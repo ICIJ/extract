@@ -326,17 +326,15 @@ public class Extractor implements AutoCloseable {
         if (options.get("ocr", String.valueOf(!this.ocrDisabled)).parse().isOff()) {
             disableOcr();
         }
-        options.valueIfPresent("ocrCache").ifPresent(path -> {
-            replaceParser(ocrConfig.getParserClass(), parser -> new CacheParserDecorator(parser, Paths.get(path)));
-            // Cache the transcoding fallback too; otherwise JBIG2 (and other transcoded) images
-            // re-run OCR on every extraction because the fallback holds its own OCR-parser reference.
-            replaceParser(ImageIOTranscodingOCRParser.class, parser -> new CacheParserDecorator(parser, Paths.get(path)));
-        });
-        // After the OCR cache, so the QR codes decorator wraps the cache: a cache hit restores the
-        // OCR text but not the qr_codes metadata.
         if (options.get("qrCodes", "false").parse().isOn()) {
             enableQrCodes();
         }
+        options.valueIfPresent("ocrCache").map(Paths::get).ifPresent(cachePath -> {
+            replaceParser(ocrConfig.getParserClass(), parser -> new CacheParserDecorator(parser, cachePath));
+            // Cache the transcoding fallback too; otherwise JBIG2 (and other transcoded) images
+            // re-run OCR on every extraction because the fallback holds its own OCR-parser reference.
+            replaceParser(Extractor::isTranscodingParser, parser -> cacheUnderQrCodes(parser, cachePath));
+        });
         options.get("ocrParallelism", String.valueOf(Runtime.getRuntime().availableProcessors()))
                 .parse().asInteger().ifPresent(n -> this.ocrParallelism = Math.max(1, n));
         options.get("ocrFanout", "true").parse().asBoolean().ifPresent(b -> this.ocrFanout = b);
@@ -417,7 +415,7 @@ public class Extractor implements AutoCloseable {
             replaceParser(c.buildAdapter().getParserClass(), parser -> ocrParser);
         }
         // Route images ImageIO can decode but Tesseract cannot OCR directly (e.g. JBIG2 scans)
-        // through OCR by transcoding them to PNG. excludeParser keeps this idempotent across re-config.
+        // through OCR by transcoding them to PNG. Removing the previous one keeps this idempotent across re-config.
         replaceParser(Extractor::isTranscodingParser, null);
         addParser(withQrCodes(new ImageIOTranscodingOCRParser(ocrParser)));
     }
@@ -712,6 +710,15 @@ public class Extractor implements AutoCloseable {
             qrCodes = true;
             updateExtractInlineImages();
         }
+    }
+
+    // The QR codes decorator stays on top: a cache hit restores the OCR text but not the qr_codes metadata.
+    private static Parser cacheUnderQrCodes(final Parser parser, final Path cachePath) {
+        if (parser instanceof QRCodeParserDecorator qrCodesDecorator) {
+            final Parser cached = new CacheParserDecorator(qrCodesDecorator.getWrappedParser(), cachePath);
+            return new QRCodeParserDecorator(cached);
+        }
+        return new CacheParserDecorator(parser, cachePath);
     }
 
     private Parser withQrCodes(final Parser parser) {

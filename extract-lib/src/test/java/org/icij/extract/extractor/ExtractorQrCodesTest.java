@@ -23,6 +23,7 @@ import java.nio.file.Path;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
 import org.icij.spewer.FieldNames;
@@ -136,6 +137,18 @@ public class ExtractorQrCodesTest {
         read(document);
 
         assertThat(document.getMetadata().getValues(QR_CODES)).containsOnly(VALUE);
+    }
+
+    @Test
+    public void test_transcoded_image_ocr_cache_written_with_qr_codes_on() throws Exception {
+        Path cache = folder.newFolder("ocr-cache").toPath();
+        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true", "ocrCache", cache.toString())));
+
+        read(extractor.extract(qrWbmp()));
+
+        try (Stream<Path> entries = Files.list(cache)) {
+            assertThat(entries.toList()).isNotEmpty();
+        }
     }
 
     @Test
