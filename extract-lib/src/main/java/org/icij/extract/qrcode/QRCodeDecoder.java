@@ -48,18 +48,20 @@ public final class QRCodeDecoder {
     private QRCodeDecoder() {}
 
     /**
-     * @return the decoded values in reading order, deduplicated, or an empty list when the file
-     * holds no code or cannot be read as an image
+     * @return the decoded values in page order, then reading order within a page, deduplicated; a page
+     * that fails to read keeps the values of earlier pages; an empty list when the file holds no code or
+     * cannot be read as an image
      */
     public static List<String> decode(Path image) {
+        Set<String> values = new LinkedHashSet<>();
         try {
-            return decodeFrames(image);
+            decodeFrames(image, values);
         } catch (IOException | RuntimeException | LinkageError | StackOverflowError | AWTError e) {
             // Optional step: an ImageIO plugin failing with an Error (jai-imageio, levigo, a malformed
             // JPX or JBIG2) must not abort the image parse and lose its OCR text.
             logger.debug("cannot decode codes in {}", image, e);
-            return List.of();
         }
+        return List.copyOf(values);
     }
 
     private static List<String> decode(BufferedImage gray) {
@@ -98,29 +100,23 @@ public final class QRCodeDecoder {
         return spaced.strip();
     }
 
-    private static List<String> decodeFrames(Path image) throws IOException {
+    private static void decodeFrames(Path image, Set<String> values) throws IOException {
         try (ImageInputStream input = ImageIO.createImageInputStream(image.toFile())) {
             if (input == null) {
-                return List.of();
+                return;
             }
             Iterator<ImageReader> readers = ImageIO.getImageReaders(input);
             if (!readers.hasNext()) {
-                return List.of();
+                return;
             }
             ImageReader reader = readers.next();
             try {
                 reader.setInput(input, true, true);
-                Set<String> values = new LinkedHashSet<>();
                 Set<Long> visited = new HashSet<>();
                 Thread thread = Thread.currentThread();
-                try {
-                    for (int index = 0; !thread.isInterrupted() && hasFrame(reader, input, index, visited); index++) {
-                        values.addAll(decodeFrame(reader, index));
-                    }
-                } catch (IOException | RuntimeException | LinkageError | StackOverflowError | AWTError e) {
-                    logger.debug("stopped decoding codes in {}", image, e);
+                for (int index = 0; !thread.isInterrupted() && hasFrame(reader, input, index, visited); index++) {
+                    values.addAll(decodeFrame(reader, index));
                 }
-                return List.copyOf(values);
             } finally {
                 reader.dispose();
             }

@@ -12,6 +12,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Iterator;
 import java.util.List;
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
@@ -55,7 +56,8 @@ public final class QRCodeImages {
     }
 
     public static Path writeSequence(List<BufferedImage> pages, String format, Path file) throws IOException {
-        ImageWriter writer = ImageIO.getImageWritersByFormatName(format).next();
+        Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName(format);
+        ImageWriter writer = writers.next();
         try (ImageOutputStream output = ImageIO.createImageOutputStream(file.toFile())) {
             writer.setOutput(output);
             writer.prepareWriteSequence(null);

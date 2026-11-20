@@ -41,7 +41,10 @@ public class QRCodeDecoderTest {
 
     @Test
     public void test_code_on_last_page_of_multi_page_tiff() throws Exception {
-        List<BufferedImage> pages = List.of(canvas(400, 400), canvas(400, 400), code(BarcodeFormat.QR_CODE, ONE, 300));
+        BufferedImage first = canvas(400, 400);
+        BufferedImage second = canvas(400, 400);
+        BufferedImage last = code(BarcodeFormat.QR_CODE, ONE, 300);
+        List<BufferedImage> pages = List.of(first, second, last);
         Path file = writeSequence(pages, "tiff", folder.newFile("fax.tif").toPath());
 
         assertThat(QRCodeDecoder.decode(file)).containsExactly(ONE);
@@ -49,15 +52,20 @@ public class QRCodeDecoderTest {
 
     @Test
     public void test_codes_across_pages_are_in_page_order_and_deduplicated() throws Exception {
-        List<BufferedImage> pages = List.of(code(BarcodeFormat.QR_CODE, THREE, 300), code(BarcodeFormat.QR_CODE, ONE, 300), code(BarcodeFormat.QR_CODE, THREE, 300));
+        BufferedImage first = code(BarcodeFormat.QR_CODE, THREE, 300);
+        BufferedImage second = code(BarcodeFormat.QR_CODE, ONE, 300);
+        BufferedImage third = code(BarcodeFormat.QR_CODE, THREE, 300);
+        List<BufferedImage> pages = List.of(first, second, third);
         Path file = writeSequence(pages, "tiff", folder.newFile("bundle.tif").toPath());
 
         assertThat(QRCodeDecoder.decode(file)).containsExactly(THREE, ONE);
     }
 
     @Test
-    public void test_too_small_page_is_skipped() throws Exception {
-        List<BufferedImage> pages = List.of(canvas(10, 10), code(BarcodeFormat.QR_CODE, ONE, 300));
+    public void test_small_first_page_does_not_stop_decoding() throws Exception {
+        BufferedImage small = canvas(10, 10);
+        BufferedImage withCode = code(BarcodeFormat.QR_CODE, ONE, 300);
+        List<BufferedImage> pages = List.of(small, withCode);
         Path file = writeSequence(pages, "tiff", folder.newFile("thumbnail.tif").toPath());
 
         assertThat(QRCodeDecoder.decode(file)).containsExactly(ONE);
@@ -65,7 +73,9 @@ public class QRCodeDecoderTest {
 
     @Test
     public void test_code_on_later_frame_of_animated_gif() throws Exception {
-        List<BufferedImage> frames = List.of(canvas(400, 400), code(BarcodeFormat.QR_CODE, ONE, 300));
+        BufferedImage blank = canvas(400, 400);
+        BufferedImage withCode = code(BarcodeFormat.QR_CODE, ONE, 300);
+        List<BufferedImage> frames = List.of(blank, withCode);
         Path file = writeSequence(frames, "gif", folder.newFile("animated.gif").toPath());
 
         assertThat(QRCodeDecoder.decode(file)).containsExactly(ONE);
