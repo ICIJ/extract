@@ -696,6 +696,7 @@ public class Extractor implements AutoCloseable {
         if (!ocrDisabled) {
             excludeParser(OCRParserAdapter.class);
             excludeParser(AutoLanguageOCRParser.class);
+            excludeParser(PageSegModeOCRParser.class);
             replaceParser(Extractor::isTranscodingParser, null);
             ocrDisabled = true;
             addQrCodesOnlyParser();

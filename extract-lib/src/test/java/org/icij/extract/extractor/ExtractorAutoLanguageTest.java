@@ -291,6 +291,24 @@ public class ExtractorAutoLanguageTest {
     }
 
     @Test
+    public void test_ocr_off_option_runs_no_ocr() throws Exception {
+        // Given
+        Path png = Files.createTempFile("blank-", ".png");
+        ImageIO.write(new BufferedImage(200, 200, BufferedImage.TYPE_BYTE_GRAY), "png", png.toFile());
+        Extractor extractor = new Extractor(Options.from(Map.of("ocr", "false")));
+        // When
+        TikaDocument document;
+        try {
+            document = extractor.extract(png);
+            textOf(document);
+        } finally {
+            Files.deleteIfExists(png);
+        }
+        // Then
+        assertThat(document.getMetadata().get(OCR_PARSER)).isNull();
+    }
+
+    @Test
     public void test_cli_options_without_an_ocr_timeout_keep_the_12_hour_default() {
         // Given
         Options<String> options = new Options<>();
