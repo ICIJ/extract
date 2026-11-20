@@ -63,6 +63,8 @@ public class QRCodeParserDecorator extends ParserDecorator {
             writeLinesBestEffort(lines, parseFailure);
             throw parseFailure;
         }
+        // An OCR cache hit replays the text without a </body>.
+        lines.writeOnce();
     }
 
     private static void writeLinesBestEffort(QRCodeLines lines, Throwable parseFailure) {

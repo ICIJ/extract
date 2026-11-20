@@ -134,11 +134,14 @@ public class ExtractorQrCodesTest {
     public void test_transcoded_image_ocr_on_with_ocr_cache() throws Exception {
         String cache = folder.newFolder("ocr-cache").toString();
         Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true", "ocrCache", cache)));
+        Path file = qrWbmp();
+        read(extractor.extract(file));
 
-        TikaDocument document = extractor.extract(qrWbmp());
-        read(document);
+        TikaDocument warm = extractor.extract(file);
+        String text = read(warm);
 
-        assertThat(document.getMetadata().getValues(QR_CODES)).containsOnly(VALUE);
+        assertThat(text).contains(LINE);
+        assertThat(warm.getMetadata().getValues(QR_CODES)).containsOnly(VALUE);
     }
 
     @Test
