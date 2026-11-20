@@ -95,6 +95,29 @@ public class ExtractorQrCodesTest {
     }
 
     @Test
+    public void test_jp2_ocr_off() throws Exception {
+        Extractor extractor = new Extractor(Options.from(Map.of("ocr", "false", "qrCodes", "true")));
+
+        TikaDocument document = extractor.extract(qrJp2());
+        String text = read(document);
+
+        assertThat(count(text, LINE)).isEqualTo(1);
+        assertThat(List.of(document.getMetadata().getValues(QR_CODES))).isEqualTo(List.of(VALUE));
+    }
+
+    @Test
+    public void test_jp2_ocr_disabled_after_qr_codes_enabled() throws Exception {
+        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true")));
+        extractor.disableOcr();
+
+        TikaDocument document = extractor.extract(qrJp2());
+        String text = read(document);
+
+        assertThat(count(text, LINE)).isEqualTo(1);
+        assertThat(List.of(document.getMetadata().getValues(QR_CODES))).isEqualTo(List.of(VALUE));
+    }
+
+    @Test
     public void test_rendered_page_line_ocr_only() throws Exception {
         Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true", "ocrStrategy", "OCR_ONLY")));
 

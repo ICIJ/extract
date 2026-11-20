@@ -13,6 +13,7 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -425,8 +426,12 @@ public class Extractor implements AutoCloseable {
         replaceParser(parser -> parser == previousQrCodesOnlyParser, null);
         final Parser transcodingParser = new ImageIOTranscodingOCRParser(ocrParser);
         final Set<MediaType> transcodedTypes = transcodingParser.getSupportedTypes(new ParseContext());
-        final Parser transcodedTypesParser = ParserDecorator.withTypes(EmptyParser.INSTANCE, transcodedTypes);
-        qrCodesOnlyParser = new QRCodeParserDecorator(transcodedTypesParser);
+        final Set<MediaType> qrCodesOnlyTypes = new HashSet<>(transcodedTypes);
+        // Tesseract claims JPEG2000 directly, so the transcoding parser leaves it out
+        qrCodesOnlyTypes.add(MediaType.image("jp2"));
+        qrCodesOnlyTypes.add(MediaType.image("jpx"));
+        final Parser qrCodesOnlyTypesParser = ParserDecorator.withTypes(EmptyParser.INSTANCE, qrCodesOnlyTypes);
+        qrCodesOnlyParser = new QRCodeParserDecorator(qrCodesOnlyTypesParser);
         addParser(withQrCodes(transcodingParser));
     }
 
