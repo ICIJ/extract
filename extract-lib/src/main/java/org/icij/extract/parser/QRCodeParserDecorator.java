@@ -59,13 +59,13 @@ public class QRCodeParserDecorator extends ParserDecorator {
             throws IOException, SAXException, TikaException {
         try {
             super.parse(tis, lines, metadata, context);
-        } catch (IOException | SAXException | TikaException | RuntimeException parseFailure) {
+        } catch (IOException | SAXException | TikaException | RuntimeException | Error parseFailure) {
             writeLinesBestEffort(lines, parseFailure);
             throw parseFailure;
         }
     }
 
-    private static void writeLinesBestEffort(QRCodeLines lines, Exception parseFailure) {
+    private static void writeLinesBestEffort(QRCodeLines lines, Throwable parseFailure) {
         try {
             lines.writeOnce();
         } catch (SAXException | RuntimeException writeFailure) {
