@@ -6,6 +6,7 @@ import static org.icij.extract.qrcode.QRCodeImages.canvas;
 import static org.icij.extract.qrcode.QRCodeImages.code;
 import static org.icij.extract.qrcode.QRCodeImages.pdfWithImage;
 import static org.icij.extract.qrcode.QRCodeImages.pdfWithImageOnEveryPage;
+import static org.icij.extract.ocr.OCRParser.OCR_PARSER;
 import static org.icij.extract.qrcode.QRCodeImages.write;
 
 import ch.qos.logback.classic.Level;
@@ -25,9 +26,12 @@ import java.nio.file.Path;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
+import org.icij.extract.ocr.OCRConfigRegistry;
+import org.icij.extract.ocr.Tess4JOCRParser;
 import org.icij.spewer.FieldNames;
 import org.icij.spewer.PrintStreamSpewer;
 import org.icij.spewer.Spewer;
@@ -65,23 +69,58 @@ public class ExtractorQrCodesTest {
     }
 
     @Test
-    public void test_rendering_strategy_warns_that_pdf_codes_are_not_read() {
-        Logger extractorLogger = (Logger) LoggerFactory.getLogger(Extractor.class);
-        ListAppender<ILoggingEvent> appender = new ListAppender<>();
-        appender.start();
-        extractorLogger.addAppender(appender);
-        try {
-            new Extractor(Options.from(Map.of("qrCodes", "true", "ocrStrategy", "AUTO")));
-        } finally {
-            extractorLogger.detachAppender(appender);
-        }
+    public void test_auto_strategy_warns_that_only_rendered_pages_are_read() {
+        List<String> warnings = qrCodesWarnings(Options.from(Map.of("qrCodes", "true", "ocrStrategy", "AUTO")));
 
-        List<String> warnings = appender.list.stream()
-                .filter(event -> event.getLevel() == Level.WARN)
-                .map(ILoggingEvent::getFormattedMessage)
-                .filter(message -> message.contains("qrCodes"))
-                .toList();
         assertThat(warnings).isNotEmpty();
+    }
+
+    @Test
+    public void test_ocr_only_strategy_does_not_warn() {
+        List<String> warnings = qrCodesWarnings(Options.from(Map.of("qrCodes", "true", "ocrStrategy", "OCR_ONLY")));
+
+        assertThat(warnings).isEmpty();
+    }
+
+    @Test
+    public void test_jp2_ocr_on() throws Exception {
+        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true")));
+
+        TikaDocument document = extractor.extract(qrJp2());
+        String text = read(document);
+
+        assertThat(count(text, LINE)).isEqualTo(1);
+        assertThat(List.of(document.getMetadata().getValues(QR_CODES))).isEqualTo(List.of(VALUE));
+    }
+
+    @Test
+    public void test_rendered_page_line_ocr_only() throws Exception {
+        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true", "ocrStrategy", "OCR_ONLY")));
+
+        assertThat(count(treeText(extractor, qrPdf()), LINE)).isEqualTo(1);
+    }
+
+    @Test
+    public void test_ocr_reconfig_uses_the_new_engine_once() throws Exception {
+        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true")));
+        extractor.setOcrConfig(OCRConfigRegistry.TESS4J.buildAdapter());
+
+        TikaDocument document = extractor.extract(qrJp2());
+        String text = read(document);
+
+        assertThat(count(text, LINE)).isEqualTo(1);
+        assertThat(document.getMetadata().get(OCR_PARSER)).isEqualTo(Tess4JOCRParser.class.getName());
+    }
+
+    @Test
+    public void test_ocr_disabled_after_qr_codes_enabled_runs_no_ocr() throws Exception {
+        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true")));
+        extractor.disableOcr();
+
+        TikaDocument document = extractor.extract(qrImage("png"));
+        read(document);
+
+        assertThat(document.getMetadata().get(OCR_PARSER)).isNull();
     }
 
     @Test
@@ -100,7 +139,7 @@ public class ExtractorQrCodesTest {
         TikaDocument document = extractor.extract(file);
         String text = read(document);
 
-        assertThat(text).contains(LINE);
+        assertThat(count(text, LINE)).isEqualTo(1);
         assertThat(document.getMetadata().getValues(QR_CODES)).containsOnly(VALUE);
     }
 
@@ -310,6 +349,34 @@ public class ExtractorQrCodesTest {
     private Path qrImage(String format) throws Exception {
         BufferedImage image = code(BarcodeFormat.QR_CODE, VALUE, 300);
         return write(image, format, folder.newFile("qr." + format).toPath());
+    }
+
+    private Path qrJp2() throws Exception {
+        BufferedImage image = code(BarcodeFormat.QR_CODE, VALUE, 300);
+        Path file = write(image, "jpeg2000", folder.newFile("qr.jp2").toPath());
+        assertThat(Files.size(file)).isGreaterThan(0L);
+        return file;
+    }
+
+    private static int count(String text, String line) {
+        return text.split(Pattern.quote(line), -1).length - 1;
+    }
+
+    private static List<String> qrCodesWarnings(Options<String> options) {
+        Logger extractorLogger = (Logger) LoggerFactory.getLogger(Extractor.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        extractorLogger.addAppender(appender);
+        try {
+            new Extractor(options);
+        } finally {
+            extractorLogger.detachAppender(appender);
+        }
+        return appender.list.stream()
+                .filter(event -> event.getLevel() == Level.WARN)
+                .map(ILoggingEvent::getFormattedMessage)
+                .filter(message -> message.contains("qrCodes"))
+                .toList();
     }
 
     private Path qrWbmp() throws Exception {

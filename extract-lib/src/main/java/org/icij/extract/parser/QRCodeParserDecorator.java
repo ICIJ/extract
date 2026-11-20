@@ -32,6 +32,11 @@ public class QRCodeParserDecorator extends ParserDecorator {
     @Override
     public void parse(InputStream stream, ContentHandler handler, Metadata metadata, ParseContext context)
             throws IOException, SAXException, TikaException {
+        if (context.get(QRCodeParserDecorator.class) != null) {
+            super.parse(stream, handler, metadata, context);
+            return;
+        }
+        context.set(QRCodeParserDecorator.class, this);
         TemporaryResources tmp = new TemporaryResources();
         try {
             TikaInputStream tis = TikaInputStream.get(stream, tmp, metadata);
@@ -44,6 +49,7 @@ public class QRCodeParserDecorator extends ParserDecorator {
             parseWithLines(tis, new QRCodeLines(handler, values), metadata, context);
         } finally {
             tmp.dispose();
+            context.set(QRCodeParserDecorator.class, null);
         }
     }
 

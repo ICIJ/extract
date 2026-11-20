@@ -18,6 +18,7 @@ import org.apache.tika.metadata.Metadata;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AbstractParser;
 import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.image.ImageParser;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.ToXMLContentHandler;
@@ -110,6 +111,45 @@ public class QRCodeParserDecoratorTest {
         }
 
         assertThat(handler.toString()).contains("QR code: " + ONE);
+    }
+
+    @Test
+    public void test_nested_decorator_decodes_once() throws Exception {
+        Path file = write(code(BarcodeFormat.QR_CODE, ONE, 300), "png", folder.newFile("one.png").toPath());
+        BodyContentHandler handler = new BodyContentHandler(-1);
+        Metadata metadata = new Metadata();
+        metadata.set(Metadata.CONTENT_TYPE, "image/png");
+        Parser nested = new QRCodeParserDecorator(new QRCodeParserDecorator(new ImageParser()));
+
+        try (InputStream input = Files.newInputStream(file)) {
+            nested.parse(input, handler, metadata, new ParseContext());
+        }
+
+        assertThat(handler.toString().split("QR code: ", -1).length - 1).isEqualTo(1);
+        assertThat(metadata.getValues(QRCodeParserDecorator.QR_CODES)).isEqualTo(new String[] {ONE});
+    }
+
+    @Test
+    public void test_guard_released_after_a_failed_parse() throws Exception {
+        Path file = write(code(BarcodeFormat.QR_CODE, ONE, 300), "png", folder.newFile("one.png").toPath());
+        ParseContext context = new ParseContext();
+        Parser failing = new QRCodeParserDecorator(new ThrowingParser());
+        try (InputStream input = Files.newInputStream(file)) {
+            failing.parse(input, new BodyContentHandler(-1), new Metadata(), context);
+            fail("the wrapped parser failure must still reach the caller");
+        } catch (TikaException expected) {
+            // the guard must not outlive the failed parse
+        }
+        Metadata metadata = new Metadata();
+        metadata.set(Metadata.CONTENT_TYPE, "image/png");
+        Parser working = new QRCodeParserDecorator(new ImageParser());
+
+        try (InputStream input = Files.newInputStream(file)) {
+            working.parse(input, new BodyContentHandler(-1), metadata, context);
+        }
+
+        assertThat(metadata.getValues(QRCodeParserDecorator.QR_CODES)).isEqualTo(new String[] {ONE});
+        assertThat(context.get(QRCodeParserDecorator.class)).isNull();
     }
 
     @Test

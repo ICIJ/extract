@@ -164,8 +164,9 @@ import org.xml.sax.ContentHandler;
         "parallel across all in-flight mailboxes. Separate from ocrParallelism.")
 @Option(name = "qrCodes", description = "Decode QR codes, Data Matrix, Aztec and PDF417 codes found in " +
         "images and add their values to the document text. Off by default. Images inside PDFs are " +
-        "read even with OCR off, and their values land in the PDF's own text, except with a page-rendering " +
-        "ocrStrategy (AUTO, OCR_AND_TEXT_EXTRACTION, OCR_ONLY), where PDF codes are not read.")
+        "read even with OCR off, and their values land in the PDF's own text. With a page-rendering " +
+        "ocrStrategy, codes are read on the rendered pages: every page with OCR_AND_TEXT_EXTRACTION and " +
+        "OCR_ONLY, only the pages it renders with AUTO.")
 @Option(name = "legacyUntitledNaming", description = "Name nameless non-inline embeds with the " +
         "pre-9.x global untitled_N counter instead of the per-parent scheme, for on-demand " +
         "resolution of corpora indexed before the per-parent change. Serial mode only.")
@@ -407,14 +408,13 @@ public class Extractor implements AutoCloseable {
         this.ocrConfig = ocrConfig;
         Parser pageSegModeParser = new PageSegModeOCRParser(ocrConfig.buildParser(), ocrPageSegModes);
         Parser ocrParser = withAutoLanguage(ocrConfig, pageSegModeParser);
+        final Parser registered = withQrCodes(ocrParser);
         // A previous call left its own OCR parser in place of Tika's, so that one is swapped too.
-        replaceParser(AutoLanguageOCRParser.class, parser -> ocrParser);
-        replaceParser(PageSegModeOCRParser.class, parser -> ocrParser);
-        replaceParser(OCRParserAdapter.class, parser -> ocrParser);
-        replaceParser(ocrConfig.getParserClass(), parser -> ocrParser);
+        replaceParser(Extractor::isOcrParser, parser -> registered);
+        replaceParser(ocrConfig.getParserClass(), parser -> registered);
         // this is a hack: we are mapping TesseractOCRParser.class to Tess4jOCRParser instance
         for (OCRConfigRegistry c: OCRConfigRegistry.values()) {
-            replaceParser(c.buildAdapter().getParserClass(), parser -> ocrParser);
+            replaceParser(c.buildAdapter().getParserClass(), parser -> registered);
         }
         // Route images ImageIO can decode but Tesseract cannot OCR directly (e.g. JBIG2 scans)
         // through OCR by transcoding them to PNG. Removing the previous one keeps this idempotent across re-config.
@@ -694,9 +694,7 @@ public class Extractor implements AutoCloseable {
      */
     public void disableOcr() {
         if (!ocrDisabled) {
-            excludeParser(OCRParserAdapter.class);
-            excludeParser(AutoLanguageOCRParser.class);
-            excludeParser(PageSegModeOCRParser.class);
+            replaceParser(Extractor::isOcrParser, null);
             replaceParser(Extractor::isTranscodingParser, null);
             ocrDisabled = true;
             addQrCodesOnlyParser();
@@ -711,12 +709,12 @@ public class Extractor implements AutoCloseable {
      * Decode 2D codes (QR code, Data Matrix, Aztec, PDF417) in images and add their values to the
      * document text and to the {@link QRCodeParserDecorator#QR_CODES} metadata. Works with OCR on
      * or off: with OCR off, PDF inline images are then extracted so their codes are decoded too. A
-     * page-rendering OCR strategy leaves PDF images unread, since rendered pages go to the OCR parser.
+     * page-rendering OCR strategy reads codes on the pages it renders; AUTO renders only some pages.
      */
     public void enableQrCodes() {
         if (!qrCodes) {
             replaceParser(AbstractImageParser.class, QRCodeParserDecorator::new);
-            replaceParser(Extractor::isTranscodingParser, QRCodeParserDecorator::new);
+            replaceParser(Extractor::isTranscodingOrOcrParser, QRCodeParserDecorator::new);
             qrCodes = true;
             addQrCodesOnlyParser();
             updateExtractInlineImages();
@@ -750,19 +748,35 @@ public class Extractor implements AutoCloseable {
     // The transcoding fallback can sit under the OCR cache and QR codes decorators, which a lookup by
     // class would miss, leaving a stale copy behind on OCR re-config or disable.
     private static boolean isTranscodingParser(final Parser parser) {
+        return unwrap(parser) instanceof ImageIOTranscodingOCRParser;
+    }
+
+    // One replacement pass, not two: every pass reverses the parser order, which decides whether the
+    // transcoding fallback or Tika's ImageParser wins the WBMP/PCX types.
+    private static boolean isTranscodingOrOcrParser(final Parser parser) {
+        return isTranscodingParser(parser) || isOcrParser(parser);
+    }
+
+    private static boolean isOcrParser(final Parser parser) {
+        final Parser unwrapped = unwrap(parser);
+        return unwrapped instanceof AutoLanguageOCRParser
+                || unwrapped instanceof PageSegModeOCRParser
+                || unwrapped instanceof OCRParserAdapter;
+    }
+
+    private static Parser unwrap(final Parser parser) {
         Parser unwrapped = parser;
         while (unwrapped instanceof ParserDecorator decorator) {
             unwrapped = decorator.getWrappedParser();
         }
-        return unwrapped instanceof ImageIOTranscodingOCRParser;
+        return unwrapped;
     }
 
     private void updateExtractInlineImages() {
         boolean noOcrStrategy = pdfConfig.getOcrStrategy() == PDFParserConfig.OCR_STRATEGY.NO_OCR;
-        // Rendered pages go straight to the OCR parser, which does not decode codes.
-        if (qrCodes && !noOcrStrategy) {
-            logger.warn("qrCodes cannot read PDF images with ocrStrategy {}; use NO_OCR to decode them",
-                    pdfConfig.getOcrStrategy());
+        boolean autoStrategy = pdfConfig.getOcrStrategy() == PDFParserConfig.OCR_STRATEGY.AUTO;
+        if (qrCodes && autoStrategy) {
+            logger.warn("qrCodes reads codes only on the PDF pages ocrStrategy AUTO renders; use OCR_ONLY to read every page");
         }
         boolean imagesRead = !ocrDisabled || qrCodes;
         pdfConfig.setExtractInlineImages(imagesRead && noOcrStrategy);
@@ -1180,10 +1194,6 @@ public class Extractor implements AutoCloseable {
     // for direct testing.
     void applyArchiveUnitCount(final Path path, final ExtractionProgress progress) {
         ArchiveEntryCounter.countTopLevelEntries(path).ifPresent(progress::setExpectedUnits);
-    }
-
-    private void excludeParser(final Class<? extends Parser> exclude) {
-        replaceParser(exclude, null);
     }
 
     public static CompositeParser replaceParser(Parser parser, final Class<? extends Parser> exclude, final Function<Parser, Parser> parserFn) {
