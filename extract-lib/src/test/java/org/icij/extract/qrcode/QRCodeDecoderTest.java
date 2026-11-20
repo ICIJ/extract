@@ -3,6 +3,7 @@ package org.icij.extract.qrcode;
 import static org.fest.assertions.Assertions.assertThat;
 import static org.icij.extract.qrcode.QRCodeImages.canvas;
 import static org.icij.extract.qrcode.QRCodeImages.code;
+import static org.icij.extract.qrcode.QRCodeImages.loopLastPageToFirst;
 import static org.icij.extract.qrcode.QRCodeImages.write;
 import static org.icij.extract.qrcode.QRCodeImages.writeSequence;
 
@@ -68,6 +69,43 @@ public class QRCodeDecoderTest {
         Path file = writeSequence(frames, "gif", folder.newFile("animated.gif").toPath());
 
         assertThat(QRCodeDecoder.decode(file)).containsExactly(ONE);
+    }
+
+    @Test(timeout = 60_000)
+    public void test_tiff_whose_last_page_points_back_to_the_first_ends() throws Exception {
+        BufferedImage first = code(BarcodeFormat.QR_CODE, ONE, 300);
+        BufferedImage second = code(BarcodeFormat.QR_CODE, TWO, 300);
+        List<BufferedImage> pages = List.of(first, second);
+        Path written = writeSequence(pages, "tiff", folder.newFile("loop.tif").toPath());
+        Path file = loopLastPageToFirst(written);
+
+        assertThat(QRCodeDecoder.decode(file)).containsExactly(ONE, TWO);
+    }
+
+    @Test(timeout = 60_000)
+    public void test_tiff_whose_only_page_points_to_itself_ends() throws Exception {
+        BufferedImage only = code(BarcodeFormat.QR_CODE, ONE, 300);
+        List<BufferedImage> pages = List.of(only);
+        Path written = writeSequence(pages, "tiff", folder.newFile("self-loop.tif").toPath());
+        Path file = loopLastPageToFirst(written);
+
+        assertThat(QRCodeDecoder.decode(file)).containsExactly(ONE);
+    }
+
+    @Test(timeout = 60_000)
+    public void test_interrupted_thread_stops_decoding() throws Exception {
+        Path file = folder.newFile("endless.loop").toPath();
+        Files.write(file, EndlessReaderSpi.MAGIC);
+        BufferedImage frame = code(BarcodeFormat.QR_CODE, ONE, 300);
+        EndlessReaderSpi spi = new EndlessReaderSpi(frame);
+        IIORegistry.getDefaultInstance().registerServiceProvider(spi);
+        Thread.currentThread().interrupt();
+        try {
+            assertThat(QRCodeDecoder.decode(file)).isEmpty();
+        } finally {
+            Thread.interrupted();
+            IIORegistry.getDefaultInstance().deregisterServiceProvider(spi);
+        }
     }
 
     @Test
@@ -238,6 +276,7 @@ public class QRCodeDecoderTest {
     private static class BrokenReaderSpi extends ImageReaderSpi {
         static final byte[] MAGIC = "BOOM".getBytes(StandardCharsets.US_ASCII);
 
+        private final byte[] magic;
         private final BufferedImage firstFrame;
 
         BrokenReaderSpi() {
@@ -245,20 +284,25 @@ public class QRCodeDecoderTest {
         }
 
         BrokenReaderSpi(BufferedImage firstFrame) {
+            this(MAGIC, firstFrame);
+        }
+
+        BrokenReaderSpi(byte[] magic, BufferedImage firstFrame) {
             super("test", "1", new String[] {"boom"}, new String[] {"boom"}, new String[] {"image/x-boom"},
                     BrokenReader.class.getName(), new Class<?>[] {ImageInputStream.class}, null,
                     false, null, null, null, null, false, null, null, null, null);
+            this.magic = magic;
             this.firstFrame = firstFrame;
         }
 
         @Override
         public boolean canDecodeInput(Object source) throws IOException {
             ImageInputStream input = (ImageInputStream) source;
-            byte[] head = new byte[MAGIC.length];
+            byte[] head = new byte[magic.length];
             input.mark();
             input.readFully(head);
             input.reset();
-            return Arrays.equals(head, MAGIC);
+            return Arrays.equals(head, magic);
         }
 
         @Override
@@ -280,7 +324,7 @@ public class QRCodeDecoderTest {
             this.firstFrame = firstFrame;
         }
 
-        private boolean isReadable(int imageIndex) {
+        boolean isReadable(int imageIndex) {
             return imageIndex == 0 && firstFrame != null;
         }
 
@@ -326,6 +370,31 @@ public class QRCodeDecoderTest {
                 return firstFrame;
             }
             throw new LinkageError("native codec missing");
+        }
+    }
+
+    // Answers every index without moving the stream, like a reader that cached the file up front.
+    private static class EndlessReaderSpi extends BrokenReaderSpi {
+        static final byte[] MAGIC = "LOOP".getBytes(StandardCharsets.US_ASCII);
+
+        EndlessReaderSpi(BufferedImage frame) {
+            super(MAGIC, frame);
+        }
+
+        @Override
+        public ImageReader createReaderInstance(Object extension) {
+            return new EndlessReader(this, super.firstFrame);
+        }
+    }
+
+    private static class EndlessReader extends BrokenReader {
+        EndlessReader(ImageReaderSpi spi, BufferedImage frame) {
+            super(spi, frame);
+        }
+
+        @Override
+        boolean isReadable(int imageIndex) {
+            return true;
         }
     }
 }

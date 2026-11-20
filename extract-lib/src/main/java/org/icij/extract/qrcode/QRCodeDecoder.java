@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -110,8 +111,10 @@ public final class QRCodeDecoder {
             try {
                 reader.setInput(input, true, true);
                 Set<String> values = new LinkedHashSet<>();
+                Set<Long> visited = new HashSet<>();
+                Thread thread = Thread.currentThread();
                 try {
-                    for (int index = 0; hasFrame(reader, index); index++) {
+                    for (int index = 0; !thread.isInterrupted() && hasFrame(reader, input, index, visited); index++) {
                         values.addAll(decodeFrame(reader, index));
                     }
                 } catch (IOException | RuntimeException | LinkageError | StackOverflowError | AWTError e) {
@@ -124,13 +127,20 @@ public final class QRCodeDecoder {
         }
     }
 
-    private static boolean hasFrame(ImageReader reader, int index) throws IOException {
+    private static boolean hasFrame(ImageReader reader, ImageInputStream input, int index, Set<Long> visited) throws IOException {
+        long before = input.getStreamPosition();
         try {
             reader.getWidth(index);
-            return true;
         } catch (IndexOutOfBoundsException e) {
             return false;
         }
+        long after = input.getStreamPosition();
+        // A reader that cached its pages up front never moves the stream: only a move can reveal a page
+        // chain looping back.
+        if (after == before) {
+            return true;
+        }
+        return visited.add(after);
     }
 
     private static List<String> decodeFrame(ImageReader reader, int index) throws IOException {

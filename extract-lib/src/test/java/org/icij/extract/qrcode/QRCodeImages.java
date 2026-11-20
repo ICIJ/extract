@@ -8,6 +8,9 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import javax.imageio.IIOImage;
@@ -65,6 +68,28 @@ public final class QRCodeImages {
             writer.dispose();
         }
         return file;
+    }
+
+    public static Path loopLastPageToFirst(Path tiff) throws IOException {
+        byte[] bytes = Files.readAllBytes(tiff);
+        ByteBuffer buffer = ByteBuffer.wrap(bytes);
+        ByteOrder order = bytes[0] == 'I' ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN;
+        buffer.order(order);
+        int first = buffer.getInt(4);
+        int nextField = nextIfdField(buffer, first);
+        int next = buffer.getInt(nextField);
+        while (next != 0) {
+            nextField = nextIfdField(buffer, next);
+            next = buffer.getInt(nextField);
+        }
+        buffer.putInt(nextField, first);
+        Files.write(tiff, bytes);
+        return tiff;
+    }
+
+    private static int nextIfdField(ByteBuffer buffer, int ifd) {
+        int entries = Short.toUnsignedInt(buffer.getShort(ifd));
+        return ifd + 2 + entries * 12;
     }
 
     public static Path pdfWithImage(BufferedImage image, Path file) throws IOException {
