@@ -410,6 +410,9 @@ public class Extractor implements AutoCloseable {
 
     public void setOcrConfig(final OCRConfigAdapter<?> ocrConfig) {
         this.ocrConfig = ocrConfig;
+        if (ocrDisabled) {
+            return;
+        }
         Parser pageSegModeParser = new PageSegModeOCRParser(ocrConfig.buildParser(), ocrPageSegModes);
         Parser ocrParser = withAutoLanguage(ocrConfig, pageSegModeParser);
         final Parser registered = withQrCodes(ocrParser);

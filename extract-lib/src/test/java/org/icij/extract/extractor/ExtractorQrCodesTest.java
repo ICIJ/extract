@@ -148,6 +148,18 @@ public class ExtractorQrCodesTest {
     }
 
     @Test
+    public void test_ocr_reconfig_after_ocr_off_keeps_ocr_off() throws Exception {
+        Extractor extractor = new Extractor(Options.from(Map.of("ocr", "false", "qrCodes", "true")));
+        extractor.setOcrConfig(OCRConfigRegistry.TESS4J.buildAdapter());
+
+        TikaDocument document = extractor.extract(qrJp2());
+        String text = read(document);
+
+        assertThat(count(text, LINE)).isEqualTo(1);
+        assertThat(document.getMetadata().get(OCR_PARSER)).isNull();
+    }
+
+    @Test
     public void test_rendered_page_line_ocr_only() throws Exception {
         Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true", "ocrStrategy", "OCR_ONLY")));
 
