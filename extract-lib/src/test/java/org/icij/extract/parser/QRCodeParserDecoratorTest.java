@@ -125,7 +125,9 @@ public class QRCodeParserDecoratorTest {
             nested.parse(input, handler, metadata, new ParseContext());
         }
 
-        assertThat(handler.toString().split("QR code: ", -1).length - 1).isEqualTo(1);
+        String[] parts = handler.toString().split("QR code: ", -1);
+        int occurrences = parts.length - 1;
+        assertThat(occurrences).isEqualTo(1);
         assertThat(metadata.getValues(QRCodeParserDecorator.QR_CODES)).isEqualTo(new String[] {ONE});
     }
 

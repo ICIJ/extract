@@ -80,8 +80,8 @@ public record ExtractorOptions(
         String pstParseParallelism,
         // Decode QR codes, Data Matrix, Aztec and PDF417 codes found in images and add their values to the document
         // text. Off by default. Images inside PDFs are read even with OCR off, and their values land in the PDF's own
-        // text, except with a page-rendering ocrStrategy (AUTO, OCR_AND_TEXT_EXTRACTION, OCR_ONLY), where PDF codes
-        // are not read.
+        // text. With a page-rendering ocrStrategy, codes are read on the rendered pages: every page with
+        // OCR_AND_TEXT_EXTRACTION and OCR_ONLY, only the pages it renders with AUTO.
         String qrCodes,
         // Maximum number of parsed-but-not-yet-written embedded documents held in the streaming-spew queue before
         // the parse thread blocks (backpressure). Defaults to 1000.

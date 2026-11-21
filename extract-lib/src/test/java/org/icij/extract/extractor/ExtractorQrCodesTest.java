@@ -1,13 +1,13 @@
 package org.icij.extract.extractor;
 
 import static org.fest.assertions.Assertions.assertThat;
+import static org.icij.extract.ocr.OCRParser.OCR_PARSER;
 import static org.icij.extract.parser.QRCodeParserDecorator.QR_CODES;
 import static org.icij.extract.qrcode.QRCodeImages.canvas;
 import static org.icij.extract.qrcode.QRCodeImages.code;
 import static org.icij.extract.qrcode.QRCodeImages.pdfWithImage;
 import static org.icij.extract.qrcode.QRCodeImages.pdfWithImageAndAttachment;
 import static org.icij.extract.qrcode.QRCodeImages.pdfWithImageOnEveryPage;
-import static org.icij.extract.ocr.OCRParser.OCR_PARSER;
 import static org.icij.extract.qrcode.QRCodeImages.write;
 
 import ch.qos.logback.classic.Level;
@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
@@ -94,7 +95,7 @@ public class ExtractorQrCodesTest {
         String text = read(document);
 
         assertThat(count(text, LINE)).isEqualTo(1);
-        assertThat(List.of(document.getMetadata().getValues(QR_CODES))).isEqualTo(List.of(VALUE));
+        assertThat(qrCodes(document)).isEqualTo(List.of(VALUE));
         assertThat(document.getMetadata().get(TikaCoreProperties.DESCRIPTION)).isEqualTo("qr fixture");
         assertThat(document.getMetadata().get(OCR_PARSER)).isNull();
     }
@@ -107,7 +108,7 @@ public class ExtractorQrCodesTest {
         String text = read(document);
 
         assertThat(count(text, LINE)).isEqualTo(1);
-        assertThat(List.of(document.getMetadata().getValues(QR_CODES))).isEqualTo(List.of(VALUE));
+        assertThat(qrCodes(document)).isEqualTo(List.of(VALUE));
         assertThat(document.getMetadata().get(TikaCoreProperties.DESCRIPTION)).isEqualTo("qr fixture");
         assertThat(document.getMetadata().get(OCR_PARSER)).isNull();
     }
@@ -120,7 +121,7 @@ public class ExtractorQrCodesTest {
         String text = read(document);
 
         assertThat(count(text, LINE)).isEqualTo(1);
-        assertThat(List.of(document.getMetadata().getValues(QR_CODES))).isEqualTo(List.of(VALUE));
+        assertThat(qrCodes(document)).isEqualTo(List.of(VALUE));
     }
 
     @Test
@@ -131,7 +132,7 @@ public class ExtractorQrCodesTest {
         String text = read(document);
 
         assertThat(count(text, LINE)).isEqualTo(1);
-        assertThat(List.of(document.getMetadata().getValues(QR_CODES))).isEqualTo(List.of(VALUE));
+        assertThat(qrCodes(document)).isEqualTo(List.of(VALUE));
     }
 
     @Test
@@ -143,7 +144,7 @@ public class ExtractorQrCodesTest {
         String text = read(document);
 
         assertThat(count(text, LINE)).isEqualTo(1);
-        assertThat(List.of(document.getMetadata().getValues(QR_CODES))).isEqualTo(List.of(VALUE));
+        assertThat(qrCodes(document)).isEqualTo(List.of(VALUE));
     }
 
     @Test
@@ -333,7 +334,7 @@ public class ExtractorQrCodesTest {
         TikaDocument root = extractor.extract(pdf);
         spew(root);
 
-        assertThat(List.of(root.getMetadata().getValues(QR_CODES))).isEqualTo(List.of(VALUE));
+        assertThat(qrCodes(root)).isEqualTo(List.of(VALUE));
     }
 
     @Test
@@ -420,7 +421,15 @@ public class ExtractorQrCodesTest {
     }
 
     private static int count(String text, String line) {
-        return text.split(Pattern.quote(line), -1).length - 1;
+        String separator = Pattern.quote(line);
+        String[] parts = text.split(separator, -1);
+        return parts.length - 1;
+    }
+
+    private static List<String> qrCodes(TikaDocument document) {
+        Metadata metadata = document.getMetadata();
+        String[] values = metadata.getValues(QR_CODES);
+        return List.of(values);
     }
 
     private static List<String> qrCodesWarnings(Options<String> options) {
@@ -489,7 +498,7 @@ public class ExtractorQrCodesTest {
         TikaDocument root = extractor.extract(qrPdf());
         spew(root);
 
-        assertThat(List.of(root.getMetadata().getValues(QR_CODES))).isEqualTo(List.of(VALUE));
+        assertThat(qrCodes(root)).isEqualTo(List.of(VALUE));
     }
 
     @Test
@@ -501,7 +510,7 @@ public class ExtractorQrCodesTest {
         TikaDocument root = extractor.extract(pdf);
         spew(root);
 
-        assertThat(List.of(root.getMetadata().getValues(QR_CODES))).isEqualTo(List.of(VALUE));
+        assertThat(qrCodes(root)).isEqualTo(List.of(VALUE));
     }
 
     @Test
@@ -515,7 +524,7 @@ public class ExtractorQrCodesTest {
         TikaDocument root = extractor.extract(pdf);
         spew(root);
 
-        assertThat(List.of(root.getMetadata().getValues(QR_CODES))).isEqualTo(List.of(VALUE));
+        assertThat(qrCodes(root)).isEqualTo(List.of(VALUE));
         assertThat(root.getEmbeds().get(0).getMetadata().getValues(QR_CODES)).containsOnly(other);
     }
 

@@ -759,8 +759,8 @@ public class Extractor implements AutoCloseable {
         return unwrap(parser) instanceof ImageIOTranscodingOCRParser;
     }
 
-    // One replacement pass, not several: every pass reverses the order of parsers that tie on class name,
-    // which decides whether the transcoding fallback or Tika's ImageParser wins the WBMP/PCX types.
+    // Keep the pass count unchanged: each replaceParser pass reverses parsers that tie on class name, and its
+    // parity decides whether the transcoding fallback or ImageParser gets WBMP and JBIG2.
     private static boolean isPdfOrTranscodingOrOcrParser(final Parser parser) {
         return parser instanceof PDFParser || isTranscodingParser(parser) || isOcrParser(parser);
     }
@@ -795,7 +795,8 @@ public class Extractor implements AutoCloseable {
         boolean noOcrStrategy = pdfConfig.getOcrStrategy() == PDFParserConfig.OCR_STRATEGY.NO_OCR;
         boolean autoStrategy = pdfConfig.getOcrStrategy() == PDFParserConfig.OCR_STRATEGY.AUTO;
         if (qrCodes && autoStrategy) {
-            logger.warn("qrCodes reads codes only on the PDF pages ocrStrategy AUTO renders; use OCR_ONLY to read every page");
+            logger.warn("qrCodes reads codes only on the PDF pages ocrStrategy AUTO renders; " +
+                    "use OCR_AND_TEXT_EXTRACTION to read every page");
         }
         boolean imagesRead = !ocrDisabled || qrCodes;
         pdfConfig.setExtractInlineImages(imagesRead && noOcrStrategy);
