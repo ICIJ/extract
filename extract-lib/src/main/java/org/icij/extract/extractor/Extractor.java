@@ -337,7 +337,7 @@ public class Extractor implements AutoCloseable {
             enableQrCodes();
         }
         options.valueIfPresent("ocrCache").map(Paths::get).ifPresent(cachePath -> {
-            replaceParser(ocrConfig.getParserClass(), parser -> new CacheParserDecorator(parser, cachePath));
+            replaceParser(Extractor::isOcrParser, parser -> cacheUnderQrCodes(parser, cachePath));
             // Cache the transcoding fallback too; otherwise JBIG2 (and other transcoded) images
             // re-run OCR on every extraction because the fallback holds its own OCR-parser reference.
             replaceParser(Extractor::isTranscodingParser, parser -> cacheUnderQrCodes(parser, cachePath));

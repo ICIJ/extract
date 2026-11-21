@@ -160,6 +160,33 @@ public class ExtractorQrCodesTest {
     }
 
     @Test
+    public void test_standalone_image_ocr_cache_written() throws Exception {
+        Path cache = folder.newFolder("ocr-cache").toPath();
+        Extractor extractor = new Extractor(Options.from(Map.of("ocrCache", cache.toString())));
+
+        read(extractor.extract(qrImage("png")));
+
+        try (Stream<Path> entries = Files.list(cache)) {
+            assertThat(entries.toList()).isNotEmpty();
+        }
+    }
+
+    @Test
+    public void test_rendered_page_ocr_cache_written_with_qr_codes_on() throws Exception {
+        Path cache = folder.newFolder("ocr-cache").toPath();
+        Map<String, Object> options = Map.of("qrCodes", "true", "ocrStrategy", "OCR_ONLY", "ocrCache", cache.toString());
+        Extractor extractor = new Extractor(Options.from(options));
+
+        TikaDocument root = extractor.extract(qrPdf());
+        spew(root);
+
+        try (Stream<Path> entries = Files.list(cache)) {
+            assertThat(entries.toList()).isNotEmpty();
+        }
+        assertThat(qrCodes(root)).isEqualTo(List.of(VALUE));
+    }
+
+    @Test
     public void test_rendered_page_line_ocr_only() throws Exception {
         Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true", "ocrStrategy", "OCR_ONLY")));
 
