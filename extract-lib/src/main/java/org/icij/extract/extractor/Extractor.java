@@ -55,6 +55,7 @@ import org.apache.tika.parser.html.DefaultHtmlMapper;
 import org.apache.tika.parser.html.HtmlMapper;
 import org.apache.tika.parser.microsoft.pst.OutlookPSTParser;
 import org.apache.tika.parser.image.AbstractImageParser;
+import org.apache.tika.parser.image.WebPParser;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.pdf.PDFParser;
 import org.apache.tika.parser.pdf.PDFParserConfig;
@@ -720,7 +721,7 @@ public class Extractor implements AutoCloseable {
      */
     public void enableQrCodes() {
         if (!qrCodes) {
-            replaceParser(AbstractImageParser.class, QRCodeParserDecorator::new);
+            replaceParser(Extractor::isImageParser, QRCodeParserDecorator::new);
             replaceParser(Extractor::isPdfOrTranscodingOrOcrParser, Extractor::qrCodesDecorator);
             qrCodes = true;
             addQrCodesOnlyParser();
@@ -762,6 +763,10 @@ public class Extractor implements AutoCloseable {
     // which decides whether the transcoding fallback or Tika's ImageParser wins the WBMP/PCX types.
     private static boolean isPdfOrTranscodingOrOcrParser(final Parser parser) {
         return parser instanceof PDFParser || isTranscodingParser(parser) || isOcrParser(parser);
+    }
+
+    private static boolean isImageParser(final Parser parser) {
+        return parser instanceof AbstractImageParser || parser instanceof WebPParser;
     }
 
     private static Parser qrCodesDecorator(final Parser parser) {

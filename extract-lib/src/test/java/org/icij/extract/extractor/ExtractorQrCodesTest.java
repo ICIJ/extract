@@ -17,6 +17,7 @@ import ch.qos.logback.core.read.ListAppender;
 import com.google.zxing.BarcodeFormat;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.PrintStream;
 import java.io.Reader;
 import java.nio.ByteBuffer;
@@ -24,11 +25,13 @@ import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.icij.extract.document.EmbeddedTikaDocument;
 import org.icij.extract.document.TikaDocument;
 import org.icij.extract.ocr.OCRConfigRegistry;
@@ -81,6 +84,32 @@ public class ExtractorQrCodesTest {
         List<String> warnings = qrCodesWarnings(Options.from(Map.of("qrCodes", "true", "ocrStrategy", "OCR_ONLY")));
 
         assertThat(warnings).isEmpty();
+    }
+
+    @Test
+    public void test_webp_ocr_on() throws Exception {
+        Extractor extractor = new Extractor(Options.from(Map.of("qrCodes", "true")));
+
+        TikaDocument document = extractor.extract(qrWebp());
+        String text = read(document);
+
+        assertThat(count(text, LINE)).isEqualTo(1);
+        assertThat(List.of(document.getMetadata().getValues(QR_CODES))).isEqualTo(List.of(VALUE));
+        assertThat(document.getMetadata().get(TikaCoreProperties.DESCRIPTION)).isEqualTo("qr fixture");
+        assertThat(document.getMetadata().get(OCR_PARSER)).isNull();
+    }
+
+    @Test
+    public void test_webp_ocr_off() throws Exception {
+        Extractor extractor = new Extractor(Options.from(Map.of("ocr", "false", "qrCodes", "true")));
+
+        TikaDocument document = extractor.extract(qrWebp());
+        String text = read(document);
+
+        assertThat(count(text, LINE)).isEqualTo(1);
+        assertThat(List.of(document.getMetadata().getValues(QR_CODES))).isEqualTo(List.of(VALUE));
+        assertThat(document.getMetadata().get(TikaCoreProperties.DESCRIPTION)).isEqualTo("qr fixture");
+        assertThat(document.getMetadata().get(OCR_PARSER)).isNull();
     }
 
     @Test
@@ -373,6 +402,14 @@ public class ExtractorQrCodesTest {
     private Path qrImage(String format) throws Exception {
         BufferedImage image = code(BarcodeFormat.QR_CODE, VALUE, 300);
         return write(image, format, folder.newFile("qr." + format).toPath());
+    }
+
+    private Path qrWebp() throws Exception {
+        Path file = folder.newFile("qr.webp").toPath();
+        try (InputStream fixture = getClass().getResourceAsStream("/documents/qrcode/qr.webp")) {
+            Files.copy(fixture, file, StandardCopyOption.REPLACE_EXISTING);
+        }
+        return file;
     }
 
     private Path qrJp2() throws Exception {

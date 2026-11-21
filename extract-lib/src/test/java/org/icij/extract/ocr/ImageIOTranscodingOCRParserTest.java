@@ -64,6 +64,14 @@ public class ImageIOTranscodingOCRParserTest {
     }
 
     @Test
+    public void testDoesNotClaimWebP() {
+        Parser parser = new ImageIOTranscodingOCRParser(noopOcrParser());
+        Set<MediaType> types = parser.getSupportedTypes(new ParseContext());
+
+        assertThat(types).excludes(MediaType.parse("image/webp"), MediaType.parse("image/x-webp"));
+    }
+
+    @Test
     public void testDoesNotClaimStandardRasterTypes() {
         Set<MediaType> types = new ImageIOTranscodingOCRParser(noopOcrParser())
                 .getSupportedTypes(new ParseContext());

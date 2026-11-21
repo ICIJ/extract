@@ -53,6 +53,9 @@ public class ImageIOTranscodingOCRParser implements Parser {
             "image/gif",
             "image/jp2", "image/jpx", "image/jpeg2000");
 
+    // Tika's WebPParser reads the metadata of these types; claiming them here would drop it.
+    private static final Set<String> KEPT_ON_WEBP_PARSER = Set.of("image/webp", "image/x-webp");
+
     // The ImageIO reader registry is JVM-stable, so scan it once rather than on every construction
     // (getReaderMIMETypes acquires a global lock on the IIORegistry).
     private static final List<String> READER_MIME_TYPES = Arrays.stream(ImageIO.getReaderMIMETypes())
@@ -73,6 +76,7 @@ public class ImageIOTranscodingOCRParser implements Parser {
     // JBIG2-only: today it resolves to JBIG2, WBMP, PCX and the non-PPM PNM variants.
     private static Set<MediaType> computeSupportedTypes(final Parser ocrParser) {
         final Set<String> excluded = new HashSet<>(ALREADY_OCRABLE);
+        excluded.addAll(KEPT_ON_WEBP_PARSER);
         ocrParser.getSupportedTypes(new ParseContext()).forEach(t -> excluded.add(t.getBaseType().toString()));
         final Set<MediaType> result = new HashSet<>();
         for (final String mime : READER_MIME_TYPES) {
