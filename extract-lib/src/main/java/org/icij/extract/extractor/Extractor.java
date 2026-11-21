@@ -421,7 +421,8 @@ public class Extractor implements AutoCloseable {
         replaceParser(ocrConfig.getParserClass(), parser -> registered);
         // this is a hack: we are mapping TesseractOCRParser.class to Tess4jOCRParser instance
         for (OCRConfigRegistry c: OCRConfigRegistry.values()) {
-            replaceParser(c.buildAdapter().getParserClass(), parser -> registered);
+            final Class<? extends Parser> parserClass = c.buildAdapter().getParserClass();
+            replaceParser(parserClass, parser -> registered);
         }
         // Route images ImageIO can decode but Tesseract cannot OCR directly (e.g. JBIG2 scans)
         // through OCR by transcoding them to PNG. Removing the previous one keeps this idempotent across re-config.
