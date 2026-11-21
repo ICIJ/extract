@@ -34,6 +34,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.LinkedList;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 import static java.util.Optional.ofNullable;
@@ -101,6 +102,18 @@ public class EmbeddedDocumentExtractor {
         ContentHandler handler = discardingHandler();
 
         DigestEmbeddedDocumentExtractor extractor = new DigestAllEmbeddedDocumentExtractor(document, context, digester, algorithm, artifactPath);
+        context.set(org.apache.tika.extractor.EmbeddedDocumentExtractor.class, extractor);
+
+        try (InputStream in = Files.newInputStream(document.getPath())) {
+            parser.parse(in, handler, document.getMetadata(), context);
+        }
+    }
+
+    public void forEachEmbed(final TikaDocument document, final BiConsumer<String, Path> visitor) throws SAXException, TikaException, IOException {
+        ParseContext context = newParseContext();
+        ContentHandler handler = discardingHandler();
+
+        DigestEmbeddedDocumentExtractor extractor = new DigestVisitingEmbeddedDocumentExtractor(document, context, digester, algorithm, visitor);
         context.set(org.apache.tika.extractor.EmbeddedDocumentExtractor.class, extractor);
 
         try (InputStream in = Files.newInputStream(document.getPath())) {
@@ -370,6 +383,21 @@ public class EmbeddedDocumentExtractor {
         @Override
         protected boolean documentCallback(Metadata metadata, String digest, Path spooled) throws IOException {
             writeFile(metadata, digest, spooled);
+            return false;
+        }
+    }
+
+    static class DigestVisitingEmbeddedDocumentExtractor extends DigestEmbeddedDocumentExtractor {
+        private final BiConsumer<String, Path> visitor;
+
+        DigestVisitingEmbeddedDocumentExtractor(TikaDocument document, ParseContext context, DigestingParser.Digester digester, String algorithm, BiConsumer<String, Path> visitor) {
+            super(document, context, digester, algorithm, null);
+            this.visitor = visitor;
+        }
+
+        @Override
+        protected boolean documentCallback(Metadata metadata, String digest, Path spooled) {
+            visitor.accept(digest, spooled);
             return false;
         }
     }
